@@ -153,6 +153,97 @@ uv pip install -r requirements.txt
    - 输入 `print("Hello")`
    - 右上角点击运行按钮
 
+### 2.6 深入理解：系统 Python vs 虚拟环境
+
+#### 你当前的情况
+
+你在 VS Code 右下角看到的是 `Python 3.13.3 Homebrew`，这是**系统 Python**（通过 Homebrew 安装），不是虚拟环境中的 Python。
+
+#### 系统 Python vs 虚拟环境 Python
+
+| 对比项 | 系统 Python | 虚拟环境 Python |
+|-------|------------|----------------|
+| 位置 | `/opt/homebrew/bin/python3` 或 `/usr/local/bin/python3` | `项目目录/.venv/bin/python` |
+| 包安装位置 | 全局共享 | 项目独立 |
+| 依赖隔离 | ❌ 所有项目共享 | ✅ 每个项目独立 |
+| 适用场景 | 系统工具、简单脚本 | 项目开发 |
+
+#### 两种运行方式的区别
+
+**方式一：VS Code 运行按钮（当前状态）**
+
+```
+VS Code 使用系统 Python → 代码运行 ✅ → 包安装到全局
+```
+
+- 你没有创建虚拟环境，VS Code 使用系统 Python
+- 运行代码没问题（基础语法不需要第三方包）
+- 但 `pip install` 会安装到系统全局
+
+**方式二：激活虚拟环境后运行**
+
+```
+激活虚拟环境 → 使用 .venv 中的 Python → 包安装到项目目录
+```
+
+- 依赖隔离，不会污染系统环境
+- 不同项目可以使用不同版本的同一个包
+
+#### 虚拟环境激活的原理
+
+激活虚拟环境做了什么？
+
+```bash
+source .venv/bin/activate
+```
+
+这条命令本质上就是**修改 PATH 环境变量**：
+
+```bash
+# 激活前
+PATH=/opt/homebrew/bin:/usr/bin:/bin
+
+# 激活后（.venv 被放到最前面）
+PATH=/你的项目目录/.venv/bin:/opt/homebrew/bin:/usr/bin:/bin
+```
+
+当你输入 `python` 或 `pip` 时，系统会按 PATH 顺序查找，优先找到虚拟环境中的版本。
+
+#### 虚拟环境需要每次都激活吗？
+
+| 场景 | 是否需要激活 |
+|-----|------------|
+| 终端运行 `python xxx.py` | ✅ 需要先激活 |
+| 终端运行 `pip install` | ✅ 需要先激活 |
+| VS Code 运行按钮 | ❌ 不需要，但需要选择正确的解释器 |
+| VS Code 终端 | 可设置自动激活 |
+
+**VS Code 设置自动激活虚拟环境**
+
+1. 选择解释器：`Cmd + Shift + P` → `Python: Select Interpreter` → 选择 `.venv` 中的 Python
+2. VS Code 终端会自动激活该虚拟环境
+3. 运行按钮也会使用该解释器
+
+#### 验证当前使用的是哪个 Python
+
+在代码中运行：
+
+```python
+import sys
+print(sys.executable)
+```
+
+- 输出包含 `.venv` → 使用的是虚拟环境 ✅
+- 输出是 `/opt/homebrew/...` → 使用的是系统 Python
+
+#### 当前阶段的建议
+
+由于你刚开始学习，暂时不涉及复杂的第三方依赖：
+
+1. **现在**：可以继续用系统 Python 学习基础语法
+2. **安装第三方包时**：先创建虚拟环境，再安装
+3. **VS Code**：记得选择正确的解释器（创建虚拟环境后要切换）
+
 ---
 
 ## 3. 基础语法
@@ -646,3 +737,43 @@ else:
 age_str = input("请输入年龄：")
 age = int(age_str)  # 转换为整数
 ```
+
+### Q: .venv 文件夹需要提交到 Git 吗？
+
+**不需要！** 应该添加到 `.gitignore`。
+
+原因：
+- `.venv` 包含二进制文件和大量依赖包，体积大
+- 不同操作系统/机器需要重新创建虚拟环境
+- 依赖应该通过 `requirements.txt` 记录
+
+```bash
+# 导出依赖列表
+pip freeze > requirements.txt
+
+# 其他人克隆项目后
+pip install -r requirements.txt
+```
+
+### Q: 虚拟环境需要手动停止吗？会占用内存吗？
+
+**不需要手动停止，也不会占用内存。**
+
+- 虚拟环境只是磁盘上的一个文件夹
+- 激活只是修改了 PATH 环境变量（几个字符串）
+- 不运行任何后台进程，不占用额外内存
+- 关闭终端或执行 `deactivate` 就会退出
+
+```bash
+deactivate  # 退出虚拟环境（可选）
+```
+
+### Q: 激活虚拟环境后会影响其他命令吗？
+
+**不会。** 虚拟环境只影响 `python` 和 `pip` 命令。
+
+激活虚拟环境的本质是修改 PATH 环境变量，把 `.venv/bin` 放到最前面。当你输入 `python` 或 `pip` 时，系统优先找到虚拟环境中的版本。其他命令（如 `node`、`git`、`claude` 等）完全不受影响。
+
+### Q: 第一次用虚拟环境运行代码为什么很慢？
+
+第一次运行时，Python 会初始化 `__pycache__` 等缓存文件，后续运行会恢复正常速度。如果持续很慢，可能是 VS Code 在后台进行索引分析，等待片刻即可。
