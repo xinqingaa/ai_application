@@ -637,10 +637,11 @@ retriever = vectorstore.as_retriever(
 
 #### 知识点
 
-1. **多查询检索**
-   - 生成多个相关查询
-   - 合并检索结果
-   - 提高召回率
+1. **Query 变换策略** 📌
+   - **多查询生成**：LLM 生成多个相关查询，合并检索结果
+   - **HyDE**（Hypothetical Document Embeddings）：先生成假设性答案再检索
+   - **Query Decomposition**：复杂问题拆分为多个子问题
+   - **Step-back Prompting**：先问更宽泛的问题再精确检索
 
 2. **上下文压缩**
    - 压缩检索结果
@@ -669,6 +670,12 @@ multi_query_retriever = MultiQueryRetriever.from_llm(
     retriever=base_retriever,
     llm=llm
 )
+
+# 1.5 HyDE 检索
+# 用户问题 → LLM 生成假设性答案 → 用答案做 Embedding 检索
+# 原理：假设性答案和真实文档在向量空间中更接近
+hyde_prompt = "请回答以下问题（即使你不确定）：{question}"
+# 生成假设答案 → Embedding → 检索
 
 # 2. 上下文压缩
 compression_retriever = ContextualCompressionRetriever(
@@ -1143,6 +1150,92 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 # - 评估指标计算
 # - 报告生成
 # - 配置对比
+```
+
+---
+
+## 7.5、进阶 RAG 方向
+
+### 17.5 GraphRAG ⚡
+
+#### 知识点
+
+1. **什么是 GraphRAG**
+   - 微软提出的知识图谱 + RAG 方案
+   - 解决多跳推理问题（"A 公司 CEO 的母校是哪里？"）
+   - 构建实体关系图，辅助向量检索
+
+2. **与传统 RAG 的区别**
+
+| 维度 | 传统 RAG | GraphRAG |
+|------|---------|----------|
+| 数据结构 | 平铺文档块 | 实体-关系图 |
+| 检索方式 | 向量相似度 | 图遍历 + 向量 |
+| 多跳推理 | 弱 | 强 |
+| 构建成本 | 低 | 高 |
+
+3. **适用场景**
+   - 需要跨文档关联推理
+   - 实体关系复杂的领域（法律、医疗、金融）
+   - 知识图谱已有的场景
+
+#### 实践练习
+
+```python
+# 1. 理解 GraphRAG 架构
+# 画出 GraphRAG 的数据流：
+# 文档 → 实体提取 → 关系构建 → 知识图谱
+#                                    ↓
+# 用户问题 → 实体识别 → 图检索 + 向量检索 → 生成答案
+
+# 2. 场景判断
+# 以下场景适合传统 RAG 还是 GraphRAG？
+# - 单文档 FAQ 问答（传统 RAG）
+# - "某公司所有子公司的营收总和"（GraphRAG）
+# - 产品手册查询（传统 RAG）
+```
+
+---
+
+### 17.6 Agentic RAG 📌
+
+#### 知识点
+
+1. **什么是 Agentic RAG**
+   - 用 Agent 增强 RAG 流程
+   - Agent 动态决策：是否需要检索、检索结果是否足够、是否需要换策略
+
+2. **与传统 RAG 的区别**
+   - 传统 RAG：固定流程（检索 → 生成）
+   - Agentic RAG：动态流程（Agent 自主决定何时检索、如何检索）
+
+3. **典型流程**
+   ```
+   用户问题 → Agent 判断
+     ├── 直接回答（无需检索）
+     ├── 检索 → 评估结果
+     │     ├── 结果足够 → 生成答案
+     │     └── 结果不够 → 改写查询 → 重新检索
+     └── 拆分子问题 → 分别检索 → 合并答案
+   ```
+
+4. **实现方式**
+   - LangGraph 状态机实现
+   - 检索作为 Agent 的 Tool
+
+#### 实战案例
+
+```python
+# 1. 用 LangGraph 实现 Agentic RAG
+# 定义节点：判断节点、检索节点、评估节点、生成节点
+# 定义条件边：根据评估结果决定下一步
+
+# 2. 检索质量评估
+# Agent 判断检索结果是否回答了用户问题
+# 不够 → 自动改写查询重试
+
+# 3. 对比传统 RAG 和 Agentic RAG
+# 同一批测试问题，对比两种方式的答案质量
 ```
 
 ---

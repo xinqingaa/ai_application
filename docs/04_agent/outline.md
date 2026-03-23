@@ -290,6 +290,73 @@ response = client.messages.create(
 
 ---
 
+### 4.5 MCP（Model Context Protocol）📌
+
+#### 知识点
+
+1. **什么是 MCP**
+   - Anthropic 主导的标准化协议
+   - 定义 LLM 如何连接外部工具和数据源
+   - 类比：Function Calling 是"直接调函数"，MCP 是"REST API 标准"
+
+2. **与 Function Calling 的区别**
+
+| 维度 | Function Calling | MCP |
+|------|-----------------|-----|
+| 定义方 | 各模型厂商各自定义 | 统一标准协议 |
+| 工具发现 | 手动注册工具列表 | Server 自动暴露能力 |
+| 互操作性 | 低（各平台格式不同） | 高（标准化协议） |
+| 生态 | 需自行封装 | Cursor、Claude Desktop 等已原生支持 |
+| 适用场景 | 应用内部工具调用 | 跨应用/跨平台工具共享 |
+
+3. **核心架构**
+   ```
+   MCP Host（如 Cursor、Claude Desktop）
+     ├── MCP Client（协议客户端）
+     │     ├── MCP Server A（文件系统工具）
+     │     ├── MCP Server B（数据库工具）
+     │     └── MCP Server C（自定义 API 工具）
+     └── LLM（决策调用哪个 Server 的哪个工具）
+   ```
+
+4. **MCP Server 开发**
+   - 使用 Python SDK（`mcp` 库）
+   - 定义 Tools、Resources、Prompts
+   - 传输方式：stdio / SSE
+
+#### 实战案例
+
+```python
+# 1. 使用现有 MCP Server
+# 安装并配置一个社区 MCP Server（如文件系统、GitHub）
+# 在 Claude Desktop 或 Cursor 中体验
+
+# 2. 编写简单的 MCP Server
+from mcp.server import Server
+from mcp.types import Tool
+
+server = Server("my-tools")
+
+@server.tool()
+async def get_weather(city: str) -> str:
+    """获取城市天气"""
+    return f"{city}今天晴，25°C"
+
+@server.tool()
+async def calculate(expression: str) -> str:
+    """计算数学表达式"""
+    return str(eval(expression))
+
+# 3. 对比 Function Calling vs MCP
+# 同一个工具（天气查询），分别用两种方式实现
+# 体会开发体验和适用场景的差异
+
+# 4. MCP 与 LangChain 集成
+# 探索 LangChain 如何对接 MCP Server
+```
+
+---
+
 ### 综合案例：统一工具调用框架
 
 ```python
@@ -301,6 +368,7 @@ response = client.messages.create(
 # 3. 自动处理模型差异
 # 4. 完整的调用循环
 # 5. 错误处理和重试
+# 6. 可选：支持 MCP Server 作为工具来源
 #
 # 使用示例：
 # framework = UnifiedToolFramework(provider="openai")
@@ -578,6 +646,28 @@ result = app.invoke({"messages": [("user", "北京天气")]})
 # 5. 流式输出
 async for event in app.astream_events({"messages": [("user", "搜索新闻")]}, version="v2"):
     print(event)
+
+# 6. Human-in-the-loop（人机协作）📌
+# 在关键操作前暂停，等待人类确认
+from langgraph.types import interrupt
+
+def sensitive_action(state: MessagesState):
+    """执行敏感操作前，请求人类确认"""
+    approval = interrupt({
+        "action": "delete_file",
+        "message": "确认要删除文件吗？"
+    })
+    if approval == "yes":
+        # 执行操作
+        pass
+    else:
+        return {"messages": ["操作已取消"]}
+
+# 适用场景：
+# - 数据库写操作
+# - 文件删除
+# - 发送邮件/消息
+# - 任何不可逆操作
 ```
 
 ---
@@ -1248,7 +1338,7 @@ for state in app.get_state_history(config):
 
 ---
 
-### 17. Agent 可观测性
+### 17. Agent 可观测性与成本控制
 
 #### 知识点
 
@@ -1267,6 +1357,13 @@ for state in app.get_state_history(config):
    - LangSmith
    - Arize Phoenix
    - 自建监控
+
+4. **Agent 成本控制** 📌
+   - 迭代次数限制（max_iterations 防止无限循环）
+   - 模型降级策略（复杂推理用大模型，简单工具调用用小模型）
+   - 工具调用缓存（相同参数的工具调用缓存结果）
+   - Token 预算控制（设置单次执行的 Token 上限）
+   - 成本预警（超过阈值时中断或降级）
 
 #### 实战案例
 
@@ -1317,6 +1414,33 @@ def export_metrics(metrics_list):
 
 # 4. 集成 LangSmith
 # 查看追踪、Token 消耗、执行时间等
+
+# 5. Agent 成本控制实战
+class CostControlledAgent:
+    def __init__(self, max_iterations=10, token_budget=10000):
+        self.max_iterations = max_iterations
+        self.token_budget = token_budget
+        self.total_tokens = 0
+
+    def should_continue(self, state) -> bool:
+        """判断是否继续执行"""
+        if self.total_tokens >= self.token_budget:
+            return False  # 超预算，停止
+        return True
+
+    def select_model(self, task_type: str) -> str:
+        """根据任务类型选择模型（降级策略）"""
+        if task_type == "reasoning":
+            return "gpt-4o"
+        return "gpt-4o-mini"  # 简单任务用便宜模型
+
+# 6. 工具调用缓存
+from functools import lru_cache
+
+@lru_cache(maxsize=100)
+def cached_tool_call(tool_name: str, args_hash: str) -> str:
+    # 相同参数的工具调用直接返回缓存结果
+    pass
 ```
 
 ---
@@ -1449,6 +1573,8 @@ def export_metrics(metrics_list):
 - [LangChain Agents](https://python.langchain.com/docs/modules/agents/)
 - [LangGraph](https://langchain-ai.github.io/langgraph/)
 - [OpenAI Function Calling](https://platform.openai.com/docs/guides/function-calling)
+- [MCP 官方文档](https://modelcontextprotocol.io/)
+- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
 
 ### 教程
 - [Build an Agent](https://python.langchain.com/docs/tutorials/agents/)

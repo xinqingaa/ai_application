@@ -244,12 +244,26 @@
    - 局部变量 vs 全局变量
    - global 关键字（少用）
 
-4. **高阶函数** ⚡
+4. **生成器** 📌 🔗
+   - yield 关键字
+   - 生成器函数 vs 普通函数
+   - yield from（委托生成器）
+   - 异步生成器：`async def + yield`（预览）
+   - AI 应用场景：流式输出的基础
+
+5. **类型注解进阶** 📌 🔗
+   - `Optional`、`Union`（可选参数、联合类型）
+   - `Literal`（字面量类型，用于状态/模式限定）
+   - `TypedDict`（类型化字典，LangGraph 状态定义核心）
+   - `Annotated`（注解类型，Pydantic Field 的基础）
+   - AI 应用场景：Pydantic 模型、LangGraph State、Function Calling Schema
+
+6. **高阶函数** ⚡
    - 函数作为参数
    - lambda 表达式
    - map, filter, reduce
 
-5. **装饰器基础** ⚡
+7. **装饰器基础** ⚡
    - @decorator 语法
    - 简单装饰器实现
 
@@ -272,12 +286,25 @@
 # 编写函数 sum_all(*args) 计算所有参数的和
 # 编写函数 print_info(**kwargs) 打印所有键值对
 
-# 4. 高阶函数
+# 4. 生成器
+# 编写生成器函数 fibonacci(n)，逐个产出前 n 个斐波那契数
+# 编写生成器 read_lines(file_path)，逐行读取大文件
+# 模拟流式输出：编写生成器逐字产出一段文本，每次 yield 一个字符
+
+# 5. 类型注解进阶
+from typing import Optional, Literal, TypedDict
+from pydantic import BaseModel, Field
+
+# 编写函数 search(query: str, limit: Optional[int] = None) -> list[str]
+# 定义 TypedDict：ChatMessage，包含 role: Literal["user", "assistant", "system"] 和 content: str
+# 定义 Pydantic 模型：UserProfile，包含 name: str, age: int (0-150), email: Optional[str]
+
+# 6. 高阶函数
 # 使用 map 将列表 [1,2,3,4,5] 中每个元素平方
 # 使用 filter 筛选出 [1,2,3,4,5,6,7,8,9,10] 中的奇数
 # 使用 reduce 计算 1! + 2! + 3! + 4! + 5!
 
-# 5. 简单装饰器
+# 7. 简单装饰器
 # 编写计时装饰器，打印函数执行时间
 ```
 
@@ -307,7 +334,14 @@
    - super() 调用父类方法
    - 方法重写
 
-5. **特殊方法** ⚡
+5. **dataclass** 📌 🔗
+   - @dataclass 装饰器
+   - field() 默认值工厂
+   - 与普通 class 的区别
+   - 与 Pydantic BaseModel 的区别
+   - AI 应用场景：配置对象、指标收集、中间数据结构
+
+6. **特殊方法** ⚡
    - __str__, __repr__
    - __len__, __eq__
 
@@ -331,13 +365,19 @@
 # - 新增属性：thesis_title
 # - 重写 __str__ 方法
 
-# 4. 私有属性和 property
+# 4. dataclass
+from dataclasses import dataclass, field
+# 创建 ChatMessage dataclass：role, content, timestamp(默认当前时间)
+# 创建 LLMConfig dataclass：model, temperature=0.7, max_tokens=1000
+# 对比：用普通 class 和 dataclass 分别实现，体会差异
+
+# 5. 私有属性和 property
 # 创建 BankAccount 类：
 # - 私有属性 __balance
 # - property balance (只读)
 # - 方法 deposit(amount), withdraw(amount)
 
-# 5. 综合练习
+# 6. 综合练习
 # 实现一个简单的购物车系统：
 # - Product 类：name, price
 # - Cart 类：add_product(), remove_product(), get_total()
@@ -366,7 +406,18 @@
    - random
    - collections (Counter, defaultdict)
 
-4. **异常处理** 📌
+4. **环境变量与配置管理** 📌 🔗
+   - os.getenv() 读取环境变量
+   - python-dotenv：从 .env 文件加载配置
+   - .env 文件规范（不提交到 git）
+   - AI 应用场景：API Key 管理（OPENAI_API_KEY 等）
+
+5. **枚举 (Enum)** ⚡
+   - enum.Enum 基础
+   - str + Enum 组合（字符串枚举）
+   - AI 应用场景：状态定义、模型选择、任务类型
+
+6. **异常处理** 📌
    - try / except / finally
    - 常见异常类型
    - raise 抛出异常
@@ -389,13 +440,25 @@
 # - 计算两个日期相差多少天
 # - 格式化日期输出
 
-# 4. 异常处理
+# 4. 环境变量管理
+# - 创建 .env 文件，写入 API_KEY=test123 和 MODEL_NAME=gpt-4o-mini
+# - 使用 python-dotenv 加载并读取
+# - 编写 get_config() 函数，缺少必要配置时抛出异常
+# - 创建 .env.example 作为模板（不含真实密钥）
+
+# 5. 枚举
+from enum import Enum
+# 创建 TaskStatus 枚举：PENDING, IN_PROGRESS, COMPLETED, FAILED
+# 创建 ModelProvider 字符串枚举：OPENAI="openai", CLAUDE="claude", DEEPSEEK="deepseek"
+# 编写函数根据枚举值选择不同处理逻辑
+
+# 6. 异常处理
 # 编写安全除法函数 safe_divide(a, b)：
 # - 处理除零异常
 # - 处理类型异常
 # - 返回 None 或结果
 
-# 5. 自定义异常
+# 7. 自定义异常
 # 创建 AgeError 异常类
 # 编写函数 set_age(age)，年龄不在 0-150 时抛出异常
 ```
