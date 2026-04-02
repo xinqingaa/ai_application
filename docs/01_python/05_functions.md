@@ -491,6 +491,10 @@ for chunk in stream_chat_response("生成器是流式输出的基础。"):
 
 ### 5.5 yield from（委托生成器）
 
+`yield from` 是语法糖，让代码更简洁。
+
+**基础语法**
+
 ```python
 def gen_a():
     yield 1
@@ -500,33 +504,110 @@ def gen_b():
     yield 3
     yield 4
 
-# 手动合并
+# 方法 1：手动合并（需要写 for 循环）
 def combined_manual():
     for item in gen_a():
         yield item
     for item in gen_b():
         yield item
 
-# 使用 yield from 简化
+# 方法 2：使用 yield from 简化（推荐）
+# yield from gen_a() 等价于 for item in gen_a(): yield item
 def combined():
     yield from gen_a()
     yield from gen_b()
 
 list(combined())  # [1, 2, 3, 4]
+```
 
+**`yield from` 的执行流程（图解）**
 
-# 实际场景：分段处理文档
-def process_documents(file_paths: list[str]):
-    """逐个处理多个文件，流式产出结果"""
-    for path in file_paths:
-        yield from process_single_file(path)
+```
+调用 combined()
+    ↓
+执行 yield from gen_a()
+    ↓
+进入 gen_a()，开始迭代
+    ↓
+yield 1 ← 暂停，返回值 1 给 combined() 的调用者
+    ↓ (调用者请求下一个值)
+继续 gen_a()
+    ↓
+yield 2 ← 暂停，返回值 2 给 combined() 的调用者
+    ↓ (调用者请求下一个值)
+gen_a() 耗尽，返回到 combined()
+    ↓
+执行 yield from gen_b()
+    ↓
+进入 gen_b()，开始迭代
+    ↓
+yield 3 ← 暂停，返回值 3
+    ↓ (调用者请求下一个值)
+yield 4 ← 暂停，返回值 4
+    ↓ (调用者请求下一个值)
+gen_b() 耗尽，返回到 combined()
+    ↓
+combined() 结束
+```
 
-def process_single_file(path: str):
-    """处理单个文件的每一行"""
-    with open(path) as f:
+**实际场景一：模拟 LLM 多段流式输出**
+
+```python
+# 模拟 LLM API 返回多个 chunk
+def stream_chunk_1():
+    """第一段：问候语"""
+    for char in "你好，":
+        yield char
+
+def stream_chunk_2():
+    """第二段：正文"""
+    for char in "我是 AI 助手。":
+        yield char
+
+def stream_chunk_3():
+    """第三段：结束语"""
+    for char in "有什么可以帮你的吗？":
+        yield char
+
+# 用 yield from 合并多个流
+def full_stream():
+    yield from stream_chunk_1()
+    yield from stream_chunk_2()
+    yield from stream_chunk_3()
+
+# 使用
+for char in full_stream():
+    print(char, end="", flush=True)
+# 输出：你好，我是 AI 助手。有什么可以帮你的吗？
+```
+
+**实际场景二：分段读取文件（无需一次性加载到内存）**
+
+```python
+import os
+
+def read_file_lines(file_path: str):
+    """读取单个文件的每一行"""
+    with open(file_path) as f:
         for line in f:
             yield line.strip()
+
+def read_multiple_files(file_paths: list[str]):
+    """读取多个文件，流式产出所有行"""
+    for path in file_paths:
+        yield from read_file_lines(path)
+
+# 使用
+files = ["file1.txt", "file2.txt"]
+for line in read_multiple_files(files):
+    print(line)  # 逐行输出两个文件的所有内容
 ```
+
+> **为什么 `yield from` 重要？**
+> - 代码更简洁（少写 for 循环）
+> - 性能更好（避免中间列表）
+> - 语义更清晰（"委托"给另一个生成器）
+> - AI 应用场景：合并多个 LLM 流、分段处理文档、链式工具调用
 
 ### 5.6 异步生成器（预览）
 
