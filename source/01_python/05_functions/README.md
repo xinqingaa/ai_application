@@ -115,10 +115,17 @@ def calculate_bmi(weight: float, height: float) -> float:
     return weight / (height ** 2)
 
 print(calculate_bmi(70, 1.75))
+```
 
-# 查看文档
-help(calculate_bmi)
-print(calculate_bmi.__doc__)
+> **交互提示**：运行 `help(calculate_bmi)` 时会进入**分页器**，底部显示 `(press h for help or q to quit)`，按 `q` 退出。按 `q` 后代码会继续执行 `print(calculate_bmi.__doc__)`。
+
+如果想直接跳过交互，用 `print(calculate_bmi.__doc__)` 代替 `help()`。
+
+也可以在终端直接查询（不需要写代码文件）：
+
+```bash
+python3 -c "help(list.append)"
+python3 -c "print(list.__doc__)"
 ```
 
 4. 读到 **第 3 章 参数类型**，从 3.1 开始，继续往下加：
@@ -171,39 +178,79 @@ print(add_item("a"))  # ["a"]
 print(add_item("b"))  # ["b"] ← 正确
 ```
 
-6. 读到 **3.3 \*args 和 \*\*kwargs**：
+6. 读到 **3.3 \*args 和 \*\*kwargs**，这是本节重点，参数分配规则要理解清楚：
 
 ```python
 # ========================================
 # 3.3 *args 和 **kwargs
 # ========================================
 
-# *args：任意数量位置参数
+# *args：任意数量位置参数（不带名字的参数）
 def sum_all(*args: float) -> float:
+    print(f"args 类型: {type(args)}")  # tuple
+    print(f"args 内容: {args}")
     return sum(args)
 
 print(sum_all(1, 2, 3))        # 6
 print(sum_all(1, 2, 3, 4, 5))  # 15
 
 
-# **kwargs：任意数量关键字参数
+# **kwargs：任意数量关键字参数（带名字的参数）
 def print_info(**kwargs: str) -> None:
+    print(f"kwargs 类型: {type(kwargs)}")  # dict
+    print(f"kwargs 内容: {kwargs}")
     for key, value in kwargs.items():
-        print(f"{key}: {value}")
+        print(f"  {key}: {value}")
 
 print_info(name="张三", age="25", city="北京")
 
 
-# 组合使用
+# 组合使用：完整演示参数分配规则
 def api_call(endpoint: str, *path_parts: str, **params: str) -> str:
+    # endpoint: 第一个具名参数
+    # path_parts: 剩余位置参数（不带名字）→ 元组
+    # params: 剩余关键字参数（带名字）→ 字典
+    print(f"endpoint = {endpoint}")
+    print(f"path_parts = {path_parts}  (类型: {type(path_parts)})")
+    print(f"params = {params}  (类型: {type(params)})")
     path = "/".join(path_parts)
     query = "&".join(f"{k}={v}" for k, v in params.items())
     return f"{endpoint}/{path}?{query}"
 
-print(api_call("https://api.example.com", "v1", "users", limit="10", offset="0"))
+# 调用时传入 5 个参数，但 endpoint 只有 1 个
+# Python 分配规则：
+#   1. "https://api.example.com" → endpoint
+#   2. "v1", "users" → *path_parts（位置参数）
+#   3. limit="10", offset="0", userId="20" → **params（关键字参数）
+print(api_call(
+    "https://api.example.com",  # → endpoint
+    "v1",                        # → *path_parts
+    "users",                     # → *path_parts
+    limit="10",                  # → **params
+    offset="0",                  # → **params
+    userId="20"                  # → **params
+))
 ```
 
-7. 读到 **3.4 仅位置参数和仅关键字参数**：
+**参数分配过程的可视化**：
+
+```
+传入的参数：
+  "https://api.example.com" (位置) ──→ endpoint（匹配具名参数）
+  "v1"                        (位置) ──→ *path_parts（不带名字的位置参数）
+  "users"                     (位置) ──→ *path_parts
+  limit="10"                  (关键字) ──→ **params（带名字的关键字参数）
+  offset="0"                  (关键字) ──→ **params
+  userId="20"                 (关键字) ──→ **params
+
+最终结果：
+  endpoint = "https://api.example.com"
+  path_parts = ('v1', 'users')
+  params = {'limit': '10', 'offset': '0', 'userId': '20'}
+  返回: "https://api.example.com/v1/users?limit=10&offset=0&userId=20"
+```
+
+7. 读到 **3.4 仅位置参数和仅关键字参数**，了解即可：
 
 ```python
 # ========================================
@@ -849,5 +896,6 @@ python source/01_python/05_functions/higher_order.py
 
 - **6.4 节 Pydantic 示例**需要安装 pydantic，如果没有安装，代码中已用 `try/except` 包裹，不会报错
 - **5.6 节异步生成器**是预览内容，`asyncio.run()` 已注释掉，后续异步章节会深入学习
+- **2.3 节 help() 分页器**：运行 `help(calculate_bmi)` 后会进入分页器，按 `q` 退出。也可以直接用 `print(calculate_bmi.__doc__)` 跳过交互
 - **3.2 节可变默认参数**是个常见坑，一定要运行看看错误示范的输出
 - **8.3 节 functools.wraps** 对比了用和不用 wraps 的区别，一定要运行看输出差异

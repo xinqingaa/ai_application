@@ -895,7 +895,168 @@ user_messages = [m["content"] for m in messages if m["role"] == "user"]
 
 ---
 
-## 7. 练习题
+## 7. 字面量与构造函数 📌
+
+### 7.1 概念区分
+
+**字面量**是代码中直接写死的固定值，**构造函数**是用来从其他数据创建/转换数据的。
+
+```python
+# 字面量 —— 直接写值，代码里写死的数据
+numbers = [1, 2, 3]
+person = {"name": "张三"}
+unique = {1, 2, 3}
+point = (10, 20)
+
+# 构造函数 —— 从其他数据转换得到
+chars = list("hello")           # str → list
+unique = set([1, 2, 2, 3])      # list → set（去重）
+pairs = dict([("a", 1), ("b", 2)])  # list of tuples → dict
+```
+
+### 7.2 各类型的字面量 vs 构造函数
+
+| 类型 | 字面量 | 构造函数 | 常见用法 |
+|------|--------|----------|---------|
+| 列表 | `[1, 2, 3]` | `list("hello")` → `['h', 'e', 'l', 'l', 'o']` | 从字符串/元组转列表 |
+| 字典 | `{"a": 1}` | `dict([("a", 1)])` / `dict(name="张三")` | 从键值对列表/kwargs创建 |
+| 集合 | `{1, 2}` | `set([1, 2, 2])` → `{1, 2}` | 从列表去重 |
+| 元组 | `(1, 2, 3)` | `tuple([1, 2])` → `(1, 2)` | 从列表转元组 |
+
+### 7.3 一个易错点：空集合
+
+```python
+# ❌ {} 是空字典，不是空集合！
+empty_dict = {}
+
+# ✅ 创建空集合必须用构造函数
+empty_set = set()
+
+# ✅ 验证
+type({})    # <class 'dict'>
+type(set()) # <class 'set'>
+```
+
+### 7.4 泛型语法（类型注解）
+
+```python
+# list[int] 是类型注解，不是数据！
+# 表示"整数列表的类型"，给类型检查器看，运行时没意义
+
+scores: list[int] = [90, 85, 78]   # 类型注解
+scores = list[int]([90, 85, 78])  # 运行时创建列表（不常用）
+
+# 运行时创建列表只有两种方式
+scores = [90, 85, 78]             # 字面量（常用）
+scores = list([90, 85, 78])       # 构造函数（通常用来转换）
+```
+
+---
+
+## 8. 数据结构相互转换 📌
+
+### 8.1 基础转换一览
+
+```python
+# 列表 ↔ 元组（互转）
+tuple([1, 2, 3])    # [1, 2, 3] → (1, 2, 3)
+list((1, 2, 3))     # (1, 2, 3) → [1, 2, 3]
+
+# 列表 → 集合（去重）
+set([1, 2, 2, 3])   # {1, 2, 3}
+
+# 列表 → 字典（用 zip 组合键值）
+keys = ["a", "b", "c"]
+values = [1, 2, 3]
+dict(zip(keys, values))  # {"a": 1, "b": 2, "c": 3}
+
+# 字符串 → 列表/集合（逐字符拆分）
+list("hello")  # ['h', 'e', 'l', 'l', 'o']
+set("hello")   # {'h', 'e', 'l', 'o'}
+
+# 字典 → 列表（键、值、键值对）
+d = {"a": 1, "b": 2}
+list(d.keys())        # ["a", "b"]
+list(d.values())      # [1, 2]
+list(d.items())       # [("a", 1), ("b", 2)]
+```
+
+### 8.2 实用场景一：API 响应去重（高频）
+
+```python
+# LLM 返回的工具列表可能有重复
+tools = ["search", "calculator", "search", "weather"]
+
+# 用集合快速去重
+unique_tools = set(tools)   # {"search", "calculator", "weather"}
+
+# 快速判断工具是否存在
+if "search" in unique_tools:
+    print("search 工具可用")
+
+# 需要保持顺序时
+unique_ordered = list(dict.fromkeys(tools))  # ["search", "calculator", "weather"]
+```
+
+### 8.3 实用场景二：保护数据不被修改
+
+```python
+# 函数返回多个值天然是元组
+def get_user_stats():
+    return ("张三", [85, 90, 78])
+
+name, scores = get_user_stats()    # 解包
+
+# 如果不希望 scores 被修改，转为元组
+frozen_scores = tuple(scores)      # (85, 90, 78)
+# frozen_scores[0] = 99  # TypeError: 'tuple' object does not support item assignment
+```
+
+### 8.4 实用场景三：字典键值对排序
+
+```python
+# 把字典转为 (key, value) 元组列表
+config = {"model": "gpt-4o-mini", "temperature": 0.7, "max_tokens": 1000}
+
+# 按键排序
+items = list(config.items())
+items.sort(key=lambda x: x[0])
+print(items)
+# [('max_tokens', 1000), ('model', 'gpt-4o-mini'), ('temperature', 0.7)]
+
+# 按值排序
+items_by_value = sorted(config.items(), key=lambda x: x[1])
+print(items_by_value)
+# [('max_tokens', 1000), ('temperature', 0.7), ('model', 'gpt-4o-mini')]
+```
+
+### 8.5 实用场景四：合并两个列表为字典
+
+```python
+names = ["Alice", "Bob", "Charlie"]
+ages = [25, 30, 28]
+
+# 方法1：用 zip
+user_dict = dict(zip(names, ages))
+# {"Alice": 25, "Bob": 30, "Charlie": 28}
+
+# 方法2：用字典推导式
+user_dict = {name: age for name, age in zip(names, ages)}
+```
+
+### 8.6 转换频率参考
+
+| 转换 | 频率 | 典型场景 |
+|------|------|---------|
+| `tuple(list)` / `list(tuple)` | 高 | 数据结构适配、函数参数转换 |
+| `set(list)` | 高 | API 响应去重、数据清洗 |
+| `list(dict.keys())` / `.values()` / `.items()` | 高 | 遍历字典、字典排序 |
+| `dict(zip(keys, values))` | 高 | 合并两个列表为字典 |
+| `dict.fromkeys(list)` 保序去重 | 中 | 快速去重且保持原始顺序 |
+
+---
+
+## 9. 练习题
 
 请在 `source/01_python/02_data_structures/exercises.py` 中完成以下练习：
 
@@ -979,7 +1140,7 @@ data = {
 
 ---
 
-## 8. 小结
+## 10. 小结
 
 ### 本节要点
 
@@ -1024,7 +1185,7 @@ data = {
 
 ---
 
-## 9. 常见问题
+## 11. 常见问题
 
 ### Q: 列表和元组该选哪个？
 
@@ -1101,3 +1262,36 @@ isinstance([1, 2, 3], list)      # True
 isinstance({"a": 1}, dict)       # True
 isinstance((1, 2), (list, tuple))  # True（可以是其中之一）
 ```
+
+### Q: 为什么元组能作为字典键，而列表不能？
+
+因为字典键必须是**可哈希**（hashable）的。可哈希意味着对象的值在创建后不会改变，这样它才能有一个稳定的哈希值来快速查找。
+
+- **列表**：可变（可以 append、pop 等），值可能变化，所以不可哈希 ❌
+- **元组**：不可变，创建后值固定，所以可哈希 ✅
+
+```python
+# 元组可以作为字典键
+d = {(0, 0): "原点", (1, 0): "东"}
+d[(0, 0)]  # "原点"
+
+# 列表不能作为字典键
+# d[[0, 0]] = "原点"  # TypeError: unhashable type: 'list'
+```
+
+> 这和第 8 节"数据结构相互转换"相关：虽然列表和元组可以相互转换，但**可哈希性**是它们的关键差异之一。
+
+### Q: `list()` 和 `list[1, 2, 3]` 有什么区别？
+
+- `list()` 是**空列表**（调用无参构造函数）
+- `list[1, 2, 3]` 是**语法错误**（Python 不允许这样写）
+
+注意区分：
+```python
+list()           # []（空列表）
+list([1, 2, 3])  # [1, 2, 3]（从列表创建列表，实际就是拷贝）
+list("abc")      # ['a', 'b', 'c']（从字符串转换）
+list[1, 2, 3]    # ❌ 语法错误
+list[int]        # ✅ 类型注解（泛型语法）
+```
+

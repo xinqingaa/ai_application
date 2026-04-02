@@ -86,16 +86,63 @@ def calculate_bmi(weight: float, height: float) -> float:
     if weight <= 0 or height <= 0:
         raise ValueError("体重和身高必须为正数")
     return weight / (height ** 2)
-
-
-# 查看文档
-help(calculate_bmi)
-print(calculate_bmi.__doc__)
 ```
+
+### 2.3 查看文档：`help()` 和 `__doc__`
+
+Python 提供了两种方式查看函数（或其他对象）的文档：
+
+```python
+# 在代码中直接使用
+help(calculate_bmi)            # 输出：格式化后的完整帮助文档
+print(calculate_bmi.__doc__)  # 输出：原始文档字符串
+
+# 也可以在终端直接查询（不用写代码文件）
+python3 -c "help(list.append)"
+python3 -c "print(list.__doc__)"
+```
+
+**两者的区别**
+
+| | `help()` | `__doc__` |
+|--|---------|-----------|
+| 输出 | 格式化后的完整帮助文档 | 原始文档字符串 |
+| 能查什么 | 函数、类、模块、变量都行 | 任何有 `__doc__` 属性的对象 |
+| 实际用途 | 交互式探索 API | 代码中读取文档（如自动生成文档） |
+
+**进入交互式解释器查看**
+
+在终端输入 `python3` 进入交互模式：
+
+```bash
+$ python3
+Python 3.13.3 (main, ...)
+[GCC ...] on darwin
+Type "help", "copyright", "credits" or "license" for more information.
+>>> def calculate_bmi(weight: float, height: float) -> float:
+...     """计算 BMI 指数。"""
+...     return weight / (height ** 2)
+...
+>>> help(calculate_bmi)
+Help on function calculate_bmi in module __main__:
+
+calculate_bmi(weight: float, height: float) -> float
+    计算 BMI 指数。
+
+>>> print(calculate_bmi.__doc__)
+计算 BMI 指数。
+>>> exit()
+```
+
+**AI 应用开发中的实际用途**
+
+- 调试时快速查某个函数怎么用：`help(requests.get)`
+- `__doc__` 用于构建 Prompt 模板（动态注入文档）
+- 养成写 docstring 的习惯，AI 工具（如 Cursor）能识别并给出更好的代码补全
 
 > **AI 应用关联**：LangChain 的 `@tool` 装饰器会读取 docstring 作为工具描述传递给 LLM，描述质量直接影响 LLM 能否正确选择和调用工具。
 
-### 2.3 与 JavaScript 对比
+### 2.4 与 JavaScript 对比
 
 | 概念 | JavaScript | Python |
 |-----|-----------|--------|
@@ -166,44 +213,107 @@ def add_item(item: str, items: list | None = None) -> list:
 
 ### 3.3 *args 和 **kwargs
 
+`*args` 和 `**kwargs` 是 Python 用来**接收任意数量参数**的语法。
+
+**关键理解**：区分的不是"数据类型"，而是**传参方式**。
+
+| 语法 | 收集什么 | 传参时的样子 |
+|------|---------|------------|
+| `*args` | **位置参数**（不带名字的参数） | `func(1, 2, 3)` → args = `(1, 2, 3)` |
+| `**kwargs` | **关键字参数**（带名字的参数） | `func(a=1, b=2)` → kwargs = `{"a": 1, "b": 2}` |
+
+#### *args：接收任意数量的位置参数
+
 ```python
-# *args：接收任意数量的位置参数（打包成元组）
 def sum_all(*args: float) -> float:
+    """args 是一个元组"""
+    print(type(args))  # <class 'tuple'>
+    print(args)        # (1, 2, 3)
     return sum(args)
 
 sum_all(1, 2, 3)       # 6
 sum_all(1, 2, 3, 4, 5) # 15
+```
 
+#### **kwargs：接收任意数量的关键字参数
 
-# **kwargs：接收任意数量的关键字参数（打包成字典）
+```python
 def print_info(**kwargs: str) -> None:
+    """kwargs 是一个字典"""
+    print(type(kwargs))  # <class 'dict'>
+    print(kwargs)        # {'name': '张三', 'age': '25'}
     for key, value in kwargs.items():
         print(f"{key}: {value}")
 
 print_info(name="张三", age="25", city="北京")
+```
 
+#### 组合使用：完整图解
 
-# 组合使用
+这是你选中的代码，逐参数拆解：
+
+```python
 def api_call(endpoint: str, *path_parts: str, **params: str) -> str:
+    print(path_parts)  # ('v1', 'users')
+    print(params)       # {'limit': '10', 'offset': '0', 'userId': '20'}
     path = "/".join(path_parts)
     query = "&".join(f"{k}={v}" for k, v in params.items())
     return f"{endpoint}/{path}?{query}"
-
-api_call("https://api.example.com", "v1", "users", limit="10", offset="0")
-# "https://api.example.com/v1/users?limit=10&offset=0"
 ```
 
-> **AI 应用场景**：很多 LLM SDK 的方法都用 `**kwargs` 传递可选参数：
-> ```python
-> # OpenAI SDK 内部大量使用 **kwargs
-> response = client.chat.completions.create(
->     model="gpt-4o-mini",
->     messages=[...],
->     temperature=0.7,      # 这些都是 **kwargs
->     max_tokens=1000,
->     stream=True,
-> )
-> ```
+调用：
+
+```python
+api_call(
+    "https://api.example.com",  # 位置参数 → endpoint
+    "v1",                        # 位置参数 → *path_parts
+    "users",                     # 位置参数 → *path_parts
+    limit="10",                  # 关键字参数 → **params
+    offset="0",                  # 关键字参数 → **params
+    userId="20"                  # 关键字参数 → **params
+)
+```
+
+**Python 的分配规则**：
+
+1. 先按名字匹配**具名参数**（`endpoint`）
+2. 剩下的**不带名字的参数**全部归 `*path_parts`
+3. 剩下的**带名字的参数**全部归 `**params`
+
+```
+传入的参数：
+  "https://api.example.com" (位置) → endpoint
+  "v1" (位置) → *path_parts
+  "users" (位置) → *path_parts
+  limit="10" (关键字) → **params
+  offset="0" (关键字) → **params
+  userId="20" (关键字) → **params
+```
+
+所以 `endpoint="https://api.example.com"`，`path_parts=("v1", "users")`，`params={"limit": "10", "offset": "0", "userId": "20"}`，最终返回：
+
+```
+https://api.example.com/v1/users?limit=10&offset=0&userId=20
+```
+
+> **注意**：类型注解 `*args: str` 只是提示，不强制限制。`"v1"` 是字符串所以没问题，但如果传 `1`（整数），Python 不会报错，只是类型检查器会提示。
+
+#### AI 应用场景
+
+很多 LLM SDK 的方法都用 `**kwargs` 传递可选参数：
+
+```python
+# OpenAI SDK 内部大量使用 **kwargs
+response = client.chat.completions.create(
+    model="gpt-4o-mini",      # 具名参数
+    messages=[...],            # 具名参数
+    temperature=0.7,           # → **params
+    max_tokens=1000,           # → **params
+    stream=True,               # → **params
+)
+```
+
+> 理解了这个，你再看 SDK 源码就明白：那些不在函数签名里显式列出来的参数，都是通过 `**kwargs` 接收的。
 
 ### 3.4 仅位置参数和仅关键字参数
 
