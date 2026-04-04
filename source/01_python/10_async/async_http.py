@@ -19,6 +19,16 @@ async def demo_basic():
     print("📥 AsyncClient 基础")
     print("=" * 50)
 
+    # async with 是异步版 with：
+    # 1. 进入代码块前创建并打开 AsyncClient
+    # 2. as client 把对象绑定给变量 client
+    # 3. 代码块结束后自动 await client.aclose()
+    # 所以它本质上很像：
+    # client = httpx.AsyncClient(...)
+    # try:
+    #     ...
+    # finally:
+    #     await client.aclose()
     async with httpx.AsyncClient(timeout=10.0) as client:
         # GET
         response = await client.get("https://httpbin.org/get", params={"hello": "async"})
@@ -49,6 +59,11 @@ async def demo_concurrent_requests():
     urls = [f"https://httpbin.org/get?id={i}" for i in range(5)]
 
     async with httpx.AsyncClient(timeout=10.0) as client:
+        # async with 负责管理 client 的生命周期
+        # asyncio.gather 负责并发执行任务
+        # 这两个是两件不同的事：
+        # - async with：资源打开 / 关闭
+        # - gather：并发调度
         start = time.time()
         tasks = [client.get(url) for url in urls]
         responses = await asyncio.gather(*tasks)
@@ -104,6 +119,8 @@ async def demo_semaphore():
     semaphore = asyncio.Semaphore(2)  # 最多同时 2 个请求
 
     async def fetch_with_limit(client: httpx.AsyncClient, url: str, idx: int):
+        # Semaphore 也支持 async with：
+        # 进入代码块时获取一个名额，退出时自动归还名额
         async with semaphore:
             print(f"  [{idx}] 开始请求...")
             response = await client.get(url, timeout=10.0)

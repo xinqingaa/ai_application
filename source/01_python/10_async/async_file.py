@@ -56,6 +56,8 @@ async def demo_basic_rw():
     filepath = os.path.join(DEMO_DIR, "hello.txt")
 
     # 写入
+    # async with 是异步版 with：
+    # 代码块结束后会自动关闭文件
     async with aiofiles.open(filepath, "w", encoding="utf-8") as f:
         await f.write("Hello, 异步文件操作！\n")
         await f.write("这是第二行\n")
@@ -71,6 +73,8 @@ async def demo_basic_rw():
     print("  逐行读取:")
     async with aiofiles.open(filepath, "r", encoding="utf-8") as f:
         line_num = 0
+        # async for 是异步版 for：
+        # 每次循环都会等待下一行准备好
         async for line in f:
             line_num += 1
             print(f"    行 {line_num}: {line.strip()}")

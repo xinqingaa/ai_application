@@ -264,6 +264,7 @@ def demo_simulate_llm_api():
             "Content-Type": "application/json",
         },
         timeout=60.0,
+        debug=True
     )
 
     # 构造类似 OpenAI 的请求

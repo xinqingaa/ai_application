@@ -142,7 +142,9 @@ python async_concurrency.py
 ### 操作流程
 
 1. 读文档 5.1 节「基础用法」，理解 `httpx.AsyncClient` 的用法：
-   - `async with httpx.AsyncClient() as client:` 确保正确关闭
+   - `async with httpx.AsyncClient() as client:` 是异步版上下文管理器
+   - `as client` 的意思是把客户端对象绑定给变量 `client`
+   - 代码块结束后会自动执行异步清理，相当于 `try/finally + await client.aclose()`
    - `await client.get(url)` 异步请求
 
 2. 看 `async_http.py` 中的串行 vs 并发对比——5 个请求：
@@ -176,7 +178,10 @@ python async_http.py
 
 1. 读文档 6.1-6.2 节，理解 aiofiles 的用法
 
-2. 打开 `async_file.py`，对比同步 open() 和异步 aiofiles.open() 的区别
+2. 打开 `async_file.py`，对比同步 open() 和异步 aiofiles.open() 的区别：
+   - `with open(...) as f:` 是同步版资源管理
+   - `async with aiofiles.open(...) as f:` 是异步版资源管理
+   - `async for line in f:` 是异步版逐行迭代
 
 3. 理解什么时候用 aiofiles：
 

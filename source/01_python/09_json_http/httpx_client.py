@@ -21,6 +21,7 @@ def demo_sync_get():
     response = httpx.get("https://httpbin.org/get", timeout=10.0)
 
     print(f"  状态码: {response.status_code}")
+    print(f"  耗时: {response.elapsed.total_seconds():.2f}s")
     print(f"  HTTP 版本: {response.http_version}")
 
     data = response.json()

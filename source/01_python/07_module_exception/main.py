@@ -10,6 +10,7 @@
 # 运行方式：在 07_module_exception/ 目录下执行
 #   python main.py
 
+# 换行使用 括号
 from config import (
     AppError,
     ConfigError,

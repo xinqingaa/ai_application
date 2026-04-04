@@ -271,6 +271,17 @@ file.close()
 # 3.2 with 语句（推荐方式）
 # ========================================
 
+# 语法：
+# with open(...) as file:
+#     使用 file
+#
+# 你可以先把它理解成：
+# file = open(...)
+# try:
+#     ...
+# finally:
+#     file.close()
+
 base = "source/01_python/03_string_file/data"
 
 # with 自动关闭文件
@@ -293,7 +304,21 @@ with open(f"{base}/example.txt", "r", encoding="utf-8") as file:
 with open(f"{base}/output.txt", "w", encoding="utf-8") as file:
     file.write("用 with 写入\n")
     file.write("第二行")
+
+# 和 with 等价的手写版：自己负责 close()
+file = open(f"{base}/example.txt", "r", encoding="utf-8")
+try:
+    print("try/finally 读取:")
+    print(file.read())
+finally:
+    file.close()
 ```
+
+这一节要重点记：
+
+- `with ... as file:` 里的 `as file`，就是把资源绑定给变量 `file`
+- `with` 最核心的价值不是“少写一行代码”，而是“自动做清理”
+- 文件只是最常见例子，后面你还会遇到 `async with httpx.AsyncClient() as client`
 
 6. 读到 **3.3 节文件指针**：
 

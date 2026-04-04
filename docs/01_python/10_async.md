@@ -372,7 +372,58 @@ async def main():
 asyncio.run(main())
 ```
 
-> **`async with`** 确保 client 被正确关闭（类比 JS 中没有直接对应，但类似 `try/finally` 中关闭资源）。
+`async with` 是 **异步版的上下文管理器**。
+
+如果你已经学过第 3 章的 `with open(...) as file:`，可以直接这样类比：
+
+- `with`：进入代码块前打开普通资源，退出时自动清理
+- `async with`：进入代码块前打开**异步资源**，退出时用 `await` 自动清理
+
+先看语法骨架：
+
+```python
+async with 表达式 as 变量:
+    代码块
+```
+
+放到 `httpx` 里就是：
+
+```python
+async with httpx.AsyncClient() as client:
+    response = await client.get("https://httpbin.org/get")
+```
+
+你可以先这样理解：
+
+- `httpx.AsyncClient()`：创建异步 HTTP 客户端
+- `as client`：把客户端对象绑定给变量 `client`
+- 缩进代码块：在客户端可用期间发送请求
+- 代码块结束后：自动关闭客户端和连接池
+
+它本质上很像下面这段手写版：
+
+```python
+client = httpx.AsyncClient()
+try:
+    response = await client.get("https://httpbin.org/get")
+finally:
+    await client.aclose()
+```
+
+也就是说，`async with` 可以先理解成：
+
+- 异步版的 `try/finally`
+- 重点是自动资源清理
+- 和 `asyncio.gather()` 的“并发”不是一回事
+
+更底层一点说：
+
+- `with` 背后依赖 `__enter__()` / `__exit__()`
+- `async with` 背后依赖 `__aenter__()` / `__aexit__()`
+
+> **为什么这里必须写 `async with`，不能写普通 `with`？**
+>
+> 因为 `AsyncClient` 的关闭动作本身是异步的，需要 `await client.aclose()`。普通 `with` 处理不了这种异步清理逻辑。
 
 ### 5.2 并发请求多个 URL
 
@@ -503,6 +554,20 @@ async def main():
 
 asyncio.run(main())
 ```
+
+这里顺便注意两种异步语法：
+
+- `async with aiofiles.open(...) as f`
+  异步版资源管理，代码块结束后自动关闭文件
+- `async for line in f`
+  异步版 `for`，逐个等待异步迭代结果
+
+可以先把它们类比成：
+
+- `with` -> `async with`
+- `for` -> `async for`
+
+只是后者都是给“异步对象”用的。
 
 ### 6.3 什么时候用 aiofiles
 

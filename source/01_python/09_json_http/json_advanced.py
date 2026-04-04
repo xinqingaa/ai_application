@@ -59,7 +59,7 @@ USERS_DATA = {
     ]
 }
 
-
+#  安全取值方式：封装工具函数
 def get_nested(data, *keys, default=None):
     """安全获取嵌套字典/列表中的值"""
     current = data
@@ -83,7 +83,7 @@ def demo_nested_access():
 
     resp = MOCK_API_RESPONSE
 
-    # 直接访问
+    # 直接访问 不够安全
     content = resp["choices"][0]["message"]["content"]
     print(f"  回复内容: {content}")
     print(f"  Token 消耗: {resp['usage']['total_tokens']}")

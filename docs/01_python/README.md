@@ -9,6 +9,7 @@
 - [ ] 基础语法（变量、数据类型、控制流）
 - [ ] 函数与类
 - [ ] 异步编程（async/await）
+- [ ] 上下文管理器（with / async with）
 - [ ] 文件与 JSON 处理
 - [ ] HTTP 请求（requests / httpx）
 - [ ] FastAPI 基础

@@ -326,6 +326,40 @@ file.close()
 
 使用 `with` 语句可以自动管理文件关闭，**强烈推荐**。
 
+先看语法骨架：
+
+```python
+with 表达式 as 变量:
+    代码块
+```
+
+放到文件里就是：
+
+```python
+with open("example.txt", "r", encoding="utf-8") as file:
+    content = file.read()
+```
+
+你可以先这样理解这 3 个部分：
+
+- `open("example.txt", "r", encoding="utf-8")`：打开文件
+- `as file`：把打开后的文件对象绑定给变量 `file`
+- 缩进代码块：在这个资源的有效期内使用它
+
+代码块结束后，Python 会自动帮你清理资源。对文件来说，就是自动执行 `close()`。
+
+所以 `with` 本质上很像：
+
+```python
+file = open("example.txt", "r", encoding="utf-8")
+try:
+    content = file.read()
+finally:
+    file.close()
+```
+
+也就是说，`with` 可以先粗略理解成“更安全的 `try/finally` 语法糖”。
+
 **基本用法**
 
 ```python
@@ -339,6 +373,8 @@ with open("example.txt", "r", encoding="utf-8") as file:
     content = file.read()
     raise Exception("出错了")  # 文件仍然会被正确关闭
 ```
+
+> 这也是为什么 `with` 不只用于文件。后面你会在锁、数据库连接、HTTP 客户端里看到同样的模式，因为它的本质是“进入时获取资源，退出时自动释放资源”。
 
 **读取文件的几种方式**
 

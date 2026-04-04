@@ -168,6 +168,8 @@
 2. **文件读写** 📌
    - open() 函数
    - with 语句（上下文管理器）
+   - `as` 绑定变量
+   - 为什么 with 本质上像 `try/finally`
    - 读写模式：r, w, a, rb, wb
    - 逐行读取
 
@@ -571,10 +573,13 @@ data = {
    - await 等待协程
    - asyncio.run()
    - 并发执行：gather, create_task
+   - `async with`（异步上下文管理器）
+   - `async for`（异步迭代）
 
 3. **异步 HTTP** 📌
    - httpx.AsyncClient
    - 异步请求示例
+   - 为什么 `async with httpx.AsyncClient() as client` 能自动关闭连接
 
 4. **异步文件操作** ⚡
    - aiofiles 库
