@@ -1,8 +1,29 @@
 # RAG 学习大纲
 
-> 目标：掌握检索增强生成技术，实现文档问答能力
+> 目标：掌握检索增强生成技术，系统理解文档处理、索引构建、检索优化、评估与 RAG 工程落地
 
 ---
+
+## 课程定位
+
+- 本课程聚焦 **检索系统工程**，不是系统学习 LangChain 全家桶。
+- 你会在本课程里使用 LangChain，但重点是把它当成 **RAG 组件的工程封装层**，而不是框架本身。
+- LangChain 的核心抽象与 LCEL 统一放在 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md) 系统学习。
+- `Agentic RAG` 在本课程只做概念认知和边界判断，详细实现放到 [05_agent/outline.md](/Users/linruiqiang/work/ai_application/docs/05_agent/outline.md)。
+
+## 学习前提
+
+- 已完成 [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
+- 建议先完成 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
+- 已理解 `Document / Retriever / Runnable` 这些基础抽象
+
+## 本课程回答什么问题
+
+- 文档怎么切，切多大，怎么保留结构和元数据？
+- Embedding 和向量数据库怎么选？
+- 检索效果不好时该调哪里？
+- Rerank、混合检索、多查询、HyDE 在什么情况下值得用？
+- 如何把 RAG 做成可运行、可评估、可优化的业务系统？
 
 ## 一、RAG 基础概念
 
@@ -311,7 +332,7 @@ text3 = "今天天气很好"
 
 ---
 
-### 6. LangChain Embedding
+### 6. 基于 LangChain 的 Embedding 接入
 
 #### 知识点
 
@@ -490,7 +511,7 @@ collection.delete(ids=["doc2"])
 
 ---
 
-### 9. LangChain + 向量数据库
+### 9. 基于 LangChain 的向量数据库接入
 
 #### 知识点
 
@@ -853,7 +874,7 @@ template_with_citation = """
 
 ---
 
-### 14. RAG Chain 构建
+### 14. 基于 LCEL 的 RAG Chain 构建
 
 #### 知识点
 
@@ -1197,7 +1218,7 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 
 ---
 
-### 17.6 Agentic RAG 📌
+### 17.6 Agentic RAG（概念认知，详细实现放到 Agent 课程）📌
 
 #### 知识点
 
@@ -1222,6 +1243,7 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 4. **实现方式**
    - LangGraph 状态机实现
    - 检索作为 Agent 的 Tool
+   - 本课程重点理解边界与价值，详细实现放到 Agent 课程
 
 #### 实战案例
 

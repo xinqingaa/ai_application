@@ -1,8 +1,30 @@
-# LLM API 学习大纲
+# LLM 应用开发基础 学习大纲
 
-> 目标：掌握大语言模型 API 调用、Prompt 设计、多轮对话、结构化输出
+> 目标：掌握大语言模型 API 调用、Prompt 设计、结构化输出、流式输出与应用侧工程能力
 
 ---
+
+## 课程定位
+
+- 本课程聚焦 **应用开发视角**：如何稳定、安全、低成本地调用模型并封装服务。
+- 本课程回答的是：**怎么把 LLM 用起来、接起来、跑起来**。
+- 模型底层原理、开源模型、微调与私有化部署认知，统一放到后续的 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)。
+- LangChain 在本课程中不作为主线框架展开，避免在 `LLM / RAG / Agent` 三门课里重复讲解。
+
+## 建议学习顺序
+
+1. [01_python/outline.md](/Users/linruiqiang/work/ai_application/docs/01_python/outline.md)
+2. [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
+3. [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
+4. [04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
+5. [05_agent/outline.md](/Users/linruiqiang/work/ai_application/docs/05_agent/outline.md)
+
+## 与后续课程的边界
+
+- `LLM`：如何直接调用模型，做好 Prompt、结构化输出、流式输出、错误处理与成本控制。
+- `02.5 模块`：理解 LLM 基本工作原理，以及 LangChain 的核心抽象为什么这样设计。
+- `RAG`：构建检索系统，解决知识接入、召回、重排、评估与生成链路。
+- `Agent`：让系统具备动态决策、工具调用、状态管理、记忆与复杂编排能力。
 
 ## 一、LLM 基础概念
 

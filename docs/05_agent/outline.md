@@ -1,8 +1,31 @@
-# Agent 学习大纲
+# Agent 与 LangGraph 学习大纲
 
-> 目标：掌握 Agent 架构、工具调用、多步骤任务执行
+> 目标：系统掌握 Agent 架构、工具调用、LangChain / LangGraph 编排、多步骤任务执行与企业级工程实践
 
 ---
+
+## 课程定位
+
+- 本课程是 **LangChain / LangGraph 的系统主战场**。
+- 如果说 `RAG` 课程解决的是“固定检索链路怎么做稳”，那么本课程解决的是“什么时候需要动态决策、如何让系统会判断、会调用、会协作”。
+- 你会在本课程里真正系统掌握：
+  - LangChain 的 `Tool / Agent / Memory` 等抽象
+  - LangGraph 的 `State / Node / Edge / Checkpoint / Interrupt`
+  - Agentic RAG、Multi-Agent、可观测性、安全与成本控制
+
+## 学习前提
+
+- 已完成 [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
+- 建议先完成 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
+- 建议先完成 [04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
+
+## 本课程回答什么问题
+
+- 什么情况下应该用 Agent，而不是普通 Chain 或 RAG？
+- 如何把工具调用从“一个 demo”做成稳定循环？
+- 为什么 LangGraph 比单纯 AgentExecutor 更适合复杂业务？
+- 怎样把 RAG 升级成 Agentic RAG？
+- 怎样把 Agent 做到可观测、可调试、可控、可上线？
 
 ## 一、Agent 基础概念
 
@@ -401,7 +424,7 @@ async def calculate(expression: str) -> str:
 
 ---
 
-## 三、LangChain Agent
+## 三、LangChain / LangGraph Agent
 
 ### 5. LangChain Tools
 
@@ -668,6 +691,55 @@ def sensitive_action(state: MessagesState):
 # - 文件删除
 # - 发送邮件/消息
 # - 任何不可逆操作
+```
+
+---
+
+### 8.5 Agentic RAG 📌
+
+#### 知识点
+
+1. **为什么 Agentic RAG 放在 Agent 课程里系统讲**
+   - 它的核心不是“检索”，而是“动态决策”
+   - 关键难点在于状态机、条件路由、重试与评估闭环
+   - 这些都更属于 LangGraph / Agent 编排问题
+
+2. **典型决策节点**
+   - 是否需要检索
+   - 使用哪一种检索策略
+   - 当前检索结果是否足够
+   - 是否要改写查询、拆分子问题、补充检索
+   - 是否进入最终生成
+
+3. **典型图结构**
+   ```
+   用户问题
+      ↓
+   判断节点
+    ├── 直接回答
+    └── 检索节点 → 评估节点
+                  ├── 继续生成
+                  ├── 查询改写后重检索
+                  └── 子问题拆分后并行检索
+   ```
+
+4. **与传统 RAG 的工程差异**
+   - 传统 RAG：固定流水线，稳定、简单、便于评估
+   - Agentic RAG：更灵活，但成本更高、调试更复杂
+   - 企业中通常先做好传统 RAG，再升级 Agentic RAG
+
+#### 实战案例
+
+```python
+# 1. 用 LangGraph 实现 Agentic RAG
+# 节点：router / retrieve / evaluate / rewrite_query / answer
+
+# 2. 将 retriever 包装成 Tool
+# 让 Agent 按需选择不同知识源
+
+# 3. 对比：
+# 固定 RAG Pipeline vs Agentic RAG
+# 从效果、复杂度、成本、可控性四个维度评估
 ```
 
 ---
