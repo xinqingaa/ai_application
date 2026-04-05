@@ -45,6 +45,7 @@ users_db: dict[int, dict] = {}
 next_id = 1
 
 
+# response_model 会过滤掉不在模型中的字段
 @app.post("/users", response_model=UserResponse)
 async def create_user(user: UserCreate):
     """
@@ -139,6 +140,7 @@ async def chat(request: ChatRequest):
     """
     last_user_msg = ""
     for msg in reversed(request.messages):
+        print(f"msg: {msg.role == Role.USER} ")
         if msg.role == Role.USER:
             last_user_msg = msg.content
             break

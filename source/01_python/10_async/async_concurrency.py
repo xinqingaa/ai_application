@@ -34,8 +34,8 @@ async def demo_gather():
     )
     elapsed = time.time() - start
 
-    print(f"\n  结果: {results}")
-    print(f"  总耗时: {elapsed:.2f}s（≈ 最慢的 3s，不是 2+1+3=6s）")
+    print(f"\n  结果: {results}") # 依次完成
+    print(f"  总耗时: {elapsed:.2f}s（≈ 最慢的 3s，不是 2+1+3=6s）") # 3秒
 
 
 # ============================================================
@@ -52,14 +52,14 @@ async def demo_create_task():
     task_a = asyncio.create_task(task("后台A", 2))
     task_b = asyncio.create_task(task("后台B", 1))
 
-    print("  任务已创建，主线程继续...")
+    print("  任务已创建，主线程继续（可以做其他事）...")
     await asyncio.sleep(0.5)
-    print("  0.5s 后：任务在后台运行中")
+    print("  0.5s 后：任务在后台运行中（主线程可以做其他事）")
 
     # 等待任务完成
     result_a = await task_a
     result_b = await task_b
-    print(f"\n  结果: {result_a}, {result_b}")
+    print(f"\n  所有任务完成，结果: {result_a}, {result_b}")
 
 
 # ============================================================
@@ -77,7 +77,7 @@ async def demo_wait_first():
         asyncio.create_task(task("Claude", 1)),
         asyncio.create_task(task("DeepSeek", 2)),
     ]
-
+    # FIRST_COMPLETED：第一个完成就返回
     done, pending = await asyncio.wait(
         tasks,
         return_when=asyncio.FIRST_COMPLETED,

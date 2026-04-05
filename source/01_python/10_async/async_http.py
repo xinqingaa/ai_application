@@ -92,7 +92,8 @@ async def demo_serial_vs_concurrent():
         print("\n  --- 串行（逐个请求）---")
         start = time.time()
         for url in urls:
-            await client.get(url)
+            print(f"  串行请求的url: {url}")
+            await client.get(url);
         serial_time = time.time() - start
         print(f"  串行耗时: {serial_time:.2f}s")
 

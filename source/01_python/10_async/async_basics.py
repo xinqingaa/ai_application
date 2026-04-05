@@ -26,15 +26,15 @@ async def demo_basic():
     # 直接调用 async 函数，得到的是协程对象，不是结果
     coro = say_hello("张三")
     print(f"  直接调用: {coro}")  # <coroutine object ...>
-    print(f"  类型: {type(coro).__name__}")
+    print(f"  类型: {type(coro).__name__}")  # coroutine
 
     # 必须 await 才能得到结果
     result = await coro
-    print(f"  await 后: {result}")
+    print(f"  await 后: {result}") # 你好，张三
 
     # 通常直接 await 调用
     result = await say_hello("李四")
-    print(f"  直接 await: {result}")
+    print(f"  直接 await: {result}") # 李四
 
 
 # ============================================================
@@ -101,6 +101,15 @@ async def demo_execution_order():
         worker("🅲️ ", 4),
     )
     print(f"\n  结果: {results}")
+    #   🅰️ : 步骤 1/3
+    #   🅱️ : 步骤 1/2
+    #   🅲️ : 步骤 1/4
+    #   🅰️ : 步骤 2/3
+    #   🅱️ : 步骤 2/2
+    #   🅲️ : 步骤 2/4
+    #   🅰️ : 步骤 3/3
+    #   🅲️ : 步骤 3/4
+    #   🅲️ : 步骤 4/4
 
 
 # ============================================================
@@ -126,13 +135,13 @@ async def demo_coroutine_vs_function():
 
     # 协程函数：返回协程对象
     r2 = async_add(3, 5)
-    print(f"\n  async_add(3, 5) = {r2}（协程对象，还没执行）")
-    print(f"  类型: {type(r2)}")
+    print(f"\n  async_add(3, 5) = {r2}（协程对象，还没执行）") # <coroutine object...
+    print(f"  类型: {type(r2)}") #  类型: <class 'coroutine'>...
 
     # await 后才得到结果
     r3 = await r2
-    print(f"\n  await 后 = {r3}（真正的结果）")
-    print(f"  类型: {type(r3)}")
+    print(f"\n  await 后 = {r3}（真正的结果）") # 8
+    print(f"  类型: {type(r3)}") # int 
 
 
 # ============================================================

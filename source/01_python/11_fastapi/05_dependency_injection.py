@@ -38,7 +38,10 @@ def common_pagination(
     """公共分页依赖 — 多个路由复用同一组参数"""
     return PaginationParams(limit=limit, offset=offset)
 
+# Depends 依赖注入
+# Annotated 为类型添加元数据
 
+# 作用是：定义一个类型别名 Pagination，“通过 common_pagination 依赖注入的 PaginationParams 对象
 Pagination = Annotated[PaginationParams, Depends(common_pagination)]
 
 FAKE_BOOKS = [
