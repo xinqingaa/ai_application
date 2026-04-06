@@ -39,3 +39,6 @@ build/
 # Testing
 .pytest_cache/
 .coverage
+
+# 02_llm generated exports
+source/02_llm/**/exports/

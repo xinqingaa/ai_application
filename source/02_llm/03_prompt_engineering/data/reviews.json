@@ -1,0 +1,50 @@
+[
+  {
+    "id": "r1",
+    "text": "客服响应很快，问题当天就解决了，整体体验很好。",
+    "label": "正面",
+    "difficulty": "easy"
+  },
+  {
+    "id": "r2",
+    "text": "页面加载速度慢了一点，但功能基本够用。",
+    "label": "中性",
+    "difficulty": "medium"
+  },
+  {
+    "id": "r3",
+    "text": "登录经常失败，重试很多次还是报错，太影响使用了。",
+    "label": "负面",
+    "difficulty": "easy"
+  },
+  {
+    "id": "r4",
+    "text": "物流一般，不过包装完整，没有破损。",
+    "label": "中性",
+    "difficulty": "medium"
+  },
+  {
+    "id": "r5",
+    "text": "文档写得很清楚，接入过程比预期顺利。",
+    "label": "正面",
+    "difficulty": "easy"
+  },
+  {
+    "id": "r6",
+    "text": "价格不低，而且高峰期经常超时，不太满意。",
+    "label": "负面",
+    "difficulty": "easy"
+  },
+  {
+    "id": "r7",
+    "text": "功能很多，但入口有点乱，还需要再熟悉一下。",
+    "label": "中性",
+    "difficulty": "hard"
+  },
+  {
+    "id": "r8",
+    "text": "升级之后识别速度明显快了，效果也稳定了不少。",
+    "label": "正面",
+    "difficulty": "medium"
+  }
+]
