@@ -528,15 +528,17 @@
 ├── docs/                   # 文档集合
 │   ├── 01_python/          # Python学习文档
 │   ├── 02_llm/             # LLM学习文档
-│   ├── 03_rag/             # RAG学习文档
-│   ├── 04_agent/           # Agent学习文档
-│   ├── 05_application/     # 完整应用落地文档
+│   ├── 03_foundation/      # 模型原理与LangChain基础文档
+│   ├── 04_rag/             # RAG学习文档
+│   ├── 05_agent/           # Agent学习文档
+│   ├── 06_application/     # 完整应用落地文档
 ├── source/                 # 学习资源集合
 │   ├── 01_python/          # Python学习资源
 │   ├── 02_llm/             # LLM学习资源
-│   ├── 03_rag/             # RAG学习资源
-│   ├── 04_agent/           # Agent学习资源
-│   ├── 05_application/     # 完整应用落地资源
+│   ├── 03_foundation/      # 模型原理与LangChain基础资源
+│   ├── 04_rag/             # RAG学习资源
+│   ├── 05_agent/           # Agent学习资源
+│   ├── 06_application/     # 完整应用落地资源
 ```
 
 ### 目录说明
