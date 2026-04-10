@@ -1,6 +1,6 @@
 # 07. 综合项目 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/02_llm/07_project.md) 一步步完成第七章综合项目
+> 本文档说明如何跟着 [学习文档](../../../docs/02_llm/07_chat_cli.md) 一步步完成第七章综合项目
 
 ---
 
@@ -10,7 +10,7 @@
 先理解为什么课程最后要做综合项目 -> 再跑统一服务层 -> 再跑 CLI -> 再跑 API -> 最后通过导出、统计和命令模式把前六章能力真正串起来
 ```
 
-- 在 `source/02_llm/07_project/` 目录下操作
+- 在 `source/02_llm/07_chat_cli/` 目录下操作
 - 这一章的重点不是“再写一个聊天 demo”，而是把前六章的能力收束成一个真实可运行的项目骨架
 - 没有 API Key 时，CLI 和 API 依然可以在 mock 模式下完整练习，包括多轮会话、流式输出、JSON 模式、统计和导出
 - 有真实模型时，依然优先建议百炼 / 通义、DeepSeek、GLM；教学理解继续参考 OpenAI / Claude / Gemini
@@ -21,7 +21,7 @@
 ## 项目结构
 
 ```text
-07_project/
+07_chat_cli/
 ├── README.md                    ← 你正在读的这个文件
 ├── .env.example                 ← 第七章环境变量模板
 ├── schemas.py                   ← 数据结构：消息、会话、统计、风控、结果对象
@@ -63,7 +63,7 @@ pip install tiktoken
 ### 3. 运行方式
 
 ```bash
-cd source/02_llm/07_project
+cd source/02_llm/07_chat_cli
 
 python llm_service.py
 python chat_cli.py --demo

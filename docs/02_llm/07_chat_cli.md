@@ -545,7 +545,7 @@ API 层不应该重新发明一套逻辑。
 本章代码目录大致是：
 
 ```text
-07_project/
+07_chat_cli/
 ├── schemas.py
 ├── llm_service.py
 ├── chat_cli.py
@@ -1620,11 +1620,11 @@ mock 在课程里承担的是：
 
 ## 15. 练习建议
 
-1. 在 [chat_cli.py](/Users/linruiqiang/work/ai_application/source/02_llm/07_project/chat_cli.py) 里新增一个 `/history` 命令，直接打印当前会话消息历史。
-2. 在 [llm_service.py](/Users/linruiqiang/work/ai_application/source/02_llm/07_project/llm_service.py) 里把第四章的严格 JSON 校验接进 `json_mode` 路径。
-3. 在 [chat_api.py](/Users/linruiqiang/work/ai_application/source/02_llm/07_project/chat_api.py) 里增加一个清空会话的接口。
-4. 在 [prompts/meeting_summary.txt](/Users/linruiqiang/work/ai_application/source/02_llm/07_project/prompts/meeting_summary.txt) 基础上，再写一个分类或提取模板，验证 `/prompt` 命令的价值。
-5. 在 [llm_service.py](/Users/linruiqiang/work/ai_application/source/02_llm/07_project/llm_service.py) 里把 cache key 设计改粗或改细，观察命中率和风险。
+1. 在 [chat_cli.py](/Users/lrq/work/ai_application/source/02_llm/07_chat_cli/chat_cli.py) 里新增一个 `/history` 命令，直接打印当前会话消息历史。
+2. 在 [llm_service.py](/Users/lrq/work/ai_application/source/02_llm/07_chat_cli/llm_service.py) 里把第四章的严格 JSON 校验接进 `json_mode` 路径。
+3. 在 [chat_api.py](/Users/lrq/work/ai_application/source/02_llm/07_chat_cli/chat_api.py) 里增加一个清空会话的接口。
+4. 在 [prompts/meeting_summary.txt](/Users/lrq/work/ai_application/source/02_llm/07_chat_cli/prompts/meeting_summary.txt) 基础上，再写一个分类或提取模板，验证 `/prompt` 命令的价值。
+5. 在 [llm_service.py](/Users/lrq/work/ai_application/source/02_llm/07_chat_cli/llm_service.py) 里把 cache key 设计改粗或改细，观察命中率和风险。
 
 ---
 
