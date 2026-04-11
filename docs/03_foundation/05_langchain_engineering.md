@@ -68,6 +68,52 @@
 - [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md) 会给出完整项目设计
 - [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md) 会给出明确实施顺序
 
+### 当前状态与第一入口
+
+当前这一章仍然属于“代码前置设计”，不是现成项目说明。
+
+所以当前第一入口是：
+
+- 本文档本身
+
+它当前负责固定未来工程骨架，而不是解释一个已经存在的完整代码目录。
+
+未来正式编码时，这一章对应的第一批核心文件应是：
+
+- `source/03_foundation/foundation_lab/app/config.py`
+- `source/03_foundation/foundation_lab/app/llm/client_native.py`
+- `source/03_foundation/foundation_lab/app/llm/client_langchain.py`
+- `source/03_foundation/foundation_lab/app/services/qa_service.py`
+- `source/03_foundation/foundation_lab/app/main.py`
+
+未来项目真正可运行后，第一运行入口应转移到：
+
+- `source/03_foundation/foundation_lab/README.md`
+
+### 建议学习顺序
+
+建议按这个顺序读：
+
+1. 先读 `2-3`，理解为什么 `03` 阶段必须先把结构做对
+2. 再读 `4-5`，固定目录分层和 `service` 的必要性
+3. 最后读 `6-8`，确认日志、测试、API 应做到什么程度，以及未来第一批文件清单
+
+卡住时回看：
+
+1. `3. 原生 SDK 和 LangChain 为什么要同时保留`
+2. `4. foundation_lab 的建议分层`
+3. `5. 为什么 service 层必须存在`
+
+### 计划代码映射
+
+| 文档部分 | 对应代码/文档 | 角色 | 说明 |
+|----------|---------------|------|------|
+| `2. 为什么 03 阶段必须讲工程化` | 本文档 | 第一阅读入口 | 固定工程化目标，避免脚本化失控 |
+| `3. 原生 SDK 和 LangChain` | 未来 `client_native.py`、`client_langchain.py` | 对照实现 | 保持透明与组件化双轨理解 |
+| `4. foundation_lab 的建议分层` | 未来 `app/config.py`、`app/llm/`、`app/prompts/`、`app/chains/`、`app/retrievers/`、`app/tools/`、`app/services/`、`app/observability/` | 计划目录骨架 | 固定最小项目职责 |
+| `5. service 层必须存在` | 未来 `qa_service.py` | 计划主编排入口 | 防止接口层堆业务判断 |
+| `6. 日志、测试和 API` | 未来 `logger.py`、`tests/`、`main.py`、项目 README | 计划收口路径 | 说明最小工程化要做到什么程度 |
+
 ---
 
 ## 2. 为什么 03 阶段必须讲工程化 📌
@@ -342,7 +388,35 @@ def ask(question: str) -> str:
 
 ---
 
-## 8. 本章学完你应该做到什么
+## 8. 实施动作
+
+当前这章的实施动作，是先把未来工程骨架固定成可以直接落地的清单：
+
+1. 明确哪些文件属于配置、模型、Prompt、链路、检索、工具、服务和观测
+2. 明确 `service` 作为统一编排层必须独立存在
+3. 明确日志、测试、API 的最低完成线
+4. 明确项目 README 未来需要承担哪些说明职责
+
+当前阶段的输入是：
+
+1. [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md)
+2. 本文档中的分层与职责说明
+
+当前阶段的输出是：
+
+1. 一份不再摇摆的目录和文件职责清单
+2. 一套最小工程化边界
+3. 一份未来项目 README 的责任清单
+
+卡住时优先回看：
+
+1. `4. foundation_lab 的建议分层`
+2. `5. 为什么 service 层必须存在`
+3. `6. 03 阶段的日志、测试和 API 到什么程度`
+
+---
+
+## 9. 本章学完你应该做到什么
 
 你不需要做到：
 
@@ -360,7 +434,34 @@ def ask(question: str) -> str:
 
 ---
 
-## 9. 本章小结
+## 10. 完成标准
+
+### 理解层
+
+- 能解释为什么 `foundation_lab` 不能写成一个大脚本
+- 能解释为什么原生 SDK 和 LangChain 要同时保留
+- 能解释为什么 `service` 层必须存在
+
+### 操作层
+
+- 能按建议顺序读完整章重点
+- 能列出未来第一批要创建的核心文件
+- 卡住时知道该回看哪几个关键小节
+
+### 代码准备层
+
+- 能说明未来项目最小分层如何组织
+- 能说明日志、测试、API、README 的最低完成线
+- 能说明当前章节是在固定工程骨架，不是在假装项目已经写完
+
+### 映射层
+
+- 能说清本章与未来 `config.py`、`client_native.py`、`client_langchain.py`、`qa_service.py`、`main.py` 的关系
+- 能说清本章与 `06-07` 的承接关系
+
+---
+
+## 11. 本章小结
 
 这一章你真正应该带走的是：
 

@@ -70,6 +70,53 @@
 
 > 从“理解 AI 应用为什么这样设计”，过渡到“开始把它写成最小工程骨架”。
 
+### 当前状态与第一入口
+
+当前阶段仍然是文档先行，`foundation_lab` 代码还没有正式开始落地。
+
+所以这一章当前的第一入口是：
+
+- 本文档本身
+
+它承担的职责不是展示现成代码库，而是先固定未来第一批要写的抽象、入口文件和最小链路。
+
+未来正式编码时，这一章对应的第一代码入口应是：
+
+- `source/03_foundation/foundation_lab/app/prompts/qa_prompt.py`
+- `source/03_foundation/foundation_lab/app/chains/qa_chain.py`
+- `source/03_foundation/foundation_lab/app/llm/client_langchain.py`
+
+未来第一运行入口建议是：
+
+- `source/03_foundation/foundation_lab/scripts/demo_langchain.py`
+
+当前还不提供运行命令，因为代码目录尚未创建；等代码开始落实后，应由项目 README 补齐运行前提、命令和预期输出。
+
+### 建议学习顺序
+
+建议按这个顺序读：
+
+1. 先读 `2`，明确为什么 `03` 要开始学 LangChain
+2. 再读 `3`，只抓六个最核心抽象，不展开全部 API
+3. 再读 `4-5`，看清这些抽象在 `foundation_lab` 中会怎么落位
+4. 最后读 `6-7`，确认未来第一批要写什么、学到什么程度算达标
+
+卡住时回看：
+
+1. `2.1-2.3` “为什么现在开始学和写”
+2. `3.4-3.6` “Runnable / Retriever / Tool”
+3. `4.1-4.3` “最小链路与边界”
+
+### 计划代码映射
+
+| 文档部分 | 对应代码/文档 | 角色 | 说明 |
+|----------|---------------|------|------|
+| `2. 为什么要在 03 阶段学 LangChain` | 本文档 | 第一阅读入口 | 先统一预期，不让框架学习失焦 |
+| `3. 六个最核心的抽象` | 未来 `app/llm/`、`app/prompts/`、`app/chains/`、`app/retrievers/`、`app/tools/` | 计划模块说明 | 固定最小抽象集合 |
+| `4. 最小链路` | 未来 `qa_prompt.py`、`qa_chain.py`、`client_langchain.py` | 计划主入口 | 未来第一批要落实的最小链 |
+| `5. 原生 SDK 和 LangChain 的对照关系` | 未来 `client_native.py`、`client_langchain.py`、`compare_native_vs_lc.py` | 对照实现 | 保持双轨理解 |
+| 下一步衔接 | [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md) | 后续阅读 | 把抽象继续落成工程结构 |
+
 ---
 
 ## 2. 为什么要在 03 阶段学 LangChain 📌
@@ -114,7 +161,7 @@ LangChain 最适合帮助你解决：
 
 ## 3. 六个最核心的抽象 📌
 
-## 3.1 Model
+### 3.1 Model
 
 `Model` 解决的是：
 
@@ -322,7 +369,32 @@ print(result)
 
 ---
 
-## 7. 本章学完你应该做到什么
+## 7. 实施动作
+
+当前这章的实施动作不是“把全部项目写完”，而是先固定未来第一批编码任务：
+
+1. 明确最小 `ChatModel` 要由谁初始化
+2. 明确 Prompt 模板应独立存在于哪个文件
+3. 明确 `prompt -> llm -> parser` 的最小链应该落在哪个模块
+4. 明确 `Retriever` 和 `Tool` 当前只先保留边界，不提前做复杂实现
+
+当前阶段的输入是本文档和前面三章形成的判断。
+
+当前阶段的输出是：
+
+1. 一份明确的计划代码入口清单
+2. 一条未来要优先跑通的最小链路
+3. 一套不越界的抽象边界
+
+卡住时优先回看：
+
+1. `3. 六个最核心的抽象`
+2. `4. 在 foundation_lab 里这些抽象怎么落位`
+3. `5. 原生 SDK 和 LangChain 的对照关系`
+
+---
+
+## 8. 本章学完你应该做到什么
 
 你不需要做到：
 
@@ -339,7 +411,33 @@ print(result)
 
 ---
 
-## 8. 本章小结
+## 9. 完成标准
+
+### 理解层
+
+- 能解释为什么 `03` 阶段值得开始引入 LangChain
+- 能解释 `Model / Prompt / Parser / Runnable / Retriever / Tool` 的边界
+
+### 操作层
+
+- 能按建议顺序读完本章重点
+- 能说清未来第一批应该先写哪几个文件
+- 卡住时知道该回看哪几个关键小节
+
+### 代码准备层
+
+- 能明确未来第一运行入口应是最小 `prompt -> llm -> parser` 链
+- 能明确当前还没有代码，但已经固定了计划模块和主入口
+- 能明确为什么当前阶段先不做真正 RAG、Agent、向量库接入
+
+### 映射层
+
+- 能说清本章与未来 `qa_prompt.py`、`qa_chain.py`、`client_langchain.py` 的关系
+- 能说清本章与下一章工程化结构的承接关系
+
+---
+
+## 10. 本章小结
 
 这一章你真正应该带走的是：
 
