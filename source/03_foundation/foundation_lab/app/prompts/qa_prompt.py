@@ -1,5 +1,8 @@
 """
-Prompt helpers for the minimal QA flow.
+定义最小问答流程使用的 Prompt 组装逻辑。
+
+这个文件的重点是把 Prompt 从 service 和 client 中独立出来，保持输入结构
+稳定可读。
 """
 
 from __future__ import annotations
@@ -18,6 +21,8 @@ def format_qa_prompt(
     context_blocks: Sequence[str] | None = None,
     tool_result: str | None = None,
 ) -> str:
+    """把问题、检索上下文和工具结果组装成统一 Prompt。"""
+
     context_text = "\n".join(f"- {item}" for item in (context_blocks or [])) or "- No extra context provided."
     tool_text = tool_result or "No tool result provided."
     return (

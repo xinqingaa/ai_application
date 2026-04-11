@@ -1,5 +1,8 @@
 """
-Project settings for foundation_lab.
+集中管理 foundation_lab 的基础配置。
+
+当前阶段先用一个轻量 dataclass 收敛环境变量读取逻辑，避免配置分散到
+脚本、服务层和客户端内部。
 """
 
 from __future__ import annotations
@@ -10,6 +13,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Settings:
+    """保存项目运行所需的最小配置。"""
+
     app_name: str = "foundation_lab"
     app_version: str = "0.1.0"
     provider: str = "mock"
@@ -25,6 +30,8 @@ class Settings:
 
 
 def get_settings() -> Settings:
+    """从环境变量读取配置，并在缺省时回退到适合教学阶段的默认值。"""
+
     return Settings(
         provider=os.getenv("FOUNDATION_LAB_PROVIDER", "mock"),
         model=os.getenv("FOUNDATION_LAB_MODEL", "mock-gpt-foundation"),

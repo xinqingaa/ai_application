@@ -1,5 +1,8 @@
 """
-Mock retriever used to keep the RAG boundary explicit in phase 1.
+最小 mock retriever 实现。
+
+它的用途不是验证检索效果，而是先把“Retriever 返回文档”这条边界固定下来，
+避免在 `03` 阶段过早进入真实 RAG 复杂度。
 """
 
 from __future__ import annotations
@@ -30,10 +33,16 @@ DEFAULT_DOCUMENTS = (
 
 
 class MockRetriever:
+    """根据简单关键词规则返回预置文档。"""
+
     def __init__(self, documents: tuple[RetrievedDocument, ...] = DEFAULT_DOCUMENTS) -> None:
+        """允许在测试或后续实验中注入自定义文档集合。"""
+
         self.documents = documents
 
     def retrieve(self, query: str, top_k: int = 2) -> list[RetrievedDocument]:
+        """按关键词命中次数做最简单的相关性排序。"""
+
         normalized_query = query.lower()
         scored: list[tuple[int, RetrievedDocument]] = []
         for document in self.documents:
