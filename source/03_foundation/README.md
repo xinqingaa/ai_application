@@ -13,6 +13,8 @@
 foundation_lab/
 ```
 
-对应实施文档：
+对应阶段文档：
 
-- [docs/03_foundation/implementation.md](../../docs/03_foundation/implementation.md)
+- [docs/03_foundation/README.md](../../docs/03_foundation/README.md)
+- [docs/03_foundation/06_foundation_lab_design.md](../../docs/03_foundation/06_foundation_lab_design.md)
+- [docs/03_foundation/07_foundation_lab_tasks.md](../../docs/03_foundation/07_foundation_lab_tasks.md)

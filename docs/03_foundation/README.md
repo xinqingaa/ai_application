@@ -21,7 +21,6 @@
 
 - 总体规划与执行：
   - [outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
-  - [implementation.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/implementation.md)
 - 原理理解文档：
   - [01_llm_principles.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/01_llm_principles.md)
   - [02_transformer_attention.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/02_transformer_attention.md)
@@ -63,7 +62,6 @@
 7. `05_langchain_engineering.md`
 8. `06_foundation_lab_design.md`
 9. `07_foundation_lab_tasks.md`
-10. `implementation.md`
 
 ## 和 02、04、05 的边界
 
