@@ -9,9 +9,9 @@
 
 ## 当前状态
 
-当前目录下还没有正式创建 `foundation_lab` 代码，`03_foundation` 目前仍处于“文档先行、代码后落地”阶段。
+当前目录下已经创建 `foundation_lab` 的第一版空骨架，`03_foundation` 现在进入“结构已固定、实现逐步补齐”的阶段。
 
-后续真正开始编码时，建议在该目录下创建：
+当前项目目录：
 
 ```plain
 foundation_lab/
@@ -19,11 +19,16 @@ foundation_lab/
 
 ## 第一入口
 
-当前第一入口不是代码，而是阶段文档：
+当前如果你要看项目骨架，第一入口建议是：
+
+- `foundation_lab/README.md`
+- `foundation_lab/app/services/qa_service.py`
+
+如果你要继续对照设计文档补实现，再回到阶段文档：
 
 - [docs/03_foundation/README.md](../../docs/03_foundation/README.md)
 
-如果你准备开始落实项目，优先阅读：
+建议优先阅读：
 
 - [docs/03_foundation/04_langchain_core_abstractions.md](../../docs/03_foundation/04_langchain_core_abstractions.md)
 - [docs/03_foundation/05_langchain_engineering.md](../../docs/03_foundation/05_langchain_engineering.md)
@@ -35,7 +40,7 @@ foundation_lab/
 | 文档 | 当前角色 | 未来代码关系 |
 |------|----------|--------------|
 | `docs/03_foundation/README.md` | 阶段导航 | 上位入口 |
-| `04_langchain_core_abstractions.md` | 抽象设计 | 对应 `app/prompts/`、`app/chains/`、`app/llm/` |
-| `05_langchain_engineering.md` | 工程骨架设计 | 对应 `app/` 分层、`main.py`、`logger.py` |
+| `04_langchain_core_abstractions.md` | 抽象设计 | 对应 `foundation_lab/app/prompts/`、`app/chains/`、`app/llm/` |
+| `05_langchain_engineering.md` | 工程骨架设计 | 对应 `foundation_lab/app/` 分层、`main.py`、`logger.py` |
 | `06_foundation_lab_design.md` | 项目设计 | 对应 `foundation_lab/` 目录和主数据流 |
-| `07_foundation_lab_tasks.md` | 实施顺序 | 对应未来编码阶段的执行清单 |
+| `07_foundation_lab_tasks.md` | 实施顺序 | 对应当前骨架之后的继续实现清单 |
