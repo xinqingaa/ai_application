@@ -70,7 +70,7 @@ foundation_lab/
 | Phase | 当前状态 | 当前含义 |
 |-------|----------|----------|
 | `Phase 1` 项目骨架 | 已完成 | 目录、模块、脚本、测试骨架已经存在 |
-| `Phase 2` 原生 SDK 最小能力 | 未完成 | `client_native.py` 仍然是 mock 占位 |
+| `Phase 2` 原生 SDK 最小能力 | 基础版已完成 | `client_native.py` 已支持 mock 回退、兼容端点普通调用、结构化示例和最小流式读取 |
 | `Phase 3` LangChain 等价版本 | 未完成 | `client_langchain.py` 仍然是 mock 占位 |
 | `Phase 4` 检索与工具边界验证 | 部分完成 | `mock_retriever`、`mock_tool` 已有最小占位，但仍可继续强化 |
 | `Phase 5` 业务编排层 | 部分完成 | `qa_service.py` 已有最小路径编排，但还不是最终完成态 |
@@ -103,16 +103,16 @@ foundation_lab/
 
 按 `07_foundation_lab_tasks.md` 的顺序，当前最合理的下一步是：
 
-1. 补 `Phase 2`
-2. 再补 `Phase 3`
-3. 然后再决定是否加强 `Phase 4-6`
+1. 补 `Phase 3`
+2. 再加强 `Phase 4`
+3. 然后继续收紧 `Phase 5-6`
 
 也就是优先推进这些文件：
 
-1. `app/llm/client_native.py`
-2. `scripts/demo_native.py`
-3. `app/llm/client_langchain.py`
-4. `app/chains/qa_chain.py`
+1. `app/llm/client_langchain.py`
+2. `app/chains/qa_chain.py`
+3. `scripts/demo_langchain.py`
+4. `app/services/qa_service.py`
 
 当前不建议先重写：
 
@@ -148,12 +148,21 @@ foundation_lab/
 
 - 把 `client_native.py` 从占位实现补成真实最小模型调用
 
-完成后本 README 应补：
+当前状态：
 
-- 真实运行前提
-- 环境变量说明
-- `demo_native.py` 的运行命令
-- 预期输出说明
+- 基础版已完成
+
+已补内容：
+
+- 兼容端点的最小普通调用
+- 最小结构化输出示例
+- 最小流式读取示例
+- 未配置 API Key 时的 mock 自动回退
+
+仍需继续验证：
+
+- 真实 provider 联调结果
+- 不同兼容端点的返回差异
 
 ### `Phase 3`
 
@@ -220,10 +229,20 @@ python3 -m unittest discover -s tests
 
 当前这些命令的意义是：
 
-- `demo_native.py`：验证 native 路径骨架存在
+- `demo_native.py`：验证 native 路径的普通调用、结构化输出和流式输出入口
 - `demo_langchain.py`：验证 langchain 风格路径骨架存在
 - `compare_native_vs_lc.py`：验证两条路径都能经过同一 service 层
-- `unittest`：验证 Prompt、Retriever、Tool 的最小测试骨架可运行
+- `unittest`：验证 Prompt、Retriever、Tool、Native Client 的最小测试骨架可运行
+
+如果要尝试真实 native 调用，可额外提供这些环境变量：
+
+```bash
+export FOUNDATION_LAB_PROVIDER=openai
+export OPENAI_API_KEY=your_api_key
+export OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+不配置这些变量时，`demo_native.py` 会自动走 mock 路径。
 
 如果后续安装了 `fastapi` 和 `uvicorn`，可以再尝试：
 
@@ -244,13 +263,14 @@ uvicorn app.main:app --reload --port 8000
 - 目录结构可导入
 - `qa_service.py` 能统一调度最小路径
 - `qa_chain.py` 能组织 `prompt -> llm -> parser` 骨架
+- `client_native.py` 能在 mock 模式下演示普通、结构化和流式三类接口
 - `mock_retriever` 能返回预置文档
 - `mock_tool` 能返回预置结果
 - 基础测试和 demo 脚本可以运行
 
 当前还没有进入真实完成态的，是这些能力：
 
-- 真实 native 模型调用
+- 真实 native 模型调用的本地联调验证
 - 真实 LangChain 组件调用
 - 完整的流式实现
 - 更完整的 API 演示与接口示例

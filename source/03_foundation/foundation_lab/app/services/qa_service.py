@@ -95,7 +95,7 @@ class QAService:
             answer=answer,
             path="plain",
             engine=engine,
-            mocked=True,
+            mocked=self._is_mocked_chain(chain),
         )
 
     def ask_with_retrieval(self, question: str, engine: str = "langchain") -> AskResponse:
@@ -122,7 +122,7 @@ class QAService:
             answer=answer,
             path="retrieval",
             engine=engine,
-            mocked=True,
+            mocked=self._is_mocked_chain(chain),
             used_documents=documents,
         )
 
@@ -150,7 +150,7 @@ class QAService:
             answer=answer,
             path="tool",
             engine=engine,
-            mocked=True,
+            mocked=self._is_mocked_chain(chain),
             used_tool=tool_result,
         )
 
@@ -204,6 +204,11 @@ class QAService:
             return SimpleQAChain(self.native_client)
         # 默认走 langchain 风格客户端，强调组件化调用方式。
         return SimpleQAChain(self.langchain_client)
+
+    def _is_mocked_chain(self, chain: SimpleQAChain) -> bool:
+        """读取底层客户端是否仍在 mock 模式。"""
+
+        return bool(getattr(chain.client, "mocked", True))
 
 
 def build_default_service() -> QAService:

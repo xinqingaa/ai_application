@@ -68,27 +68,17 @@
 - [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md) 会给出完整项目设计
 - [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md) 会给出明确实施顺序
 
-### 当前状态与第一入口
+### 第一入口
 
-当前这一章仍然属于“代码前置设计”，不是现成项目说明。
+这一章是 `03_foundation` 工程化规范的第一阅读入口。
 
-所以当前第一入口是：
-
-- 本文档本身
-
-它当前负责固定未来工程骨架，而不是解释一个已经存在的完整代码目录。
-
-未来正式编码时，这一章对应的第一批核心文件应是：
+建议先读本文，再对照这些核心文件理解文档如何约束代码结构：
 
 - `source/03_foundation/foundation_lab/app/config.py`
 - `source/03_foundation/foundation_lab/app/llm/client_native.py`
 - `source/03_foundation/foundation_lab/app/llm/client_langchain.py`
 - `source/03_foundation/foundation_lab/app/services/qa_service.py`
 - `source/03_foundation/foundation_lab/app/main.py`
-
-未来项目真正可运行后，第一运行入口应转移到：
-
-- `source/03_foundation/foundation_lab/README.md`
 
 ### 建议学习顺序
 
@@ -109,10 +99,10 @@
 | 文档部分 | 对应代码/文档 | 角色 | 说明 |
 |----------|---------------|------|------|
 | `2. 为什么 03 阶段必须讲工程化` | 本文档 | 第一阅读入口 | 固定工程化目标，避免脚本化失控 |
-| `3. 原生 SDK 和 LangChain` | 未来 `client_native.py`、`client_langchain.py` | 对照实现 | 保持透明与组件化双轨理解 |
-| `4. foundation_lab 的建议分层` | 未来 `app/config.py`、`app/llm/`、`app/prompts/`、`app/chains/`、`app/retrievers/`、`app/tools/`、`app/services/`、`app/observability/` | 计划目录骨架 | 固定最小项目职责 |
-| `5. service 层必须存在` | 未来 `qa_service.py` | 计划主编排入口 | 防止接口层堆业务判断 |
-| `6. 日志、测试和 API` | 未来 `logger.py`、`tests/`、`main.py`、项目 README | 计划收口路径 | 说明最小工程化要做到什么程度 |
+| `3. 原生 SDK 和 LangChain` | `client_native.py`、`client_langchain.py` | 对照实现 | 保持透明与组件化双轨理解 |
+| `4. foundation_lab 的建议分层` | `app/config.py`、`app/llm/`、`app/prompts/`、`app/chains/`、`app/retrievers/`、`app/tools/`、`app/services/`、`app/observability/` | 目录骨架 | 固定最小项目职责 |
+| `5. service 层必须存在` | `qa_service.py` | 主编排入口 | 防止接口层堆业务判断 |
+| `6. 日志、测试和 API` | `logger.py`、`tests/`、`main.py`、项目 README | 收口路径 | 说明最小工程化要做到什么程度 |
 
 ---
 
