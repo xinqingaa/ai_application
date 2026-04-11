@@ -1,6 +1,6 @@
 """
 04_chat_cli.py
-最小可用聊天 CLI：多轮历史、参数查看、裁剪、导出、统计
+最小可用聊天 CLI：多轮历史、参数查看、裁剪、导出、统计、简要日志
 
 运行方式：
     python 04_chat_cli.py
@@ -11,9 +11,11 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 
 from llm_utils import (
+    ChatResult,
     ChatUsage,
     call_openai_compatible_chat,
     calculate_cost_from_usage,
@@ -27,10 +29,14 @@ from llm_utils import (
 )
 
 
+DEFAULT_TEMPERATURE = 0.3
+DEFAULT_MAX_TOKENS = 400
+
+
 @dataclass
 class SessionStats:
     # SessionStats 只做一件事：累计整场会话的 usage。
-    # 它和 ConversationState 分开，是为了把“消息历史”和“统计数据”拆成两类状态。
+    # 它和 ConversationState 分开，是为了把"消息历史"和"统计数据"拆成两类状态。
     rounds: int = 0
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -47,7 +53,7 @@ class SessionStats:
 
 @dataclass
 class ConversationState:
-    # ConversationState 维护“当前会话上下文”。
+    # ConversationState 维护"当前会话上下文"。
     # 之后每次调用模型时，真正发出去的 messages 都来自这里。
     system_prompt: str
     keep_last_messages: int = 8
@@ -65,7 +71,7 @@ class ConversationState:
         self.messages.append({"role": "assistant", "content": text})
 
     def clear(self) -> None:
-        # clear 不是把 messages 清空，而是回到“只剩 system prompt”的初始状态。
+        # clear 不是把 messages 清空，而是回到"只剩 system prompt"的初始状态。
         self.messages = [{"role": "system", "content": self.system_prompt}]
 
     def set_system_prompt(self, text: str) -> None:
@@ -92,6 +98,7 @@ def print_help() -> None:
   /stats                    查看本轮累计 token 和成本
   /export                   导出当前会话为 JSON
   /mock on|off              强制开启或关闭 mock 模式
+  /log on|off               开启或关闭 show_log 简要日志
   /quit                     退出
 """
     )
@@ -123,14 +130,43 @@ def print_stats(stats: SessionStats, input_price: float | None, output_price: fl
     print(f"estimated_cost: {format_cost(cost)}")
 
 
+def extract_finish_reason(result: ChatResult) -> str:
+    # finish_reason 不直接暴露在 ChatResult 顶层，而是保存在响应预览里。
+    raw_response = result.raw_response_preview or {}
+    choices = raw_response.get("choices") or []
+    if not choices:
+        return "（未返回）"
+    return choices[0].get("finish_reason") or "（未返回）"
+
+
+def print_result_log(result: ChatResult) -> None:
+    # show_log 打开时，只打印本轮最关键的请求/响应信息。
+    # 它的目标不是完整抓包，而是帮助初学者把一次调用的核心结构看清楚。
+    finish_reason = extract_finish_reason(result)
+    log_payload = {
+        "provider": result.provider,
+        "model": result.model,
+        "mocked": result.mocked,
+        "finish_reason": finish_reason,
+        "usage": result.usage.__dict__ if result.usage else None,
+        "request_preview": result.request_preview,
+        "response_preview": result.raw_response_preview,
+    }
+    print("[log] show_log=True，本轮简要日志如下：")
+    print(json.dumps(log_payload, ensure_ascii=False, indent=2))
+    if finish_reason == "length":
+        print("[log] 提示：finish_reason=length，说明本轮输出可能因 max_tokens 上限被截断。")
+
+
 def handle_command(
     raw: str,
     config,
     state: ConversationState,
     stats: SessionStats,
     force_mock: dict[str, bool],
+    log_settings: dict[str, bool],
 ) -> bool:
-    # handle_command 的作用是把“控制类输入”和“正常聊天输入”分流。
+    # handle_command 的作用是把"控制类输入"和"正常聊天输入"分流。
     # 返回 True 表示这是一条命令，主循环不需要再把它发给模型。
     if raw == "/help":
         print_help()
@@ -165,10 +201,15 @@ def handle_command(
         print(f"provider: {config.provider}")
         print(f"base_url: {config.base_url or '(SDK 默认)'}")
         print(f"model: {config.model}")
-        print(f"temperature: 0.3")
-        print(f"max_tokens: 400")
+        print(f"temperature: {DEFAULT_TEMPERATURE}")
+        print(f"max_tokens: {DEFAULT_MAX_TOKENS}")
         print(f"keep_last_messages: {state.keep_last_messages}")
         print(f"mock_mode: {force_mock['enabled']}")
+        print(f"show_log: {log_settings['show_log']}")
+        return True
+    if raw == "/model":
+        print(f"当前 model: {config.model}")
+        print("用法：/model <name>")
         return True
     if raw.startswith("/trim "):
         value = raw.replace("/trim ", "", 1).strip()
@@ -180,6 +221,10 @@ def handle_command(
         state.keep_last_messages = keep_last_messages
         state.trim()
         print(f"已裁剪历史，仅保留最近 {keep_last_messages} 条非 system 消息。")
+        return True
+    if raw == "/trim":
+        print(f"当前 keep_last_messages: {state.keep_last_messages}")
+        print("用法：/trim <n>")
         return True
     if raw == "/stats":
         print_stats(stats, config.input_price_per_million, config.output_price_per_million)
@@ -206,15 +251,43 @@ def handle_command(
         force_mock["enabled"] = False
         print("已关闭强制 mock 模式。")
         return True
+    if raw == "/mock":
+        print(f"当前 mock_mode: {force_mock['enabled']}")
+        print("用法：/mock on 或 /mock off")
+        return True
+    if raw == "/log on":
+        log_settings["show_log"] = True
+        print("已开启 show_log 简要日志。")
+        return True
+    if raw == "/log off":
+        log_settings["show_log"] = False
+        print("已关闭 show_log 简要日志。")
+        return True
+    if raw == "/log":
+        print(f"当前 show_log: {log_settings['show_log']}")
+        print("用法：/log on 或 /log off")
+        return True
+    if raw == "/system":
+        print(f"当前 system prompt: {state.system_prompt}")
+        print("用法：/system <text>")
+        return True
     if raw == "/quit":
         raise KeyboardInterrupt
-    return False
+    print(f"未知命令：{raw}")
+    print("输入 /help 查看可用命令。")
+    return True
 
 
 def main() -> None:
     # main 体现了一个最小聊天应用的完整工作流：
     # 初始化环境和配置 -> 创建会话状态 -> 循环读取用户输入 ->
     # 命令分流或模型调用 -> 更新历史和统计 -> 打印结果。
+    #
+    # 如果你第一次读这个文件，建议只抓住 4 个对象：
+    # 1. config        决定“请求发给谁”
+    # 2. state         决定“模型能看到哪些历史”
+    # 3. stats         决定“我们已经累计消耗多少资源”
+    # 4. log_settings  决定“要不要额外打印本轮简要日志”
     load_env_if_possible()
     config = load_provider_config()
     state = ConversationState(
@@ -224,6 +297,9 @@ def main() -> None:
     # 默认行为是：如果没配置 API Key，就直接进入 mock 模式，
     # 保证这个 CLI 即使离线学习也能把完整流程跑通。
     force_mock = {"enabled": not config.is_ready}
+    # show_log 是“应用侧调试参数”，不是发给模型的请求参数。
+    # 默认开启，只有在学习调用链或排查问题时才建议临时打开。
+    log_settings = {"show_log": True}
 
     print("=" * 70)
     print("最小可用聊天 CLI")
@@ -231,7 +307,7 @@ def main() -> None:
     print(f"provider: {config.provider}")
     print(f"base_url: {config.base_url or '(SDK 默认)'}")
     print(f"model: {config.model}")
-    print("输入 /help 查看命令。")
+    print("输入 /help 查看命令。输入 /log on 开启 show_log 简要日志。")
     if force_mock["enabled"]:
         print("当前将使用 mock 模式。配置 API Key 后可切换到真实调用。")
 
@@ -243,7 +319,7 @@ def main() -> None:
 
             # 先判断是不是命令；命令只修改本地状态或打印信息，不发给模型。
             if raw.startswith("/"):
-                if handle_command(raw, config, state, stats, force_mock):
+                if handle_command(raw, config, state, stats, force_mock, log_settings):
                     continue
 
             # 走到这里，说明这是一条正常聊天消息。
@@ -258,8 +334,8 @@ def main() -> None:
                     result = call_openai_compatible_chat(
                         config=config,
                         messages=messages,
-                        temperature=0.3,
-                        max_tokens=400,
+                        temperature=DEFAULT_TEMPERATURE,
+                        max_tokens=DEFAULT_MAX_TOKENS,
                     )
                 except Exception as exc:
                     # 真实调用失败后自动回退 mock，是为了保持 CLI 可继续使用，
@@ -267,12 +343,27 @@ def main() -> None:
                     print(f"真实调用失败：{type(exc).__name__}: {exc}")
                     print("自动回退到 mock 模式。")
                     force_mock["enabled"] = True
-                    result = mock_chat_response(config, messages, temperature=0.3, max_tokens=400)
+                    result = mock_chat_response(
+                        config,
+                        messages,
+                        temperature=DEFAULT_TEMPERATURE,
+                        max_tokens=DEFAULT_MAX_TOKENS,
+                    )
             else:
-                result = mock_chat_response(config, messages, temperature=0.3, max_tokens=400)
+                result = mock_chat_response(
+                    config,
+                    messages,
+                    temperature=DEFAULT_TEMPERATURE,
+                    max_tokens=DEFAULT_MAX_TOKENS,
+                )
+
+            # show_log=True 时，额外打印本轮的简要日志；
+            # 关闭时保持输出简洁，不影响正常聊天体验。
+            if log_settings["show_log"]:
+                print_result_log(result)
 
             # 模型返回后，要把 assistant 回复也写回历史。
-            # 这一步非常关键，因为下一轮对话是否“记得刚才说过什么”，
+            # 这一步非常关键，因为下一轮对话是否"记得刚才说过什么"，
             # 就取决于你有没有把这条 assistant 消息继续带上。
             state.add_assistant(result.content)
             stats.rounds += 1
@@ -283,7 +374,7 @@ def main() -> None:
                 print(f"[usage] {result.usage.__dict__}")
 
             # 每轮结束后重新估算当前历史大小，
-            # 是为了让你观察“多轮对话为什么会越来越贵”。
+            # 是为了让你观察"多轮对话为什么会越来越贵"。
             estimated_input_tokens = estimate_messages_tokens(state.messages)
             print(f"[history_estimated_tokens] {estimated_input_tokens}")
 

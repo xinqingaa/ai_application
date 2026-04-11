@@ -1110,10 +1110,372 @@ PRESETS = {
 很多课程把聊天工具放到很后面，但第一章就做一个最小 CLI 有几个明显好处：
 
 1. 它能把前面所有知识串起来
-2. 它让你从“看示例”切换到“使用一个小产品”
+2. 它让你从”看示例”切换到”使用一个小产品”
 3. 它是后面 API 服务和前端聊天页面的最小原型
 
-### 6.2 第一章的 CLI 不追求什么
+### 6.2 ChatCLI 构建思路总览
+
+`04_chat_cli.py` 不是一上来就写出来的。它背后有一个清晰的构建路径：
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    ChatCLI 构建路径                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  阶段 1        阶段 2         阶段 3         阶段 4         阶段 5        │
+│  单次调用  ──> 加循环    ──> 加历史管理 ──> 加命令分流 ──> 加统计与导出  │
+│                                                             │
+│  发一条请求    连续 input()   存 user/assistant   /help 等     usage 累计   │
+│  拿到回复      不记历史       messages 列表       控制命令     成本估算     │
+│                                                             │
+│  ← 01_first_call.py ──>                        /stats 等     JSON 导出   │
+│  ← 02_messages_chat.py ───────────>                          │
+│  ← 03_token_params.py ──────────────────────────>            │
+│  ← 04_chat_cli.py ──────────────────────────────────────────>│
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+核心思路是：**先跑通最小闭环，再逐步叠加能力。**
+
+#### 6.2.1 如果你现在还是觉得乱，先记住一句话
+
+很多初学者第一次看到 `04_chat_cli.py` 会觉得：
+
+> 代码比前面几个脚本长了一截，一下子不知道该先看哪里。
+
+这时候先不要一行行抠细节，先把它压缩成一句话：
+
+> `04_chat_cli.py` 本质上就是：`while True` 循环 + `messages` 历史管理 + 一次模型调用 + 若干控制命令。
+
+也就是说，它不是一个全新的复杂系统，而是把前面三节已经学过的东西串起来：
+
+1. `01_first_call.py` 给了你“一次请求怎么发”
+2. `02_messages_chat.py` 给了你“多轮历史怎么管理”
+3. `03_token_params.py` 给了你“为什么要关心 token、裁剪和 usage”
+4. `04_chat_cli.py` 只是把这三块拼成一个可以连续使用的小工具
+
+#### 6.2.2 启动流程图
+
+先把程序启动阶段发生了什么看清楚：
+
+```text
+启动 04_chat_cli.py
+-> load_env_if_possible()          读取 .env
+-> load_provider_config()          生成 config
+-> ConversationState(...)          创建会话状态，先放 system prompt
+-> SessionStats()                  创建统计状态
+-> force_mock                      决定是否默认走 mock
+-> show_log=False                  默认关闭简要日志
+-> 打印欢迎信息
+-> 进入 while True                 开始聊天循环
+```
+
+这一步还没有真正调用模型，只是在完成 CLI 的“运行时初始化”。
+
+#### 6.2.3 单轮对话时序图
+
+真正的主线发生在 `while True` 里。一轮正常聊天的流程可以抽象成：
+
+```text
+用户输入
+-> 判断是否是 / 开头命令
+   -> 是：handle_command() 本地处理，结束本轮
+   -> 否：进入正常聊天链路
+-> state.add_user(raw)             把用户输入写入历史
+-> messages = list(state.messages) 生成本轮上下文快照
+-> call_openai_compatible_chat()
+   -> 或 mock_chat_response()
+-> 如果 show_log=True
+   -> 打印本轮 request_preview / finish_reason / response_preview / usage
+-> state.add_assistant(result.content)
+-> stats.add_usage(result.usage)
+-> 打印 AI 内容
+-> 打印 usage 和 history_estimated_tokens
+```
+
+这里最核心的认知是：
+
+> 多轮对话不是模型自己记住了历史，而是应用每一轮都把完整历史重新带给模型。
+
+#### 6.2.4 main() 主循环逐段拆解
+
+如果你看 `04_chat_cli.py` 时最容易迷糊的地方是 `main()`，那就不要试图一次看完整个文件，而是只盯住 `while True`。
+
+这个主循环可以拆成 8 个连续动作：
+
+1. `raw = input("\n> ").strip()`
+   读取一行终端输入。
+   这时它还只是一个字符串，程序还不知道它是命令还是聊天内容。
+
+2. `if not raw: continue`
+   空输入直接跳过，避免无意义进入后续调用链。
+
+3. `if raw.startswith("/")`
+   先做命令分流。
+   这是 CLI 最容易写错、也最值得你重点理解的一步。
+
+4. `handle_command(raw, ...)`
+   这里专门处理本地命令。
+   它只做两类事：
+   - 修改本地状态
+   - 打印说明信息
+
+5. `state.add_user(raw)`
+   如果这不是命令，而是正常聊天输入，就先把它写进历史。
+   这是多轮对话成立的第一步。
+
+6. `messages = list(state.messages)`
+   生成本轮请求上下文快照。
+   本轮模型真正能看到的，就是这一刻的完整 `messages`。
+
+7. `call_openai_compatible_chat(...)` 或 `mock_chat_response(...)`
+   真正拿结果的地方。
+   这里会根据配置决定：
+   - 走真实调用
+   - 或者回退到 mock
+
+8. `state.add_assistant(...)` + `stats.add_usage(...)` + 打印输出
+   这里完成三件事：
+   - 把 assistant 回复写回历史
+   - 把 usage 累计到统计对象
+   - 把结果打印给用户
+
+把上面 8 步压缩一下，主循环其实就是：
+
+```text
+读输入
+-> 命令分流
+-> 如果不是命令，就写入 user 历史
+-> 用当前完整历史发请求
+-> 拿到结果后写回 assistant 历史
+-> 更新统计并打印结果
+```
+
+#### 6.2.5 为什么命令分流这么重要
+
+很多初学者第一次写 CLI 时，会出现一个很典型的问题：
+
+```text
+输入 /log
+-> 没有命中命令分支
+-> 程序继续往下走
+-> /log 被写入 user 历史
+-> /log 被当成普通文本发给模型
+```
+
+这也是为什么你会看到：
+
+- `/log` 居然被 AI 当成“日志 logging”来回答
+- `/mock` 居然被 AI 当成“mock 技术”来回答
+
+根因不是模型有问题，而是：
+
+> 命令没有被 CLI 正确拦截，结果被当成普通聊天文本发送了。
+
+所以命令分流有一条很重要的工程原则：
+
+> 只要输入以 `/` 开头，就应该优先在本地处理，而不是默认发给模型。
+
+正确行为应该是：
+
+1. 命中合法命令：本地处理
+2. 命令写法不完整：本地打印用法提示
+3. 未知命令：本地提示“输入 /help 查看帮助”
+
+### 6.3 五个构建阶段拆解
+
+#### 阶段 1：单次调用（发一条，拿一条）
+
+```text
+用户输入 → 构造 messages → 发请求 → 打印 content
+```
+
+这就是 `01_first_call.py` 做的事。此时没有循环，没有历史，每次运行只能问一个问题。
+
+#### 阶段 2：加上循环（能连续输入）
+
+```text
+while True:
+    raw = input(“> “)
+    → 构造 messages → 发请求 → 打印 content
+```
+
+有了循环就能连续提问，但每一轮都是独立的——模型不记得你上一轮说了什么。
+
+#### 阶段 3：加上历史管理（多轮对话的关键）
+
+```text
+while True:
+    raw = input(“> “)
+    state.add_user(raw)           ← 把用户输入存起来
+    messages = state.messages     ← 拿完整历史发给模型
+    result = call(messages)
+    state.add_assistant(result)   ← 把模型回复也存起来
+```
+
+这是多轮对话的本质：**应用侧负责管理历史，每轮把完整历史重新传给模型。**
+
+对应代码中的 `ConversationState`：
+
+```text
+ConversationState
+  ├── system_prompt    ← 长期稳定的角色设定
+  ├── messages         ← 按 [system, user, assistant, user, assistant, ...] 不断增长
+  └── keep_last_messages  ← 裁剪参数
+```
+
+#### 阶段 4：加上命令分流
+
+```text
+while True:
+    raw = input(“> “)
+    if raw.startswith(“/”):
+        handle_command(raw)       ← 控制命令走这里
+        continue
+    # 正常聊天消息走这里...
+```
+
+`handle_command` 的作用是把”控制类输入”和”正常聊天输入”分流。命令只修改本地状态或打印信息，不发给模型。
+
+当前支持的命令：
+
+| 命令 | 修改的状态 | 对应后续产品中的什么 |
+|------|-----------|---------------------|
+| `/system` | system_prompt | Prompt 管理 |
+| `/model` | config.model | 模型路由 |
+| `/trim` | keep_last_messages | 上下文裁剪 / 成本控制 |
+| `/clear` | messages | 会话重置 |
+| `/history` | （只读） | 调试 / 日志 |
+| `/params` | （只读） | 配置查看 |
+| `/mock` | force_mock | 开发模式切换 |
+| `/log` | show_log | 简要日志开关 |
+
+#### 阶段 5：加上统计与导出
+
+```text
+stats.rounds += 1
+stats.add_usage(result.usage)
+```
+
+`SessionStats` 独立于 `ConversationState`，专门累计整场会话的 token 消耗。这样你能看到：
+
+- 总共对话了几轮
+- 累计消耗了多少 token
+- 估算花费了多少钱
+
+导出（`/export`）则把整个会话保存为 JSON，方便回放、复现和评测。
+
+### 6.4 CLI 运行时的三类核心状态
+
+```text
+┌──────────────────────────────────────────────────┐
+│                 CLI 三类核心状态                   │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│  1. 配置状态 (config)                             │
+│     provider / base_url / model / api_key        │
+│     ↑ /model 命令修改                            │
+│                                                  │
+│  2. 会话历史 (ConversationState)                  │
+│     system_prompt / messages / keep_last_messages│
+│     ↑ /system, /clear, /trim, 聊天流转           │
+│     ↑ 每轮: add_user → call → add_assistant      │
+│                                                  │
+│  3. 统计数据 (SessionStats)                       │
+│     rounds / prompt_tokens / completion_tokens   │
+│     ↑ 每轮调用后 add_usage 累计                  │
+│                                                  │
+│  额外控制:                                        │
+│     force_mock  ← /mock on|off                   │
+│     show_log    ← /log on|off                    │
+│                                                  │
+└──────────────────────────────────────────────────┘
+```
+
+这三类状态覆盖了一个聊天应用最核心的数据流：
+
+1. **配置**：决定”用哪个模型”
+2. **历史**：决定”模型能看到什么”
+3. **统计**：决定”我们消耗了多少”
+
+#### 6.4.1 参数要分层理解
+
+读 CLI 时，很容易把所有参数都混在一起看。其实至少要分成两层：
+
+| 参数层级 | 例子 | 作用 |
+|---------|------|------|
+| 模型请求参数 | `temperature`、`max_tokens`、`stop` | 真正发给模型，影响输出结果 |
+| 应用运行参数 | `keep_last_messages`、`force_mock`、`show_log` | 只影响 CLI 自己的行为，不直接发给模型 |
+
+其中 `show_log` 要特别注意：
+
+- 它不是模型参数
+- 它不会让模型回答得更好或更差
+- 它只是一个**应用侧调试开关**
+
+打开后，你能额外看到：
+
+1. 本轮 `request_preview`
+2. 本轮 `finish_reason`
+3. 本轮 `response_preview`
+4. 本轮 `usage`
+
+也就是说，它解决的是“可观测性”问题，而不是“生成质量”问题。
+
+### 6.5 代码与阶段的对应关系
+
+把 `04_chat_cli.py` 中的每个数据类和函数映射到构建阶段：
+
+| 代码元素 | 对应阶段 | 作用 |
+|---------|---------|------|
+| `load_provider_config()` | 1 | 加载 API 配置 |
+| `call_openai_compatible_chat()` | 1 | 发起一次真实模型调用 |
+| `mock_chat_response()` | 1 | mock 模式替代调用 |
+| `while True` + `input()` | 2 | 循环读取用户输入 |
+| `ConversationState` | 3 | 维护会话历史和 system prompt |
+| `state.add_user()` / `add_assistant()` | 3 | 历史消息双向写入 |
+| `state.trim()` | 3 | 历史裁剪（成本控制） |
+| `handle_command()` | 4 | 命令分流逻辑 |
+| `print_help()` / `print_history()` / `print_stats()` | 4 | 信息展示函数 |
+| `print_result_log()` | 4 | show_log 开启时打印本轮简要日志 |
+| `SessionStats` | 5 | 累计 usage 和轮次 |
+| `export_conversation()` | 5 | 会话 JSON 导出 |
+
+**建议学习顺序**：先理解阶段 1-3 的核心循环，再看阶段 4-5 的辅助能力。CLI 的骨架就是阶段 1-3 构成的那个 `while` 循环。
+
+#### 6.5.1 推荐阅读路径
+
+如果你现在要真正去读 `04_chat_cli.py`，最省力的顺序是：
+
+1. 先只看 `main()`，把主循环抓住
+2. 再看 `ConversationState`，理解 `messages` 怎么增长
+3. 再看 `handle_command()`，理解命令为什么不发给模型
+4. 再看 `SessionStats`，理解 usage 为什么单独累计
+5. 最后再看 `print_result_log()`，理解 `show_log` 为什么有用
+
+你可以把它压缩成一个阅读口诀：
+
+```text
+先看主循环
+再看历史状态
+再看命令分流
+最后看统计和日志
+```
+
+#### 6.5.2 真正的骨架只有三步
+
+虽然 CLI 表面上有很多命令和辅助函数，但真正的骨架只有三步：
+
+```text
+state.add_user(raw)
+-> result = call(messages)
+-> state.add_assistant(result.content)
+```
+
+这三步一旦理解透了，剩下的 `/trim`、`/stats`、`/export`、`/log` 都只是围绕这条主链增加的能力。
+
+### 6.6 第一章的 CLI 不追求什么
 
 这一章的 CLI 不追求：
 
@@ -1132,7 +1494,7 @@ PRESETS = {
 5. 能裁剪历史
 6. 能导出会话
 
-### 6.3 第一章的 CLI 应该有哪些命令
+### 6.7 第一章的 CLI 应该有哪些命令
 
 建议至少包括：
 
@@ -1148,9 +1510,10 @@ PRESETS = {
 | `/stats` | 查看累计 token 和成本 |
 | `/export` | 导出会话 |
 | `/mock on/off` | 切换 mock 模式 |
+| `/log on/off` | 开启或关闭 `show_log` 简要日志 |
 | `/quit` | 退出 |
 
-### 6.4 CLI 的状态是什么
+### 6.8 CLI 的状态是什么
 
 它至少要维护三类状态：
 
@@ -1160,7 +1523,7 @@ PRESETS = {
 
 也就是说，一个最小聊天 CLI 本质上已经是一个微型应用，而不只是几行 `input()`。
 
-### 6.5 为什么 CLI 里也要做统计
+### 6.9 为什么 CLI 里也要做统计
 
 因为真实 AI 应用里，统计几乎总是必需的。
 
@@ -1175,7 +1538,7 @@ PRESETS = {
 
 > LLM 调用不是黑盒文本生成，而是要被工程化管理的资源消耗过程。
 
-### 6.6 为什么 CLI 里要支持导出
+### 6.10 为什么 CLI 里要支持导出
 
 导出会话能帮助你：
 
@@ -1186,7 +1549,7 @@ PRESETS = {
 
 这一步在第一章就做，后面你会很受益。
 
-### 6.7 第一章 CLI 的真实意义
+### 6.11 第一章 CLI 的真实意义
 
 如果你能把这一章的 CLI 理解透，后面很多东西都会顺：
 
@@ -1195,10 +1558,11 @@ PRESETS = {
 - `/stats` 对应 usage 统计
 - `/system` 对应 Prompt 调整
 - `/export` 对应日志与可观测性
+- `/log` / `show_log` 对应调试与可观测性
 
 它本质上是后续 AI 聊天产品的最小切片。
 
-### 6.8 本节对应代码
+### 6.12 本节对应代码
 
 本节对应：
 
