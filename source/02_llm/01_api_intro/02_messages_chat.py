@@ -15,6 +15,7 @@ import json
 from dataclasses import dataclass, field
 
 from llm_utils import (
+    ChatResult,
     call_openai_compatible_chat,
     estimate_messages_tokens,
     export_conversation,
@@ -27,10 +28,14 @@ from llm_utils import (
 
 @dataclass
 class Conversation:
+    # Conversation 是“最小历史管理器”。
+    # 它不负责调用模型，只负责在应用侧维护 messages，
+    # 用来强调一个核心认知：多轮对话的上下文是应用自己保存和组织的。
     system_prompt: str
     messages: list[dict[str, str]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        # 初始化时先放入 system，是为了保证后续任何一轮请求都带着稳定角色设定。
         self.messages.append({"role": "system", "content": self.system_prompt})
 
     def add_user(self, text: str) -> None:
@@ -40,9 +45,13 @@ class Conversation:
         self.messages.append({"role": "assistant", "content": text})
 
     def snapshot(self) -> list[dict[str, str]]:
+        # 返回浅拷贝而不是原列表，是为了让调用方拿到“当前快照”，
+        # 避免在函数外部直接改坏内部状态。
         return list(self.messages)
 
     def trim_recent(self, keep_last_messages: int) -> None:
+        # 裁剪策略复用 llm_utils 里的公共逻辑：
+        # 永远保留 system，再保留最近若干条非 system 消息。
         self.messages = trim_messages_by_recent_messages(self.messages, keep_last_messages)
 
 
@@ -82,7 +91,49 @@ def print_single_vs_multi_turn() -> None:
     print(f"多轮估算 tokens: {estimate_messages_tokens(multi_turn)}")
 
 
+def print_chat_result_details(title: str, result: ChatResult) -> None:
+    # 这个辅助函数专门用来把一次调用的关键返回信息“展开来看”。
+    # 对初学者来说，只打印 content 不够，因为你还需要知道：
+    # - 这次到底用的是哪个 provider / model
+    # - 是真实调用还是 mock
+    # - 请求体长什么样
+    # - 响应里 finish_reason 是什么
+    # - usage 有没有返回
+    finish_reason = None
+    if result.raw_response_preview:
+        choices = result.raw_response_preview.get("choices") or []
+        if choices:
+            finish_reason = choices[0].get("finish_reason")
+
+    print("\n" + "=" * 70)
+    print(title)
+    print("=" * 70)
+    print(f"provider: {result.provider}")
+    print(f"model: {result.model}")
+    print(f"mocked: {result.mocked}")
+    print(f"finish_reason: {finish_reason or '（未返回）'}")
+
+    print("\nrequest_preview:")
+    print(json.dumps(result.request_preview or {}, ensure_ascii=False, indent=2))
+
+    print("\nresponse_preview:")
+    print(json.dumps(result.raw_response_preview or {}, ensure_ascii=False, indent=2))
+
+    if result.usage:
+        print("\nusage:")
+        print(json.dumps(result.usage.__dict__, ensure_ascii=False, indent=2))
+    else:
+        print("\nusage:")
+        print("（当前结果没有 usage，通常是 mock 模式，或者平台未返回 usage）")
+
+    print("\nassistant_content:")
+    print(result.content)
+
+
 def demo_system_prompt_comparison() -> None:
+    # 这个演示的重点不是比较“哪个回答更好”，
+    # 而是让你直观看到：同一个 user prompt，换一个 system prompt，
+    # 请求上下文就变了，模型输出风格也会跟着变。
     config = load_provider_config()
     prompt = "请介绍一下 Python 在 AI 应用开发中的作用。"
     strict_messages = [
@@ -104,24 +155,25 @@ def demo_system_prompt_comparison() -> None:
 
     if config.is_ready:
         try:
-            strict_result = call_openai_compatible_chat(config, strict_messages, temperature=0.2, max_tokens=120)
+            # 两次调用只改 system prompt 和部分参数，方便观察风格差异来自哪里。
+            strict_result = call_openai_compatible_chat(config, strict_messages, temperature=0.3, max_tokens=120)
             friendly_result = call_openai_compatible_chat(config, friendly_messages, temperature=0.6, max_tokens=180)
         except Exception as exc:
             print(f"\n真实调用失败：{type(exc).__name__}: {exc}")
             print("回退到 mock 演示。")
-            strict_result = mock_chat_response(config, strict_messages, temperature=0.2, max_tokens=120)
+            strict_result = mock_chat_response(config, strict_messages, temperature=0.3, max_tokens=120)
             friendly_result = mock_chat_response(config, friendly_messages, temperature=0.6, max_tokens=180)
     else:
-        strict_result = mock_chat_response(config, strict_messages, temperature=0.2, max_tokens=120)
+        strict_result = mock_chat_response(config, strict_messages, temperature=0.3, max_tokens=120)
         friendly_result = mock_chat_response(config, friendly_messages, temperature=0.6, max_tokens=180)
 
-    print("\n严格版输出：")
-    print(strict_result.content)
-    print("\n友好版输出：")
-    print(friendly_result.content)
+    print_chat_result_details("严格版调用结果", strict_result)
+    print_chat_result_details("友好版调用结果", friendly_result)
 
 
 def demo_conversation_manager() -> None:
+    # 这一段故意手动构造几轮对话，
+    # 让你把注意力集中在“历史如何组织和裁剪”，而不是调用模型本身。
     conversation = Conversation(
         system_prompt="你是一个 AI 学习助手。回答要简洁，优先用应用开发视角解释问题。"
     )
@@ -138,8 +190,10 @@ def demo_conversation_manager() -> None:
     print(json.dumps(conversation.snapshot(), ensure_ascii=False, indent=2))
     print(f"原始估算 tokens: {estimate_messages_tokens(conversation.snapshot())}")
 
+    # 裁剪前后对比，是为了让你建立一个工程直觉：
+    # 历史不是越完整越好，而是要在“保留上下文”和“控制成本”之间做权衡。
     conversation.trim_recent(keep_last_messages=4)
-    print("\n裁剪后历史：")
+    print("\n裁剪后历史（裁剪最近四条）：")
     print(json.dumps(conversation.snapshot(), ensure_ascii=False, indent=2))
     print(f"裁剪后估算 tokens: {estimate_messages_tokens(conversation.snapshot())}")
 
@@ -153,12 +207,18 @@ def demo_conversation_manager() -> None:
 
 
 def main() -> None:
+    # 这个脚本按“概念 -> 对比 -> 演示”的顺序组织：
+    # 先解释 role，再展示单轮/多轮结构，再展示 system prompt 的影响，
+    # 最后落到一个最小历史管理器上。
     load_env_if_possible()
-    print_role_explanation()
-    print_single_vs_multi_turn()
+    # print_role_explanation()
+    # print_single_vs_multi_turn()
     demo_system_prompt_comparison()
-    demo_conversation_manager()
+    # demo_conversation_manager()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n已手动中断脚本执行。")

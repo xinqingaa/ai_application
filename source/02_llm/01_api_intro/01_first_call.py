@@ -38,6 +38,9 @@ def print_config_summary(config: ProviderConfig) -> None:
 
 
 def build_demo_messages() -> list[dict[str, str]]:
+    # 这里故意保留一个最小但完整的 messages 示例：
+    # system 负责定义助手角色，user 负责提出本轮问题。
+    # 先建立这个基本结构感，比一上来就讲复杂封装更重要。
     return [
         {"role": "system", "content": "你是一个有帮助的 AI 助手，回答要简洁。"},
         {"role": "user", "content": "你好，请用 3 句话介绍一下你自己，并说明你能帮助我做什么。"},
@@ -100,8 +103,20 @@ def run_call_demo(config: ProviderConfig, messages: list[dict[str, str]]) -> Non
     print("4. 发起一次真实或模拟调用")
     print("=" * 70)
 
+    # 这段函数的目标，是把“完整调用链路”明确地跑一遍：
+    # 准备配置 -> 准备 messages -> 尝试真实调用 -> 失败时回退 mock ->
+    # 打印 request_preview / response_preview / 最终文本内容。
+    #
+    # 其中最重要的认知有两个：
+    # 1. 聊天不是一个黑盒窗口，而是一次结构化请求
+    # 2. 代码真正消费的不是原始 HTTP 文本，而是整理后的响应对象
     if config.is_ready:
         try:
+            # 有 API Key 时，优先走真实调用。
+            # 真实调用内部会完成：
+            # - 初始化 OpenAI-compatible client
+            # - 调用 chat.completions.create()
+            # - 提取 content / usage / 预览结构
             result = call_openai_compatible_chat(
                 config=config,
                 messages=messages,
@@ -109,20 +124,28 @@ def run_call_demo(config: ProviderConfig, messages: list[dict[str, str]]) -> Non
                 max_tokens=256,
             )
         except Exception as exc:
+            # 教学脚本里保留自动回退，是为了保证“即使真实调用失败，
+            # 也能继续把完整流程演示完”，避免学习在环境问题处卡死。
             print(f"真实调用失败：{type(exc).__name__}: {exc}")
             print("回退到 mock 模式，继续看完整链路。")
             result = mock_chat_response(config, messages, temperature=0.3, max_tokens=256)
     else:
+        # 没有 API Key 时，不直接报错退出，而是用 mock 演示链路。
+        # 这样你依然可以先理解请求体、响应结构和代码组织方式。
         print("未检测到 API Key，自动进入 mock 模式。")
         result = mock_chat_response(config, messages, temperature=0.3, max_tokens=256)
 
-    print("request_preview:")
+    # request_preview 代表“请求发出去之前，应用侧准备好的核心参数”。
+    print("request_preview 请求参数:")
     print(json.dumps(result.request_preview or {}, ensure_ascii=False, indent=2))
-    print("\nresponse_preview:")
+    # response_preview 代表“从平台返回结果里，提炼出来的关键信息”。
+    print("\nresponse_preview 返回结果:")
     print(json.dumps(result.raw_response_preview or {}, ensure_ascii=False, indent=2))
+    # result.content 才是大多数聊天产品最终会渲染给用户看的文本。
     print("\nassistant_content:")
     print(result.content)
     if result.usage:
+        # usage 能帮助你理解这次调用的 token 消耗，也是后续成本统计的基础。
         print("\nusage:")
         print(json.dumps(result.usage.__dict__, ensure_ascii=False, indent=2))
 
@@ -146,6 +169,13 @@ def print_common_failures(config: ProviderConfig) -> None:
 
 
 def main() -> None:
+    # main 按教学顺序组织，不追求“封装最少”，而追求“每一步都能单独看懂”。
+    #
+    # 阅读这个函数时，可以按下面的顺序理解：
+    # 1. 先把环境变量加载进来
+    # 2. 再拿到当前 provider 配置
+    # 3. 再准备本次调用要发送的 messages
+    # 4. 然后依次打印：配置 -> 请求结构 -> 响应结构 -> 实际调用 -> 常见错误排查
     load_env_if_possible()
     config = load_provider_config()
     messages = build_demo_messages()

@@ -23,6 +23,8 @@ from llm_utils import (
 
 
 TEXT_SAMPLES = {
+    # 这里故意放中文、英文、中英混合三种文本，
+    # 是为了帮助学习者建立“不同文本形态的 token 密度不一样”的直觉。
     "中文短句": "人工智能正在改变世界。",
     "英文短句": "Artificial intelligence is changing the world.",
     "中英混合": "AI 应用开发需要 prompt, context, tools 和 engineering。",
@@ -45,6 +47,8 @@ def print_token_comparison() -> None:
 
 
 def print_message_budget_demo() -> None:
+    # 这个示例不是追求真实业务数据，而是构造一段“会明显变长的历史”，
+    # 方便你观察两种裁剪策略的结果差异。
     messages = [
         {"role": "system", "content": "你是一个有帮助的 AI 助手。"},
         {"role": "user", "content": "你好"},
@@ -65,12 +69,14 @@ def print_message_budget_demo() -> None:
     print(f"原始消息数: {len(messages)}")
     print(f"原始估算输入 tokens: {total}")
 
+    # 第一种方式按消息条数裁剪，规则简单，适合第一章先掌握。
     trimmed_recent = trim_messages_by_recent_messages(messages, keep_last_messages=4)
     trimmed_recent_tokens = estimate_messages_tokens(trimmed_recent)
     print(f"\n按最近消息裁剪后 tokens: {trimmed_recent_tokens}")
     for item in trimmed_recent:
         print(f"- {item['role']}: {item['content']}")
 
+    # 第二种方式按 token 预算裁剪，更接近真实线上系统的控制方式。
     trimmed_budget = trim_messages_by_token_budget(messages, max_input_tokens=70)
     trimmed_budget_tokens = estimate_messages_tokens(trimmed_budget)
     print(f"\n按 token 预算裁剪后 tokens: {trimmed_budget_tokens}")
@@ -87,6 +93,8 @@ def print_cost_demo() -> None:
     print("\n" + "=" * 70)
     print("3. 成本估算")
     print("=" * 70)
+    # 这里不直接绑定某个平台的最新价格，
+    # 是因为平台定价会变化，而这一章更重要的是先理解成本计算公式。
     print("这里不写死真实平台当前价格，而是演示公式。")
     print("请按你实际平台控制台价格替换。")
 
@@ -130,6 +138,9 @@ def print_parameter_experiment_design() -> None:
     print("5. 如何设计参数实验")
     print("=" * 70)
     print(f"固定 prompt: {prompt}")
+    # 这一段是在讲实验方法，而不是推荐某个固定参数。
+    # 初学者最容易犯的错，就是同时改 prompt、temperature、max_tokens，
+    # 结果最后无法判断到底是哪一个变量导致输出变化。
     print("建议实验方式：")
     print("1. 固定 prompt，不改任何上下文")
     print("2. 只改 temperature = 0 / 0.5 / 1.0")
@@ -140,6 +151,8 @@ def print_parameter_experiment_design() -> None:
 
 
 def main() -> None:
+    # 这个脚本本质上是一个“参数与成本观察台”：
+    # 依次建立 token 感知、上下文预算感知、成本公式感知和参数实验方法。
     print_token_comparison()
     print_message_budget_demo()
     print_cost_demo()
