@@ -322,6 +322,48 @@
 - 三条路径都有统一入口
 - 你能看出后续扩展点在哪里
 
+### 这一阶段最应该讲清楚的执行流
+
+很多人在这一阶段最大的误区不是“不会写代码”，而是：
+
+- 不清楚问题进入项目后应该先到哪一层
+
+正确的最小执行流应该先固定成：
+
+```plain
+question
+  -> service.ask()
+  -> 路径判断
+  -> plain / retrieval / tool
+  -> chain.invoke(...)
+  -> answer
+```
+
+如果当前是 `retrieval` 路径，应进一步展开成：
+
+```plain
+question
+  -> service.ask()
+  -> retriever.retrieve(question)
+  -> docs
+  -> chain.invoke(question, context_blocks=...)
+  -> answer
+```
+
+如果当前是 `tool` 路径，应进一步展开成：
+
+```plain
+question
+  -> service.ask()
+  -> select_tool(question)
+  -> run_tool(...)
+  -> tool result
+  -> chain.invoke(question, tool_result=...)
+  -> answer
+```
+
+这部分如果文档不先写清楚，后面非常容易在 API 层直接开始拼 Prompt、调工具、调 retriever，最后把整个结构写散。
+
 ---
 
 ## 8. Phase 6：接口与工程化收口 📌
@@ -353,6 +395,40 @@
 - 目录结构
 - 运行方式
 - 原生 SDK 与 LangChain 的区别
+
+### 这一阶段最应该讲清楚的 API 流
+
+这一阶段不要只写“有两个接口”，还要把接口怎么流到 service 说清楚。
+
+`POST /ask` 的最小流转应该是：
+
+```plain
+HTTP request
+  -> main.py route
+  -> 提取 question / engine
+  -> service.ask(...)
+  -> AskResponse
+  -> HTTP response
+```
+
+`POST /ask/stream` 的最小流转应该是：
+
+```plain
+HTTP request
+  -> main.py route
+  -> 提取 question / engine
+  -> service.stream(...)
+  -> iterator
+  -> StreamingResponse
+```
+
+这里最重要的不是接口数量，而是职责边界：
+
+- `main.py` 负责接入和返回
+- `qa_service.py` 负责业务组织
+- `qa_chain.py` 负责 `prompt -> llm -> parser`
+
+如果你写完接口后还不能用语言把这三层关系解释清楚，说明这一步还没有真正完成。
 
 ### 为什么这一步放最后
 

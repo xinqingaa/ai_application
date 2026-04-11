@@ -320,6 +320,197 @@ def ask(question: str) -> str:
 
 这还不是 Agent，但它已经在建立正确的编排入口。
 
+### 5.1 一次请求应该如何从 API 流到 service 再流到 chain
+
+这一点非常重要，因为很多人在真正开始写代码时，脑子里其实只有：
+
+- “我要做个 `/ask` 接口”
+
+但如果你没有先把请求流转顺序讲清楚，代码很容易写成：
+
+- 接口收请求
+- 接口里直接拼 Prompt
+- 接口里直接决定要不要检索
+- 接口里直接决定要不要工具
+- 接口里直接调模型
+
+这样短期能跑，长期一定会失控。
+
+更合理的最小流转应该是：
+
+```plain
+HTTP request
+  -> API route
+  -> service.ask(...)
+  -> path selection
+  -> plain / retrieval / tool
+  -> chain.invoke(...)
+  -> prompt -> llm -> parser
+  -> AskResponse
+  -> HTTP response
+```
+
+这里最关键的不是记顺序，而是理解每一层为什么存在。
+
+### 5.2 API 层到底负责什么
+
+API 层只负责四件事：
+
+1. 接收请求
+2. 提取参数
+3. 调用 service
+4. 返回响应
+
+它不应该负责：
+
+- 决定走哪条问答路径
+- 决定是否检索
+- 决定是否调用工具
+- 直接组织 Prompt
+- 直接调模型
+
+一句话说，API 层负责：
+
+- 进和出
+
+而不是：
+
+- 中间怎么做业务编排
+
+### 5.3 service 层到底负责什么
+
+service 层是这一阶段最核心的一层。
+
+因为一旦你把 service 层建立起来，整个项目就不再是“几个脚本拼起来”，而是开始有统一编排入口。
+
+它至少应该负责三件事：
+
+1. 接收来自 API 或脚本层的问题
+2. 判断这次问题应该走哪条路径
+3. 组织 retriever、tool、chain 的调用顺序
+
+在 `foundation_lab` 里，service 层当前建议只做三条最小路径：
+
+- `plain`
+- `retrieval`
+- `tool`
+
+并且先用：
+
+- 手工规则
+- 简单关键词判断
+
+这是刻意设计，不是能力不足。
+
+因为 `03` 阶段的目标是先把结构做对，不是先把自动决策做复杂。
+
+### 5.4 chain 层在这条流里负责什么
+
+当 service 已经决定好当前路径之后，chain 层才接手。
+
+chain 层不负责决定用不用工具、要不要检索，它负责的是：
+
+- 把已经准备好的输入组织成统一 Prompt
+- 调用底层模型客户端
+- 对输出做最小解析
+
+也就是说，chain 层最核心的价值不是“更高级”，而是：
+
+- 让 `prompt -> llm -> parser` 这条链显式存在
+
+如果没有这层，你后面很容易把：
+
+- Prompt 组装
+- 模型调用
+- 输出清洗
+
+全部揉进 service 或接口层。
+
+### 5.5 三条最小路径在请求流里的区别
+
+`foundation_lab` 当前推荐的三条路径可以这样理解：
+
+#### plain 路径
+
+```plain
+request -> API -> service.ask()
+        -> select_path() = plain
+        -> chain.invoke(question)
+        -> prompt -> llm -> parser
+        -> response
+```
+
+特点是：
+
+- 不依赖额外文档
+- 不依赖额外工具
+- 只是最普通的一次问答
+
+#### retrieval 路径
+
+```plain
+request -> API -> service.ask()
+        -> select_path() = retrieval
+        -> retriever.retrieve(question)
+        -> docs -> chain.invoke(question, context_blocks=...)
+        -> prompt -> llm -> parser
+        -> response
+```
+
+特点是：
+
+- service 先决定要走检索路径
+- retriever 先返回文档
+- chain 再把文档并入 Prompt
+
+这里必须强调：
+
+- retriever 返回的是文档，不是动作结果
+
+#### tool 路径
+
+```plain
+request -> API -> service.ask()
+        -> select_path() = tool
+        -> select_tool(question)
+        -> run_tool(...)
+        -> result -> chain.invoke(question, tool_result=...)
+        -> prompt -> llm -> parser
+        -> response
+```
+
+特点是：
+
+- service 先决定要走工具路径
+- tool 先执行动作
+- tool 的结果再进入 Prompt
+
+这里必须强调：
+
+- tool 返回的是动作结果，不是知识文档
+
+### 5.6 为什么文档里必须先把这条流写清楚
+
+因为如果文档里只写：
+
+- 有 API
+- 有 service
+- 有 chain
+
+这还不够。
+
+你仍然可能在实际编码时写成错误结构。
+
+只有把下面这些问题都提前写清楚，文档才能真正成为代码的约束：
+
+1. 请求先到哪一层
+2. 哪一层负责路径判断
+3. retriever 和 tool 在哪一层进入主流程
+4. chain 到底负责什么，不负责什么
+5. API 层为什么必须保持很薄
+
+代码真正应该做的，是把这条文档里已经讲清楚的流转关系落实出来。
+
 ---
 
 ## 6. 03 阶段的日志、测试和 API 到什么程度 📌
@@ -360,6 +551,64 @@ def ask(question: str) -> str:
 目的不是做完整服务，而是：
 
 - 让最小骨架可运行、可演示、可后续迁移
+
+这两个接口在文档层面至少应该讲清楚：
+
+#### `POST /ask`
+
+适合演示：
+
+- 一次完整请求如何进入 service
+- service 如何返回统一响应
+
+推荐理解顺序是：
+
+```plain
+payload -> API route -> service.ask() -> AskResponse -> HTTP response
+```
+
+这条接口的重点不是“接口本身”，而是：
+
+- 它让你看到 API 层和 service 层应该怎样解耦
+
+#### `POST /ask/stream`
+
+适合演示：
+
+- 流式输出如何从 service 继续向 HTTP 层传递
+
+推荐理解顺序是：
+
+```plain
+payload -> API route -> service.stream() -> iterator -> StreamingResponse
+```
+
+这条接口的重点不是“流式特效”，而是：
+
+- 它让你看到同步结果和流式结果都应该复用同一套主编排思路
+
+### 6.4 main.py 在文档中应该如何理解
+
+在这一阶段，`main.py` 不应该被理解成：
+
+- “业务逻辑主文件”
+
+更合理的理解是：
+
+- “API 适配层”
+
+它的职责应该被文档明确限制为：
+
+1. 暴露路由
+2. 调用 service
+3. 记录最小日志
+4. 返回 HTTP 响应
+
+如果文档没有把这件事写清楚，后面非常容易自然滑向：
+
+- 在 `main.py` 里越写越多业务判断
+
+这也是为什么这篇文档必须先把 `main.py` 和 `qa_service.py` 的职责边界写清楚。
 
 ---
 

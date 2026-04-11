@@ -260,41 +260,229 @@ source/03_foundation/foundation_lab/
 - 可控
 - 易于对比
 
+### 4.3 为什么 API / service / chain 必须分开
+
+如果你只从目录上看：
+
+- `main.py`
+- `qa_service.py`
+- `qa_chain.py`
+
+你很容易产生一个错觉：
+
+- 这只是把代码拆成了三个文件
+
+但真正关键的不是“拆文件”，而是先把三层职责讲清楚。
+
+更准确地说：
+
+- `main.py` 是 API 适配层
+- `qa_service.py` 是业务编排层
+- `qa_chain.py` 是最小模型调用链
+
+它们不是平行关系，而是有明确顺序的。
+
+### 4.4 三层职责应该如何理解
+
+`main.py` 负责：
+
+- 接收 HTTP 请求
+- 提取参数
+- 调用 service
+- 返回 HTTP 响应
+
+`qa_service.py` 负责：
+
+- 接收问题
+- 判断当前应该走哪条路径
+- 组织 retriever、tool、chain 的调用顺序
+
+`qa_chain.py` 负责：
+
+- 把输入组织成 Prompt
+- 调用底层客户端
+- 对输出做最小解析
+
+这三层里，真正不应该做业务编排的是：
+
+- `main.py`
+
+真正不应该决定“是否检索、是否调用工具”的是：
+
+- `qa_chain.py`
+
+真正应该承担统一编排职责的是：
+
+- `qa_service.py`
+
+### 4.5 为什么先把这三层写进文档，而不是等代码自己长出来
+
+因为如果文档里只写：
+
+- 有 API
+- 有 service
+- 有 chain
+
+但没有写清楚三层之间的调用顺序，后面代码几乎一定会自然滑向下面这种结构：
+
+- 接口里直接拼 Prompt
+- 接口里直接判断是否调用 retriever
+- 接口里直接判断是否调用工具
+- service 变成一层空转发
+
+所以这部分必须先在文档里固定成项目约束：
+
+```plain
+request -> main.py -> qa_service.py -> qa_chain.py -> response
+```
+
+只有这样，代码才是在落实设计，而不是反过来替设计做决定。
+
 ---
 
 ## 5. foundation_lab 的最小数据流 📌
 
 这一章最值得固定下来的，是项目里真正应该存在的三条最小路径。
 
-### 5.1 普通问答
+### 5.1 一次请求进入项目后的总流转
+
+在项目设计层面，任何一个问题进入 `foundation_lab` 后，都应该先按下面这个顺序理解：
 
 ```plain
-input -> prompt -> llm -> parser -> answer
+HTTP request / script input
+  -> main.py 或 scripts/*
+  -> qa_service.ask(...)
+  -> 路径判断
+  -> plain / retrieval / tool
+  -> qa_chain.invoke(...)
+  -> prompt -> llm -> parser
+  -> AskResponse / output
+```
+
+这里最重要的是两件事：
+
+1. 入口可以是 API，也可以是脚本
+2. 但统一编排入口必须是 `qa_service.py`
+
+如果这一点不固定，整个项目就会退化成：
+
+- 每个入口各写一套流程
+
+这样后面扩展到 `04`、`05` 时会非常痛苦。
+
+### 5.2 普通问答
+
+```plain
+input
+  -> qa_service.ask()
+  -> select_path() = plain
+  -> qa_chain.invoke(question)
+  -> prompt -> llm -> parser
+  -> answer
 ```
 
 这是整个项目的最小核心链路，也是你从 `04_langchain_core_abstractions.md` 开始真正写代码时要先跑通的部分。
 
-### 5.2 检索增强问答
+这条路径的项目意义是：
+
+- 先证明没有任何额外上下文时，最小问答链已经成立
+
+它验证的是：
+
+- Prompt 是否独立
+- chain 是否独立
+- service 是否能统一调度 chain
+
+### 5.3 检索增强问答
 
 ```plain
-input -> mock_retriever -> docs -> prompt -> llm -> parser -> answer
+input
+  -> qa_service.ask()
+  -> select_path() = retrieval
+  -> mock_retriever.retrieve(question)
+  -> docs
+  -> qa_chain.invoke(question, context_blocks=...)
+  -> prompt -> llm -> parser
+  -> answer
 ```
 
 这条链的重点不是效果，而是让你明确：
 
 - 检索能力如何进入上下文
 
-### 5.3 工具辅助问答
+这条路径最值得强调的设计结论是：
+
+- retriever 不直接给最终答案
+- retriever 先返回文档
+- 文档再被 service 整理后送入 chain
+
+也就是说，retriever 在项目里的角色是：
+
+- 知识入口
+
+而不是：
+
+- 最终回答者
+
+### 5.4 工具辅助问答
 
 ```plain
-input -> tool selection -> mock_tool -> result -> llm -> parser -> answer
+input
+  -> qa_service.ask()
+  -> select_path() = tool
+  -> select_tool(question)
+  -> mock_tool(...)
+  -> result
+  -> qa_chain.invoke(question, tool_result=...)
+  -> prompt -> llm -> parser
+  -> answer
 ```
 
 这条链的重点不是 Agent 智能，而是让你明确：
 
 - 工具返回的是动作结果，不是知识文档
 
-### 5.4 为什么这里还不做真正 Agent
+这条路径最值得强调的设计结论是：
+
+- tool 先执行动作
+- 动作结果再回到模型上下文
+
+也就是说，tool 在项目里的角色是：
+
+- 动作能力入口
+
+而不是：
+
+- 另一种 retriever
+
+### 5.5 为什么路径判断要放在 service，而不是别的地方
+
+路径判断是这个项目设计里最容易被写歪的一步。
+
+它必须放在 `service` 层，而不是：
+
+- 放在 `main.py`
+- 放在 `qa_chain.py`
+- 放在脚本文件里
+
+因为路径判断本质上是：
+
+- 业务编排决策
+
+而不是：
+
+- 接口适配
+- Prompt 组织
+- 模型调用细节
+
+在当前阶段，路径判断故意只做成：
+
+- 手工规则
+- 简单关键词判断
+
+这样做的目的不是偷懒，而是先把“编排发生在 service 层”这个结构固定住。
+
+### 5.6 为什么这里还不做真正 Agent
 
 因为这一阶段只需要：
 
