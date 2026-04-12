@@ -757,6 +757,14 @@ ChatRequest(
 | `03_unified_client.py` | 演示统一客户端的 messages 级接口 |
 | `.env.example` | 多平台环境变量模板 |
 
+如果你准备结合代码内注释一起阅读，建议先抓住这条主线：
+
+1. 在 `provider_utils.py` 中先看 `PROVIDER_REGISTRY`
+2. 再看 `load_provider_config()` 如何把环境变量整理成统一配置
+3. 再看 `build_provider_preview()` 如何把同一份 `ChatRequest` 转成不同平台风格的 payload
+4. 再看 `call_openai_compatible_chat()` 如何把真实响应整理成统一结构
+5. 最后看 `UnifiedLLMClient.chat()` 如何把这些能力收口成业务侧唯一入口
+
 建议顺序：
 
 1. 先看 `01_openai_compatible.py`
