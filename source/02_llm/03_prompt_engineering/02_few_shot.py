@@ -76,6 +76,7 @@ class CaseResult:
     raw_output: str
     error: str | None
     debug_info: dict[str, Any] | None
+    prompt_builder_name: str
 
 
 def load_cases() -> list[dict[str, str]]:
@@ -117,7 +118,7 @@ def build_bad_few_shot_prompt(text: str) -> str:
     text: 待分类的评论文本。
 
     返回：
-    一个故意混用“正面 / 差评 / 一般”等标签的 Prompt 字符串。
+    一个故意混用“正面 / 差评 / 一般”等标签的 Prompt 字符串。（标签不一致、没有限定集合、示例风格不统一等）
     """
     return f"""
 请做评论分类。
@@ -202,13 +203,13 @@ def build_strategy_catalog() -> list[PromptStrategy]:
             prompt_builder=build_zero_shot_prompt,
         ),
         PromptStrategy(
-            name="坏 Few-shot",
+            name="Few-shot",
             diagnosis="反例方案",
             why_it_exists="故意制造标签不一致和示例松散的问题，观察错误如何被放大。",
             prompt_builder=build_bad_few_shot_prompt,
         ),
         PromptStrategy(
-            name="好 Few-shot",
+            name="Few-shot",
             diagnosis="改进方案",
             why_it_exists="通过统一标签、补分类规则和边界样本，观察稳定性是否提升。",
             prompt_builder=build_good_few_shot_prompt,
@@ -253,6 +254,37 @@ def preview_prompt_lines(prompt: str, max_lines: int = 16) -> list[str]:
     return preview
 
 
+def print_strategy_group_header(strategy: PromptStrategy) -> None:
+    """作用：
+    在真正发起一组请求前打印当前策略分组标题，帮助把后续 request/response 日志归到同一组。
+
+    参数：
+    strategy: 当前即将评估的 Prompt 策略。
+    """
+    print(f"\n{'=' * 72}")
+    print(f"{strategy.name} 分组开始")
+    print(f"定位：{strategy.diagnosis}")
+    print(f"说明：{strategy.why_it_exists}")
+    print("=" * 72)
+
+
+def print_case_trace(strategy: PromptStrategy, case: dict[str, str]) -> None:
+    """作用：
+    在单条样本调用前打印简短上下文，说明接下来这次 request/response 属于哪一组、哪一条样本。
+
+    参数：
+    strategy: 当前策略。
+    case: 当前样本。
+    """
+    print(
+        f"[CASE] strategy={strategy.name} "
+        f"case_id={case['id']} "
+        f"expected={case['label']} "
+        f"difficulty={case['difficulty']}"
+    )
+    print(f"[CASE] text={case['text']}")
+
+
 def count_by_field(cases: list[dict[str, str]], field_name: str) -> dict[str, int]:
     """作用：
     统计样本集中某个字段的分布情况，帮助先理解评估数据长什么样。
@@ -290,7 +322,13 @@ def evaluate_case(
     流程位置：
     这是 Few-shot 脚本的核心单元，内部会依次执行：
     `prompt_builder -> run_chat -> 解析预测 -> 对比标准答案`。
+
+    额外说明：
+    这里返回的 `raw_output`，就是“当前策略生成的 Prompt”喂给模型之后，
+    模型在这条样本上的原始回答。比如返回 `正面`，不是独立结论，
+    而是“好 Few-shot + r1 这条样本”的输出。
     """
+    print_case_trace(strategy, case)
     prompt = strategy.prompt_builder(case["text"])
     result = run_chat(
         config,
@@ -317,6 +355,7 @@ def evaluate_case(
         raw_output=result.content,
         error=result.error,
         debug_info=result.debug_info,
+        prompt_builder_name=strategy.prompt_builder.__name__,
     )
 
 
@@ -336,16 +375,17 @@ def evaluate_strategy(
     max_cases: 本轮最多评估多少条样本。
 
     返回：
-    一个字典，包含 Prompt 预览、token 成本、逐条样本结果和整体统计信息。
+    一个“策略级结果字典”，包含 Prompt 预览、token 成本、逐条样本结果和整体统计信息。
     """
     active_cases = cases[: min(max_cases, len(cases))]
     sample_prompt = strategy.prompt_builder(active_cases[0]["text"])
-    rows = [evaluate_case(strategy, item, config) for item in active_cases]
-    comparable_rows = [row for row in rows if row.correct is not None]
-    correct_count = sum(1 for row in comparable_rows if row.correct)
+    print_strategy_group_header(strategy)
+    case_results = [evaluate_case(strategy, item, config) for item in active_cases]
+    comparable_case_results = [case_result for case_result in case_results if case_result.correct is not None]
+    correct_count = sum(1 for case_result in comparable_case_results if case_result.correct)
 
-    if comparable_rows:
-        accuracy_text = f"{correct_count}/{len(comparable_rows)}"
+    if comparable_case_results:
+        accuracy_text = f"{correct_count}/{len(comparable_case_results)}（正确率：命中数/可比较样本数）"
     else:
         accuracy_text = "未计算（当前为 Mock 调试模式）"
 
@@ -353,13 +393,13 @@ def evaluate_strategy(
         "strategy": strategy,
         "sample_prompt": sample_prompt,
         "sample_prompt_tokens": estimate_tokens(sample_prompt),
-        "rows": rows,
+        "case_results": case_results,
         "cases_for_eval": len(active_cases),
-        "comparable_cases": len(comparable_rows),
+        "comparable_cases": len(comparable_case_results),
         "correct_count": correct_count,
         "accuracy_text": accuracy_text,
-        "mocked_count": sum(1 for row in rows if row.mocked),
-        "first_debug_info": rows[0].debug_info if rows else None,
+        "mocked_count": sum(1 for case_result in case_results if case_result.mocked),
+        "first_case_debug_info": case_results[0].debug_info if case_results else None,
     }
 
 
@@ -422,61 +462,77 @@ def print_strategy_catalog(strategies: list[PromptStrategy], cases: list[dict[st
     print_lines("三种策略总览", lines)
 
 
-def print_evaluation_overview(results: list[dict[str, Any]]) -> None:
+def print_evaluation_overview(strategy_results: list[dict[str, Any]]) -> None:
     """作用：
     把三种策略的整体评估结果放在同一个总览区里对比。
 
     参数：
-    results: 多个策略的评估结果列表。
+    strategy_results: 多个策略级结果组成的列表。
     """
     lines = []
-    for item in results:
-        strategy = item["strategy"]
+    for strategy_result in strategy_results:
+        strategy = strategy_result["strategy"]
         lines.append(
             f"- {strategy.name} | {strategy.diagnosis} | "
-            f"accuracy={item['accuracy_text']} | "
-            f"sample_prompt_tokens={item['sample_prompt_tokens']} | "
-            f"mocked_cases={item['mocked_count']}/{item['cases_for_eval']}"
+            f"accuracy={strategy_result['accuracy_text']} | "
+            f"sample_prompt_tokens={strategy_result['sample_prompt_tokens']} | "
+            f"mocked_cases={strategy_result['mocked_count']}/{strategy_result['cases_for_eval']}"
         )
     print_lines("评估结果总览", lines)
 
 
-def print_strategy_detail(result: dict[str, Any]) -> None:
+def print_strategy_detail(strategy_result: dict[str, Any]) -> None:
     """作用：
     打印单个策略的 Prompt 预览、逐条样本结果和代表性调试信息。
 
     参数：
-    result: `evaluate_strategy()` 返回的单个策略结果字典。
+    strategy_result: `evaluate_strategy()` 返回的单个策略级结果字典。
+
+    额外说明：
+    这里打印的“逐条样本结果”来自 `strategy_result["case_results"]`。
+    也就是说，它不是全局所有结果，而是“当前这个策略”下的逐条样本输出。
     """
-    strategy = result["strategy"]
+    strategy = strategy_result["strategy"]
     print(f"\n{'=' * 72}")
     print(f"{strategy.name} | {strategy.diagnosis}")
     print("=" * 72)
-    print(f"为什么要有这组策略：{strategy.why_it_exists}")
-    print(f"sample_prompt_tokens: {result['sample_prompt_tokens']}")
-    print(f"accuracy: {result['accuracy_text']}")
-    print(f"mocked_cases: {result['mocked_count']}/{result['cases_for_eval']}")
+    print(f"策略说明：{strategy.why_it_exists}")
+    print(f"sample_prompt_tokens: {strategy_result['sample_prompt_tokens']}")
+    print(f"accuracy: {strategy_result['accuracy_text']}")
+    print(f"mocked_cases: {strategy_result['mocked_count']}/{strategy_result['cases_for_eval']}")
+    print(
+        f"结果来源说明：下面每一条 raw_output，都是 `{strategy.prompt_builder.__name__}()` "
+        "为当前样本生成 Prompt 后，大模型返回的原始回答。"
+    )
+    print(
+        "字段说明：expected=标准答案；predicted=AI 预测标签；"
+        "raw_output=AI 原始输出；difficulty=样本预设难度。"
+    )
 
-    print_lines("Prompt 预览", preview_prompt_lines(result["sample_prompt"]))
-
-    row_lines = []
-    for row in result["rows"]:
-        if row.correct is None:
+    case_result_lines = []
+    for case_result in strategy_result["case_results"]:
+        if case_result.correct is None:
             status = "未计算"
         else:
-            status = "命中" if row.correct else "未命中"
-        row_lines.append(
-            f"- [{row.case_id}] expected={row.expected} predicted={row.predicted} "
-            f"status={status} difficulty={row.difficulty}"
+            status = "命中" if case_result.correct else "未命中"
+        case_result_lines.append(
+            f"- [{case_result.case_id}] "
+            f"expected={case_result.expected}（标准答案） "
+            f"predicted={case_result.predicted}（AI 预测标签） "
+            f"status={status} "
+            f"difficulty={case_result.difficulty}（样本预设难度）"
         )
-        row_lines.append(f"  text: {row.text}")
-        row_lines.append(f"  raw_output: {row.raw_output}")
-        if row.error:
-            row_lines.append(f"  error: {row.error}")
-    print_lines("逐条样本结果", row_lines)
+        case_result_lines.append(f"  text: {case_result.text}")
+        case_result_lines.append(
+            f"  raw_output: {case_result.raw_output}（AI 原始输出）"
+        )
+        case_result_lines.append(
+            f"  output_source: {strategy.name} -> {case_result.prompt_builder_name}() -> 样本 {case_result.case_id}"
+        )
+        if case_result.error:
+            case_result_lines.append(f"  error: {case_result.error}")
+    print_lines("逐条样本结果", case_result_lines)
 
-    if result["first_debug_info"]:
-        print_json(f"{strategy.name} -> 首条样本 debug_info", result["first_debug_info"])
 
 
 def main() -> None:
@@ -511,11 +567,15 @@ def main() -> None:
 
     print_strategy_catalog(strategies, cases)
 
-    results = [evaluate_strategy(strategy, cases, config) for strategy in strategies]
-    print_evaluation_overview(results)
+    # strategy_results 是“按策略分组后的结果列表”，不是逐条样本列表。
+    # 列表里的每一项，都对应一种策略（Zero-shot / 坏 Few-shot / 好 Few-shot）。
+    strategy_results = [evaluate_strategy(strategy, cases, config) for strategy in strategies]
+    print_evaluation_overview(strategy_results)
 
-    for result in results:
-        print_strategy_detail(result)
+    # 这里按策略逐组打印详情；真正的“逐条样本结果”在 print_strategy_detail()
+    # 内部，从 strategy_result["case_results"] 里展开。
+    for strategy_result in strategy_results:
+        print_strategy_detail(strategy_result)
 
 
 if __name__ == "__main__":

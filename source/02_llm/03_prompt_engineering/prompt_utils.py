@@ -47,6 +47,15 @@ from typing import Any, Iterable
 BASE_DIR = Path(__file__).resolve().parent
 EXPORT_DIR = BASE_DIR / "exports"
 DEFAULT_DEBUG = True
+PROMPT_AUDIT_FIELDS = [
+    ("角色", "has_role"),
+    ("任务", "has_task"),
+    ("上下文", "has_context"),
+    ("约束", "has_constraints"),
+    ("输出格式", "has_output_format"),
+    ("负向限制", "has_negative_constraints"),
+    ("示例", "has_examples"),
+]
 
 
 def load_env_if_possible() -> None:
@@ -273,12 +282,93 @@ def preview_chat_request(
     }
 
 
+def _summarize_prompt_audit(prompt: str) -> dict[str, Any] | None:
+    """作用：
+    把 Prompt 审计结果压缩成更适合 debug 展示的简版摘要。
+
+    参数：
+    prompt: 当前最后一条 user Prompt 文本。
+
+    返回：
+    一个只包含总分、token 估算、命中项和缺失项的摘要字典；没有 prompt 时返回 `None`。
+    """
+    if not prompt:
+        return None
+
+    audit = analyze_prompt(prompt)
+    detected_items = [label for label, field in PROMPT_AUDIT_FIELDS if getattr(audit, field)]
+    missing_items = [label for label, field in PROMPT_AUDIT_FIELDS if not getattr(audit, field)]
+    return {
+        "score": audit.score,
+        "estimated_tokens": audit.estimated_tokens,
+        "detected_items": detected_items,
+        "missing_items": missing_items,
+    }
+
+
+def _debug_print_start(
+    config: ProviderConfig,
+    request_preview: dict[str, Any],
+    debug_label: str | None = None,
+) -> None:
+    """作用：
+    在 debug 模式下打印调用前摘要和原始请求入参。
+
+    参数：
+    config: 当前 provider 配置。
+    request_preview: 即将发送给模型的请求预览。
+    debug_label: 可选调试标签，用于标记这次调用属于哪个业务阶段。
+    """
+    if debug_label:
+        print(f"\n{'=' * 72}")
+        print(f"[DEBUG] {debug_label} -> 请求开始")
+        print("=" * 72)
+    print(
+        "[DEBUG] chat.start "
+        f"provider={config.provider} "
+        f"model={config.model} "
+        f"ready={config.is_ready}"
+    )
+    print("[DEBUG] request_preview:")
+    print(json.dumps(request_preview, ensure_ascii=False, indent=2))
+
+
+def _debug_print_result(result: ChatResult, debug_label: str | None = None) -> None:
+    """作用：
+    在 debug 模式下打印调用后摘要和原始响应预览。
+
+    参数：
+    result: 本轮调用得到的统一聊天结果对象。
+    debug_label: 可选调试标签，用于标记这次调用属于哪个业务阶段。
+    """
+    finish_reason = None
+    if result.raw_response_preview:
+        choices = result.raw_response_preview.get("choices") or []
+        if choices:
+            finish_reason = choices[0].get("finish_reason")
+
+    if debug_label:
+        print(f"\n{'=' * 72}")
+        print(f"[DEBUG] {debug_label} -> 返回结果")
+        print("=" * 72)
+    print(
+        "[DEBUG] chat.result "
+        f"provider={result.provider} "
+        f"model={result.model} "
+        f"mocked={result.mocked} "
+        f"finish_reason={finish_reason or '（未返回）'} "
+        f"elapsed_ms={result.elapsed_ms} "
+        f"error={result.error}"
+    )
+    print("[DEBUG] raw_response_preview:")
+    print(json.dumps(result.raw_response_preview or {}, ensure_ascii=False, indent=2))
+
+
 def _build_debug_info(
     config: ProviderConfig,
     messages: list[dict[str, str]],
     temperature: float,
     max_tokens: int,
-    request_preview: dict[str, Any],
     *,
     mocked: bool,
     raw_response_preview: dict[str, Any] | None = None,
@@ -288,14 +378,13 @@ def _build_debug_info(
     fallback_reason: str | None = None,
 ) -> dict[str, Any]:
     """作用：
-    构造一份统一的调试信息快照，口径尽量对齐第二章的“摘要 + 请求预览 + 响应预览”模式。
+    构造一份统一的调试信息快照。
 
     参数：
     config: 当前 provider 的运行时配置。
     messages: 本轮请求的消息列表。
     temperature: 本轮生成温度。
     max_tokens: 本轮输出 token 上限。
-    request_preview: 已整理好的请求预览。
     mocked: 当前结果是否为 Mock 回退。
     raw_response_preview: 精简后的响应预览。
     usage: 本轮 token 用量。
@@ -304,10 +393,9 @@ def _build_debug_info(
     fallback_reason: 可选回退原因，用于解释为何进入 Mock。
 
     返回：
-    一个包含调用摘要、请求预览、Prompt 审计和响应预览的调试字典。
+    一个包含调用摘要、Prompt 审计摘要和响应预览的调试字典。
     """
     user_message = next((item["content"] for item in reversed(messages) if item["role"] == "user"), "")
-    audit = analyze_prompt(user_message) if user_message else None
     return {
         "chat": {
             "mode": "mock" if mocked else "real",
@@ -323,7 +411,7 @@ def _build_debug_info(
             "error": error,
             "fallback_reason": fallback_reason,
         },
-        "prompt_audit": asdict(audit) if audit else None,
+        "prompt_audit": _summarize_prompt_audit(user_message),
         "raw_response_preview": raw_response_preview,
     }
 
@@ -406,7 +494,6 @@ def call_openai_compatible_chat(
                 messages,
                 temperature,
                 max_tokens,
-                request_preview,
                 mocked=False,
                 raw_response_preview=raw_response_preview,
                 usage=usage,
@@ -487,7 +574,6 @@ def mock_chat_response(
                 messages,
                 temperature,
                 max_tokens,
-                request_preview,
                 mocked=True,
                 raw_response_preview=raw_response_preview,
                 elapsed_ms=0.0,
@@ -506,6 +592,7 @@ def run_chat(
     temperature: float = 0.2,
     max_tokens: int = 400,
     debug: bool = DEFAULT_DEBUG,
+    debug_label: str | None = None,
 ) -> ChatResult:
     """作用：
     统一封装第三章里的聊天调用入口，自动在真实调用和 Mock 之间切换。
@@ -516,6 +603,7 @@ def run_chat(
     temperature: 生成温度。
     max_tokens: 最大输出 token 数。
     debug: 是否附带完整调试信息；默认开启。
+    debug_label: 可选调试标签，用来标识当前调用属于哪个脚本阶段。
 
     返回：
     一个标准化后的 `ChatResult`。
@@ -523,10 +611,20 @@ def run_chat(
     流程位置：
     第三章脚本不直接区分真实调用函数和 Mock 函数，而是统一依赖这里。
     """
+    request_preview = preview_chat_request(config, messages, temperature, max_tokens)
+    if debug:
+        _debug_print_start(config, request_preview, debug_label)
+
     # 第三章示例统一走这里：
     # 环境就绪时真实调用；环境未就绪时返回 Mock，保证课程脚本可直接跑通。
     if not config.is_ready:
-        return mock_chat_response(
+        if debug:
+            print(
+                "[DEBUG] mock_fallback "
+                f"provider={config.provider} "
+                "reason=missing_api_key"
+            )
+        result = mock_chat_response(
             config,
             messages,
             temperature=temperature,
@@ -535,18 +633,31 @@ def run_chat(
             fallback_reason="missing_api_key",
             debug=debug,
         )
+        if debug:
+            _debug_print_result(result, debug_label)
+        return result
 
     try:
-        return call_openai_compatible_chat(
+        result = call_openai_compatible_chat(
             config,
             messages,
             temperature=temperature,
             max_tokens=max_tokens,
             debug=debug,
         )
+        if debug:
+            _debug_print_result(result, debug_label)
+        return result
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
-        return mock_chat_response(
+        if debug:
+            print(
+                "[DEBUG] mock_fallback "
+                f"provider={config.provider} "
+                "reason=request_failed"
+            )
+            print(f"[DEBUG] request_failed={error}")
+        result = mock_chat_response(
             config,
             messages,
             temperature=temperature,
@@ -555,6 +666,9 @@ def run_chat(
             fallback_reason="request_failed",
             debug=debug,
         )
+        if debug:
+            _debug_print_result(result, debug_label)
+        return result
 
 
 def estimate_tokens(text: str, encoding_name: str = "cl100k_base") -> int:

@@ -21,6 +21,21 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "data" / "support_tickets.json"
 
 
+def print_section(title: str, description: str | None = None) -> None:
+    """作用：
+    打印统一样式的分割线标题，帮助终端里快速识别当前阶段。
+
+    参数：
+    title: 当前阶段标题，例如“模式 1：单步方案”。
+    description: 可选补充说明，用于解释这一段输出为什么存在。
+    """
+    print(f"\n{'=' * 72}")
+    print(title)
+    print("=" * 72)
+    if description:
+        print(description)
+
+
 def load_tickets() -> list[dict[str, str]]:
     """作用：
     读取工单样本数据，作为单步 Prompt 和分阶段 Prompt 的共同输入。
@@ -144,6 +159,10 @@ def main() -> None:
             "- 拆解后的每一步都应该有独立输入、独立输出、独立校验标准。",
         ],
     )
+    print_section(
+        "模式 1：单步方案",
+        "这组调用把“问题分析 + 优先级判断 + 客服回复”压成一次模型请求，方便和拆解方案做对照。",
+    )
 
     # 第一组结果故意把多个子任务压成一步，用来和拆解版形成对照。
     single_step_prompt = build_single_step_prompt(ticket)
@@ -155,8 +174,13 @@ def main() -> None:
         ],
         temperature=0.2,
         max_tokens=280,
+        debug_label="模式 1 / 单步方案 / 单次调用",
     )
 
+    print_section(
+        "模式 2：拆解方案",
+        "这组调用拆成两步：先沉淀结构化分析，再基于分析结果生成面向用户的回复。",
+    )
     # 第二组结果先沉淀中间分析，再让下一步消费这份分析结果。
     analysis_prompt = build_analysis_prompt(ticket)
     analysis_result = run_chat(
@@ -167,6 +191,7 @@ def main() -> None:
         ],
         temperature=0.0,
         max_tokens=220,
+        debug_label="模式 2 / 拆解方案 / 步骤 1：问题分析",
     )
 
     reply_prompt = build_reply_prompt(ticket, analysis_result.content)
@@ -178,28 +203,38 @@ def main() -> None:
         ],
         temperature=0.2,
         max_tokens=180,
+        debug_label="模式 2 / 拆解方案 / 步骤 2：生成回复",
     )
 
-    print(f"\n{'=' * 72}")
-    print("单步 Prompt")
-    print("=" * 72)
+    print_section(
+        "结果对比：模式 1 vs 模式 2",
+        "你现在可以直接看两种模式的最终输出差异，不需要先在连续 debug 日志里自己找归属。",
+    )
+
+    print_section("[模式 1：单步方案的 Prompt]")
     print(single_step_prompt)
-    print("\n输出：")
+    print("\n[模式 1：单步方案的输出：]")
     print(single_step_result.content)
 
-    print(f"\n{'=' * 72}")
-    print("拆解步骤 1：分析 Prompt")
-    print("=" * 72)
+    print_section("[模式 2：步骤 1 分析 Prompt]")
     print(analysis_prompt)
-    print("\n输出：")
+    print("\n[模式 2：步骤 1 分析输出：]")
     print(analysis_result.content)
 
-    print(f"\n{'=' * 72}")
-    print("拆解步骤 2：回复 Prompt")
-    print("=" * 72)
+    print_section("[模式 2：步骤 2 回复 Prompt]")
     print(reply_prompt)
-    print("\n输出：")
+    print("\n[模式 2：步骤 2 最终回复：]")
     print(reply_result.content)
+
+    print_lines(
+        "怎么读这次实验",
+        [
+            "- 看模式 1：如果一次性要求模型同时分析、判断、回复，输出往往更长，也更容易夹带多余承诺。",
+            "- 看模式 2 的步骤 1：这里先把“问题类型、影响范围、紧急程度、待确认信息”显式化。",
+            "- 看模式 2 的步骤 2：第二次调用只消费分析结果来写回复，所以更容易控制语气、长度和承诺边界。",
+            "- 每段 [DEBUG] 日志现在都会带上“模式 / 步骤”标签，对照终端时可以直接知道当前是哪次调用。",
+        ],
+    )
 
 
 if __name__ == "__main__":

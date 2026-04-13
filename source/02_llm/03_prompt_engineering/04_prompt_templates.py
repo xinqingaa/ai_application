@@ -137,7 +137,7 @@ def main() -> None:
     for name in library.list_templates():
         print(f"- {name}")
 
-    for name in ["requirement_summary_v2.txt", "support_reply.txt"]:
+    for name in ["requirement_summary_v2.txt", "sentiment_few_shot.txt", "support_reply.txt"]:
         description = library.describe(name)
         print(f"\n{name}")
         print(f"- variables: {description['variables']}")
