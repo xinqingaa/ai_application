@@ -1177,6 +1177,43 @@ Few-shot 虽然好用，但不要忽略它的成本：
 2. 坏 Few-shot
 3. 好 Few-shot
 
+但这段脚本的结构不是“直接 print 三段 Prompt”，而是一个最小评估器。
+
+代码执行链路是：
+
+```text
+load_cases()
+-> build_strategy_catalog()
+-> evaluate_strategy(strategy)
+-> evaluate_case(case)
+-> prompt_builder(text)
+-> run_chat()
+-> normalize_label()
+-> 对比 expected / predicted
+-> 汇总打印
+```
+
+如果你看代码时容易迷路，建议按这个顺序理解：
+
+1. `load_cases()`：先读取 `reviews.json`
+2. `build_zero_shot_prompt()` / `build_bad_few_shot_prompt()` / `build_good_few_shot_prompt()`：定义三种策略
+3. `build_strategy_catalog()`：把三种策略挂到同一张评估清单上
+4. `evaluate_case()`：定义单条样本怎么走完整链路
+5. `evaluate_strategy()`：定义一组样本怎么汇总结果
+6. `main()`：负责把流程串起来并打印总览
+
+这几个函数之间的关系可以理解为两层循环：
+
+- 外层循环是“同一批数据，分别测试三种 Prompt 策略”
+- 内层循环是“同一种策略，逐条跑样本并和标准答案比对”
+
+这样设计的目的，是把 Few-shot 从“凭感觉多塞几个例子”变成：
+
+- 有基线：先看 Zero-shot
+- 有反例：坏 Few-shot 告诉你示例也可能制造噪声
+- 有改进版：好 Few-shot 告诉你统一标签和边界样本为什么有效
+- 有评估：看的是一组样本，不是一条幸运案例
+
 你需要重点观察的不是“好 Few-shot 一定全对”，而是：
 
 1. 为什么坏 Few-shot 会制造额外错误
@@ -1887,6 +1924,8 @@ python 02_few_shot.py
 
 重点看：
 
+- 脚本执行流程是不是已经解释清楚“样本集 -> 策略 -> 单条评估 -> 汇总”这条链路
+- 三种策略总览里，Zero-shot、坏 Few-shot、好 Few-shot 分别扮演什么角色
 - Zero-shot 和 Few-shot 的 token 差异
 - 坏 Few-shot 为什么可能更糟
 - 小样本评估为什么比单条测试更重要

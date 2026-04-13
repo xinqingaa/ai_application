@@ -22,10 +22,28 @@ DATA_FILE = BASE_DIR / "data" / "support_tickets.json"
 
 
 def load_tickets() -> list[dict[str, str]]:
+    """作用：
+    读取工单样本数据，作为单步 Prompt 和分阶段 Prompt 的共同输入。
+
+    参数：
+    无。函数直接读取模块级常量 `DATA_FILE`。
+
+    返回：
+    一个工单列表，每项通常包含标题、内容和客户等级等字段。
+    """
     return json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
 
 def build_single_step_prompt(ticket: dict[str, str]) -> str:
+    """作用：
+    构造一个把“分析 + 判断 + 回复”都压在同一步里的 Prompt。
+
+    参数：
+    ticket: 单条工单数据，至少包含 `title`、`content` 和 `customer_tier`。
+
+    返回：
+    一个故意不做任务拆解的 Prompt 字符串。
+    """
     return f"""
 请阅读下面的用户工单，完成问题分析、优先级判断，并给出客服回复。
 
@@ -38,6 +56,15 @@ def build_single_step_prompt(ticket: dict[str, str]) -> str:
 
 
 def build_analysis_prompt(ticket: dict[str, str]) -> str:
+    """作用：
+    构造拆解流程的第一步 Prompt，只负责分析问题和沉淀中间结果。
+
+    参数：
+    ticket: 单条工单数据，至少包含 `title`、`content` 和 `customer_tier`。
+
+    返回：
+    一个只要求输出分析结构的 Prompt 字符串。
+    """
     return f"""
 你是一名售后问题分析助手。
 
@@ -60,6 +87,16 @@ def build_analysis_prompt(ticket: dict[str, str]) -> str:
 
 
 def build_reply_prompt(ticket: dict[str, str], analysis_result: str) -> str:
+    """作用：
+    构造拆解流程的第二步 Prompt，基于分析结果生成面向用户的回复。
+
+    参数：
+    ticket: 原始工单数据，用于保留上下文。
+    analysis_result: 第一步分析阶段产出的中间结果文本。
+
+    返回：
+    一个聚焦客服回复生成的 Prompt 字符串。
+    """
     return f"""
 你是一名面向用户的一线客服助手。
 
@@ -83,6 +120,12 @@ def build_reply_prompt(ticket: dict[str, str], analysis_result: str) -> str:
 
 
 def main() -> None:
+    """作用：
+    演示复杂任务拆解前后的差异，依次执行单步方案和两步拆解方案。
+
+    参数：
+    无。函数内部会加载环境、读取示例工单并调用模型。
+    """
     load_env_if_possible()
     config = load_provider_config()
     ticket = load_tickets()[0]
@@ -102,6 +145,7 @@ def main() -> None:
         ],
     )
 
+    # 第一组结果故意把多个子任务压成一步，用来和拆解版形成对照。
     single_step_prompt = build_single_step_prompt(ticket)
     single_step_result = run_chat(
         config,
@@ -113,6 +157,7 @@ def main() -> None:
         max_tokens=280,
     )
 
+    # 第二组结果先沉淀中间分析，再让下一步消费这份分析结果。
     analysis_prompt = build_analysis_prompt(ticket)
     analysis_result = run_chat(
         config,

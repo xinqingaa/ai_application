@@ -30,16 +30,56 @@ TICKETS_FILE = BASE_DIR / "data" / "support_tickets.json"
 
 
 class PromptLibrary:
+    """作用：
+    管理 `prompts/` 目录下的模板文件，统一提供列出、读取、描述和渲染能力。
+
+    这个类的定位是“轻量模板仓库”：
+    上层脚本不直接散落读文件，而是通过它集中访问模板资产。
+    """
+
     def __init__(self, prompt_dir: Path):
+        """作用：
+        初始化模板库实例，记录模板目录位置。
+
+        参数：
+        prompt_dir: 存放 `.txt` Prompt 模板的目录路径。
+        """
         self.prompt_dir = prompt_dir
 
     def list_templates(self) -> list[str]:
+        """作用：
+        列出模板目录下的全部模板文件名。
+
+        参数：
+        无。函数直接扫描初始化时传入的模板目录。
+
+        返回：
+        一个按名称排序的模板文件名列表。
+        """
         return sorted(path.name for path in self.prompt_dir.glob("*.txt"))
 
     def load_text(self, name: str) -> str:
+        """作用：
+        根据模板文件名读取对应模板文本。
+
+        参数：
+        name: 模板文件名，例如 `support_reply.txt`。
+
+        返回：
+        模板原始文本内容。
+        """
         return read_text(self.prompt_dir / name)
 
     def describe(self, name: str) -> dict[str, object]:
+        """作用：
+        输出某个模板的基础说明，方便快速查看变量和预览内容。
+
+        参数：
+        name: 待查看的模板文件名。
+
+        返回：
+        一个包含模板名、变量列表和前几行预览内容的字典。
+        """
         text = self.load_text(name)
         return {
             "name": name,
@@ -48,6 +88,16 @@ class PromptLibrary:
         }
 
     def render(self, name: str, variables: dict[str, object]) -> tuple[str, dict[str, object]]:
+        """作用：
+        渲染指定模板，并把变量校验结果一起整理成上层更易打印的结构。
+
+        参数：
+        name: 待渲染的模板文件名。
+        variables: 传给模板的变量字典。
+
+        返回：
+        一个二元组：`(渲染后的 Prompt, 变量校验摘要字典)`。
+        """
         text = self.load_text(name)
         rendered, check = render_template_text(text, variables)
         return rendered, {
@@ -58,10 +108,25 @@ class PromptLibrary:
 
 
 def load_json(path: Path) -> list[dict[str, str]]:
+    """作用：
+    读取本章示例使用的 JSON 数据文件。
+
+    参数：
+    path: 待读取的 JSON 文件路径。
+
+    返回：
+    反序列化后的列表数据。
+    """
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def main() -> None:
+    """作用：
+    演示模板库的完整用法：列模板、看变量、渲染模板、导出预览并执行一次调用。
+
+    参数：
+    无。函数内部会加载环境、准备样本数据并组织整条模板工程化流程。
+    """
     load_env_if_possible()
     config = load_provider_config()
     library = PromptLibrary(PROMPTS_DIR)
@@ -79,6 +144,7 @@ def main() -> None:
         for line in description["preview_lines"]:
             print(f"  {line}")
 
+    # 先渲染三种不同用途的模板，展示变量替换和校验结果。
     rendered_summary, summary_check = library.render(
         "requirement_summary_v2.txt",
         {
@@ -134,6 +200,7 @@ def main() -> None:
     print(rendered_reply)
     print(f"- variable_check: {reply_check}")
 
+    # 把渲染结果固化到 exports 目录，方便回看当前模板版本的实际展开内容。
     export_path = write_json_export(
         f"template_preview_{timestamp_slug()}.json",
         {

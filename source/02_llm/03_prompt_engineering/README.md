@@ -102,7 +102,7 @@ python 04_prompt_templates.py
    - `build_vague_prompt()`
    - `build_conflicted_prompt()`
    - `build_structured_prompt()`
-3. 再看 `print_audit()`，理解脚本如何从角色、任务、上下文、约束、输出格式等维度做 Prompt 审计。
+3. 再看 `print_result_detail()`，理解脚本如何从角色、任务、上下文、约束、输出格式等维度做 Prompt 审计。
 4. 运行：
 
 ```bash
@@ -152,15 +152,45 @@ python 01_prompt_basics.py
    - 什么叫高质量示例
    - 为什么标签一致性很重要
 2. 打开 `data/reviews.json`，看样本是如何设计的。
-3. 打开 `02_few_shot.py`，看三个 Prompt：
+3. 打开 `02_few_shot.py`，不要只看三个 Prompt 字符串，按下面顺序读：
    - `build_zero_shot_prompt()`
    - `build_bad_few_shot_prompt()`
    - `build_good_few_shot_prompt()`
+   - `build_strategy_catalog()`
+   - `evaluate_case()`
+   - `evaluate_strategy()`
 4. 运行：
 
 ```bash
 python 02_few_shot.py
 ```
+
+### 代码执行流程
+
+```text
+load_cases()
+-> build_strategy_catalog()
+-> evaluate_strategy(strategy)
+-> evaluate_case(case)
+-> strategy.prompt_builder(text)
+-> run_chat()
+-> normalize_label()
+-> 对比 expected / predicted
+-> 打印总览和详情
+```
+
+你可以把这段脚本理解成“一个最小评估器”，而不是“三个零散函数”。
+
+- 外层循环：`evaluate_strategy()` 逐个比较 Zero-shot、坏 Few-shot、好 Few-shot
+- 内层循环：`evaluate_case()` 用同一批样本测试当前策略
+- 核心目标：看哪种策略在同一批数据上更稳定，而不是看哪一条输出最顺眼
+
+### 运行后先看哪里
+
+1. 先看“脚本执行流程”和“数据集概览”，搞清楚评估对象是什么。
+2. 再看“三种策略总览”，理解三类 Prompt 各自扮演什么角色。
+3. 再看“评估结果总览”，比较 token 成本、准确率和 mock 情况。
+4. 最后再看每个策略的“Prompt 预览”“逐条样本结果”“首条样本 debug_info”。
 
 ### 重点观察
 
@@ -175,6 +205,7 @@ python 02_few_shot.py
 - 把好 Few-shot 的其中一个中性示例删掉，再观察表现
 - 故意把一个示例标签写错，看模型会不会被带偏
 - 把 `temperature` 改成 `0.3` 或 `0.5`，看看分类是否更飘
+- 把 `DEFAULT_MAX_CASES` 改大一点，再观察三种策略的整体趋势是否一致
 
 ### 学完这一步后你应该能回答
 
