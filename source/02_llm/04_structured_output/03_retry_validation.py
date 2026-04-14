@@ -7,6 +7,30 @@
 
 依赖：
     pip install openai python-dotenv pydantic
+
+这个脚本要解决的不是“多调用几次模型”，而是把一次结构化提取拆成稳定的工程链路：
+
+1. 先根据原始工单生成“初始提取 Prompt”
+2. 调模型，拿到原始文本输出
+3. 先做 JSON 解析：
+   - 如果连 JSON 都提不出来，说明失败发生在 parse 层
+4. JSON 解析通过后，再做 Pydantic 校验：
+   - 如果字段类型、枚举值、布尔值等不符合 `TicketExtraction`，说明失败发生在 validate 层
+5. 一旦失败，不是原样重跑，而是把“上一次错误 + 上一次输出 + 目标 Schema”拼成修复 Prompt
+6. 再次调用模型，让模型按明确错误反馈修正输出
+7. 某一轮校验成功后立刻返回；超过最大重试次数仍失败则抛错
+
+阅读顺序建议：
+build_extract_prompt()
+-> RobustStructuredClient._call()
+-> RobustStructuredClient.extract()
+-> main()
+
+理解重点：
+- `run_chat()` 只负责“调一次模型并打印调试日志”
+- `parse_json_output()` 只负责“这段文本能不能变成 JSON”
+- `model_validate()` 只负责“这个 JSON 是否符合业务 Schema”
+- `build_json_fix_prompt()` 才是重试变聪明的关键，因为它会把错误显式反馈给模型
 """
 
 from __future__ import annotations
@@ -51,6 +75,12 @@ class TicketExtraction(BaseModel):
     priority: Literal["高", "中", "低"] = Field(description="优先级")
     need_human_follow_up: bool = Field(description="是否需要人工跟进")
     summary: str = Field(min_length=10, description="对问题的简洁总结")
+
+
+def print_section(title: str) -> None:
+    print(f"\n{'=' * 72}")
+    print(title)
+    print("=" * 72)
 
 
 def build_extract_prompt(text: str) -> str:
@@ -100,8 +130,12 @@ class RobustStructuredClient:
         ]
 
     def _call(self, prompt: str, attempt_index: int) -> str:
+        # `_call()` 只负责“按当前 prompt 发起一次调用并拿回原始文本”。
+        # 它不做 JSON 解析，也不做 Schema 校验；这两层都放在 `extract()` 里串起来。
         if not self.config.is_ready:
             return self.mock_attempts[min(attempt_index, len(self.mock_attempts) - 1)]
+
+        attempt_label = "初始提取" if attempt_index == 0 else "错误修复"
 
         result = run_chat(
             self.config,
@@ -111,6 +145,7 @@ class RobustStructuredClient:
             ],
             temperature=0.0,
             max_tokens=260,
+            debug_label=f"第 {attempt_index + 1} 次尝试：{attempt_label}",
         )
         return result.content
 
@@ -119,19 +154,30 @@ class RobustStructuredClient:
         current_prompt = prompt
 
         for attempt in range(self.max_retries):
+            attempt_label = "初始提取" if attempt == 0 else "错误修复"
+
+            # 第一步：基于当前 prompt 调一次模型，拿到最原始的文本返回。
+            # 第一轮用的是初始提取 Prompt；后续轮次用的是“带错误反馈的修复 Prompt”。
             raw_text = self._call(current_prompt, attempt)
+
+            # 第二步：先检查“文本是否能被提取成 JSON”。
+            # 这层只管 parse，不关心字段是不是符合业务要求。
             parsed = parse_json_output(raw_text)
             if not parsed.ok:
                 error_message = parsed.error or "未知 JSON 解析错误"
                 attempts.append(
                     {
                         "attempt": attempt + 1,
+                        "label": attempt_label,
                         "stage": "parse",
                         "prompt": current_prompt,
                         "raw_text": raw_text,
                         "error": error_message,
                     }
                 )
+
+                # 如果 parse 失败，下一轮不会简单重跑原 Prompt，
+                # 而是把“错误信息 + 上一次输出 + Schema 描述”拼成修复 Prompt。
                 current_prompt = build_json_fix_prompt(
                     bad_output=raw_text,
                     error_message=error_message,
@@ -140,12 +186,18 @@ class RobustStructuredClient:
                 continue
 
             try:
+                # 第三步：JSON 解析成功后，再做 Schema 校验。
+                # 这里才会检查：
+                # - issue_type / priority 是否命中枚举
+                # - need_human_follow_up 是否真的是 bool
+                # - summary 是否满足长度等约束
                 validated = model_validate(schema_cls, parsed.data)
             except Exception as exc:
                 error_message = format_validation_error(exc)
                 attempts.append(
                     {
                         "attempt": attempt + 1,
+                        "label": attempt_label,
                         "stage": "validate",
                         "prompt": current_prompt,
                         "raw_text": raw_text,
@@ -153,6 +205,9 @@ class RobustStructuredClient:
                         "error": error_message,
                     }
                 )
+
+                # 如果 validate 失败，说明“JSON 格式没问题，但业务结构不对”。
+                # 下一轮会把明确的字段错误反馈给模型，而不是让模型自己猜哪里错了。
                 current_prompt = build_json_fix_prompt(
                     bad_output=raw_text,
                     error_message=error_message,
@@ -160,9 +215,12 @@ class RobustStructuredClient:
                 )
                 continue
 
+            # 只有 parse 和 validate 都通过，才算真正成功。
+            # 一旦成功就立刻返回，不再继续消耗额外轮次。
             attempts.append(
                 {
                     "attempt": attempt + 1,
+                    "label": attempt_label,
                     "stage": "success",
                     "prompt": current_prompt,
                     "raw_text": raw_text,
@@ -173,6 +231,10 @@ class RobustStructuredClient:
             )
             return validated, attempts
 
+        # 走到这里说明：
+        # 1. 已经按顺序尝试了 `max_retries` 轮
+        # 2. 每一轮都要么 parse 失败，要么 validate 失败
+        # 3. 最终仍没得到合法结构化输出
         raise RuntimeError(json_dumps({"message": "达到最大重试次数，仍未得到合法结构化输出", "attempts": attempts}))
 
 
@@ -192,17 +254,25 @@ def main() -> None:
     print(f"- ready: {config.is_ready}")
 
     print_json("TicketExtraction JSON Schema", get_model_json_schema(TicketExtraction))
+    print("说明：这是 TicketExtraction 自动导出的 JSON Schema，偏程序视角。")
+    print("阅读时优先关注 properties、required、enum 和字段约束。")
 
-    print(f"\n{'=' * 72}")
-    print("初始提取 Prompt")
-    print("=" * 72)
+    print_section("Schema 转 Prompt 描述")
+    print(schema_to_prompt_description(TicketExtraction))
+
+    print_section("初始提取 Prompt")
     print(prompt)
 
     client = RobustStructuredClient(config=config, max_retries=3)
     validated, attempts = client.extract(prompt, TicketExtraction)
 
     for row in attempts:
-        print_json(f"Attempt {row['attempt']} - {row['stage']}", row)
+        stage_title = {
+            "parse": "JSON 解析失败",
+            "validate": "Schema 校验失败",
+            "success": "提取成功",
+        }.get(str(row["stage"]), str(row["stage"]))
+        print_json(f"第 {row['attempt']} 次尝试 - {row['label']} - {stage_title}", row)
 
     print_json("最终校验结果", model_dump(validated))
 

@@ -17,17 +17,111 @@
 - 建议先完成 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
 - 已理解 `Document / Retriever / Runnable` 这些基础抽象
 
+## 与前后课程的衔接
+
+### 与 02_llm 的关系
+
+- `02_llm` 解决的是：怎么稳定调用模型、怎么管理消息、怎么做结构化输出、怎么控制成本与错误。
+- 本课程承接这些基础能力，把“单次模型调用”升级成“检索 + 生成”的完整知识系统。
+- 如果前面的 `Prompt / Structured Output / Token / Reliability` 不熟，这门课会很容易只停留在“能跑通”，很难进入优化阶段。
+
+### 与 03_foundation 的关系
+
+- `03_foundation` 提供的是本课程最重要的抽象底座：`Document / Retriever / Runnable / LCEL`。
+- 本课程不再系统解释这些抽象为什么存在，而是默认你已经理解它们，并把它们用在真实 RAG 链路里。
+- 可以把这门课理解成：把 `03_foundation` 里的通用抽象，落成一个可评估、可治理、可部署的检索系统。
+
+### 与 06_application 的关系
+
+- 后面的 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md) 不会重新讲一遍 RAG 原理，而是直接把这里的能力装进真实业务系统。
+- 本课程产出的核心能力，会在后续项目里落到：知识库接入、检索链路、引用回答、效果回归、知识治理。
+- 换句话说，这门课要先把“知识系统底座”做稳，后面的项目课才能把重点放在业务闭环和产品落地上。
+
+### 本课程的边界
+
+- 本课程重点是 **固定检索链路** 的设计、优化与治理。
+- 多步骤动态决策、状态机编排、复杂工具协作，不在这里系统展开，放到 [05_agent/outline.md](/Users/lrq/work/ai_application/docs/05_agent/outline.md)。
+- 业务系统级的权限、审计、工作台、人工协作、前后端整合，放到 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md)。
+
 ## 本课程回答什么问题
 
 - 文档怎么切，切多大，怎么保留结构和元数据？
 - Embedding 和向量数据库怎么选？
+- 什么情况下应该用 `2-step RAG`、混合检索、Hosted File Search，什么时候不该过早上 `Agentic RAG`？
 - 检索效果不好时该调哪里？
 - Rerank、混合检索、多查询、HyDE 在什么情况下值得用？
+- 如何从第一天就建立最小评估集，避免“调了很多但不知道是否变好”？
+- 文档解析、增量更新、版本、删除一致性、ACL、多租户这些生产问题怎么处理？
 - 如何把 RAG 做成可运行、可评估、可优化的业务系统？
+
+## 开始前：先建立最小评估集 📌
+
+### 1. RAG 评估与测试前置
+
+#### 本节与前后课程的关系
+
+- 承接前面的 `02_llm`：你已经学过结构化输出、错误处理、成本意识，这一节把这些能力收束成“可重复评估”的工程习惯。
+- 依赖 `03_foundation`：后面每换 `Retriever / Runnable / Prompt`，都需要同一套评估尺子来判断变化是否有效。
+- 服务后面的 `06_application`：项目实战里会真正需要离线评估、坏案例回流和版本回归，这一节先把方法论立住。
+- 边界：这里先建立最小评估集，不展开完整 LLMOps 平台或企业级观测体系。
+
+#### 知识点
+
+1. **为什么评估要前置**
+   - RAG 是系统工程，不是“换个 Prompt 看感觉”
+   - 如果没有基线，后续改 `chunk_size / retriever / rerank / prompt` 都无法判断是否真的变好
+   - 评估不是最后补作业，而是整个课程的实验尺子
+
+2. **最小 Golden Set 怎么建**
+   - 先收集 20-50 个真实问题
+   - 每条样本至少包含：`question / expected_answer / expected_sources`
+   - 对难题单独标记：多跳问题、模糊问题、无答案问题、需拒答问题
+
+3. **要评什么**
+   - 检索评估：召回率、MRR、命中来源
+   - 生成评估：准确性、完整性、引用质量、拒答正确性
+   - 端到端评估：答案是否解决业务问题，响应时间是否可接受
+
+4. **什么时候回归**
+   - 改切分策略时跑一次
+   - 换 Embedding / Vector DB / Retriever 时跑一次
+   - 改 Prompt / Rerank / 上下文压缩时跑一次
+   - 上线前做一次固定回归
+
+#### 实践练习
+
+```python
+# 1. 建一个最小 RAG golden set
+golden_set = [
+    {
+        "question": "如何退款？",
+        "expected_answer": "根据退款规则，用户需要先提交申请...",
+        "expected_sources": ["refund_policy.md"],
+    },
+    {
+        "question": "产品价格是多少？",
+        "expected_answer": "标准版价格为 299 元",
+        "expected_sources": ["pricing.pdf"],
+    },
+]
+
+# 2. 先不追求自动打分完美
+# 先把测试样本固定下来，并能重复跑
+
+# 3. 记录每一轮实验配置
+experiment_config = {
+    "chunk_size": 500,
+    "chunk_overlap": 50,
+    "embedding_model": "text-embedding-3-small",
+    "retrieval_strategy": "similarity",
+}
+
+# 4. 后续每改一项，就在这套样本上回归
+```
 
 ## 一、RAG 基础概念
 
-### 1. 什么是 RAG
+### 2. 什么是 RAG
 
 #### 知识点
 
@@ -97,9 +191,67 @@
 
 ---
 
+### 3. RAG 架构选型与边界判断 📌
+
+#### 本节与前后课程的关系
+
+- 承接 `02_llm` 的上下文窗口、成本控制和结构化输出认知，帮助你理解为什么不是所有问题都该直接做 RAG。
+- 承接 `03_foundation` 的组件认知，把抽象层面的 `Retriever / Chain / Runnable` 转成真正的架构判断。
+- 为 `06_application` 服务：后面的项目里会同时遇到 FAQ、规则库、公告解析等不同场景，这一节决定你选固定 RAG、混合检索，还是升级到更复杂方案。
+- 边界：这里强调“什么时候该用什么”，不是展开讲 Agent 编排；动态决策留到 `05_agent`。
+
+#### 知识点
+
+1. **常见方案梯度**
+   - 直接长上下文：材料少、问题少、无需索引时
+   - 直接查现有知识源：本来就有 SQL / Elasticsearch / CMS / FAQ 系统时
+   - `2-step RAG`：先召回，再生成，默认主线方案
+   - `Hybrid RAG`：关键词 + 向量混合，适合术语、编号、产品名很多的场景
+   - Hosted File Search：快速验证产品价值、减少自建检索工程时
+   - `Agentic RAG`：需要动态判断、查询改写、多知识源路由时
+
+2. **选型维度**
+   - 数据是否经常更新
+   - 是否需要来源引用
+   - 是否需要复杂检索策略
+   - 是否已有成熟数据系统
+   - 团队是否真的有能力维护检索链路
+
+3. **默认决策顺序**
+   - 先判断能否直接用长上下文解决
+   - 再判断能否直接查现有知识系统
+   - 默认优先做稳定的 `2-step RAG`
+   - 检索不稳时再加混合检索、Rerank、查询变换
+   - 只有固定链路明显不够时，才升级到 `Agentic RAG`
+
+4. **常见误区**
+   - 还没把基础 RAG 做稳，就急着上 Agent
+   - 本来结构化数据查询更合适，却硬塞进向量库
+   - 只是想快速做 Demo，却过早搭整套索引平台
+
+#### 实践练习
+
+```python
+# 判断以下场景更适合哪种方案
+#
+# 1. 用户上传 10 份 PDF，快速做问答 Demo
+#    - 长上下文 / Hosted File Search / 自建 RAG？
+#
+# 2. 公司 FAQ 已经在 Elasticsearch 里
+#    - 直接查现有系统 / 向量化重建？
+#
+# 3. 金融问答，问题里大量包含代码、简称、产品编号
+#    - 向量检索 / 混合检索？
+#
+# 4. 复杂研究问题，需要判断是否继续检索、改写查询、拆分子问题
+#    - 固定 RAG / Agentic RAG？
+```
+
+---
+
 ## 二、文档处理
 
-### 2. 文档加载
+### 4. 文档加载
 
 #### 知识点
 
@@ -140,7 +292,7 @@ documents = loader.load()
 
 ---
 
-### 3. 文本切分
+### 5. 文本切分
 
 #### 知识点
 
@@ -194,7 +346,7 @@ chunks = text_splitter.split_text(long_text)
 
 ---
 
-### 4. 元数据管理
+### 6. 元数据管理
 
 #### 知识点
 
@@ -277,9 +429,64 @@ chunk = Document(
 
 ---
 
+### 7. 数据生命周期与知识库治理 📌
+
+#### 本节与前后课程的关系
+
+- 前面的章节已经解决“如何把文档放进索引”，这一节开始解决“索引如何长期活着且不出错”。
+- 它依赖前面文档处理、元数据、向量存储这些基础模块，但视角从“单次构建”切到“持续运营”。
+- 后面的 `06_application` 会真正落地文档上传、删除、版本更新、知识库隔离、多租户管理，这一节是在为项目课的知识底座做准备。
+- 边界：这里只建立治理意识和核心设计点，不把课程拉成完整后台平台开发课。
+
+#### 知识点
+
+1. **数据接入与增量更新**
+   - 首次全量导入
+   - 文档新增后的增量索引
+   - 文档修改后的局部重建
+   - 文档失效后的下线策略
+
+2. **版本与删除一致性**
+   - 文档版本号设计
+   - `document_id / chunk_id` 如何稳定生成
+   - 删除原文时，如何确保向量、缓存、元数据同步删除
+   - 避免“旧文档还在召回、新文档已经展示”的不一致
+
+3. **权限隔离与多租户**
+   - 按用户 / 部门 / 知识库做 ACL
+   - 检索阶段先做权限过滤，再做生成
+   - 多租户环境避免知识串库
+
+4. **复杂文档解析**
+   - OCR 文档
+   - 表格、图片、版面结构
+   - 扫描件和网页混合内容
+   - 非结构化和半结构化文档的不同处理策略
+
+5. **生产环境常见难点**
+   - 文档很多但质量不齐
+   - 文档更新频繁
+   - 同一内容多副本
+   - 线上权限和知识库管理复杂
+
+#### 实践练习
+
+```python
+# 设计一个知识库生命周期方案
+#
+# 要求：
+# 1. 文档上传后生成稳定的 document_id 和 chunk_id
+# 2. 文档更新时只重建受影响的块
+# 3. 文档删除时同步删除向量索引和缓存
+# 4. 支持按 tenant_id / department 过滤
+# 5. 支持 OCR 文档和普通 PDF 两条处理链路
+```
+
+---
+
 ## 三、向量化
 
-### 5. Embedding 基础
+### 8. Embedding 基础
 
 #### 知识点
 
@@ -332,7 +539,7 @@ text3 = "今天天气很好"
 
 ---
 
-### 6. 基于 LangChain 的 Embedding 接入
+### 9. 基于 LangChain 的 Embedding 接入
 
 #### 知识点
 
@@ -415,7 +622,7 @@ vectors = embeddings.embed_documents(texts)
 
 ## 四、向量数据库
 
-### 7. 向量数据库基础
+### 10. 向量数据库基础
 
 #### 知识点
 
@@ -455,7 +662,7 @@ vectors = embeddings.embed_documents(texts)
 
 ---
 
-### 8. Chroma 实践
+### 11. Chroma 实践
 
 #### 知识点
 
@@ -511,7 +718,7 @@ collection.delete(ids=["doc2"])
 
 ---
 
-### 9. 基于 LangChain 的向量数据库接入
+### 12. 基于 LangChain 的向量数据库接入
 
 #### 知识点
 
@@ -616,7 +823,7 @@ retriever = vectorstore.as_retriever(
 
 ## 五、检索策略
 
-### 10. 基础检索
+### 13. 基础检索
 
 #### 知识点
 
@@ -654,7 +861,7 @@ retriever = vectorstore.as_retriever(
 
 ---
 
-### 11. 高级检索策略
+### 14. 高级检索策略
 
 #### 知识点
 
@@ -716,7 +923,7 @@ ensemble_retriever = EnsembleRetriever(
 
 ---
 
-### 12. Rerank 重排序
+### 15. Rerank 重排序
 
 #### 知识点
 
@@ -760,6 +967,52 @@ scores = reranker.compute_score(
 
 # 3. 对比有无 Rerank 的效果
 # 记录检索时间和准确率
+```
+
+---
+
+### 16. 高级 Retriever（选读）
+
+#### 本节与前后课程的关系
+
+- 这一节建立在你已经掌握基础检索、查询变换、Rerank 之后，属于“在基础方案做稳之后的增强项”。
+- 它和 `03_foundation` 的关系在于：你已经知道 Retriever 是统一抽象，这里进一步看到不同 Retriever 是如何在同一接口下解决不同问题。
+- 对 `06_application` 来说，这些内容主要服务复杂知识库的召回优化，而不是第一版系统的必选项。
+- 边界：这部分是选读增强，不应该取代前面稳定的基础 RAG 主线。
+
+#### 知识点
+
+1. **Self-Query Retriever**
+   - 让 LLM 先把用户问题解析成“语义查询 + 元数据过滤”
+   - 适合带分类、时间、作者、部门等字段的知识库
+
+2. **Parent Document Retriever**
+   - 检索时用小块提高召回
+   - 返回时回到更大的父文档，降低碎片化上下文
+
+3. **Multi-Vector Retriever**
+   - 同一文档保存多种向量表示
+   - 适合标题、摘要、正文分别表达不同语义的场景
+
+4. **什么时候值得上**
+   - 基础相似度检索已经稳定，但边界问题仍多
+   - 知识库元数据足够丰富
+   - 业务允许更复杂的索引构建和维护成本
+
+#### 实战案例
+
+```python
+# 1. 对同一批文档，对比：
+# - 普通 similarity retriever
+# - self-query retriever
+# - parent-document retriever
+#
+# 2. 观察哪类问题在高级 retriever 下明显受益
+#
+# 3. 记录复杂度代价：
+# - 构建成本
+# - 检索延迟
+# - 配置复杂度
 ```
 
 ---
@@ -815,7 +1068,7 @@ scores = reranker.compute_score(
 
 ## 六、RAG 生成
 
-### 13. Prompt 模板设计
+### 17. Prompt 模板设计
 
 #### 知识点
 
@@ -874,7 +1127,7 @@ template_with_citation = """
 
 ---
 
-### 14. 基于 LCEL 的 RAG Chain 构建
+### 18. 基于 LCEL 的 RAG Chain 构建
 
 #### 知识点
 
@@ -930,7 +1183,7 @@ for chunk in rag_chain.stream("你的问题"):
 
 ---
 
-### 15. 完整 RAG 应用
+### 19. 完整 RAG 应用
 
 #### 知识点
 
@@ -943,15 +1196,19 @@ for chunk in rag_chain.stream("你的问题"):
 
 2. **功能模块**
    - 文档上传与处理
+   - 增量索引与版本管理
    - 向量索引管理
    - 问答接口
    - 对话历史
+   - 权限与知识库隔离
 
 3. **工程化考虑**
    - 异步处理
    - 错误处理
    - 日志记录
    - API 设计
+   - 删除一致性
+   - 权限校验
 
 #### 实战案例
 
@@ -1044,7 +1301,7 @@ async def delete_document(doc_id: str):
 
 ## 七、RAG 优化
 
-### 16. 检索效果优化
+### 20. 检索效果优化
 
 #### 知识点
 
@@ -1060,6 +1317,7 @@ async def delete_document(doc_id: str):
    - Rerank 加持
 
 3. **评估方法**
+   - 基于课程开头建立的 golden set 做回归
    - 人工评估
    - 自动化评估
    - A/B 测试
@@ -1092,7 +1350,7 @@ configs = [
 
 ---
 
-### 17. 生成质量优化
+### 21. 生成质量优化
 
 #### 知识点
 
@@ -1160,6 +1418,9 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 # print(f"检索召回率: {report.retrieval_recall}")
 # print(f"答案准确率: {report.answer_accuracy}")
 #
+# # 加载固定 golden set，后续所有实验都复用
+# # evaluator.load_golden_set("evals/rag_golden_set.jsonl")
+#
 # # 对比不同配置
 # evaluator.compare_configs([
 #     {"chunk_size": 300, "model": "openai"},
@@ -1175,9 +1436,16 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 
 ---
 
-## 7.5、进阶 RAG 方向
+## 八、进阶 RAG 方向
 
-### 17.5 GraphRAG ⚡
+### 22. GraphRAG ⚡
+
+#### 本节与前后课程的关系
+
+- 这一节是在传统 RAG 主线学完之后，补一个“什么时候需要更复杂知识表示”的进阶视角。
+- 它承接 `03_foundation` 里关于上下文组织和信息表示的认知，也承接本课程前面关于检索链路的完整主线。
+- 对 `06_application` 来说，只有当业务问题明显存在跨文档、多跳、实体关系推理时，才可能考虑这类方案。
+- 边界：这里只做概念认知与场景判断，不在本课程里展开完整实现，避免主线发散。
 
 #### 知识点
 
@@ -1218,7 +1486,14 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 
 ---
 
-### 17.6 Agentic RAG（概念认知，详细实现放到 Agent 课程）📌
+### 23. Agentic RAG（概念认知，详细实现放到 Agent 课程）📌
+
+#### 本节与前后课程的关系
+
+- 这节是本课程和 [05_agent/outline.md](/Users/lrq/work/ai_application/docs/05_agent/outline.md) 的桥梁章节。
+- 前面你已经学完固定 RAG，本节的目标不是立刻实现 Agent，而是先判断：什么时候固定链路已经不够，什么时候值得引入动态决策。
+- 到 `05_agent` 中，你会真正把检索包装成工具、接入状态机和条件路由；到 `06_application` 中，它会进一步服务复杂业务流程。
+- 边界：本课程只讲价值、边界和升级条件，不把主线从“稳定 RAG”带偏到“复杂编排”。
 
 #### 知识点
 
@@ -1262,9 +1537,9 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 
 ---
 
-## 八、综合项目
+## 九、综合项目
 
-### 18. PDF 文档问答系统
+### 24. PDF 文档问答系统
 
 ```python
 # 实现一个完整的 PDF 文档问答系统
@@ -1292,7 +1567,7 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 
 ---
 
-### 19. 企业知识库
+### 25. 企业知识库
 
 ```python
 # 实现一个企业知识库系统（可扩展框架）
@@ -1322,6 +1597,7 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 # - 配置管理
 # - 日志和监控
 # - 单元测试
+# - 文档版本与删除一致性
 #
 # 扩展方向：
 # - 前端界面
@@ -1352,6 +1628,8 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 ### 评估工具
 - [Ragas](https://docs.ragas.io/) - RAG 评估框架
 - [TruLens](https://www.trulens.org/) - LLM 应用评估
+- [LangSmith Evaluation](https://docs.langchain.com/langsmith/evaluation) - 评估与回归
+- [OpenAI File Search](https://platform.openai.com/docs/guides/tools-file-search) - Hosted File Search 参考
 
 ---
 
@@ -1362,6 +1640,8 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 1. **解释** RAG 的原理和适用场景
 2. **实现** 文档加载、切分、向量化、存储的完整流程
 3. **构建** 基础的 RAG 问答系统
-4. **优化** 检索效果（切分策略、Rerank、混合检索）
-5. **部署** 一个可用的文档问答 API
-6. **评估** RAG 系统的效果
+4. **判断** 长上下文 / 现有知识源 / `2-step RAG` / Hybrid / Hosted File Search / Agentic RAG 的适用边界
+5. **优化** 检索效果（切分策略、Rerank、混合检索、高级 Retriever）
+6. **部署** 一个可用的文档问答 API
+7. **评估** RAG 系统的效果，并基于 golden set 做回归
+8. **理解** 增量索引、版本、删除一致性、ACL、多租户这些生产问题

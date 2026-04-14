@@ -19,6 +19,7 @@ from typing import Any, AsyncIterator
 BASE_DIR = Path(__file__).resolve().parent
 EXPORT_DIR = BASE_DIR / "exports"
 DEFAULT_SYSTEM_PROMPT = "你是一个严谨、简洁、对开发者友好的 AI 助手。"
+DEFAULT_DEBUG = True
 
 
 def load_env_if_possible() -> None:
@@ -147,6 +148,67 @@ def preview_chat_request(
     return payload
 
 
+def _debug_print_start(
+    config: ProviderConfig,
+    request_preview: dict[str, Any],
+    debug_label: str | None = None,
+) -> None:
+    if debug_label:
+        print(f"\n{'=' * 72}")
+        print(f"[DEBUG] {debug_label} -> 请求开始")
+        print("=" * 72)
+    print(
+        "[DEBUG] chat.start "
+        f"provider={config.provider} "
+        f"model={config.model} "
+        f"ready={config.is_ready}"
+    )
+    print("[DEBUG] request_preview:")
+    print(json.dumps(request_preview, ensure_ascii=False, indent=2))
+
+
+def _debug_print_result(result: ChatResult, debug_label: str | None = None) -> None:
+    finish_reason = None
+    choices = result.raw_response_preview.get("choices") or []
+    if choices:
+        finish_reason = choices[0].get("finish_reason")
+
+    if debug_label:
+        print(f"\n{'=' * 72}")
+        print(f"[DEBUG] {debug_label} -> 返回结果")
+        print("=" * 72)
+    print(
+        "[DEBUG] chat.result "
+        f"provider={result.provider} "
+        f"model={result.model} "
+        f"mocked={result.mocked} "
+        f"finish_reason={finish_reason or '（未返回）'} "
+        f"elapsed_ms={result.elapsed_ms}"
+    )
+    print("[DEBUG] raw_response_preview:")
+    print(json.dumps(result.raw_response_preview or {}, ensure_ascii=False, indent=2))
+    print("[DEBUG] raw_content:")
+    print(result.content)
+
+
+def _debug_print_stream_result(summary: StreamSummary, debug_label: str | None = None) -> None:
+    if debug_label:
+        print(f"\n{'=' * 72}")
+        print(f"[DEBUG] {debug_label} -> 流式返回结果")
+        print("=" * 72)
+    print(
+        "[DEBUG] stream.result "
+        f"provider={summary.provider} "
+        f"model={summary.model} "
+        f"mocked={summary.mocked} "
+        f"chunk_count={summary.chunk_count} "
+        f"first_token_ms={summary.first_token_ms} "
+        f"elapsed_ms={summary.elapsed_ms}"
+    )
+    print("[DEBUG] full_text:")
+    print(summary.full_text)
+
+
 def estimate_tokens(text: str, encoding_name: str = "cl100k_base") -> int:
     try:
         import tiktoken
@@ -268,14 +330,24 @@ async def chat_once(
     messages: list[dict[str, str]],
     temperature: float = 0.3,
     max_tokens: int = 400,
+    debug: bool = DEFAULT_DEBUG,
+    debug_label: str | None = None,
 ) -> ChatResult:
     request_preview = preview_chat_request(config, messages, temperature, max_tokens, stream=False)
+    if debug:
+        _debug_print_start(config, request_preview, debug_label)
     started = time.perf_counter()
 
     if not config.is_ready:
         content = _build_mock_reply(messages)
         elapsed_ms = (time.perf_counter() - started) * 1000
-        return ChatResult(
+        if debug:
+            print(
+                "[DEBUG] mock_fallback "
+                f"provider={config.provider} "
+                "reason=missing_api_key"
+            )
+        result = ChatResult(
             provider=config.provider,
             model=config.model,
             content=content,
@@ -290,6 +362,9 @@ async def chat_once(
             },
             elapsed_ms=elapsed_ms,
         )
+        if debug:
+            _debug_print_result(result, debug_label)
+        return result
 
     try:
         from openai import AsyncOpenAI
@@ -297,12 +372,21 @@ async def chat_once(
         raise RuntimeError("未安装 openai SDK，请先执行：pip install openai") from exc
 
     client = AsyncOpenAI(api_key=config.api_key, base_url=config.base_url)
-    response = await client.chat.completions.create(
-        model=config.model,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
+    try:
+        response = await client.chat.completions.create(
+            model=config.model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+    except Exception as exc:
+        if debug:
+            print(
+                "[DEBUG] request_failed "
+                f"provider={config.provider} "
+                f"error={type(exc).__name__}: {exc}"
+            )
+        raise
     usage = None
     if response.usage:
         usage = ChatUsage(
@@ -312,7 +396,7 @@ async def chat_once(
         )
     message = response.choices[0].message
     elapsed_ms = (time.perf_counter() - started) * 1000
-    return ChatResult(
+    result = ChatResult(
         provider=config.provider,
         model=config.model,
         content=message.content or "",
@@ -336,6 +420,9 @@ async def chat_once(
         },
         elapsed_ms=elapsed_ms,
     )
+    if debug:
+        _debug_print_result(result, debug_label)
+    return result
 
 
 def _split_mock_chunks(text: str) -> list[str]:
@@ -356,14 +443,24 @@ async def stream_chat_events(
     messages: list[dict[str, str]],
     temperature: float = 0.3,
     max_tokens: int = 400,
+    debug: bool = DEFAULT_DEBUG,
+    debug_label: str | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
     request_preview = preview_chat_request(config, messages, temperature, max_tokens, stream=True)
+    if debug:
+        _debug_print_start(config, request_preview, debug_label)
     started = time.perf_counter()
     first_token_ms: float | None = None
     collected: list[str] = []
     chunk_count = 0
 
     if not config.is_ready:
+        if debug:
+            print(
+                "[DEBUG] mock_fallback "
+                f"provider={config.provider} "
+                "reason=missing_api_key"
+            )
         mock_text = _build_mock_reply(messages)
         for part in _split_mock_chunks(mock_text):
             await asyncio.sleep(0.08)
@@ -374,20 +471,23 @@ async def stream_chat_events(
             yield {"type": "token", "delta": part}
 
         full_text = "".join(collected)
+        summary = StreamSummary(
+            provider=config.provider,
+            model=config.model,
+            mocked=True,
+            request_preview=request_preview,
+            full_text=full_text,
+            first_token_ms=first_token_ms,
+            elapsed_ms=(time.perf_counter() - started) * 1000,
+            chunk_count=chunk_count,
+            input_tokens_estimate=estimate_messages_tokens(messages),
+            output_tokens_estimate=estimate_tokens(full_text),
+        )
+        if debug:
+            _debug_print_stream_result(summary, debug_label)
         yield {
             "type": "done",
-            "summary": StreamSummary(
-                provider=config.provider,
-                model=config.model,
-                mocked=True,
-                request_preview=request_preview,
-                full_text=full_text,
-                first_token_ms=first_token_ms,
-                elapsed_ms=(time.perf_counter() - started) * 1000,
-                chunk_count=chunk_count,
-                input_tokens_estimate=estimate_messages_tokens(messages),
-                output_tokens_estimate=estimate_tokens(full_text),
-            ),
+            "summary": summary,
         }
         return
 
@@ -397,13 +497,22 @@ async def stream_chat_events(
         raise RuntimeError("未安装 openai SDK，请先执行：pip install openai") from exc
 
     client = AsyncOpenAI(api_key=config.api_key, base_url=config.base_url)
-    stream = await client.chat.completions.create(
-        model=config.model,
-        messages=messages,
-        temperature=temperature,
-        max_tokens=max_tokens,
-        stream=True,
-    )
+    try:
+        stream = await client.chat.completions.create(
+            model=config.model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True,
+        )
+    except Exception as exc:
+        if debug:
+            print(
+                "[DEBUG] request_failed "
+                f"provider={config.provider} "
+                f"error={type(exc).__name__}: {exc}"
+            )
+        raise
 
     async for chunk in stream:
         if not chunk.choices:
@@ -418,20 +527,23 @@ async def stream_chat_events(
         yield {"type": "token", "delta": delta}
 
     full_text = "".join(collected)
+    summary = StreamSummary(
+        provider=config.provider,
+        model=config.model,
+        mocked=False,
+        request_preview=request_preview,
+        full_text=full_text,
+        first_token_ms=first_token_ms,
+        elapsed_ms=(time.perf_counter() - started) * 1000,
+        chunk_count=chunk_count,
+        input_tokens_estimate=estimate_messages_tokens(messages),
+        output_tokens_estimate=estimate_tokens(full_text),
+    )
+    if debug:
+        _debug_print_stream_result(summary, debug_label)
     yield {
         "type": "done",
-        "summary": StreamSummary(
-            provider=config.provider,
-            model=config.model,
-            mocked=False,
-            request_preview=request_preview,
-            full_text=full_text,
-            first_token_ms=first_token_ms,
-            elapsed_ms=(time.perf_counter() - started) * 1000,
-            chunk_count=chunk_count,
-            input_tokens_estimate=estimate_messages_tokens(messages),
-            output_tokens_estimate=estimate_tokens(full_text),
-        ),
+        "summary": summary,
     }
 
 

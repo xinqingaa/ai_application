@@ -17,6 +17,7 @@ from typing import Literal
 
 from structured_utils import (
     format_validation_error,
+    get_model_json_schema,
     is_pydantic_available,
     load_env_if_possible,
     load_provider_config,
@@ -50,6 +51,12 @@ class SalesLead(BaseModel):
     intent_level: Literal["high", "medium", "low"] = Field(description="购买意向等级")
     budget: int | None = Field(default=None, ge=0, description="预算金额，单位元")
     next_action: str = Field(description="建议的下一步动作")
+
+
+def print_section(title: str) -> None:
+    print(f"\n{'=' * 72}")
+    print(title)
+    print("=" * 72)
 
 
 class StructuredExtractor:
@@ -87,6 +94,7 @@ class StructuredExtractor:
             ],
             temperature=0.0,
             max_tokens=260,
+            debug_label=f"样本 {case['id']}：结构化提取",
         )
         parsed = parse_json_output(result.content)
         if not parsed.ok:
@@ -151,10 +159,15 @@ def main() -> None:
     print(f"- ready: {config.is_ready}")
     print(f"- batch_size: {len(cases)}")
 
+    print_json("SalesLead JSON Schema", get_model_json_schema(SalesLead))
+    print("说明：这是 SalesLead 自动导出的 JSON Schema，偏程序视角。")
+    print("批量提取时，Prompt 生成和最终校验都围绕这份结构定义展开。")
+
+    print_section("Schema 转 Prompt 描述")
+    print(schema_to_prompt_description(SalesLead))
+
     preview_prompt = extractor.build_prompt(cases[0]["text"])
-    print(f"\n{'=' * 72}")
-    print("首条样本 Prompt 预览")
-    print("=" * 72)
+    print_section("首条样本 Prompt 预览")
     print(preview_prompt)
 
     report = extractor.extract_batch(cases)

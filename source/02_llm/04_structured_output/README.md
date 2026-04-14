@@ -151,6 +151,31 @@ python 02_pydantic_schema.py
 - 模型输出即使能 `json.loads()`，为什么还要再过一次 Pydantic
 - 嵌套字段、可选字段、枚举字段分别怎么表达
 
+### 怎么看这个脚本的输出
+
+第一次跑 `02_pydantic_schema.py` 时，很多人会被最上面那大段 `LeadRecord JSON Schema` 卡住。
+
+你可以按这个顺序理解：
+
+1. `LeadRecord JSON Schema`
+   这是 `LeadRecord` 和 `ContactChannel` 自动导出的 JSON Schema。
+   重点先看 `properties`、`required`、`$defs`，不要一开始就试图逐字看完。
+2. `Schema 转 Prompt 描述`
+   这是把同一份 Schema 转成更适合喂给模型的字段说明文本。
+3. `提取 Prompt`
+   这是最终发给模型的提示词，里面已经包含销售记录和字段约束。
+4. `模型原始输出`
+   这是模型直接返回的文本。
+5. `JSON 解析结果` / `Pydantic 校验后的对象`
+   这是程序把原始文本收敛成稳定结构对象的过程。
+
+这一步最重要的理解不是“手写 JSON Schema”，而是：
+
+- 你维护的是 Pydantic 类
+- 程序可以从它自动导出 JSON Schema
+- 同一份定义还能反向生成 Prompt 描述
+- 最终校验仍然回到这份 Pydantic 结构上
+
 ### 建议主动修改
 
 - 给 `LeadRecord` 增加一个 `phone` 字段

@@ -64,6 +64,25 @@ def build_messages(prompt: str) -> list[dict[str, str]]:
     ]
 
 
+def print_section(title: str) -> None:
+    print(f"\n{'=' * 72}")
+    print(title)
+    print("=" * 72)
+
+
+def print_json_parse_result(title: str, content: str) -> None:
+    parsed = parse_json_output(content)
+    print_json(
+        title,
+        {
+            "ok": parsed.ok,
+            "candidate_text": parsed.candidate_text,
+            "data": parsed.data,
+            "error": parsed.error,
+        },
+    )
+
+
 def main() -> None:
     load_env_if_possible()
     config = load_provider_config()
@@ -77,51 +96,66 @@ def main() -> None:
     print(f"- base_url: {config.base_url}")
     print(f"- ready: {config.is_ready}")
 
-    print(f"\n{'=' * 72}")
-    print("自由文本 Prompt")
-    print("=" * 72)
+    print_section("模式一：自由文本")
+    print("Prompt：")
     print(free_text_prompt)
 
-    print(f"\n{'=' * 72}")
-    print("JSON Prompt")
-    print("=" * 72)
-    print(json_prompt)
-
-    free_text_result = run_chat(config, build_messages(free_text_prompt), temperature=0.2, max_tokens=220)
-    json_result = run_chat(config, build_messages(json_prompt), temperature=0.0, max_tokens=220)
-
-    print_json("自由文本 request_preview", free_text_result.request_preview)
-    print("\n自由文本输出：")
-    print(free_text_result.content)
-
-    print_json("JSON Prompt request_preview", json_result.request_preview)
-    print("\nJSON Prompt 输出：")
-    print(json_result.content)
-
-    parsed = parse_json_output(json_result.content)
-    print_json(
-        "JSON Prompt 解析结果",
-        {
-            "ok": parsed.ok,
-            "candidate_text": parsed.candidate_text,
-            "data": parsed.data,
-            "error": parsed.error,
-        },
+    free_text_result = run_chat(
+        config,
+        build_messages(free_text_prompt),
+        temperature=0.2,
+        max_tokens=220,
+        debug_label="模式一：自由文本",
     )
 
-    json_mode_preview = {
-        "model": config.model,
-        "messages": build_messages(json_prompt),
-        "temperature": 0.0,
-        "max_tokens": 220,
-        "response_format": {"type": "json_object"},
-    }
-    print_json("JSON Mode 请求预览", json_mode_preview)
+    print("\n输出：")
+    print(free_text_result.content)
+
+    print_section("模式二：Prompt 约束 JSON")
+    print("Prompt：")
+    print(json_prompt)
+
+    json_prompt_result = run_chat(
+        config,
+        build_messages(json_prompt),
+        temperature=0.0,
+        max_tokens=220,
+        debug_label="模式二：Prompt 约束 JSON",
+    )
+
+    print("\n输出：")
+    print(json_prompt_result.content)
+    print_json_parse_result("模式二解析结果", json_prompt_result.content)
+
+    print_section("模式三：JSON Mode 接口约束")
+    print("Prompt：")
+    print(json_prompt)
+    print("\n接口额外约束：response_format = {'type': 'json_object'}")
+
+    try:
+        json_mode_result = run_chat(
+            config,
+            build_messages(json_prompt),
+            temperature=0.0,
+            max_tokens=220,
+            extra_options={"response_format": {"type": "json_object"}},
+            debug_label="模式三：JSON Mode 接口约束",
+        )
+    except Exception as exc:
+        print("\n输出：")
+        print(f"当前 provider 的 JSON Mode 调用失败：{type(exc).__name__}: {exc}")
+        json_mode_result = None
+
+    if json_mode_result is not None:
+        print("\n输出：")
+        print(json_mode_result.content)
+        print_json_parse_result("模式三解析结果", json_mode_result.content)
 
     print("\n观察重点：")
     print("- 自由文本结果对人类可读，但对程序不稳定。")
-    print("- Prompt 指定 JSON 后，结果更接近可解析格式，但仍可能带解释、代码块或字段错误。")
-    print("- JSON Mode 是更强的接口级约束，但不同 provider 的支持程度不完全一致。")
+    print("- Prompt 里写明 JSON 要求后，结果通常更接近可解析格式，但仍属于依赖模型遵守提示词。")
+    print("- JSON Mode 属于接口级约束；如果 provider 支持，通常会比纯 Prompt 约束更稳定。")
+    print("- 不同 provider 对 JSON Mode 的支持程度不完全一致，生产里要做兼容判断和失败回退。")
 
 
 if __name__ == "__main__":

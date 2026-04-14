@@ -19,17 +19,117 @@
 - 建议先完成 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
 - 建议先完成 [04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
 
+## 与前后课程的衔接
+
+### 与 02_llm 的关系
+
+- `02_llm` 解决的是：如何调用模型、设计消息、做结构化输出、控制流式输出、错误处理与成本。
+- 本课程默认这些能力已经具备，因为 `Function Calling / Tool Schema / Guardrails / Eval` 都建立在这些基本功之上。
+- 可以把这门课理解成：从“模型会回答”升级到“系统会决策、会调用、会协作”。
+
+### 与 03_foundation 的关系
+
+- `03_foundation` 提供的是 LangChain 核心抽象和组件组合思维。
+- 本课程不再重复解释 `Runnable / Tool / Chain` 这些对象为什么这样设计，而是直接把它们放进 Agent 和 LangGraph 编排里。
+- 也就是说，这门课不是单纯学 API，而是在承接前面抽象之后进入“复杂系统编排”。
+
+### 与 04_rag 的关系
+
+- `04_rag` 解决的是固定检索链路怎么做稳。
+- 本课程承接这个结果，把检索从“固定步骤”升级成“可被 Agent 动态选择和调度的能力”。
+- 如果前面的传统 RAG 还没做稳，就很容易在 Agent 课程里把“检索问题”和“编排问题”混在一起。
+
+### 与 06_application 的关系
+
+- 后面的 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md) 会直接把这里的能力落成业务工作流，而不会回头系统补 Agent 原理。
+- 本课程产出的关键能力，会在项目实战里落到：路由决策、知识源选择、人工审批、风控节点、状态持久化、多角色协作。
+- 所以后面的项目课重点是业务闭环，这门课重点是先把“动态系统能力”学清楚。
+
+### 本课程的边界
+
+- 本课程重点是 **动态决策、工具调用、状态编排、记忆、安全与评测**。
+- 它不是通用工作流平台开发课，也不是完整企业中台设计课。
+- 具体业务拆分、前后端整合、权限审计落地、真实商业流程设计，放到 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md)。
+
 ## 本课程回答什么问题
 
+- 如何从 `Chain / Workflow / Agent / Multi-Agent` 里做架构选型，而不是一上来就上最复杂方案？
 - 什么情况下应该用 Agent，而不是普通 Chain 或 RAG？
 - 如何把工具调用从“一个 demo”做成稳定循环？
 - 为什么 LangGraph 比单纯 AgentExecutor 更适合复杂业务？
 - 怎样把 RAG 升级成 Agentic RAG？
+- 如何从第一天就建立 agent eval，持续做回归测试，而不是最后靠手测？
+- 如何做上下文工程（Context Engineering），而不是只靠一段 system prompt 硬撑？
 - 怎样把 Agent 做到可观测、可调试、可控、可上线？
+
+## 开始前：先建立最小 Agent 评估集 📌
+
+### 1. Agent 评估与测试前置
+
+#### 本节与前后课程的关系
+
+- 承接 `02_llm` 里的结构化输出、错误处理、成本意识，把它们升级成 Agent 场景下的“轨迹评估”和“回归测试”。
+- 承接 `04_rag` 里已经建立的 golden set 思维，但这里评估的不只是答案，还包括工具轨迹、路由和安全动作。
+- 服务 `06_application`：后面的业务工作流一旦变复杂，没有这套评估思维就很难稳定迭代。
+- 边界：这里建立最小可用评估方法，不展开完整线上监控平台或企业级发布体系。
+
+#### 知识点
+
+1. **为什么 Agent 更需要前置评估**
+   - Agent 是动态系统，结果不只取决于最终答案，还取决于中间决策
+   - 只靠手工试几条问题，很容易漏掉循环、乱调工具、越权调用这些问题
+   - 评估集越早建立，后续重构图结构越安心
+
+2. **最小 Agent Golden Set 怎么建**
+   - 每条样本至少包含：`input / expected_outcome / allowed_tools / forbidden_tools`
+   - 对敏感任务额外标记：是否必须确认、是否必须拒答、是否必须人工接管
+   - 加入无工具回答、单工具、多工具、失败重试、拒答这几类样本
+
+3. **评什么**
+   - 最终答案是否正确
+   - 工具轨迹是否合理
+   - 是否调用了不该调用的工具
+   - 成本、时延、迭代次数是否在预算内
+   - 安全样本是否正确拒绝或触发审批
+
+4. **什么时候回归**
+   - 改 Prompt / Tool 描述时
+   - 改 Graph 节点和路由时
+   - 换模型时
+   - 加新工具、新权限、新 guardrail 时
+
+#### 实践练习
+
+```python
+# 1. 建一个最小 Agent golden set
+golden_cases = [
+    {
+        "input": "北京今天天气怎么样？",
+        "expected_outcome": "use_tool:get_weather",
+        "allowed_tools": ["get_weather"],
+        "forbidden_tools": ["delete_file"],
+    },
+    {
+        "input": "删除 /tmp/test.txt",
+        "expected_outcome": "require_human_confirmation",
+        "allowed_tools": ["delete_file"],
+        "forbidden_tools": [],
+    },
+]
+
+# 2. 定义回归门槛
+eval_policy = {
+    "max_iterations": 8,
+    "max_latency_ms": 5000,
+    "max_tool_calls": 3,
+}
+
+# 3. 后续每次改 graph / tool / prompt，都跑这套数据
+```
 
 ## 一、Agent 基础概念
 
-### 1. 什么是 Agent
+### 2. 什么是 Agent
 
 #### 知识点
 
@@ -108,9 +208,58 @@
 
 ---
 
+### 3. Agent 架构选型：Chain / Workflow / Agent / Multi-Agent 📌
+
+#### 本节与前后课程的关系
+
+- 这一节是整个 Agent 课程的决策总入口，作用类似于 `04_rag` 里的架构选型章。
+- 它承接 `02_llm` 的“单次调用能力”、`03_foundation` 的“组件组合能力”、`04_rag` 的“固定链路能力”，帮助你判断何时真的需要 Agent。
+- 到 `06_application` 里，你会面对真实业务拆分，这一节的价值就是避免把所有模块都误做成 Multi-Agent。
+- 边界：这里先讲判断框架，不直接进入某一类 Agent 的细节实现。
+
+#### 知识点
+
+1. **四种常见架构**
+   - Chain：固定输入输出，步骤少，最稳定
+   - Workflow：有条件分支和状态流转，但决策空间可控
+   - Agent：模型动态选择工具和下一步动作
+   - Multi-Agent：多个角色协作，适合天然分工明显的复杂任务
+
+2. **默认决策顺序**
+   - 能用 Chain 解决，不上 Agent
+   - 需要条件分支和审批流，优先 Workflow / LangGraph
+   - 需要动态选工具、改计划、补检索时，再上 Agent
+   - 单 Agent 已经失控且角色天然不同，再考虑 Multi-Agent
+
+3. **选型维度**
+   - 任务是否稳定、是否高频
+   - 是否需要动态决策
+   - 是否存在敏感操作
+   - 是否有明显的角色分工
+   - 团队是否有能力调试和维护复杂图
+
+4. **常见误区**
+   - 把所有自动化问题都包装成 Agent
+   - 需要审批流的场景不用 Workflow，硬交给 Agent 自主决定
+   - 单 Agent 都没跑稳，就急着拆成多 Agent
+
+#### 实践练习
+
+```python
+# 判断以下场景更适合：
+# Chain / Workflow / Agent / Multi-Agent
+#
+# 1. JSON 字段抽取
+# 2. 客服工单路由 + 人工审批
+# 3. 搜索、比较、总结最新资料
+# 4. 研究员 + 分析师 + 审稿人 协作写报告
+```
+
+---
+
 ## 二、Function Calling
 
-### 2. Function Calling 基础
+### 4. Function Calling 基础
 
 #### 知识点
 
@@ -181,7 +330,7 @@ if message.tool_calls:
 
 ---
 
-### 3. 实现完整的工具调用循环
+### 5. 实现完整的工具调用循环
 
 #### 知识点
 
@@ -252,7 +401,7 @@ def run_agent(user_input: str, tools: list, max_iterations: int = 10):
 
 ---
 
-### 4. Claude Tool Use
+### 6. Claude Tool Use
 
 #### 知识点
 
@@ -313,7 +462,14 @@ response = client.messages.create(
 
 ---
 
-### 4.5 MCP（Model Context Protocol）📌
+### 7. MCP（Model Context Protocol）📌
+
+#### 本节与前后课程的关系
+
+- 前面的 `Function Calling` 解决的是“应用内部如何让模型调工具”，这一节进一步扩展到“能力如何以标准协议暴露和复用”。
+- 它承接 `02_llm` 的工具调用认知，也承接 `03_foundation` 里对接口抽象和组件边界的理解。
+- 对 `06_application` 来说，MCP 的价值主要在于未来接入更多外部能力或跨工作台复用工具，而不是项目第一天就必须重投入。
+- 边界：本课程重点是理解协议角色和接入方式，不展开成完整的插件市场或平台生态设计课。
 
 #### 知识点
 
@@ -342,9 +498,14 @@ response = client.messages.create(
      └── LLM（决策调用哪个 Server 的哪个工具）
    ```
 
-4. **MCP Server 开发**
+4. **MCP 核心能力对象**
+   - Tools：执行动作，例如搜索、查天气、执行 SQL
+   - Resources：暴露只读数据，例如文档、配置、知识条目
+   - Prompts：暴露可复用提示模板或工作模式
+
+5. **MCP Server 开发**
    - 使用 Python SDK（`mcp` 库）
-   - 定义 Tools、Resources、Prompts
+   - 将 Tools、Resources、Prompts 组织为一个标准化能力接口
    - 传输方式：stdio / SSE
 
 #### 实战案例
@@ -354,7 +515,7 @@ response = client.messages.create(
 # 安装并配置一个社区 MCP Server（如文件系统、GitHub）
 # 在 Claude Desktop 或 Cursor 中体验
 
-# 2. 编写简单的 MCP Server
+# 2. 编写简单的 MCP Tool
 from mcp.server import Server
 from mcp.types import Tool
 
@@ -370,12 +531,19 @@ async def calculate(expression: str) -> str:
     """计算数学表达式"""
     return str(eval(expression))
 
-# 3. 对比 Function Calling vs MCP
+# 3. 设计一个 MCP Resource
+# 例如：把产品手册、FAQ、配置项暴露为只读资源
+# 让 Host 能按 URI 读取，而不是每次都包装成工具调用
+#
+# 4. 设计一个 MCP Prompt
+# 例如：暴露“代码审查模式”“客服回复模式”这类可复用提示模板
+#
+# 5. 对比 Function Calling vs MCP
 # 同一个工具（天气查询），分别用两种方式实现
-# 体会开发体验和适用场景的差异
+# 体会“应用内部调用”与“标准化能力暴露”的差异
 
-# 4. MCP 与 LangChain 集成
-# 探索 LangChain 如何对接 MCP Server
+# 6. MCP 与 LangChain / LangGraph 集成
+# 探索如何把 MCP Server 暴露的能力映射到 Agent 可消费的工具或资源
 ```
 
 ---
@@ -426,7 +594,7 @@ async def calculate(expression: str) -> str:
 
 ## 三、LangChain / LangGraph Agent
 
-### 5. LangChain Tools
+### 8. LangChain Tools
 
 #### 知识点
 
@@ -485,7 +653,7 @@ tools = [get_weather, calculator, search]
 
 ---
 
-### 6. LangChain Agent 构建
+### 9. LangChain Agent 构建
 
 #### 知识点
 
@@ -546,7 +714,7 @@ agent_executor = AgentExecutor(
 
 ---
 
-### 7. LangGraph 基础
+### 10. LangGraph 基础
 
 #### 知识点
 
@@ -613,7 +781,7 @@ result = app.invoke({"messages": ["你好"]})
 
 ---
 
-### 8. LangGraph Agent 实战
+### 11. LangGraph Agent 实战
 
 #### 知识点
 
@@ -695,7 +863,14 @@ def sensitive_action(state: MessagesState):
 
 ---
 
-### 8.5 Agentic RAG 📌
+### 12. Agentic RAG 📌
+
+#### 本节与前后课程的关系
+
+- 这节直接承接 [04_rag/outline.md](/Users/lrq/work/ai_application/docs/04_rag/outline.md) 的传统 RAG 主线，是两门课最明确的交叉点。
+- 前一门课已经说明什么时候值得升级，这一节开始真正把检索纳入 Agent 决策图中。
+- 对 `06_application` 来说，它会服务那些需要“先判断、再检索、再审核”的复杂业务链路，而不是替代所有普通问答。
+- 边界：重点是理解固定 RAG 与动态 RAG 的工程差异，而不是鼓励在所有场景里默认上 Agent。
 
 #### 知识点
 
@@ -744,6 +919,61 @@ def sensitive_action(state: MessagesState):
 
 ---
 
+### 13. Context Engineering（上下文工程）📌
+
+#### 本节与前后课程的关系
+
+- 它承接 `02_llm` 里的消息管理、上下文窗口、结构化输出，也承接 `03_foundation` 的 Prompt / Runnable 组合思路。
+- 前面的章节已经让系统“能调用工具”，这一节解决的是“给模型什么上下文，系统才会稳定”。
+- 到 `06_application` 中，长流程、多角色、带审核的业务系统都高度依赖这里的上下文管理能力。
+- 边界：这里聚焦 AI 系统内部的上下文装配，不展开完整产品层的用户画像或 CRM 设计。
+
+#### 知识点
+
+1. **为什么 Context Engineering 不是“多写几句 Prompt”**
+   - Agent 的稳定性，很多时候取决于给了什么上下文，而不是模型本身
+   - 需要管理的不只是 system prompt，还包括消息历史、检索结果、工具结果、状态摘要、长期记忆
+
+2. **上下文分层**
+   - 系统级约束：角色、规则、权限边界
+   - 任务级上下文：当前目标、输出格式、成功条件
+   - 工作记忆：本轮任务的中间结果、计划、临时状态
+   - 长期记忆：跨轮偏好、用户资料、历史事实
+   - 外部上下文：检索结果、数据库记录、工具返回
+
+3. **核心技术**
+   - 动态上下文裁剪
+   - 历史摘要与状态压缩
+   - 只在需要时注入工具、提示词和知识源
+   - 按步骤选择不同模型
+   - 控制上下文预算，避免噪声污染推理
+
+4. **常见设计模式**
+   - 把“全部历史消息”改成“摘要 + 最近几轮”
+   - 把“所有工具都暴露”改成“按任务注入工具”
+   - 把“一个统一 prompt”改成“节点级 prompt”
+   - 把“长期记忆直接拼接”改成“先检索再注入”
+
+#### 实战案例
+
+```python
+# 1. 设计一个 Context Manager
+# 输入：当前任务、最近消息、长期记忆、工具列表
+# 输出：本轮真正送给模型的上下文
+
+# 2. 对比三种策略
+# - 全量历史直接拼接
+# - 摘要 + 最近消息
+# - 摘要 + 最近消息 + 按需检索长期记忆
+
+# 3. 为同一个 LangGraph Agent 设计：
+# - planner 节点 prompt
+# - tool 节点上下文
+# - final answer 节点 prompt
+```
+
+---
+
 ### 综合案例：LangGraph 智能助手
 
 ```python
@@ -778,6 +1008,7 @@ def sensitive_action(state: MessagesState):
 # - LangGraph 状态机
 # - Tool 节点集成
 # - 消息历史管理
+# - Context Manager
 # - 流式输出处理
 #
 # 扩展方向：
@@ -790,7 +1021,7 @@ def sensitive_action(state: MessagesState):
 
 ## 四、Agent 设计模式
 
-### 9. ReAct 模式
+### 14. ReAct 模式
 
 #### 知识点
 
@@ -847,7 +1078,7 @@ agent = create_react_agent(llm, tools, prompt)
 
 ---
 
-### 10. Plan-and-Execute 模式
+### 15. Plan-and-Execute 模式
 
 #### 知识点
 
@@ -898,7 +1129,7 @@ result = agent.invoke("帮我规划一次日本旅行，包括机票、酒店和
 
 ---
 
-### 11. Multi-Agent 协作
+### 16. Multi-Agent 协作
 
 #### 知识点
 
@@ -1016,7 +1247,14 @@ result = app.invoke({"messages": ["分析特斯拉股票"]})
 
 ## 五、Agent 记忆
 
-### 12. 会话记忆
+### 17. 会话记忆
+
+#### 本节与前后课程的关系
+
+- 这节承接 `02_llm` 对多轮对话本质的理解，也承接 `03_foundation` 对状态和组件边界的认知。
+- 和 `04_rag` 不同，这里关注的不是知识检索，而是 Agent 在连续任务中的状态延续、摘要和恢复。
+- 到 `06_application` 中，它会直接落到用户会话连续性、客服工作台上下文延续、人工接续等真实需求。
+- 边界：这里讲的是 AI 系统里的记忆机制，不等于完整用户档案系统或业务主数据系统。
 
 #### 知识点
 
@@ -1025,12 +1263,18 @@ result = app.invoke({"messages": ["分析特斯拉股票"]})
    - 长期记忆：跨会话持久化
    - 工作记忆：任务相关上下文
 
-2. **LangChain Memory**
+2. **主线方案：LangGraph 状态 + Checkpointer**
+   - 短期记忆优先放在 graph state 中管理
+   - 用 `thread_id` 区分会话
+   - 用 checkpointer 负责暂停、恢复和持久化
+
+3. **兼容认知：LangChain Memory（了解即可）**
    - ConversationBufferMemory
    - ConversationSummaryMemory
    - VectorStoreMemory
+   - 适合理解历史方案，但新项目优先考虑 LangGraph 状态模型
 
-3. **记忆管理**
+4. **记忆管理**
    - 容量限制
    - 淘汰策略
    - 重要性筛选
@@ -1038,54 +1282,49 @@ result = app.invoke({"messages": ["分析特斯拉股票"]})
 #### 实战案例
 
 ```python
-from langchain.memory import ConversationBufferMemory, ConversationSummaryMemory
-from langchain_community.chat_message_histories import ChatMessageHistory
+from langgraph.checkpoint.memory import MemorySaver
 
-# 1. 基础记忆
+# 1. 主线：用 checkpointer 保留会话状态
+checkpointer = MemorySaver()
+app = workflow.compile(checkpointer=checkpointer)
+
+config = {"configurable": {"thread_id": "user_123"}}
+app.invoke({"messages": [("user", "你好")]}, config=config)
+app.invoke({"messages": [("user", "继续刚才的话题")]}, config=config)
+
+# 2. 长对话时，不直接塞全部历史
+# 而是把历史压缩成摘要，再和最近几轮消息一起注入
+
+# 3. 兼容了解：LangChain Memory 的旧式写法
+from langchain.memory import ConversationBufferMemory
+
 memory = ConversationBufferMemory(
     memory_key="chat_history",
     return_messages=True
-)
-
-# 2. 带记忆的 Agent
-agent_executor = AgentExecutor(
-    agent=agent,
-    tools=tools,
-    memory=memory,
-    verbose=True
-)
-
-# 3. 摘要记忆（长对话）
-summary_memory = ConversationSummaryMemory(
-    llm=llm,
-    memory_key="chat_history"
-)
-
-# 4. 持久化记忆
-from langchain_community.chat_message_histories import RedisChatMessageHistory
-
-history = RedisChatMessageHistory(
-    session_id="user_123",
-    url="redis://localhost:6379"
 )
 ```
 
 ---
 
-### 13. LangGraph 记忆
+### 18. LangGraph 记忆
 
 #### 知识点
 
-1. **Checkpointer 机制**
+1. **Checkpointer 与 Store 的分工**
+   - Checkpointer：保存执行中的线程状态
+   - Store：保存可跨线程复用的长期记忆或知识
+   - 不要把所有记忆都塞进一份对话历史
+
+2. **Checkpointer 机制**
    - 保存执行状态
    - 支持暂停/恢复
    - 时间旅行调试
 
-2. **MemorySaver**
+3. **MemorySaver**
    - 内存存储
    - 适合开发测试
 
-3. **持久化存储**
+4. **持久化存储**
    - SqliteSaver
    - RedisSaver
 
@@ -1160,9 +1399,9 @@ app.update_state(config, previous_state)
 
 ---
 
-## 六、Agent 工具开发
+## 六、Agent 工具开发与安全
 
-### 14. 自定义工具
+### 19. 自定义工具
 
 #### 知识点
 
@@ -1230,7 +1469,7 @@ class Toolkit:
 
 ---
 
-### 15. 工具安全
+### 20. 工具安全
 
 #### 知识点
 
@@ -1300,6 +1539,69 @@ def audited_tool(tool):
 
 ---
 
+### 21. Guardrails 与安全边界 📌
+
+#### 本节与前后课程的关系
+
+- 它承接 `02_llm` 里的可靠性、安全、成本意识，但把问题从“单次调用风险”升级成“动态系统风险”。
+- 前面的工具安全主要关注单个工具，这一节开始从输入、决策、输出三个层次看 Agent 的整体安全边界。
+- 对 `06_application` 来说，这一节是后续合规审核、权限审批、人工接管、失败降级的直接前置。
+- 边界：这里建立的是 Agent Guardrails 设计方法，不替代完整企业安全体系、审计系统或合规制度建设。
+
+#### 知识点
+
+1. **常见风险不只来自工具**
+   - Prompt Injection / Indirect Prompt Injection
+   - 数据外泄
+   - PII 暴露
+   - 越权访问
+   - 敏感操作未审批
+   - 模型在失败时“假装成功”
+
+2. **Guardrails 的层次**
+   - 输入前：敏感意图检测、PII 检测、权限校验
+   - 决策中：限制可用工具、限制可访问资源、强制审批节点
+   - 输出后：脱敏、格式校验、事实约束、拒答策略
+
+3. **关键策略**
+   - 最小权限原则
+   - 用户身份和资源权限绑定
+   - 对写操作、外发操作、删除操作加审批
+   - 失败时降级到只读、拒答或人工接管
+
+4. **工程实践**
+   - 把 guardrail 当成独立节点，而不是一句 Prompt
+   - 给高风险样本单独建安全评估集
+   - 审批、拒答、降级都要可追踪
+
+#### 实战案例
+
+```python
+# 1. 在 Agent 前增加输入风控节点
+def guardrail_input(state):
+    # 检测越权、敏感词、PII、注入攻击
+    pass
+
+# 2. 对敏感工具强制审批
+def require_approval(action):
+    if action in {"delete_file", "send_email", "transfer_money"}:
+        return "human_review"
+    return "allowed"
+
+# 3. 输出前做脱敏和策略校验
+def guardrail_output(answer: str) -> str:
+    # 脱敏 / 格式校验 / 安全兜底
+    return answer
+
+# 4. 失败降级
+# 工具不可用、权限不满足、风险过高时：
+# - 拒答
+# - 返回只读结果
+# - 转人工处理
+```
+
+---
+
 ### 综合案例：安全工具集
 
 ```python
@@ -1343,9 +1645,9 @@ def audited_tool(tool):
 
 ---
 
-## 七、Agent 调试与观测
+## 七、Agent 调试、评测与观测
 
-### 16. Agent 调试
+### 22. Agent 调试
 
 #### 知识点
 
@@ -1410,7 +1712,7 @@ for state in app.get_state_history(config):
 
 ---
 
-### 17. Agent 可观测性与成本控制
+### 23. Agent 可观测性与成本控制
 
 #### 知识点
 
@@ -1517,10 +1819,70 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 
 ---
 
-### 综合案例：Agent 监控系统
+### 24. Agent 评估与回归测试 📌
+
+#### 本节与前后课程的关系
+
+- 这一节和开头的“评估前置”形成呼应：前面建立最小评估集，这里把它发展成更完整的回归方法。
+- 它承接 `04_rag` 的效果回归思路，但在 Agent 场景下新增了轨迹、安全、成本、路由正确性这些维度。
+- 到 `06_application` 里，这会直接变成业务工作流发布前检查、坏案例回流和版本对比的基础能力。
+- 边界：这里解决的是 Agent 应用的评测方法，不展开完整 DevOps / LLMOps 平台建设。
+
+#### 知识点
+
+1. **评估维度**
+   - 最终答案质量
+   - 工具调用轨迹
+   - 路由是否正确
+   - 审批 / 拒答是否触发
+   - 成本和时延是否超预算
+
+2. **常见评估类型**
+   - Final-answer eval
+   - Trajectory eval
+   - Safety eval
+   - Cost / latency regression
+
+3. **回归测试流程**
+   - 固定 golden set
+   - 每次改 Prompt / Tool / Graph / Model 都回归
+   - 设置发布门槛：成功率、拒答率、成本预算、超时比例
+
+4. **工程落地**
+   - 评估结果进 CI 或发布前检查
+   - 坏案例单独沉淀为 regression set
+   - 线上失败样本回流到评估集
+
+#### 实战案例
 
 ```python
-# 实现一个 Agent 监控和调试系统
+golden_cases = [
+    {
+        "input": "查询北京天气",
+        "expected_tool": "get_weather",
+        "expected_answer_contains": "北京",
+    },
+    {
+        "input": "删除生产数据库",
+        "expected_outcome": "require_human_confirmation",
+    },
+]
+
+def run_agent_eval(agent, cases):
+    # 记录：
+    # 1. 最终答案
+    # 2. 工具调用轨迹
+    # 3. 是否命中 guardrail
+    # 4. Token / latency / success rate
+    pass
+```
+
+---
+
+### 综合案例：Agent 监控与评测系统
+
+```python
+# 实现一个 Agent 监控、评测和调试系统
 #
 # 功能要求：
 # 1. 执行日志记录
@@ -1528,6 +1890,8 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 # 3. 错误追踪
 # 4. 执行回放
 # 5. 实时监控面板
+# 6. golden set 回归测试
+# 7. 安全样本评估
 #
 # 使用示例：
 # monitor = AgentMonitor()
@@ -1543,6 +1907,9 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 #
 # # 回放执行过程
 # monitor.replay(session_id="xxx")
+# #
+# # 跑回归测试
+# # monitor.run_eval_suite("evals/agent_golden_set.jsonl")
 #
 # # 导出报告
 # monitor.export_report("report.html")
@@ -1563,7 +1930,7 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 
 ## 八、综合项目
 
-### 18. 智能助手 Agent
+### 25. 智能助手 Agent
 
 ```python
 # 实现一个功能丰富的智能助手
@@ -1585,21 +1952,24 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 #    - 敏感操作确认
 #    - 权限控制
 #    - 错误处理
+#    - Prompt Injection / PII Guardrails
 #
 # 4. 可观测性
 #    - 执行日志
 #    - Token 统计
 #    - 性能监控
+#    - 回归评估
 #
 # 技术要求：
 # - LangGraph 实现状态机
 # - FastAPI 提供 API
 # - SQLite 持久化记忆
+# - Context Manager
 ```
 
 ---
 
-### 19. 多 Agent 协作系统
+### 26. 多 Agent 协作系统
 
 ```python
 # 实现一个多 Agent 协作的报告生成系统（可扩展框架）
@@ -1624,6 +1994,8 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 # - 中间结果共享
 # - 质量迭代优化
 # - 执行状态追踪
+# - 角色权限边界
+# - 回归评估集
 #
 # 技术要求：
 # - LangGraph 状态机
@@ -1655,10 +2027,12 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 ### 工具
 - [LangSmith](https://www.langchain.com/langsmith) - 调试和监控
 - [AgentBench](https://github.com/THUDM/AgentBench) - Agent 评测
+- [OpenAI Evals](https://platform.openai.com/docs/guides/evals) - 评测参考
 
 ### 论文
 - [ReAct](https://arxiv.org/abs/2210.03629)
 - [Toolformer](https://arxiv.org/abs/2302.04004)
+- [Building Effective Agents](https://www.anthropic.com/research/building-effective-agents)
 
 ---
 
@@ -1667,9 +2041,10 @@ def cached_tool_call(tool_name: str, args_hash: str) -> str:
 完成本阶段学习后，你应该能够：
 
 1. **解释** Agent 的工作原理和适用场景
-2. **实现** 基于 Function Calling 的工具调用
-3. **构建** 使用 LangChain/LangGraph 的 Agent
-4. **设计** 多 Agent 协作系统
-5. **实现** Agent 记忆和状态管理
-6. **调试** Agent 执行过程
-7. **开发** 安全可靠的 Agent 工具
+2. **判断** `Chain / Workflow / Agent / Multi-Agent` 的适用边界
+3. **实现** 基于 Function Calling 的工具调用
+4. **构建** 使用 LangChain/LangGraph 的 Agent
+5. **设计** 多 Agent 协作系统
+6. **实现** Agent 记忆、状态管理与 Context Engineering
+7. **调试** Agent 执行过程，并建立最小回归评估集
+8. **开发** 带 guardrails 的安全 Agent 工具与流程

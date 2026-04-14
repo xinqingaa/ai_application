@@ -100,6 +100,8 @@ def main() -> None:
     print(f"- ready: {config.is_ready}")
 
     print_json("LeadRecord JSON Schema", schema)
+    print("说明：这是由 LeadRecord / ContactChannel 自动导出的 JSON Schema，偏程序视角。")
+    print("阅读时优先关注 properties、required、$defs、enum、anyOf 这些关键字段。")
 
     print(f"\n{'=' * 72}")
     print("Schema 转 Prompt 描述")
@@ -119,10 +121,12 @@ def main() -> None:
         ],
         temperature=0.0,
         max_tokens=280,
+        debug_label="Pydantic Schema 提取",
     )
 
-    print_json("request_preview", result.request_preview)
-    print("\n模型输出：")
+    print(f"\n{'=' * 72}")
+    print("模型原始输出")
+    print("=" * 72)
     print(result.content)
 
     parsed = parse_json_output(result.content)
@@ -152,6 +156,7 @@ def main() -> None:
 
     print("\n理解重点：")
     print("- JSON 只是文本格式；Pydantic 才真正把字段、类型和约束落成程序规则。")
+    print("- LeadRecord JSON Schema 和 Schema 转 Prompt 描述，本质上来自同一份结构定义。")
     print("- Schema 一旦确定，后续调用、存储和 API 返回值都能共享同一份结构定义。")
     print("- 当 provider 原生 structured outputs 不稳定或不可用时，JSON + Pydantic 是最稳的回退方案。")
 

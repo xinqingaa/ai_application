@@ -578,7 +578,7 @@ response_format={"type": "json_object"}
 
 1. 自由文本 Prompt
 2. Prompt 指定 JSON
-3. JSON Mode 请求预览
+3. JSON Mode 请求
 
 你要重点观察：
 
@@ -644,6 +644,62 @@ Schema 可以理解成：
 5. 某些字段的值域约束
 
 在 Python 里，Pydantic 是非常适合做这件事的工具。
+
+### 4.2.1 本章里的 Schema 到底是什么格式
+
+这里要额外澄清一个很容易卡住初学者的点：
+
+> 第四章脚本里打印出来的那份 Schema，具体是 `Pydantic 模型导出的 JSON Schema`。
+
+也就是说，你平时真正维护的是这样的 Python 结构：
+
+```python
+class LeadRecord(BaseModel):
+    name: str
+    budget: int | None = None
+    intent_level: Literal["high", "medium", "low"]
+```
+
+而脚本里打印出来的：
+
+```json
+{
+  "properties": {
+    "name": {"type": "string"},
+    "budget": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+    "intent_level": {"type": "string", "enum": ["high", "medium", "low"]}
+  },
+  "required": ["name", "intent_level"],
+  "type": "object"
+}
+```
+
+是这份 Python 定义自动导出的标准结构描述。
+
+你不需要从零手写它，但你需要会看它。
+
+在第四章里，最值得关注的是这些字段：
+
+- `type: "object"` 表示顶层是一个对象
+- `properties` 表示每个字段的定义
+- `required` 表示哪些字段必须出现
+- `description` 通常来自 `Field(description="...")`
+- `enum` 表示枚举限制
+- `anyOf` 常见于可空字段，例如 `int | None`
+- `$defs` 表示可复用的嵌套对象定义，例如 `contact`
+- `$ref` 表示当前字段引用了 `$defs` 里的某个子结构
+
+所以你在 `02_pydantic_schema.py` 里看到：
+
+1. `LeadRecord JSON Schema`
+2. `Schema 转 Prompt 描述`
+
+本质上不是两套规则，而是同一份结构定义的两种展示方式：
+
+- JSON Schema 更适合程序、校验和标准化描述
+- Prompt 描述更适合直接喂给模型阅读
+
+这一点看懂后，第四章很多脚本就不再会显得“突然冒出一大段 schema，不知道它是干嘛的”。
 
 ### 4.3 为什么第四章选 Pydantic
 
@@ -864,6 +920,19 @@ class LeadRecord(BaseModel):
 3. 把 Schema 转成 Prompt 描述
 4. 发起结构化提取
 5. 再用 Pydantic 验证模型结果
+
+你可以把这个脚本的输出按下面顺序理解：
+
+1. `LeadRecord JSON Schema`
+   这是“程序视角”的结构定义，重点看 `properties`、`required`、`$defs`
+2. `Schema 转 Prompt 描述`
+   这是“模型视角”的字段说明，重点看字段名、类型、required/optional、枚举约束
+3. `提取 Prompt`
+   这是把销售记录和 Schema 描述真正拼接后的最终提示词
+4. `模型原始输出`
+   这是模型直接返回的原始文本
+5. `JSON 解析结果` 和 `Pydantic 校验后的对象`
+   这是程序把模型结果一步步收敛成稳定结构的过程
 
 ### 4.12 为什么说 Schema 是“单一事实来源”
 

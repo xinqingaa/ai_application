@@ -19,6 +19,7 @@ from typing import Any, Callable, TypeVar
 BASE_DIR = Path(__file__).resolve().parent
 EXPORT_DIR = BASE_DIR / "exports"
 DEFAULT_SYSTEM_PROMPT = "你是一个严谨、简洁、对开发者友好的 AI 助手。"
+DEFAULT_DEBUG = True
 
 T = TypeVar("T")
 
@@ -228,6 +229,49 @@ def preview_chat_request(
     if timeout_seconds is not None:
         payload["timeout_seconds"] = timeout_seconds
     return payload
+
+
+def _debug_print_start(
+    config: ProviderConfig,
+    request_preview: dict[str, Any],
+    debug_label: str | None = None,
+) -> None:
+    if debug_label:
+        print(f"\n{'=' * 72}")
+        print(f"[DEBUG] {debug_label} -> 请求开始")
+        print("=" * 72)
+    print(
+        "[DEBUG] chat.start "
+        f"provider={config.provider} "
+        f"model={config.model} "
+        f"ready={config.is_ready}"
+    )
+    print("[DEBUG] request_preview:")
+    print(json.dumps(request_preview, ensure_ascii=False, indent=2))
+
+
+def _debug_print_result(result: ChatResult, debug_label: str | None = None) -> None:
+    finish_reason = None
+    choices = result.raw_response_preview.get("choices") or []
+    if choices:
+        finish_reason = choices[0].get("finish_reason")
+
+    if debug_label:
+        print(f"\n{'=' * 72}")
+        print(f"[DEBUG] {debug_label} -> 返回结果")
+        print("=" * 72)
+    print(
+        "[DEBUG] chat.result "
+        f"provider={result.provider} "
+        f"model={result.model} "
+        f"mocked={result.mocked} "
+        f"finish_reason={finish_reason or '（未返回）'} "
+        f"elapsed_ms={result.elapsed_ms}"
+    )
+    print("[DEBUG] raw_response_preview:")
+    print(json.dumps(result.raw_response_preview or {}, ensure_ascii=False, indent=2))
+    print("[DEBUG] raw_content:")
+    print(result.content)
 
 
 def estimate_tokens(text: str, encoding_name: str = "cl100k_base") -> int:
@@ -666,22 +710,57 @@ def run_chat(
     temperature: float = 0.2,
     max_tokens: int = 400,
     timeout_seconds: float = 30.0,
+    debug: bool = DEFAULT_DEBUG,
+    debug_label: str | None = None,
 ) -> ChatResult:
-    if not config.is_ready:
-        return mock_chat_response(
-            config=config,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            timeout_seconds=timeout_seconds,
-        )
-    return call_openai_compatible_chat(
+    request_preview = preview_chat_request(
         config=config,
         messages=messages,
         temperature=temperature,
         max_tokens=max_tokens,
         timeout_seconds=timeout_seconds,
     )
+    if debug:
+        _debug_print_start(config, request_preview, debug_label)
+
+    if not config.is_ready:
+        if debug:
+            print(
+                "[DEBUG] mock_fallback "
+                f"provider={config.provider} "
+                "reason=missing_api_key"
+            )
+        result = mock_chat_response(
+            config=config,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
+        )
+        if debug:
+            _debug_print_result(result, debug_label)
+        return result
+
+    try:
+        result = call_openai_compatible_chat(
+            config=config,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout_seconds=timeout_seconds,
+        )
+    except Exception as exc:
+        if debug:
+            print(
+                "[DEBUG] request_failed "
+                f"provider={config.provider} "
+                f"error={type(exc).__name__}: {exc}"
+            )
+        raise
+
+    if debug:
+        _debug_print_result(result, debug_label)
+    return result
 
 
 class ReliableLLMService:
