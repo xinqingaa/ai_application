@@ -1,6 +1,38 @@
 """
 reliability_utils.py
 第六章公共工具：错误分类、重试、成本统计、缓存、配额、安全检测、真实/Mock 调用
+
+这个文件不是某个单独脚本的入口，而是第六章所有示例共享的“可靠性工具箱”。
+它主要负责 6 类事情：
+
+1. 读取 provider、模型和价格配置
+2. 统一聊天结果、usage 和成本结构
+3. 错误分类、指数退避与有限重试
+4. TTL 缓存与每日配额
+5. Prompt 注入检测与日志脱敏
+6. 把这些横切逻辑收束到 `ReliableLLMService`
+
+阅读顺序建议：
+`load_provider_config()`
+-> `classify_exception()`
+-> `retry_call()`
+-> `estimate_messages_tokens()` / `compute_cost_breakdown()`
+-> `TTLCache` / `DailyQuotaManager`
+-> `detect_prompt_injection()` / `build_guarded_messages()`
+-> `run_chat()` / `ReliableLLMService`
+
+如果你当前只在学习 `01_error_retry.py`，最值得优先看的其实只有 3 组结构：
+
+1. `ErrorInfo`
+2. `RetryRecord`
+3. `RetryOutcome`
+
+以及两条函数链路：
+
+异常对象
+-> `classify_exception()`
+-> `retry_call()`
+-> 上层脚本决定是否提示用户、记录日志或切备用 provider
 """
 
 from __future__ import annotations
@@ -25,6 +57,8 @@ T = TypeVar("T")
 
 
 def load_env_if_possible() -> None:
+    """尽量加载 `.env`，但不把 `python-dotenv` 变成硬依赖。"""
+
     try:
         from dotenv import load_dotenv
     except ImportError:
@@ -43,6 +77,13 @@ def _parse_float(value: str | None) -> float | None:
 
 @dataclass
 class ProviderConfig:
+    """统一的 provider 运行时配置。
+
+    第六章会在很多地方同时谈“错误处理”“成本”“降级”，
+    所以这里把 provider、model、backup_provider 和价格配置先统一收口，
+    避免后面每个脚本都各自读取环境变量。
+    """
+
     provider: str
     api_key: str | None
     base_url: str | None
@@ -66,6 +107,8 @@ class ProviderConfig:
 
 @dataclass
 class ChatUsage:
+    """统一的 token 用量结构。"""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -73,6 +116,8 @@ class ChatUsage:
 
 @dataclass
 class CostBreakdown:
+    """把 usage 和单价整理成统一成本视图。"""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -83,6 +128,12 @@ class CostBreakdown:
 
 @dataclass
 class ChatResult:
+    """一次聊天调用的标准结果对象。
+
+    这一层同时兼容真实模型调用和 mock 调用，
+    这样上层脚本就能把精力放在“如何处理结果”，而不是“结果来源有什么差异”。
+    """
+
     provider: str
     model: str
     content: str
@@ -96,6 +147,12 @@ class ChatResult:
 
 @dataclass
 class ErrorInfo:
+    """结构化错误信息。
+
+    第六章不满足于返回一个原始异常字符串，而是要明确告诉上层：
+    这是什么类型的错误、是否值得重试、以及用户提示应该往哪个方向写。
+    """
+
     category: str
     retryable: bool
     message: str
@@ -104,6 +161,14 @@ class ErrorInfo:
 
 @dataclass
 class RetryRecord:
+    """一次“失败后等待再试”的记录。
+
+    注意这里记录的是“准备进入下一次尝试前”的等待动作，
+    不是每一次函数调用本身。所以：
+    - `attempt=1` 的记录，表示第 1 次调用失败后，等待再试
+    - 成功那一次不会再生成新的 `RetryRecord`
+    """
+
     attempt: int
     wait_seconds: float
     category: str
@@ -112,6 +177,12 @@ class RetryRecord:
 
 @dataclass
 class RetryOutcome:
+    """有限重试的统一结果。
+
+    `attempts` 表示实际调用了多少次目标函数；
+    `retries` 只包含“失败后发生了退避等待”的那些记录。
+    """
+
     ok: bool
     value: Any | None
     error: ErrorInfo | None
@@ -174,6 +245,12 @@ class ServiceResponse:
 
 
 def load_provider_config(provider: str | None = None) -> ProviderConfig:
+    """从环境变量整理出统一的 provider 配置。
+
+    这里顺便把备用 provider 和价格字段也一起读出来，
+    因为第六章会同时讲降级和成本观测，这些信息适合在同一层收口。
+    """
+
     provider_name = (provider or os.getenv("DEFAULT_PROVIDER", "bailian")).strip().lower()
     mapping = {
         "openai": {
@@ -220,6 +297,8 @@ def preview_chat_request(
     max_tokens: int,
     timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
+    """生成调试友好的请求预览对象。"""
+
     payload: dict[str, Any] = {
         "model": config.model,
         "messages": messages,
@@ -336,11 +415,28 @@ def format_cost(cost: CostBreakdown | None) -> str:
 
 
 def classify_exception(exc: Exception) -> ErrorInfo:
+    """把原始异常压缩成更适合上层处理的结构化错误。
+
+    这一步不是在追求“100% 精确识别所有平台文案”，而是在建立应用侧最小可用抽象：
+    - 这类错误是否可恢复
+    - 是否值得重试
+    - 应该给用户/开发者什么方向的提示
+
+    顺序也很重要：
+    越具体、越高确定性的分类越应靠前，
+    最后再用 `unknown_error` 兜底。
+    """
+
     name = exc.__class__.__name__.lower()
     text = str(exc).lower()
     combined = f"{name} {text}"
 
-    if "authentication" in combined or "api key" in combined or "unauthorized" in combined or "invalid_api_key" in combined:
+    if (
+        "authentication" in combined
+        or "api key" in combined
+        or "unauthorized" in combined
+        or "invalid_api_key" in combined
+    ):
         return ErrorInfo(
             category="auth_error",
             retryable=False,
@@ -354,14 +450,23 @@ def classify_exception(exc: Exception) -> ErrorInfo:
             message=str(exc),
             user_hint="触发限流，适合指数退避重试，必要时切换低成本备用模型。",
         )
-    if "timeout" in combined:
+    if "timeout" in combined or "timed out" in combined or "deadline exceeded" in combined:
         return ErrorInfo(
             category="timeout",
             retryable=True,
             message=str(exc),
             user_hint="请求超时，适合缩短上下文、降低 max_tokens 或重试。",
         )
-    if "connection" in combined or "network" in combined or "temporarily unavailable" in combined:
+    if (
+        "connection" in combined
+        or "network" in combined
+        or "temporarily unavailable" in combined
+        or "service unavailable" in combined
+        or "connection reset" in combined
+        or "dns" in combined
+        or "connecterror" in combined
+        or "overloaded" in combined
+    ):
         return ErrorInfo(
             category="network_error",
             retryable=True,
@@ -375,7 +480,14 @@ def classify_exception(exc: Exception) -> ErrorInfo:
             message=str(exc),
             user_hint="请求被内容安全策略拦截，应调整输入，而不是直接重试。",
         )
-    if "invalid request" in combined or "badrequest" in combined or "400" in combined:
+    if (
+        "invalid request" in combined
+        or "badrequest" in combined
+        or "400" in combined
+        or "context_length_exceeded" in combined
+        or "invalid parameter" in combined
+        or "unprocessable" in combined
+    ):
         return ErrorInfo(
             category="request_error",
             retryable=False,
@@ -396,9 +508,25 @@ def retry_call(
     base_delay: float = 0.5,
     max_delay: float = 8.0,
 ) -> RetryOutcome:
+    """对同步调用做最小有限重试。
+
+    处理顺序是：
+    1. 先执行目标函数
+    2. 如果抛错，先做错误分类
+    3. 只有 `retryable=True` 的错误才继续
+    4. 用指数退避计算等待时间
+    5. 超过最大重试次数后，把结构化错误交还上层
+
+    这里故意返回 `RetryOutcome`，而不是直接把异常再抛出去，
+    是因为第六章更关心“上层如何根据结构化结果决策”，
+    例如：记录日志、提示用户、切备用 provider。
+    """
+
     retries: list[RetryRecord] = []
     last_error: ErrorInfo | None = None
 
+    # `max_retries=3` 时，实际最多会调用 4 次：
+    # 第 1 次初始调用 + 最多 3 次重试。
     for attempt in range(1, max_retries + 2):
         try:
             value = func()
@@ -406,9 +534,14 @@ def retry_call(
         except Exception as exc:
             error = classify_exception(exc)
             last_error = error
+
+            # 不可重试错误要立刻返回；
+            # 可重试错误如果已经耗尽次数，也在这里统一收口。
             if not error.retryable or attempt > max_retries:
                 return RetryOutcome(ok=False, value=None, error=error, attempts=attempt, retries=retries)
 
+            # 指数退避：0.5 -> 1 -> 2 -> 4 ...
+            # `max_delay` 用来避免等待无限拉长。
             wait_seconds = min(base_delay * (2 ** (attempt - 1)), max_delay)
             retries.append(
                 RetryRecord(
@@ -420,6 +553,7 @@ def retry_call(
             )
             time.sleep(wait_seconds)
 
+    # 理论上不会走到这里，但保留兜底返回能让类型和控制流更稳定。
     return RetryOutcome(ok=False, value=None, error=last_error, attempts=max_retries + 1, retries=retries)
 
 
