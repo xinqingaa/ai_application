@@ -875,6 +875,105 @@ SSE 的真正价值就在于：
 
 这一步的目标不是“花哨”，而是先把普通链路稳定下来。
 
+### 5.8.1 `02_fastapi_chat.py` 的主流程到底怎么走
+
+如果你把 `02_fastapi_chat.py` 压缩成一条调用链，它大致就是：
+
+```text
+POST /chat
+-> get_or_create(session_id)
+-> get_history(session_id)
+-> build_messages_for_turn(history, user_text, system_prompt, keep_last_messages)
+-> load_provider_config(provider)
+-> await chat_once(config, messages, ...)
+-> append_assistant_message(messages, assistant_text)
+-> save_history(session_id, updated_history)
+-> 返回 ChatResponse
+```
+
+这里有几个很关键的理解点：
+
+1. `POST /chat` 不是直接把用户当前输入发给模型
+   而是会先读取已有 history，再把本轮 user message 拼进去
+
+2. `build_messages_for_turn()` 是普通接口和流式接口共用的
+   所以消息组织逻辑不应该在两个路由里各写一份
+
+3. 真正访问模型的动作发生在：
+
+```python
+result = await chat_once(...)
+```
+
+这也是这个脚本里最核心的异步等待点。
+
+4. 历史保存发生在拿到完整 assistant 回复之后
+   因为普通 `/chat` 接口本来就是“完整结果返回”模型，不存在半成品消息写入 history 的需求
+
+### 5.8.2 `02_fastapi_chat.py` 应该怎么调试
+
+推荐你按下面顺序调：
+
+1. 启动服务：
+
+```bash
+uvicorn 02_fastapi_chat:app --reload --port 8000
+```
+
+2. 打开 Swagger：
+
+```text
+http://localhost:8000/docs
+```
+
+3. 先调 `GET /health`
+   确认服务启动正常
+
+4. 再调一次 `POST /chat`
+   不传 `session_id`，观察服务端是否自动生成
+
+5. 记下返回值里的 `session_id`
+
+6. 再调 `GET /sessions/{session_id}`
+   确认本轮 assistant 回复是否已经写回会话历史
+
+7. 用同一个 `session_id` 再调一轮 `POST /chat`
+   观察多轮上下文是否被正确复用
+
+如果你更喜欢命令行，也可以直接这样发：
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "请用 3 点说明流式输出和普通输出的差别"
+  }'
+```
+
+### 5.8.3 调试 `02_fastapi_chat.py` 时，终端日志应该怎么看
+
+这个脚本底层会调用 `streaming_utils.py` 里的 `chat_once()`，
+所以终端里最值得先看的日志通常是：
+
+- `[DEBUG] chat.start`
+- `[DEBUG] request_preview`
+- `[DEBUG] chat.result`
+- `[DEBUG] raw_response_preview`
+
+它们分别回答的是：
+
+1. 当前到底在用哪个 provider / model
+2. 发给模型的 `messages / temperature / max_tokens` 是什么
+3. 最终拿到的是 mock 结果还是真实结果
+4. 上游返回的大致结构是什么
+
+如果你没有配置真实 API Key，最常见的情况是：
+
+- 响应里 `mocked = true`
+- 终端里出现 `[DEBUG] mock_fallback ... reason=missing_api_key`
+
+这不是失败，而是课程为了让你先把接口流程跑通而保留的回退分支。
+
 ### 5.9 为什么这一步很像项目章的预演
 
 因为你会发现，到了这里已经出现了很多项目型代码的要素：
@@ -1060,6 +1159,140 @@ data: {"message": "..."}
 5. SSE 头设置
 
 这已经是一个很像真实聊天后端雏形的结构。
+
+### 6.10.1 `03_fastapi_stream.py` 的主流程到底怎么走
+
+这个脚本的主流程比普通 `/chat` 多了一层很关键的桥接：
+
+```text
+POST /chat/stream
+-> StreamingResponse(build_sse_stream(...))
+-> build_sse_stream() 准备 session/history/messages
+-> create_task(producer())
+-> producer 里 async for event in stream_chat_events(...)
+-> queue.put(token/done/error)
+-> 外层 while + wait_for(queue.get(), timeout=heartbeat_seconds)
+-> token -> yield SSE token
+-> timeout -> yield SSE ping
+-> done -> 保存完整历史 + yield SSE done
+-> finally -> cancel producer_task
+```
+
+如果只看抽象职责，这个脚本可以拆成三层：
+
+1. 上游层：`stream_chat_events()`
+   负责和模型 SDK 打交道，把 chunk 统一转成内部 Python 事件
+
+2. 桥接层：`build_sse_stream()`
+   负责队列、心跳、错误收敛、会话写回
+
+3. HTTP 输出层：`StreamingResponse(...)`
+   负责把异步生成器产生的 SSE 文本持续发给客户端
+
+这三层分清楚之后，`03_fastapi_stream.py` 就不会再显得“同时做太多事”。
+
+### 6.10.2 为什么这里要用 `queue + producer`
+
+很多人第一次写流式接口时，会想直接这样写：
+
+```python
+async for event in stream_chat_events(...):
+    yield encode_sse_event(...)
+```
+
+这样在最简单 demo 里是可行的，但很快会遇到一个问题：
+
+> 如果上游暂时没有新 chunk，下游也就没有机会插入 heartbeat。
+
+而课程脚本里的结构是：
+
+1. producer 单独去读取上游流
+2. 读到内部事件后放进 `queue`
+3. 外层 consumer 用 `asyncio.wait_for(queue.get(), timeout=heartbeat_seconds)` 取事件
+4. 如果在超时时间内没等到新事件，就主动发 `ping`
+
+这个结构的价值在于：
+
+- 上游模型停顿时，连接仍然能对外表现为“活着”
+- 错误可以统一转成 `error` 事件
+- 会话保存时机可以统一收敛到 `done`
+
+### 6.10.3 `03_fastapi_stream.py` 应该怎么调试
+
+推荐你分成两层调试，而不是一上来只盯着 `/chat/stream`：
+
+第一层，先确认基础聊天逻辑没问题：
+
+1. 启动服务：
+
+```bash
+uvicorn 03_fastapi_stream:app --reload --port 8000
+```
+
+2. 打开：
+
+```text
+http://localhost:8000/docs
+```
+
+3. 先调普通 `POST /chat`
+4. 再调 `GET /sessions/{session_id}`
+
+这样做的意义是：
+
+> 先确认“聊天主链路”没问题，再去调试“SSE 传输层”。
+
+第二层，再专门调试 SSE：
+
+Swagger UI 不适合观察逐条流式事件，所以建议用：
+
+```bash
+curl -N http://localhost:8000/chat/stream \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{
+    "message": "请解释流式输出为什么能提升聊天体验",
+    "heartbeat_seconds": 1.5
+  }'
+```
+
+调试时你应该重点观察：
+
+1. 是否先收到 `event: start`
+2. 是否持续收到 `event: token`
+3. 上游停顿时是否出现 `event: ping`
+4. 结束时是否收到 `event: done`
+
+流结束后，再调用：
+
+```text
+GET /sessions/{session_id}
+```
+
+这里最关键的观察点是：
+
+- `token` 阶段不会写回 history
+- 只有 `done` 阶段才会把完整 assistant 回复保存到 session
+
+### 6.10.4 调试 `03_fastapi_stream.py` 时，终端日志应该怎么看
+
+这个脚本底层最重要的日志一般来自：
+
+- `_debug_print_start()`
+- `_debug_print_stream_result()`
+
+所以你通常会看到这样的阶段性信息：
+
+1. 请求开始时打印 `request_preview`
+2. 如果没有真实 key，打印 `mock_fallback`
+3. 流结束时打印 `stream.result`
+4. 最后打印 `full_text`
+
+这些日志的价值是：
+
+- 你可以确认流式请求到底发给了哪个 provider / model
+- 你可以确认 `stream=True` 是否真的在请求里生效
+- 你可以确认 `first_token_ms / elapsed_ms / chunk_count` 是怎么得出的
 
 ### 6.11 为什么这比单纯的 SDK demo 有价值
 
@@ -1281,6 +1514,25 @@ http://localhost:8000/docs
 - `POST /chat`
 - `GET /sessions/{session_id}`
 
+推荐你按这个最小调试顺序走：
+
+1. 先发一轮不带 `session_id` 的 `POST /chat`
+2. 记住返回里的 `session_id`
+3. 立刻调 `GET /sessions/{session_id}`
+4. 再用同一个 `session_id` 发第二轮 `POST /chat`
+
+这样你会很直观地看到：
+
+- session 是什么时候创建的
+- assistant 回复是在哪里写回的
+- 多轮上下文是如何延续的
+
+终端里建议同步观察：
+
+- `[DEBUG] chat.start`
+- `[DEBUG] request_preview`
+- `[DEBUG] chat.result`
+
 ### 9.5 第三步启动流式接口
 
 最后启动：
@@ -1304,6 +1556,26 @@ curl -N http://localhost:8000/chat/stream \
 - `token`
 - `ping`
 - `done`
+
+推荐进一步这样调：
+
+1. 先调一次普通 `POST /chat`
+   确认基础聊天链路正常
+
+2. 再用 `curl -N` 调 `POST /chat/stream`
+   专门观察 SSE 事件
+
+3. 流结束后调用 `GET /sessions/{session_id}`
+   确认完整 assistant 回复是在 `done` 后才写回
+
+4. 最后尝试用同一个 `session_id` 发第二次流式请求
+   观察历史是否能继续带上
+
+终端里建议重点观察：
+
+- `[DEBUG] ... 请求开始`
+- `[DEBUG] stream.result`
+- `mock_fallback` 是否出现
 
 ### 9.6 建议主动修改的地方
 

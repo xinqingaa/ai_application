@@ -16,6 +16,24 @@
 - 有真实模型时，优先用百炼 / 通义、DeepSeek、GLM 做实验，重点观察首字返回时间和总耗时差异
 - 流式章节默认你已经理解第 1 章的 `messages`、第 2 章的 provider 配置，以及第 4 章的 Pydantic / FastAPI 基础
 
+### 调试总原则
+
+第五章最容易迷路的地方是：代码能跑，但不知道“主流程究竟走到哪一步了”。
+
+建议你每次都按同一个调试顺序走：
+
+1. 先看接口返回值或 SSE 事件，确认对外表现是什么
+2. 再看终端里的 `[DEBUG]` 日志，确认发给模型的请求长什么样
+3. 最后用 `GET /sessions/{session_id}` 检查会话历史有没有按预期写回
+
+这样你就能把：
+
+- 对外返回
+- 内部调试日志
+- 会话状态变化
+
+三条线同时对上。
+
 ---
 
 ## 项目结构
@@ -152,6 +170,68 @@ http://localhost:8000/docs
 - 为什么接口返回里保留了 `request_preview`
 - `session_estimated_tokens` 会随着历史增长而增加
 
+### 主流程
+
+`02_fastapi_chat.py` 的主流程可以直接记成下面这条链路：
+
+```text
+POST /chat
+-> get_or_create(session_id)
+-> get_history(session_id)
+-> build_messages_for_turn(...)
+-> load_provider_config(...)
+-> await chat_once(...)
+-> append_assistant_message(...)
+-> save_history(...)
+-> 返回 ChatResponse
+```
+
+这个脚本真正的异步等待点主要只有一个：
+
+```python
+result = await chat_once(...)
+```
+
+也就是说，普通聊天接口的核心是：
+
+- 先把本轮 messages 组装正确
+- 再等待一次完整模型回复
+- 最后把完整 assistant 消息写回历史
+
+### 调试顺序
+
+推荐按下面顺序调：
+
+1. 先调 `GET /health`，确认服务正常启动
+2. 再调一次 `POST /chat`，不传 `session_id`，观察服务端是否自动生成
+3. 记下返回里的 `session_id`
+4. 再调 `GET /sessions/{session_id}`，确认 assistant 回复已写回历史
+5. 用同一个 `session_id` 再发第二轮 `POST /chat`，观察历史是否被复用
+
+可以直接用 `curl`：
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "请用 3 点说明流式输出和普通输出的差别"
+  }'
+```
+
+终端里建议重点看这些调试信息：
+
+- `[DEBUG] chat.start`
+- `[DEBUG] request_preview`
+- `[DEBUG] chat.result`
+- `[DEBUG] raw_response_preview`
+
+如果没有配真实 key，你应该看到：
+
+- `mocked: true`
+- `[DEBUG] mock_fallback ... reason=missing_api_key`
+
+这不是报错，而是课程为了让你先学会流程而保留的 mock 分支。
+
 ### 建议主动修改
 
 - 连续向同一个 `session_id` 发两轮消息
@@ -206,6 +286,80 @@ curl -N http://localhost:8000/chat/stream \
 - 为什么 `StreamingResponse` 返回的是异步生成器
 - 心跳事件在什么情况下会出现
 - `done` 事件里为什么要返回 `first_token_ms / elapsed_ms / chunk_count`
+
+### 主流程
+
+`03_fastapi_stream.py` 的主流程比普通 `/chat` 多了一层“SSE 桥接”：
+
+```text
+POST /chat/stream
+-> StreamingResponse(build_sse_stream(...))
+-> build_sse_stream() 准备 session/history/messages
+-> create_task(producer())
+-> producer 里 async for event in stream_chat_events(...)
+-> queue.put(token/done/error)
+-> 外层 while 用 wait_for(queue.get(), timeout=heartbeat_seconds)
+-> 有 token 就发 token 事件
+-> 超时就发 ping 事件
+-> done 时保存完整历史并发 done 事件
+-> finally 里取消 producer_task
+```
+
+要点是：
+
+- `stream_chat_events()` 负责和模型 SDK 交互
+- `build_sse_stream()` 负责心跳、SSE 编码和会话落地
+- `StreamingResponse(...)` 负责把这条异步事件流持续发给客户端
+
+### 调试顺序
+
+推荐分两层调：
+
+1. 先在 `/docs` 里调普通 `POST /chat`，确认同服务的基础聊天能力没问题
+2. 再用 `curl -N` 调 `POST /chat/stream`，专门观察 SSE 事件
+
+示例：
+
+```bash
+curl -N http://localhost:8000/chat/stream \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{
+    "message": "请解释流式输出为什么能提升聊天体验",
+    "heartbeat_seconds": 1.5
+  }'
+```
+
+如果你想观察多轮会话，可以加同一个 `session_id`：
+
+```bash
+curl -N http://localhost:8000/chat/stream \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{
+    "session_id": "demo-stream-001",
+    "message": "继续上一轮，再补充 2 个实际产品例子",
+    "heartbeat_seconds": 1.5
+  }'
+```
+
+终端里建议重点看这些现象：
+
+- 先出现 `[DEBUG] ... 请求开始`
+- 流式过程中客户端持续收到 `event: token`
+- 上游暂时没新内容时，客户端会收到 `event: ping`
+- 结束时服务端打印 `[DEBUG] stream.result`
+
+流结束后再调：
+
+```text
+GET /sessions/{session_id}
+```
+
+这里最关键的观察点是：
+
+- 历史不会在 `token` 阶段写回
+- 只有收到 `done` 后，完整 assistant 回复才会进入 session history
 
 ### 建议主动修改
 
