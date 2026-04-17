@@ -834,6 +834,21 @@ TTL 缓存就是给缓存加过期时间。
 - [03_cache_quota.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/03_cache_quota.py)
 - [reliability_utils.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/reliability_utils.py)
 
+如果你准备对照公共工具一起看，建议顺序是：
+
+1. 先看 `TTLCache`
+2. 再看 `DailyQuotaManager`
+3. 再看 `stable_cache_key()`
+4. 最后回到 `03_cache_quota.py` 看 `cache_quota_combined_demo()`
+
+这样读的重点会更清楚：
+
+- `TTLCache` 解决的是“相同请求要不要重复调用”
+- `DailyQuotaManager` 解决的是“当前用户今天还能不能继续用”
+- `stable_cache_key()` 解决的是“什么才算同一个请求”
+
+而 `cache_quota_combined_demo()` 则把这三件事串成一条完整业务链路。
+
 ---
 
 ## 5. 安全不是额外模块，而是输入链路的一部分 📌
@@ -1012,6 +1027,22 @@ Prompt 注入可以简单理解为：
 2. 业务文本包裹方式
 3. API Key / 邮箱 / 手机号的脱敏
 
+如果你要从代码层真正看清这条链路，建议按这个顺序读：
+
+1. `detect_prompt_injection()`
+2. `build_guarded_messages()`
+3. `redact_sensitive()`
+4. `04_prompt_injection.py`
+
+顺序不要反过来。
+
+因为这个主题里，真正重要的不是示例脚本打印了什么，
+而是你要先理解：
+
+- 风险分怎么来
+- 为什么要把用户输入包成“待处理数据”
+- 为什么日志里也必须做脱敏
+
 ---
 
 ## 6. 把可靠性、成本和安全收束成统一服务层
@@ -1103,6 +1134,49 @@ Prompt 注入可以简单理解为：
     "quota_snapshot": {...}
 }
 ```
+
+#### `ReliableLLMService` 的主流程应该怎么读
+
+如果你直接读 `ReliableLLMService.chat()`，建议按下面的顺序理解：
+
+```text
+输入风险检查
+-> 高风险时按策略直接拦截
+-> build_guarded_messages()
+-> ensure_available()
+-> stable_cache_key() + cache.get()
+-> run_chat()
+-> retry_call()
+-> quota.consume()
+-> cache.set()
+-> 返回 ServiceResponse
+```
+
+这条顺序背后对应的是 3 个工程原则：
+
+1. 先拦截不值得继续走下去的请求
+2. 能复用就不要再次打模型
+3. 成功后再按真实 usage 扣减和缓存
+
+#### `run_chat()`、真实调用和 Mock 调用之间是什么关系
+
+很多人第一次看这一章会把下面三个函数混在一起：
+
+1. `call_openai_compatible_chat()`
+2. `mock_chat_response()`
+3. `run_chat()`
+
+更准确的理解是：
+
+- `call_openai_compatible_chat()` 负责真实 SDK 调用
+- `mock_chat_response()` 负责在没有 API Key 时提供可学习的本地模拟结果
+- `run_chat()` 负责统一选择路径，并把两种结果都整理成 `ChatResult`
+
+这样做的好处是：
+
+- 没有真实 key 也能把整章跑通
+- 上层服务逻辑不需要关心当前到底走了真实调用还是 mock
+- 文档、日志和返回结构都能保持一致
 
 这样上层就能：
 
@@ -1220,6 +1294,12 @@ Prompt 注入可以简单理解为：
 - 缓存命中不应重复扣减
 - 配额要先检查再消费
 
+如果继续对照公共工具，重点看：
+
+- `TTLCache`
+- `DailyQuotaManager`
+- `stable_cache_key()`
+
 ### 7.5 `04_prompt_injection.py`
 
 这一节不是完整安全平台，而是最小基础防护：
@@ -1228,11 +1308,24 @@ Prompt 注入可以简单理解为：
 - 输入包裹
 - 脱敏日志
 
+如果继续对照公共工具，重点看：
+
+- `detect_prompt_injection()`
+- `build_guarded_messages()`
+- `redact_sensitive()`
+
 ### 7.6 `05_llm_service.py`
 
 这是综合案例。
 
 它把前面四个脚本里的能力收束成一个服务层原型，为第七章综合项目做准备。
+
+如果继续对照公共工具，重点看：
+
+- `run_chat()`
+- `call_openai_compatible_chat()`
+- `mock_chat_response()`
+- `ReliableLLMService.chat()`
 
 ---
 

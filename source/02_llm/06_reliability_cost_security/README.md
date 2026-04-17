@@ -188,7 +188,11 @@ python 02_cost_counter.py
    - `TTLCache`
    - `DailyQuotaManager`
    - `cache_quota_combined_demo()`
-3. 运行：
+3. 再对照 `reliability_utils.py`，继续看：
+   - `TTLCache.get() / set() / size()`
+   - `DailyQuotaManager.ensure_available() / consume()`
+   - `stable_cache_key()`
+4. 运行：
 
 ```bash
 python 03_cache_quota.py
@@ -228,7 +232,11 @@ Prompt 注入的本质不是“模型被黑客控制了”，而是：
    - `detect_prompt_injection()`
    - `build_guarded_messages()`
    - `redact_sensitive()`
-3. 运行：
+3. 再对照 `reliability_utils.py`，确认：
+   - 风险分是如何累加的
+   - 输入是如何被包裹成“待分析数据”的
+   - 日志脱敏主要覆盖哪些模式
+4. 运行：
 
 ```bash
 python 04_prompt_injection.py
@@ -270,7 +278,12 @@ python 04_prompt_injection.py
    - `ReliableLLMService`
    - `ServiceResponse`
    - `normal_case / cached_case / risky_case`
-3. 运行：
+3. 再对照 `reliability_utils.py`，重点看：
+   - `run_chat()`
+   - `call_openai_compatible_chat()`
+   - `mock_chat_response()`
+   - `ReliableLLMService.chat()`
+4. 运行：
 
 ```bash
 python 05_llm_service.py
