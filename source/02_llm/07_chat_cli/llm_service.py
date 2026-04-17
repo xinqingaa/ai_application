@@ -36,6 +36,7 @@ T = TypeVar("T")
 
 
 def load_env_if_possible() -> None:
+    """尽量加载 `.env`，但不强制依赖 `python-dotenv`。"""
     try:
         from dotenv import load_dotenv
     except ImportError:
@@ -44,6 +45,7 @@ def load_env_if_possible() -> None:
 
 
 def _parse_float(value: str | None) -> float | None:
+    """把环境变量里的浮点数字符串转成 `float`，失败时返回 `None`。"""
     if not value:
         return None
     try:
@@ -53,14 +55,18 @@ def _parse_float(value: str | None) -> float | None:
 
 
 def _now() -> str:
+    """统一生成当前时间字符串，便于会话更新时间写回。"""
     return datetime.now().isoformat()
 
 
 def _new_session_id() -> str:
+    """生成一个短一些的会话 id，方便 CLI 和导出文件阅读。"""
     return uuid.uuid4().hex[:12]
 
 
 class ProviderConfig:
+    """把 provider 的环境变量配置收敛成一个可传递的对象。"""
+
     def __init__(
         self,
         provider: str,
@@ -81,48 +87,61 @@ class ProviderConfig:
 
     @property
     def is_ready(self) -> bool:
+        """只要 API Key 存在，就认为可以走真实调用。"""
         return bool(self.api_key)
 
 
 class CacheEntry:
+    """缓存中的单条记录，保存值和过期时间。"""
+
     def __init__(self, value: TurnResult, expires_at: float) -> None:
         self.value = value
         self.expires_at = expires_at
 
     @property
     def is_expired(self) -> bool:
+        """判断当前缓存项是否已经过期。"""
         return time.time() >= self.expires_at
 
 
 class TTLCache:
+    """一个很轻量的内存 TTL 缓存，用于复用相同请求的结果。"""
+
     def __init__(self, ttl_seconds: float = 300.0) -> None:
         self.ttl_seconds = ttl_seconds
         self._store: dict[str, CacheEntry] = {}
 
     def _cleanup(self) -> None:
+        """清掉已经过期的条目，避免内存里堆积陈旧数据。"""
         for key in list(self._store):
             if self._store[key].is_expired:
                 self._store.pop(key, None)
 
     def get(self, key: str) -> TurnResult | None:
+        """读取一个缓存结果，命中则直接返回。"""
         self._cleanup()
         entry = self._store.get(key)
         return entry.value if entry else None
 
     def set(self, key: str, value: TurnResult) -> None:
+        """写入一个带过期时间的缓存结果。"""
         self._store[key] = CacheEntry(value=value, expires_at=time.time() + self.ttl_seconds)
 
     def size(self) -> int:
+        """返回当前还有效的缓存条目数量。"""
         self._cleanup()
         return len(self._store)
 
 
 class DailyQuotaManager:
+    """按 subject 统计每日 token 配额，避免无限制调用。"""
+
     def __init__(self, daily_limit_tokens: int = 100_000) -> None:
         self.daily_limit_tokens = daily_limit_tokens
         self._usage: dict[tuple[str, str], int] = {}
 
     def snapshot(self, subject: str, on_date: date | None = None) -> dict[str, Any]:
+        """返回某个 subject 在某一天的配额视图。"""
         today = (on_date or date.today()).isoformat()
         used = self._usage.get((subject, today), 0)
         return {
@@ -135,10 +154,12 @@ class DailyQuotaManager:
         }
 
     def ensure_available(self, subject: str, estimated_tokens: int) -> bool:
+        """在执行前先判断预计 token 是否会超额。"""
         snapshot = self.snapshot(subject)
         return snapshot["used_tokens"] + estimated_tokens <= self.daily_limit_tokens
 
     def consume(self, subject: str, tokens: int) -> dict[str, Any]:
+        """把本轮实际消耗记入当天配额。"""
         today = date.today().isoformat()
         key = (subject, today)
         self._usage[key] = self._usage.get(key, 0) + max(0, tokens)
@@ -146,6 +167,8 @@ class DailyQuotaManager:
 
 
 class InMemorySessionStore:
+    """保存项目运行时的会话对象，CLI 和 API 都依赖它。"""
+
     def __init__(self) -> None:
         self._store: dict[str, ProjectSession] = {}
 
@@ -156,6 +179,7 @@ class InMemorySessionStore:
         model: str = "qwen-plus",
         system_prompt: str = DEFAULT_SYSTEM_PROMPT,
     ) -> ProjectSession:
+        """获取已有 session，或者按默认配置创建一个新的 session。"""
         sid = session_id or _new_session_id()
         if sid not in self._store:
             self._store[sid] = ProjectSession(
@@ -167,9 +191,11 @@ class InMemorySessionStore:
         return self._store[sid]
 
     def get(self, session_id: str) -> ProjectSession | None:
+        """只查询，不创建。"""
         return self._store.get(session_id)
 
     def reset_messages(self, session_id: str) -> ProjectSession:
+        """清空当前 session 的对话历史和累计统计。"""
         session = self.get_or_create(session_id)
         session.messages = []
         session.turn_count = 0
@@ -182,6 +208,7 @@ class InMemorySessionStore:
 
 
 def load_provider_config(provider: str | None = None, model_override: str | None = None) -> ProviderConfig:
+    """从环境变量加载 provider 配置，并转成统一 `ProviderConfig`。"""
     provider_name = (provider or os.getenv("DEFAULT_PROVIDER", "bailian")).strip().lower()
     mapping = {
         "openai": {
@@ -230,9 +257,11 @@ def load_provider_config(provider: str | None = None, model_override: str | None
 
 
 def estimate_tokens(text: str, encoding_name: str = "cl100k_base") -> int:
+    """估算单段文本的 token 数；没有 `tiktoken` 时走一个近似算法。"""
     try:
         import tiktoken
     except ImportError:
+        # 没装 `tiktoken` 时仍然要让教学代码可跑，所以退化到粗略估算。
         ascii_chars = sum(1 for char in text if ord(char) < 128)
         non_ascii_chars = len(text) - ascii_chars
         english_est = max(1, ascii_chars // 4) if ascii_chars else 0
@@ -244,6 +273,7 @@ def estimate_tokens(text: str, encoding_name: str = "cl100k_base") -> int:
 
 
 def estimate_messages_tokens(messages: list[dict[str, str]]) -> int:
+    """按 OpenAI 风格消息结构粗估整段 messages 的 token 消耗。"""
     total = 0
     for item in messages:
         total += estimate_tokens(item["role"])
@@ -260,6 +290,7 @@ def stable_cache_key(
     max_tokens: int,
     json_mode: bool,
 ) -> str:
+    """把一次请求的关键入参稳定序列化后生成缓存键。"""
     payload = json.dumps(
         {
             "provider": provider,
@@ -278,6 +309,7 @@ def stable_cache_key(
 
 
 def classify_exception(exc: Exception) -> ErrorInfo:
+    """把原始异常归类成项目内部更稳定的错误对象。"""
     name = exc.__class__.__name__.lower()
     text = str(exc).lower()
     combined = f"{name} {text}"
@@ -302,6 +334,7 @@ def retry_call(
     base_delay: float = 0.4,
     max_delay: float = 3.0,
 ) -> tuple[T | None, list[RetryLog], ErrorInfo | None]:
+    """执行一次带指数退避的重试，并把过程记录成 `RetryLog`。"""
     retries: list[RetryLog] = []
     for attempt in range(1, max_retries + 2):
         try:
@@ -317,6 +350,7 @@ def retry_call(
 
 
 def redact_sensitive(text: str) -> str:
+    """在导出或展示前，对常见敏感信息做脱敏。"""
     redacted = text
     patterns = [
         (r"(?i)(api[_-]?key\s*[:=]\s*)([A-Za-z0-9_\-]+)", r"\1***REDACTED***"),
@@ -330,6 +364,7 @@ def redact_sensitive(text: str) -> str:
 
 
 def detect_prompt_injection(text: str) -> SafetyAssessment:
+    """用简单规则做 prompt injection 风险初筛。"""
     normalized = text.strip().lower()
     patterns = [
         ("试图覆盖系统提示", r"忽略.*指令|ignore previous instructions|forget previous instructions"),
@@ -355,17 +390,20 @@ def detect_prompt_injection(text: str) -> SafetyAssessment:
 
 
 def ensure_system_message(messages: list[dict[str, str]], system_prompt: str) -> list[dict[str, str]]:
+    """无论历史如何，始终把 system message 放在最前面。"""
     others = [item for item in messages if item["role"] != "system"]
     return [{"role": "system", "content": system_prompt}] + others
 
 
 def trim_messages(messages: list[dict[str, str]], keep_last_messages: int) -> list[dict[str, str]]:
+    """保留 system 消息，再截断最近 N 条非 system 历史。"""
     systems = [item for item in messages if item["role"] == "system"]
     others = [item for item in messages if item["role"] != "system"]
     return systems + others[-keep_last_messages:]
 
 
 def build_user_message_content(user_text: str, json_mode: bool) -> str:
+    """在 JSON 模式下，把“只返回 JSON”的要求拼进用户消息。"""
     if not json_mode:
         return user_text
     return (
@@ -378,6 +416,7 @@ def build_user_message_content(user_text: str, json_mode: bool) -> str:
 
 
 def split_mock_chunks(text: str) -> list[str]:
+    """把完整文本拆成小块，用来模拟流式输出的视觉效果。"""
     sizes = [4, 5, 3, 6]
     parts: list[str] = []
     cursor = 0
@@ -391,6 +430,7 @@ def split_mock_chunks(text: str) -> list[str]:
 
 
 def encode_sse_event(event: str, data: Any, event_id: str | None = None) -> str:
+    """把事件名和数据编码成 SSE 协议需要的文本格式。"""
     lines: list[str] = []
     if event_id:
         lines.append(f"id: {event_id}")
@@ -402,6 +442,7 @@ def encode_sse_event(event: str, data: Any, event_id: str | None = None) -> str:
 
 
 def write_json_export(filename: str, data: Any) -> Path:
+    """把导出数据写到 `exports/` 目录。"""
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
     path = EXPORT_DIR / filename
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -409,16 +450,20 @@ def write_json_export(filename: str, data: Any) -> Path:
 
 
 def timestamp_slug() -> str:
+    """生成适合文件名的时间戳后缀。"""
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
 class ProjectLLMService:
+    """统一服务层，负责把聊天项目里的横切能力收拢到一处。"""
+
     def __init__(
         self,
         provider: str | None = None,
         cache_ttl_seconds: float = 300.0,
         daily_limit_tokens: int = 100_000,
     ) -> None:
+        """初始化 provider、session store、cache 和 quota 管理器。"""
         load_env_if_possible()
         self.provider_name = provider or os.getenv("DEFAULT_PROVIDER", "bailian")
         self.store = InMemorySessionStore()
@@ -426,9 +471,11 @@ class ProjectLLMService:
         self.quota = DailyQuotaManager(daily_limit_tokens=daily_limit_tokens)
 
     def resolve_config(self, provider: str | None = None, model_override: str | None = None) -> ProviderConfig:
+        """解析当前应使用的 provider 配置。"""
         return load_provider_config(provider or self.provider_name, model_override=model_override)
 
     def get_or_create_session(self, session_id: str | None = None) -> ProjectSession:
+        """拿到一个可继续使用的会话对象。"""
         config = self.resolve_config()
         session = self.store.get_or_create(
             session_id=session_id,
@@ -439,6 +486,7 @@ class ProjectLLMService:
         return session
 
     def get_cli_state(self, session_id: str) -> CLIState:
+        """提取 CLI 真正关心的会话配置视图。"""
         session = self.get_or_create_session(session_id)
         return CLIState(
             session_id=session.session_id,
@@ -453,6 +501,7 @@ class ProjectLLMService:
         )
 
     def update_session_settings(self, session_id: str, **kwargs: Any) -> ProjectSession:
+        """统一更新 session 配置，供 CLI 命令和 API 请求复用。"""
         session = self.get_or_create_session(session_id)
         for key, value in kwargs.items():
             if hasattr(session, key):
@@ -461,18 +510,22 @@ class ProjectLLMService:
         return session
 
     def clear_session(self, session_id: str) -> ProjectSession:
+        """清空会话历史，但保留当前 session 的配置。"""
         return self.store.reset_messages(session_id)
 
     def _message_dicts(self, session: ProjectSession) -> list[dict[str, str]]:
+        """把 dataclass 形式的消息转换成模型 SDK 更熟悉的 dict 结构。"""
         return [{"role": item.role, "content": item.content} for item in session.messages]
 
     def _build_messages(self, session: ProjectSession, user_text: str) -> list[dict[str, str]]:
+        """组装真正要发给模型的 messages。"""
         history = self._message_dicts(session)
         base = ensure_system_message(history, session.system_prompt)
         base = trim_messages(base, session.keep_last_messages)
         return base + [{"role": "user", "content": build_user_message_content(user_text, session.json_mode)}]
 
     def _preview_request(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession, stream: bool) -> dict[str, Any]:
+        """生成请求预览，便于调试和导出时回看本轮入参。"""
         payload: dict[str, Any] = {
             "model": config.model,
             "messages": messages,
@@ -488,6 +541,7 @@ class ProjectLLMService:
         return payload
 
     def _compute_cost(self, usage: UsageStats | None, config: ProviderConfig) -> CostStats | None:
+        """根据 usage 和配置价格估算本轮成本。"""
         if not usage:
             return None
         estimated_cost = None
@@ -506,6 +560,7 @@ class ProjectLLMService:
         )
 
     def _mock_response_text(self, user_text: str, session: ProjectSession, config: ProviderConfig) -> str:
+        """在没有真实 API Key 时，生成一个仍然可练习流程的 mock 响应。"""
         if session.json_mode:
             return json.dumps(
                 {
@@ -526,6 +581,7 @@ class ProjectLLMService:
         )
 
     def _real_chat_once(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession) -> tuple[str, UsageStats | None, float]:
+        """执行一次真实的非流式模型调用。"""
         try:
             from openai import OpenAI
         except ImportError as exc:
@@ -554,6 +610,7 @@ class ProjectLLMService:
         return response.choices[0].message.content or "", usage, elapsed_ms
 
     def _chat_once(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession, raw_user_text: str) -> tuple[str, UsageStats | None, float, bool]:
+        """统一封装“本轮到底走 mock 还是真实模型”的分支。"""
         if not config.is_ready:
             content = self._mock_response_text(raw_user_text, session, config)
             prompt_tokens = estimate_messages_tokens(messages)
@@ -564,8 +621,10 @@ class ProjectLLMService:
         return content, usage, elapsed_ms, False
 
     def _append_turn(self, session: ProjectSession, user_text: str, assistant_text: str, cost: CostStats | None, usage: UsageStats | None, request_preview: dict[str, Any], billable: bool) -> None:
+        """把本轮对话结果和统计写回 session，作为后续轮次的上下文基础。"""
         session.messages.append(MessageRecord(role="user", content=user_text))
         session.messages.append(MessageRecord(role="assistant", content=assistant_text))
+        # session 里保留最近一段历史即可，避免上下文无限增长。
         session.messages = session.messages[-(session.keep_last_messages + 2) :]
         session.turn_count += 1
         session.updated_at = _now()
@@ -578,6 +637,7 @@ class ProjectLLMService:
             session.accumulated_estimated_cost += cost.estimated_cost
 
     def _session_estimated_tokens(self, session: ProjectSession) -> int:
+        """粗估当前会话历史大约占用了多少 token。"""
         return estimate_messages_tokens(self._message_dicts(session)) if session.messages else 0
 
     def _build_turn_result(
@@ -595,6 +655,7 @@ class ProjectLLMService:
         from_cache: bool,
         error: ErrorInfo | None = None,
     ) -> TurnResult:
+        """统一构造服务层对外返回的结果对象。"""
         return TurnResult(
             ok=error is None,
             session_id=session.session_id,
@@ -616,12 +677,14 @@ class ProjectLLMService:
         )
 
     def chat(self, session_id: str | None, user_text: str, quota_subject: str = "cli-user") -> TurnResult:
+        """执行一轮普通聊天请求。"""
         session = self.get_or_create_session(session_id)
         config = self.resolve_config(session.provider, model_override=session.model)
         safety = detect_prompt_injection(user_text)
         messages = self._build_messages(session, user_text)
         request_preview = self._preview_request(config, messages, session, stream=False)
         estimated_tokens = estimate_messages_tokens(messages) + session.max_tokens
+        # 先做额度检查，避免已经超额时还继续占用上游资源。
         if not self.quota.ensure_available(quota_subject, estimated_tokens):
             return self._build_turn_result(
                 session,
@@ -641,6 +704,7 @@ class ProjectLLMService:
         cache_key = stable_cache_key(config.provider, config.model, messages, session.temperature, session.max_tokens, session.json_mode)
         cached = self.cache.get(cache_key)
         if cached:
+            # 命中缓存也要把 user/assistant 重新落回 session，这样当前会话历史仍然完整。
             self._append_turn(session, user_text, cached.reply or "", cached.cost, cached.usage, cached.request_preview, billable=False)
             return self._build_turn_result(
                 session,
@@ -679,6 +743,7 @@ class ProjectLLMService:
 
         reply, usage, elapsed_ms, mocked = outcome
         cost = self._compute_cost(usage, config)
+        # 只有真实执行成功后，才把这轮结果作为新的上下文写回。
         self._append_turn(session, user_text, reply, cost, usage, request_preview, billable=True)
         if usage:
             self.quota.consume(quota_subject, usage.total_tokens)
@@ -699,6 +764,7 @@ class ProjectLLMService:
         return result
 
     def _real_stream(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession) -> Iterator[str]:
+        """执行真实模型的流式调用，并把增量文本逐段吐出。"""
         try:
             from openai import OpenAI
         except ImportError as exc:
@@ -723,6 +789,7 @@ class ProjectLLMService:
                 yield delta
 
     def stream_chat(self, session_id: str | None, user_text: str, quota_subject: str = "cli-user") -> Iterator[dict[str, Any]]:
+        """执行一轮流式聊天，按事件流的形式把过程暴露给上层。"""
         session = self.get_or_create_session(session_id)
         config = self.resolve_config(session.provider, model_override=session.model)
         safety = detect_prompt_injection(user_text)
@@ -741,6 +808,7 @@ class ProjectLLMService:
         cache_key = stable_cache_key(config.provider, config.model, messages, session.temperature, session.max_tokens, session.json_mode)
         cached = self.cache.get(cache_key)
         if cached and cached.reply:
+            # 流式模式命中缓存时，仍然用 chunk 形式重放，保持调用方体验一致。
             yield {
                 "type": "start",
                 "session_id": session.session_id,
@@ -772,6 +840,7 @@ class ProjectLLMService:
             return
 
         started = time.perf_counter()
+        # start 事件告诉调用方：本轮流式输出已经开始，可以准备消费 token。
         yield {
             "type": "start",
             "session_id": session.session_id,
@@ -802,6 +871,7 @@ class ProjectLLMService:
             return
 
         reply = "".join(collected)
+        # 流式输出结束后，仍然要补齐 usage / cost / session 等项目级信息。
         elapsed_ms = (time.perf_counter() - started) * 1000
         usage = UsageStats(
             prompt_tokens=estimate_messages_tokens(messages),
@@ -828,6 +898,7 @@ class ProjectLLMService:
         yield {"type": "done", "result": asdict(result)}
 
     def export_session(self, session_id: str) -> Path:
+        """导出当前 session 和 CLI 状态，便于回放与排查。"""
         session = self.get_or_create_session(session_id)
         payload = {
             "session": asdict(session),
@@ -836,6 +907,7 @@ class ProjectLLMService:
         return write_json_export(f"chat_session_{session_id}_{timestamp_slug()}.json", payload)
 
     def session_snapshot(self, session_id: str) -> dict[str, Any]:
+        """返回 API 更适合直接消费的会话快照。"""
         session = self.get_or_create_session(session_id)
         return {
             "session": asdict(session),
@@ -845,6 +917,7 @@ class ProjectLLMService:
         }
 
     def format_stats_text(self, session_id: str) -> str:
+        """把当前会话统计格式化成 CLI 友好的纯文本。"""
         session = self.get_or_create_session(session_id)
         lines = [
             f"session_id={session.session_id}",
@@ -864,10 +937,12 @@ class ProjectLLMService:
 
 
 def _print_turn_result(result: TurnResult) -> None:
+    """示例运行时，把结果按 JSON 形式打印出来。"""
     print(json.dumps(asdict(result), ensure_ascii=False, indent=2))
 
 
 def main() -> None:
+    """允许直接运行服务文件，快速验证服务层是否能独立工作。"""
     load_env_if_possible()
     service = ProjectLLMService()
     session = service.get_or_create_session()

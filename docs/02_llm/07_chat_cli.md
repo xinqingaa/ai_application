@@ -128,6 +128,151 @@
 
 ---
 
+## 实现主线阅读指南 📌
+
+前面的内容解决的是：
+
+- 为什么第七章一定要做综合项目
+- 为什么项目会采用 `CLI + 服务层 + API`
+- 为什么状态、Prompt、流式输出、统计、导出这些能力要一起进入同一个项目
+
+这些内容都要保留，因为它们决定了你后面看代码时，能不能看懂“为什么这里要这样分层”。
+
+但如果你现在的目标是：
+
+> 不只是知道设计理由，还要把代码真正拆开、看懂、自己能维护，
+
+那就要再加一条“实现主线”。
+
+这一章建议你同时沿着两条线学习：
+
+1. **设计理解线**：继续读后面的第 2-11 章、第 13-16 章，理解为什么项目要这样组织
+2. **实现拆解线**：按下面这条执行顺序，看代码到底怎样跑起来
+
+### 实现主线先看什么
+
+先把项目理解成四层：
+
+```text
+第 1 层：数据结构层
+schemas.py
+负责定义消息、会话、统计、错误、风控、返回结果这些“项目内部通用语言”
+
+第 2 层：服务层
+llm_service.py
+负责把 provider 配置、消息组装、聊天调用、流式输出、缓存、配额、导出都收进统一内核
+
+第 3 层：CLI 入口层
+chat_cli.py
+负责命令解析、交互循环、打印输出，把用户输入翻译成服务层调用
+
+第 4 层：API 适配层
+chat_api.py
+负责把同一套服务层能力映射成 HTTP JSON 和 SSE 接口
+```
+
+你只要先抓住这个层次，后面代码就不会混。
+
+### 一次普通聊天请求是怎么跑完整条链路的
+
+先看最常见的非流式路径：
+
+```text
+用户在 CLI 输入问题
+-> chat_cli.py / ProjectCLI.handle_command()
+-> ProjectCLI._send_message()
+-> ProjectLLMService.chat()
+-> detect_prompt_injection() 做基础安全检查
+-> _build_messages() 组装 system + history + 当前用户消息
+-> _preview_request() 生成一份可观察的请求预览
+-> quota 检查今日 token 是否超额
+-> cache 检查是否已有相同请求的结果
+-> retry_call() 包住 _chat_once()
+-> _chat_once() 决定走 mock 还是真实模型
+-> _compute_cost() 计算 usage / cost
+-> _append_turn() 把本轮 user / assistant 写回 session
+-> _build_turn_result() 统一返回给 CLI 或 API
+-> CLI 打印结果
+```
+
+这条链路里最重要的理解点不是“终于调到模型了”，而是：
+
+1. **聊天不是只做一次 API 调用**
+2. **在真正调用模型前后，还有安全、上下文、缓存、配额、统计、导出这些横切逻辑**
+3. **这些逻辑必须放在服务层，不能散落到 CLI 和 API**
+
+### 一次流式聊天请求是怎么跑的
+
+再看流式路径：
+
+```text
+用户开启 /stream on
+-> ProjectCLI._send_message()
+-> ProjectLLMService.stream_chat()
+-> 安全检查、消息组装、request_preview、quota 检查
+-> 如果命中缓存，按 chunk 形式把缓存内容重新吐出来
+-> 如果没有命中缓存：
+   -> 先 yield start 事件
+   -> 再逐段 yield token
+   -> 最后汇总 reply，补 usage / cost / session 状态
+   -> yield done 事件
+-> CLI 逐段打印，或者 API 包装成 SSE 返回
+```
+
+这条链路要特别看懂两件事：
+
+1. 流式模式虽然“输出方式不同”，但本质上仍然复用同一套 session、quota、cache、cost 逻辑
+2. 流式模式的难点不是 `yield` 语法本身，而是“最后仍然要把这轮对话落回统一状态对象里”
+
+### 推荐的代码阅读顺序
+
+如果你想真正把代码吃透，建议按这个顺序读：
+
+1. 先读 `schemas.py`
+   先认识项目有哪些核心对象，后面你才能看懂服务层为什么要返回 `TurnResult`，为什么 session 里要累计统计字段
+2. 再读 `llm_service.py` 顶部到 `ProjectLLMService` 初始化
+   先把 provider 配置、缓存、quota、session store 这些基础设施看懂
+3. 再只盯住 `chat()`
+   先把普通聊天链路吃透，不要一开始就同时看 stream
+4. 然后读 `stream_chat()`
+   看看流式链路和普通链路哪些相同、哪些不同
+5. 再读 `chat_cli.py`
+   把命令和服务调用一一对应起来
+6. 最后读 `chat_api.py`
+   理解 API 层为什么故意写得很薄
+
+### 读代码时必须盯住的 6 个关键对象
+
+第七章的代码量不算大，但对象很多。你阅读时最需要盯住的是这 6 个对象：
+
+1. `ProjectSession`
+   这是整个项目运行时状态的核心，保存 provider、model、messages、累计 token、累计 cost、turn_count 等信息
+2. `TurnResult`
+   这是服务层对外的统一返回，CLI 和 API 最终都围绕它工作
+3. `ProviderConfig`
+   它把平台差异收敛到统一配置对象里，减少上层分支判断
+4. `TTLCache`
+   它决定“相同请求是否可以直接复用结果”
+5. `DailyQuotaManager`
+   它决定“这轮请求在资源上是否允许继续执行”
+6. `request_preview`
+   它不是给模型看的，而是给开发者看“这次请求最终会以什么结构发出去”
+
+### 你在维护这套代码时，应该优先检查什么
+
+如果以后你要改这套项目，建议每次都按下面的顺序自检：
+
+1. 这次改动影响的是数据结构层、服务层，还是入口层？
+2. 这个逻辑是不是误放到了 `chat_cli.py` 或 `chat_api.py`？
+3. `chat()` 和 `stream_chat()` 的行为是否仍然保持一致？
+4. `ProjectSession` 和 `TurnResult` 的字段有没有同步更新？
+5. 导出、统计、缓存、quota 是否仍然能正确工作？
+6. mock 模式和真实模型模式是否都还能跑通？
+
+如果你能带着这几个问题回头再读后面的章节，原本那些“设计说明”会变得更容易落到代码上。
+
+---
+
 ## 2. 为什么课程最后一定要做综合项目 📌
 
 ### 2.1 只学章节知识，很容易形成“碎片熟悉”
@@ -1447,6 +1592,61 @@ JSON 模式成为项目状态之后，会影响：
 2. 让 CLI、服务层、API 都围绕同一套字段工作
 3. 让导出结构更稳定
 
+如果你把它再拆开看，可以分成三组：
+
+#### 第一组：消息与会话基础对象
+
+- `MessageRecord`
+- `ProjectSession`
+
+这里解决的是“项目运行时到底保存什么”。
+
+其中最关键的是 `ProjectSession`，因为它不是只保存 `messages`，还同时保存：
+
+- 当前 provider / model
+- system prompt
+- JSON / stream 模式开关
+- temperature / max_tokens
+- 消息截断策略
+- 累计 token / 累计 cost
+- 最近一次请求预览
+
+也就是说，**它代表的是一个可持续运行的会话上下文，而不是一段临时变量**。
+
+#### 第二组：结果与观测对象
+
+- `UsageStats`
+- `CostStats`
+- `RetryLog`
+- `ErrorInfo`
+- `TurnResult`
+
+这一组解决的是“服务层执行完一轮之后，到底要把哪些信息交回给上层”。
+
+学习第七章时要特别注意：
+
+> `TurnResult` 不是“回复文本包装一下”而已，而是把本轮是否成功、是否命中缓存、是否 mock、耗时、统计、错误、风控、请求预览一起打包。
+
+这样 CLI 和 API 才不需要自己拼装这些信息。
+
+#### 第三组：安全与命令视角对象
+
+- `SafetyAssessment`
+- `CLIState`
+
+这两个对象分别服务于：
+
+- 服务层内部的风险判断
+- CLI 层对当前会话配置的展示
+
+它们看起来不是“主业务对象”，但正是这些对象让项目从“一段聊天脚本”变成“可观察、可维护的项目”。
+
+#### 读这个文件时要回答的 3 个问题
+
+1. 哪些字段属于“本轮结果”，哪些字段属于“整个会话累计状态”？
+2. 为什么 `TurnResult` 和 `ProjectSession` 不能合并成一个对象？
+3. 如果以后你要加数据库持久化，哪些对象最适合作为持久化边界？
+
 ### 12.2 `llm_service.py`
 
 这是第七章最核心的文件。
@@ -1468,6 +1668,173 @@ JSON 模式成为项目状态之后，会影响：
 
 如果你只看一个文件来理解第七章，优先看这个。
 
+但这个文件内容很多，直接从头看到尾很容易糊。更好的方式是把它拆成 6 个阅读区块。
+
+#### 区块 1：基础工具和配置入口
+
+你会先看到：
+
+- `load_env_if_possible()`
+- `_parse_float()`
+- `_now()`
+- `_new_session_id()`
+- `ProviderConfig`
+- `load_provider_config()`
+
+这一段在解决两个问题：
+
+1. 怎样把环境变量变成项目内部可用的 provider 配置对象
+2. 怎样让后面的服务层代码不用反复处理“字符串环境变量”和“缺省值”
+
+这里最值得你学习的是：
+
+> 先把外部世界的不稳定输入收敛成内部稳定对象，再往后传。
+
+#### 区块 2：项目级基础设施
+
+接下来你会看到：
+
+- `TTLCache`
+- `DailyQuotaManager`
+- `InMemorySessionStore`
+
+这三个类分别对应：
+
+- **结果复用**
+- **资源配额控制**
+- **运行时会话存储**
+
+学习时要注意，它们不是“附加小功能”，而是服务层成为“项目内核”的关键支撑。
+
+尤其是 `InMemorySessionStore.get_or_create()`，它决定了：
+
+- session 是否存在
+- session 默认 provider / model 是什么
+- 为什么 CLI 和 API 都可以拿同一个 `session_id` 继续聊
+
+#### 区块 3：请求前处理逻辑
+
+这一段包括：
+
+- `estimate_tokens()`
+- `estimate_messages_tokens()`
+- `stable_cache_key()`
+- `classify_exception()`
+- `retry_call()`
+- `redact_sensitive()`
+- `detect_prompt_injection()`
+- `ensure_system_message()`
+- `trim_messages()`
+- `build_user_message_content()`
+
+它们解决的是：
+
+> 在真正调用模型之前，先把消息、风险、缓存键、异常重试这些“准备动作”做好。
+
+这里你要特别注意三件事：
+
+1. `ensure_system_message()` 和 `trim_messages()` 是消息进入模型前的最后整理
+2. `build_user_message_content()` 会在 JSON 模式下补充输出约束
+3. `stable_cache_key()` 把 provider、model、messages、temperature、max_tokens、json_mode 一起纳入缓存键，避免错误复用
+
+#### 区块 4：普通聊天主链路
+
+真正的主流程在 `ProjectLLMService.chat()`。
+
+你读这个函数时，建议严格按下面顺序看：
+
+1. 拿到 session
+2. 根据 session 解析 provider 配置
+3. 做 prompt injection 基础检测
+4. 组装 messages
+5. 生成 `request_preview`
+6. 做 quota 检查
+7. 查 cache
+8. 用 `retry_call()` 包住 `_chat_once()`
+9. 计算 cost
+10. 把消息和统计写回 session
+11. 构造统一 `TurnResult`
+12. 写入 cache
+
+这一段是你以后维护 AI 项目时最值得反复练习的“项目主链路模板”。
+
+##### `_chat_once()` 为什么值得单独看
+
+因为它决定了：
+
+- 没有 API Key 时走 mock
+- 有 API Key 时走 `_real_chat_once()`
+
+这说明服务层对上层屏蔽了“当前到底是 mock 还是真实 provider”的差异。
+
+CLI 和 API 不需要知道这些实现细节。
+
+##### `_append_turn()` 为什么非常关键
+
+很多初学者会只关心“模型回了什么”，忽略“项目状态怎么落回去”。
+
+但真正决定你以后能不能维护项目的，反而是 `_append_turn()` 这种函数，因为它在做：
+
+- 写回 user / assistant 消息
+- 截断历史
+- 增加 turn_count
+- 更新最近一次 request_preview
+- 累计 token 和 cost
+
+如果这一步做不好，后面的 `/stats`、`/export`、多轮上下文都会逐渐失真。
+
+#### 区块 5：流式聊天主链路
+
+对应函数是：
+
+- `_real_stream()`
+- `stream_chat()`
+
+建议你把 `stream_chat()` 和 `chat()` 对照着读，而不是单独读。
+
+你会更容易看出：
+
+- 哪些步骤是完全共用的
+- 哪些步骤是流式特有的
+
+这里最重要的不是 `yield` 语法，而是：
+
+1. 开头也要做 quota 和 cache 检查
+2. 中间要持续吐 token 事件
+3. 结尾仍然要汇总完整 reply、usage、cost
+4. 最终还是要写回 session 和 cache
+
+也就是说：
+
+> 流式模式只是“交付形态不同”，不是“另起一套业务逻辑”。
+
+#### 区块 6：导出、会话快照和统计
+
+这部分包括：
+
+- `export_session()`
+- `session_snapshot()`
+- `format_stats_text()`
+
+这三个函数分别服务于：
+
+- 导出 JSON 文件
+- API 查看当前会话快照
+- CLI 的 `/stats`
+
+它们的共同点是：都不直接再调模型，而是消费 `ProjectSession` 已经积累下来的运行时信息。
+
+这也正好说明前面为什么一定要在服务层把状态维护好。
+
+#### 学这一章时，`llm_service.py` 推荐这样读
+
+1. 先只读数据是怎么流动的，不要先纠结每个辅助函数的细节
+2. 先吃透 `chat()`，再读 `stream_chat()`
+3. 读到一个字段时，回去看它在 `ProjectSession` 或 `TurnResult` 里是什么含义
+4. 每看完一段，就问自己“这段逻辑如果写在 CLI 里会有什么问题”
+
+如果你能把这个文件真正吃透，第七章的 70% 核心能力你就已经掌握了。
+
 ### 12.3 `chat_cli.py`
 
 这个文件重点不是“调用模型”本身，而是：
@@ -1478,6 +1845,111 @@ JSON 模式成为项目状态之后，会影响：
 - 结果打印
 
 它体现的是项目入口层的职责边界。
+
+如果你把它按执行步骤拆开，可以分成下面几块：
+
+#### 第一步：程序入口和依赖准备
+
+`main()` 做的事情并不多：
+
+1. 加载环境变量
+2. 解析命令行参数
+3. 创建 `ProjectCLI`
+4. 根据 `--demo`、`--script`、交互模式选择不同运行路径
+
+这里最值得学习的点是：
+
+> 入口文件不应该直接承载业务逻辑，它只负责把“运行模式”切进去。
+
+#### 第二步：CLI 会话对象初始化
+
+`ProjectCLI.__init__()` 里会创建：
+
+- `self.service`
+- `self.session`
+
+这一段决定的是：
+
+- CLI 不自己维护一套复杂状态
+- 它只是拿着服务层返回的 session 在当前终端里工作
+
+#### 第三步：命令和普通消息分流
+
+真正的入口在 `handle_command()`。
+
+它先做一个最关键的判断：
+
+- 不是 `/` 开头：当普通用户消息处理
+- 是 `/` 开头：进入命令分发
+
+这一步虽然简单，但非常重要，因为它决定了：
+
+- 用户输入和系统命令能共存
+- CLI 可以同时承担聊天和配置切换
+
+#### 第四步：命令为什么大多只改 session
+
+像这些命令：
+
+- `/provider`
+- `/model`
+- `/system`
+- `/json`
+- `/stream`
+- `/temperature`
+- `/max_tokens`
+
+本质上都没有直接调模型。
+
+它们真正做的是：
+
+1. 解析参数
+2. 调 `update_session_settings()`
+3. 打印更新后的提示
+
+这正体现了 CLI 层职责：
+
+> 它负责把用户的命令翻译成状态变化，而不是自己实现聊天逻辑。
+
+#### 第五步：真正发消息时做了什么
+
+`_send_message()` 才是 CLI 与服务层真正衔接的地方。
+
+这里分两条路：
+
+1. `stream_mode=False` 时，走 `service.chat()`
+2. `stream_mode=True` 时，走 `service.stream_chat()`
+
+你学习这一段时，要重点观察：
+
+- CLI 如何消费 `TurnResult`
+- CLI 如何消费流式事件
+- 它只负责打印，不负责业务计算
+
+#### 第六步：为什么 `/prompt` 值得单独看
+
+`_send_prompt_file()` 的意义不只是“读文件”。
+
+它是在演示：
+
+- Prompt 资产不一定写死在代码里
+- 文件内容可以直接进入统一聊天主链路
+- CLI 层只做文件读取，真正发送仍然复用 `_send_message()`
+
+#### 第七步：运行模式的差别
+
+- `run_interactive()` 对应真实交互
+- `run_scripted()` 对应脚本化演示或回归验证
+
+这说明 CLI 项目不一定只能“手输命令”，也可以变成可重复执行的命令流。
+
+#### 维护这个文件时最重要的原则
+
+如果你以后改这个文件，始终检查：
+
+1. 这里是在做输入解析，还是已经越界写进业务逻辑了？
+2. 这里是不是本该放到 `ProjectLLMService`？
+3. 非流式和流式两条路径的输出口径是否仍然一致？
 
 ### 12.4 `chat_api.py`
 
@@ -1490,6 +1962,74 @@ JSON 模式成为项目状态之后，会影响：
 
 它的重点不是复杂，而是“薄”。
 
+这份“薄”不是偷懒，而是刻意的结构设计。
+
+#### `ChatRequest` 在解决什么问题
+
+这个请求模型把 API 能接受的运行时参数集中起来了，包括：
+
+- `session_id`
+- `message`
+- `provider`
+- `model`
+- `system_prompt`
+- `json_mode`
+- `stream_mode`
+- `temperature`
+- `max_tokens`
+
+它的价值在于：
+
+1. API 层的输入边界是显式的
+2. 上层调用方知道哪些状态可以按请求覆盖
+3. 这些字段最终都能映射到 session 设置
+
+#### `apply_request_settings()` 为什么重要
+
+这个函数虽然不长，但它是 API 层最关键的“桥接函数”。
+
+它做了两件事：
+
+1. 先确保 session 存在
+2. 再把请求里的可选配置覆盖到 session 上
+
+这样后面的 `/chat` 和 `/chat/stream` 都不用自己重复写这段逻辑。
+
+#### `/chat` 做了什么
+
+`/chat` 的逻辑非常简单：
+
+1. 套用请求中的运行时配置
+2. 调用 `service.chat()`
+3. 把结果 `asdict()` 后返回
+
+这段代码越简单，越说明服务层边界划分是正确的。
+
+#### `/chat/stream` 做了什么
+
+这里的关键不是 FastAPI 语法，而是：
+
+1. 先把 session 状态更新好
+2. 调用 `build_sse_stream()`
+3. 让 `build_sse_stream()` 消费服务层流式事件
+4. 再用 `StreamingResponse` 把事件按 SSE 协议发出去
+
+你要特别注意：
+
+> API 层并没有自己生成 token，也没有自己计算 usage / cost，它只是把服务层事件翻译成 SSE 协议。
+
+#### 为什么它是学习“前后端复用同一内核”的关键文件
+
+因为这个文件最直接地证明了：
+
+- 同一个 `ProjectLLMService`
+- 同一个 `session_id`
+- 同一套 `TurnResult`
+
+既能被 CLI 用，也能被 API 用。
+
+这就是第七章最重要的项目化能力之一。
+
 ### 12.5 `prompts/meeting_summary.txt`
 
 这个文件不是装饰。
@@ -1500,6 +2040,20 @@ JSON 模式成为项目状态之后，会影响：
 - `/prompt` 命令
 - JSON 模式与文件 Prompt 组合
 
+你在学习时可以直接把这个文件当作一个“可替换输入样板”。
+
+建议你至少练三次：
+
+1. 普通模式下发送一次
+2. JSON 模式下发送一次
+3. 改写里面的输出要求后再发送一次
+
+这样你会更直观看到：
+
+- Prompt 文件如何影响最终输出
+- CLI 如何把文件输入接回主链路
+- 为什么 Prompt 资产化比字符串硬编码更适合维护
+
 ### 12.6 `.env.example`
 
 这个文件继续保持前几章的 provider 配置风格。
@@ -1508,6 +2062,349 @@ JSON 模式成为项目状态之后，会影响：
 
 - 学员不会在第七章突然换一套配置体系
 - 前六章的配置经验可以直接延续
+
+从实现角度看，这个文件还承担了两个教学作用：
+
+1. 让你看清 provider 抽象的输入边界到底是什么
+2. 让你理解 `load_provider_config()` 为什么能够把多平台配置收敛成 `ProviderConfig`
+
+学习时建议你对照着看：
+
+- `.env.example`
+- `load_provider_config()`
+- `ProviderConfig`
+
+这样你会更容易把“环境变量配置”和“项目内部配置对象”真正对应起来。
+
+### 12.7 普通聊天函数调用链索引
+
+如果你现在开始读代码，最容易卡住的问题通常不是：
+
+> 这个函数看不懂，
+
+而是：
+
+> 我不知道这个函数是被谁调用的，也不知道它调用完之后数据会流到哪里。
+
+所以这里把“一次普通聊天”的函数调用链完整摊开。
+
+#### 第一步：CLI 怎么把用户输入送进服务层
+
+当你在 CLI 中输入一行普通文本时，会经过下面这条链路：
+
+| 顺序 | 函数 | 作用 | 关键输入 | 关键输出 |
+|------|------|------|---------|---------|
+| 1 | `ProjectCLI.handle_command()` | 判断这是普通消息还是斜杠命令 | `line` | 是否继续运行 |
+| 2 | `ProjectCLI._send_message()` | 根据当前 `stream_mode` 选择普通或流式调用 | `text` | 无，直接打印 |
+| 3 | `ProjectLLMService.chat()` | 真正执行一轮普通聊天 | `session_id`, `user_text` | `TurnResult` |
+
+这里你要抓住一个核心点：
+
+> CLI 自己不负责生成回复，它只负责把输入路由到服务层，然后消费 `TurnResult`。
+
+#### 第二步：`chat()` 进入后先做哪些准备动作
+
+`ProjectLLMService.chat()` 开头会依次做下面几件事：
+
+| 顺序 | 函数 | 作用 | 为什么不能省 |
+|------|------|------|-------------|
+| 1 | `get_or_create_session()` | 拿到当前会话对象 | 没有 session 就无法管理多轮状态 |
+| 2 | `resolve_config()` | 解析当前 provider / model 配置 | 避免后续逻辑直接面对环境变量 |
+| 3 | `detect_prompt_injection()` | 做基础安全检查 | 让服务层始终保留风险评估信息 |
+| 4 | `_build_messages()` | 组装真正发送给模型的消息数组 | 上下文、system prompt、JSON 模式都在这里汇总 |
+| 5 | `_preview_request()` | 生成请求预览 | 方便调试、导出、回看调用结构 |
+
+这一步的关键不是“准备工作很多”，而是：
+
+> 这些准备动作把“原始用户输入”变成了“项目内部可执行的一轮请求”。
+
+#### 第三步：`_build_messages()` 里面又拆成了什么
+
+很多人第一次看 `chat()` 时，容易把 `_build_messages()` 一眼略过。
+
+其实它正是上下文组织的核心。
+
+它内部又会走这条链路：
+
+| 顺序 | 函数 | 作用 |
+|------|------|------|
+| 1 | `_message_dicts()` | 把 `ProjectSession.messages` 从 dataclass 转成 dict |
+| 2 | `ensure_system_message()` | 保证 `system` 消息始终在最前面 |
+| 3 | `trim_messages()` | 按 `keep_last_messages` 截断历史 |
+| 4 | `build_user_message_content()` | 在 JSON 模式下补上“只返回 JSON”的要求 |
+
+这几个函数加起来，才构成了“当前这一轮最终要发出去的 messages”。
+
+所以如果你以后发现：
+
+- system prompt 没生效
+- 历史消息太长
+- JSON 模式表现异常
+
+第一时间不要去看 CLI，先看这一组函数。
+
+#### 第四步：正式调用模型前还会拦什么
+
+在真正触发模型调用前，`chat()` 还会经过两道项目级检查：
+
+| 顺序 | 函数/对象 | 作用 |
+|------|-----------|------|
+| 1 | `quota.ensure_available()` | 判断这轮预计 token 是否超额 |
+| 2 | `stable_cache_key()` + `cache.get()` | 判断这是不是一条可复用缓存的请求 |
+
+这里有一个很重要的维护观念：
+
+> quota 和 cache 都不是“额外功能”，而是主链路的一部分。
+
+也就是说，你以后如果调整请求结构，必须同时检查：
+
+- cache key 是否还稳定
+- quota 估算是否还合理
+
+#### 第五步：真正调用模型时走的是哪条链
+
+如果没有命中缓存，`chat()` 会把真正的调用包进这条链里：
+
+```text
+retry_call()
+-> _chat_once()
+-> 分支 1：_mock_response_text()
+-> 分支 2：_real_chat_once()
+```
+
+这条链分别解决了三个问题：
+
+1. `retry_call()` 负责重试与错误归类
+2. `_chat_once()` 负责决定走 mock 还是真实模型
+3. `_real_chat_once()` 才是真正和 SDK 交互的地方
+
+这意味着：
+
+> 如果你想改“请求发送给模型的具体参数”，优先看 `_real_chat_once()`；如果你想改“没有 Key 时怎么演示”，优先看 `_mock_response_text()`；如果你想改“失败后的行为”，优先看 `retry_call()`。
+
+#### 第六步：模型返回后，结果是怎么落回项目状态的
+
+模型返回后，`chat()` 不会直接把 reply 丢给 CLI，而是继续走：
+
+| 顺序 | 函数 | 作用 |
+|------|------|------|
+| 1 | `_compute_cost()` | 从 usage 推导成本 |
+| 2 | `_append_turn()` | 把 user / assistant / 统计写回 session |
+| 3 | `quota.consume()` | 把真实 token 消耗计入配额 |
+| 4 | `_build_turn_result()` | 统一生成 `TurnResult` |
+| 5 | `cache.set()` | 把结果写入缓存 |
+
+这里最值得你记住的是 `_append_turn()`。
+
+因为真正让项目具备“多轮会话、统计、导出、回放”能力的，不是模型调用本身，而是这一步把状态写回去。
+
+#### 最后一步：CLI 怎么消费 `TurnResult`
+
+回到 CLI 之后，`_send_message()` 只做三类事情：
+
+1. 打印 provider / model
+2. 打印 reply
+3. 打印 usage / elapsed_ms / from_cache，或者打印 error
+
+所以你以后如果发现：
+
+- 输出格式想调整
+- stats 打印不顺眼
+- error 提示不够友好
+
+先改 CLI 打印逻辑。
+
+但如果你发现：
+
+- 返回字段不够
+- 风控结果没出来
+- usage / cost 不对
+
+先改服务层和数据结构。
+
+### 12.8 流式聊天函数调用链索引
+
+流式聊天建议和普通聊天对照着看。
+
+因为它们不是两套完全独立的系统，而是“前半段高度相同，后半段交付方式不同”。
+
+#### 流式路径和普通路径，共用哪些步骤
+
+`ProjectLLMService.stream_chat()` 开头和 `chat()` 很像，同样会做：
+
+| 顺序 | 函数 | 作用 |
+|------|------|------|
+| 1 | `get_or_create_session()` | 拿当前会话 |
+| 2 | `resolve_config()` | 解析 provider 配置 |
+| 3 | `detect_prompt_injection()` | 风险评估 |
+| 4 | `_build_messages()` | 组装 messages |
+| 5 | `_preview_request(..., stream=True)` | 构造流式请求预览 |
+| 6 | `quota.ensure_available()` | 配额检查 |
+| 7 | `stable_cache_key()` + `cache.get()` | 缓存检查 |
+
+这一步非常重要，因为它说明：
+
+> 流式模式并没有绕开项目内核，它仍然遵守同一套状态、风控、缓存、配额规则。
+
+#### 缓存命中时为什么还要伪装成流式输出
+
+在 `stream_chat()` 里，如果命中缓存，不会直接一次性把整段文本返回，而是：
+
+```text
+yield start
+-> split_mock_chunks()
+-> 多次 yield token
+-> _append_turn()
+-> yield done
+```
+
+这样做的好处是：
+
+1. 上层调用方不需要区分“这次是实时生成还是缓存重放”
+2. CLI 和 SSE 消费端的处理逻辑保持一致
+3. 项目体验层面仍然保留“逐段到达”的语义
+
+#### 没有命中缓存时，流式路径真正分叉在哪里
+
+核心分叉点在这里：
+
+| 场景 | 函数 | 说明 |
+|------|------|------|
+| 没有 API Key | `_mock_response_text()` + `split_mock_chunks()` | 用 mock 文本模拟逐段返回 |
+| 有 API Key | `_real_stream()` | 调真实模型流式接口 |
+
+你要特别注意：
+
+`_real_stream()` 只负责不断 `yield delta`，它并不负责：
+
+- 统计 token
+- 更新 session
+- 写入 cache
+- 返回最终结构
+
+这些事情仍然留在 `stream_chat()` 里统一处理。
+
+#### 流式事件的完整生命周期
+
+`stream_chat()` 对外产出的事件只有四类：
+
+| 事件类型 | 何时出现 | 给谁用 |
+|---------|---------|-------|
+| `start` | 确认开始输出时 | CLI / API 知道可以进入流式消费状态 |
+| `token` | 每拿到一段增量文本时 | CLI 逐段打印，SSE 客户端逐段渲染 |
+| `done` | 本轮回复汇总完成后 | 上层拿最终 `TurnResult` |
+| `error` | 中途异常或配额失败时 | 上层结束消费并展示错误 |
+
+所以如果你以后要接 Web 前端，真正要消费的不是“原始 SDK chunk”，而是这四种项目级事件。
+
+#### 为什么流式输出结束后还要重新汇总一次
+
+这一步很多人第一次看时会忽略。
+
+在 `stream_chat()` 结尾，代码会把前面收集到的 `collected`：
+
+1. 拼成完整 `reply`
+2. 估算 usage
+3. 计算 cost
+4. 调 `_append_turn()` 写回 session
+5. 调 `cache.set()` 写入缓存
+6. `yield done`
+
+这一步的意义是：
+
+> 即使输出是流式的，项目最终仍然需要一个完整、可统计、可导出、可回放的结果对象。
+
+如果没有这一步，流式模式就会变成“只能看，不能维护”。
+
+### 12.9 常见改动应该从哪里下手
+
+真正维护代码时，最耗时间的通常不是写代码，而是定位入口。
+
+下面这张表，专门解决“我该先改哪个文件”的问题。
+
+| 需求 | 先看哪里 | 再看哪里 | 最后确认什么 |
+|------|---------|---------|-------------|
+| 新增一个 CLI 命令 | `chat_cli.py` 的 `handle_command()` | `llm_service.py` 是否已有对应能力 | 文档帮助文本是否同步 |
+| 新增一个 session 配置项 | `schemas.py` 的 `ProjectSession` / `CLIState` | `update_session_settings()`、API 的 `ChatRequest` | `/stats`、导出、API 是否都能看到 |
+| 新增一个 provider | `.env.example` | `load_provider_config()` / `ProviderConfig` | CLI `/provider` 和真实调用是否兼容 |
+| 修改真实模型请求参数 | `_real_chat_once()` / `_real_stream()` | `_preview_request()` | request_preview 是否仍准确 |
+| 强化 JSON 模式 | `build_user_message_content()` | `_preview_request()` / `_real_chat_once()` | 普通模式是否未受影响 |
+| 增加统计字段 | `TurnResult` / `ProjectSession` | `_append_turn()` / `_build_turn_result()` | CLI、API、导出是否一致 |
+| 修改导出结构 | `export_session()` | `schemas.py` | 历史导出兼容性是否可接受 |
+| 增强安全检查 | `detect_prompt_injection()` | `SafetyAssessment` / `TurnResult` | CLI/API 是否还能看到风险结果 |
+| 接数据库持久化 | `InMemorySessionStore` | `get_or_create_session()` / `clear_session()` | 现有 session 行为是否保持一致 |
+| 接前端页面 | `chat_api.py` | `build_sse_stream()` / `session_snapshot()` | 普通接口和流式接口契约是否清晰 |
+
+这张表的核心目的不是让你死记，而是让你形成一个维护习惯：
+
+> 先找边界，再找主流程，最后找数据结构。
+
+### 12.10 阅读和调试这套代码时，建议同时打开哪些位置
+
+如果你只是单开一个文件来看，理解会很慢。
+
+更高效的方式是成组打开：
+
+#### 组合 1：理解普通聊天主链路
+
+同时打开：
+
+- `chat_cli.py` 里的 `_send_message()`
+- `llm_service.py` 里的 `chat()`
+- `schemas.py` 里的 `TurnResult`
+
+这组最适合回答：
+
+- 普通消息怎么进服务层
+- 服务层返回了什么
+- CLI 为什么能直接打印结果
+
+#### 组合 2：理解上下文是怎么组装的
+
+同时打开：
+
+- `ProjectSession`
+- `_build_messages()`
+- `ensure_system_message()`
+- `trim_messages()`
+- `build_user_message_content()`
+
+这组最适合回答：
+
+- system prompt 在哪进来的
+- 历史消息在哪截断
+- JSON 模式为什么会影响用户消息内容
+
+#### 组合 3：理解流式链路
+
+同时打开：
+
+- `chat_cli.py` 里的 `_send_message()`
+- `llm_service.py` 里的 `stream_chat()`
+- `chat_api.py` 里的 `build_sse_stream()`
+
+这组最适合回答：
+
+- 为什么 CLI 和 API 都能消费同一套流式事件
+- 事件从 service 到 SSE 是怎么映射的
+- 流式链路结束后为什么还能拿到完整结果
+
+#### 组合 4：理解状态、统计和导出
+
+同时打开：
+
+- `ProjectSession`
+- `_append_turn()`
+- `format_stats_text()`
+- `export_session()`
+
+这组最适合回答：
+
+- 为什么 `/stats` 和 `/export` 能反映历史轮次
+- token / cost 在哪累计
+- 导出文件为什么能拿来回放和排查
+
+如果你按这种“组合阅读”方式去看，第七章会比逐文件硬读顺很多。
 
 ---
 

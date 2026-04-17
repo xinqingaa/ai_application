@@ -44,11 +44,15 @@ HELP_TEXT = """
 
 
 class ProjectCLI:
+    """把命令行交互、命令分发和输出展示收束在一起的入口对象。"""
+
     def __init__(self) -> None:
+        """创建服务层，并初始化当前会话。"""
         self.service = ProjectLLMService()
         self.session = self.service.get_or_create_session()
 
     def print_state_summary(self) -> None:
+        """在进入交互前，先把当前会话的关键配置打印出来。"""
         state = self.service.get_cli_state(self.session.session_id)
         print("当前会话配置：")
         print(f"- session_id: {state.session_id}")
@@ -60,6 +64,7 @@ class ProjectCLI:
         print(f"- max_tokens: {state.max_tokens}")
 
     def _set_toggle(self, field_name: str, value_text: str | None) -> bool:
+        """把 on/off 命令统一映射成 session 上的布尔字段更新。"""
         current = getattr(self.session, field_name)
         if value_text is None:
             new_value = not current
@@ -70,6 +75,7 @@ class ProjectCLI:
         return new_value
 
     def _send_message(self, text: str) -> None:
+        """把普通输入交给服务层，并按流式或非流式两种模式打印结果。"""
         if self.session.stream_mode:
             started = False
             for event in self.service.stream_chat(self.session.session_id, text, quota_subject=self.session.session_id):
@@ -111,6 +117,7 @@ class ProjectCLI:
                 print(f"提示：{result.error.user_hint}")
 
     def _send_prompt_file(self, path_text: str) -> None:
+        """读取 prompt 文件内容，再复用普通消息发送链路。"""
         path = Path(path_text).expanduser()
         if not path.is_absolute():
             path = Path.cwd() / path
@@ -122,10 +129,12 @@ class ProjectCLI:
         self._send_message(content)
 
     def _new_session(self) -> None:
+        """创建一个新的 session，并切到这个 session 上继续聊。"""
         self.session = self.service.get_or_create_session(None)
         print(f"已创建新会话：{self.session.session_id}")
 
     def handle_command(self, line: str) -> bool:
+        """把一行输入分成普通消息或斜杠命令，并返回是否继续运行。"""
         if not line.startswith("/"):
             self._send_message(line)
             return True
@@ -137,6 +146,7 @@ class ProjectCLI:
         if command == "/help":
             print(HELP_TEXT)
             return True
+        # 这组命令只更新当前 session 配置，不直接触发模型调用。
         if command == "/provider":
             if not arg:
                 print("用法：/provider <name>")
@@ -191,6 +201,7 @@ class ProjectCLI:
             self.session = self.service.update_session_settings(self.session.session_id, max_tokens=value)
             print(f"max_tokens 已更新为 {value}")
             return True
+        # 这组命令会消费服务层已有能力，或管理当前会话本身。
         if command == "/prompt":
             if not arg:
                 print("用法：/prompt <path>")
@@ -222,6 +233,7 @@ class ProjectCLI:
         return True
 
     def run_interactive(self) -> None:
+        """交互式运行，适合真实使用和逐步学习。"""
         self.print_state_summary()
         print("输入 /help 查看命令。")
         while True:
@@ -237,6 +249,7 @@ class ProjectCLI:
                 return
 
     def run_scripted(self, lines: list[str]) -> None:
+        """按脚本顺序执行命令流，适合演示和回归验证。"""
         self.print_state_summary()
         for raw in lines:
             line = raw.strip()
@@ -249,10 +262,12 @@ class ProjectCLI:
 
 
 def load_script_commands(path: Path) -> list[str]:
+    """把命令脚本按行读取进来。"""
     return path.read_text(encoding="utf-8").splitlines()
 
 
 def build_demo_commands() -> list[str]:
+    """提供一组最小演示命令，方便快速验证项目链路。"""
     return [
         "/stats",
         "请介绍一下这个 CLI 项目能帮助我练习哪些能力？",
@@ -267,6 +282,7 @@ def build_demo_commands() -> list[str]:
 
 
 def main() -> None:
+    """CLI 入口：解析参数后选择 demo、脚本或交互模式。"""
     load_env_if_possible()
     parser = argparse.ArgumentParser(description="第七章综合项目 CLI")
     parser.add_argument("--demo", action="store_true", help="运行内置演示命令流")

@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:
+    # 直接运行当前文件时，确保可以导入同目录下的服务层模块。
     sys.path.append(str(CURRENT_DIR))
 
 from llm_service import ProjectLLMService, encode_sse_event, load_env_if_possible
@@ -30,6 +31,8 @@ service = ProjectLLMService()
 
 
 class ChatRequest(BaseModel):
+    """API 请求体：既包含当前消息，也允许覆盖部分 session 配置。"""
+
     session_id: str | None = Field(default=None)
     message: str = Field(min_length=1)
     provider: str | None = Field(default=None)
@@ -43,15 +46,18 @@ class ChatRequest(BaseModel):
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    """最小健康检查接口。"""
     return {"status": "ok"}
 
 
 @app.get("/sessions/{session_id}")
 async def get_session(session_id: str) -> dict[str, Any]:
+    """查看某个 session 当前累积出来的状态快照。"""
     return service.session_snapshot(session_id)
 
 
 def apply_request_settings(request: ChatRequest) -> str:
+    """把请求里的 provider / model / mode 等设置同步到目标 session。"""
     session = service.get_or_create_session(request.session_id)
     updates: dict[str, Any] = {}
     if request.provider:
@@ -77,14 +83,17 @@ def apply_request_settings(request: ChatRequest) -> str:
 
 @app.post("/chat")
 async def chat(request: ChatRequest) -> dict[str, Any]:
+    """普通聊天接口：直接返回完整 `TurnResult`。"""
     session_id = apply_request_settings(request)
     result = service.chat(session_id, request.message, quota_subject=session_id)
     return asdict(result)
 
 
 def build_sse_stream(session_id: str, message: str) -> Iterator[str]:
+    """把服务层事件流翻译成 SSE 文本流。"""
     stream_id = f"{session_id}-stream"
     for event in service.stream_chat(session_id, message, quota_subject=session_id):
+        # API 层不创造业务事件，只负责把服务层事件编码成 SSE 协议。
         if event["type"] == "start":
             yield encode_sse_event("start", event, event_id=stream_id)
         elif event["type"] == "token":
@@ -97,6 +106,7 @@ def build_sse_stream(session_id: str, message: str) -> Iterator[str]:
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
+    """流式聊天接口：把统一服务层包装成 SSE 响应。"""
     session_id = apply_request_settings(request)
     return StreamingResponse(
         build_sse_stream(session_id, request.message),

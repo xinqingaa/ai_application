@@ -12,6 +12,8 @@ from typing import Any
 
 @dataclass
 class MessageRecord:
+    """一条进入会话历史的消息记录。"""
+
     role: str
     content: str
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -19,6 +21,8 @@ class MessageRecord:
 
 @dataclass
 class UsageStats:
+    """模型返回的 token 使用量。"""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -26,6 +30,8 @@ class UsageStats:
 
 @dataclass
 class CostStats:
+    """把 usage 和单价结合后的成本视图。"""
+
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
@@ -36,6 +42,8 @@ class CostStats:
 
 @dataclass
 class RetryLog:
+    """一次重试的过程记录。"""
+
     attempt: int
     wait_seconds: float
     category: str
@@ -44,6 +52,8 @@ class RetryLog:
 
 @dataclass
 class ErrorInfo:
+    """归一化后的错误信息，供 CLI 和 API 统一展示。"""
+
     category: str
     retryable: bool
     message: str
@@ -52,6 +62,8 @@ class ErrorInfo:
 
 @dataclass
 class SafetyAssessment:
+    """对用户输入做的基础安全评估结果。"""
+
     risk_score: int
     blocked: bool
     reasons: list[str]
@@ -60,6 +72,8 @@ class SafetyAssessment:
 
 @dataclass
 class ProjectSession:
+    """项目级会话对象，保存配置、历史消息和累计统计。"""
+
     session_id: str
     provider: str
     model: str
@@ -82,6 +96,8 @@ class ProjectSession:
 
 @dataclass
 class TurnResult:
+    """服务层完成一轮请求后，对外返回的统一结果。"""
+
     ok: bool
     session_id: str
     provider: str
@@ -103,6 +119,8 @@ class TurnResult:
 
 @dataclass
 class CLIState:
+    """CLI 展示和切换命令时真正关心的轻量状态视图。"""
+
     session_id: str
     provider: str
     model: str
