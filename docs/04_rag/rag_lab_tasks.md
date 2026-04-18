@@ -11,7 +11,7 @@
 | Phase | 对应章节 | 代码目录 | 状态 |
 |-------|----------|----------|------|
 | Phase 1 | RAG 基础概念 | `labs/phase_1_scaffold/` | 已建立骨架 |
-| Phase 2 | 文档处理 | `labs/phase_2_document_processing/` | 待实现 |
+| Phase 2 | 文档处理 | `labs/phase_2_document_processing/` | 已实现 |
 | Phase 3 | 向量化 | `labs/phase_3_embeddings/` | 待实现 |
 | Phase 4 | 向量数据库 | `labs/phase_4_vector_databases/` | 待实现 |
 | Phase 5 | 检索策略 | `labs/phase_5_retrieval_strategies/` | 待实现 |
@@ -32,7 +32,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [01_rag_basics.md](/Users/lrq/work/ai_application/docs/04_rag/01_rag_basics.md)
+- [01_rag_basics.md](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md)
 
 ### 对应代码
 
@@ -54,7 +54,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [02_document_processing.md](/Users/lrq/work/ai_application/docs/04_rag/02_document_processing.md)
+- [02_document_processing.md](/Users/linruiqiang/work/ai_application/docs/04_rag/02_document_processing.md)
 
 ### 对应代码
 
@@ -77,7 +77,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [03_embeddings.md](/Users/lrq/work/ai_application/docs/04_rag/03_embeddings.md)
+- [03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md)
 
 ### 对应代码
 
@@ -99,7 +99,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [04_vector_databases.md](/Users/lrq/work/ai_application/docs/04_rag/04_vector_databases.md)
+- [04_vector_databases.md](/Users/linruiqiang/work/ai_application/docs/04_rag/04_vector_databases.md)
 
 ### 对应代码
 
@@ -121,7 +121,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [05_retrieval_strategies.md](/Users/lrq/work/ai_application/docs/04_rag/05_retrieval_strategies.md)
+- [05_retrieval_strategies.md](/Users/linruiqiang/work/ai_application/docs/04_rag/05_retrieval_strategies.md)
 
 ### 对应代码
 
@@ -143,7 +143,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [06_rag_generation.md](/Users/lrq/work/ai_application/docs/04_rag/06_rag_generation.md)
+- [06_rag_generation.md](/Users/linruiqiang/work/ai_application/docs/04_rag/06_rag_generation.md)
 
 ### 对应代码
 
@@ -166,7 +166,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [07_rag_optimization.md](/Users/lrq/work/ai_application/docs/04_rag/07_rag_optimization.md)
+- [07_rag_optimization.md](/Users/linruiqiang/work/ai_application/docs/04_rag/07_rag_optimization.md)
 
 ### 对应代码
 
@@ -189,7 +189,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [08_advanced_rag.md](/Users/lrq/work/ai_application/docs/04_rag/08_advanced_rag.md)
+- [08_advanced_rag.md](/Users/linruiqiang/work/ai_application/docs/04_rag/08_advanced_rag.md)
 
 ### 对应代码
 
@@ -210,7 +210,7 @@ source/04_rag/rag_lab/
 
 ### 对应文档
 
-- [09_rag_project.md](/Users/lrq/work/ai_application/docs/04_rag/09_rag_project.md)
+- [09_rag_project.md](/Users/linruiqiang/work/ai_application/docs/04_rag/09_rag_project.md)
 
 ### 对应代码
 
