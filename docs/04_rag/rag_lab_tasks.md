@@ -15,7 +15,7 @@
 | Phase 3 | 向量化 | `labs/phase_3_embeddings/` | 已实现 |
 | Phase 4 | 向量数据库 | `labs/phase_4_vector_databases/` | 已实现 |
 | Phase 5 | 检索策略 | `labs/phase_5_retrieval_strategies/` | 已实现 |
-| Phase 6 | RAG 生成 | `labs/phase_6_rag_generation/` | 待实现 |
+| Phase 6 | RAG 生成 | `labs/phase_6_rag_generation/` | 已实现 |
 | Phase 7 | RAG 优化 | `labs/phase_7_rag_optimization/` | 待实现 |
 | Phase 8 | 进阶 RAG 方向 | `labs/phase_8_advanced_rag/` | 待实现 |
 | Phase 9 | 综合项目 | `labs/phase_9_project_integration/` | 待实现 |
