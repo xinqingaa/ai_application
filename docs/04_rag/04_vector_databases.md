@@ -1,60 +1,220 @@
 # 04. 向量数据库
 
-## 1. 本章目标
+> 本节目标：理解为什么只有向量还不够，为什么系统还需要一层可写入、可查询、可删除、可过滤的向量存储，并建立第四章应该交付什么的清晰预期。
 
-- 能解释向量数据库在 RAG 中的职责
-- 能把 chunk 和 embedding 写入向量存储
-- 能做基础相似度查询
-- 能理解持久化、删除和 metadata 过滤
+---
 
-## 2. 本章在 04_rag 中的位置
+## 1. 概述
 
-本章负责把向量化结果变成可检索索引，是后续 Retriever 的基础。
+### 学习目标
 
-## 3. 学习前提
+- 理解向量数据库在 RAG 系统中的职责
+- 理解为什么 `EmbeddedChunk[]` 还不能直接等同于可用检索系统
+- 掌握向量写入、相似度查询、metadata 过滤、删除和持久化的基本问题意识
+- 理解 Vector Store 和 Retriever 的职责差异
+- 明确第四章未来应该为第五章提供什么输入
 
-- 已完成文档切分
-- 已完成 Embedding Provider 的最小接入
+### 预计学习时间
 
-## 4. 本章边界
+- 向量存储基础认知：45 分钟
+- 写入 / 查询 / 删除 / 过滤：1 小时
+- 代码快照实现后阅读：1-1.5 小时
 
-本章默认先使用轻量向量存储，不展开 Milvus、Pinecone、Weaviate 等生产级系统的完整运维。
+### 本节在 AI 应用中的重要性
 
-## 5. 学习顺序
+| 场景 | 相关知识 |
+|------|---------|
+| 知识库写入 | 向量持久化、文档身份 |
+| 在线检索 | Top-K 查询、相似度搜索 |
+| 多来源知识库 | metadata 过滤 |
+| 增量更新 | 删除、一致性、重建 |
+| 后续 Retriever 封装 | Vector Store 与 Retriever 分层 |
 
-1. 先读 [outline.md](/Users/lrq/work/ai_application/docs/04_rag/outline.md) 中“四、向量数据库”
-2. 再进入 `phase_4_vector_databases`
-3. 先写入少量文档块
-4. 再查询并观察返回结果
-5. 最后验证删除和 metadata 过滤
+> **第三章解决的是“向量怎么来”，第四章解决的是“这些向量怎么存、怎么查、怎么维护”。**
 
-## 6. 核心知识点
+### 本章与前后章节的关系
 
-- Vector Store 的职责
-- ANN 和精确搜索的差异
-- 持久化目录
-- metadata 过滤
-- 文档更新和删除一致性
-- `as_retriever` 的工程意义
+第三章已经解决：
 
-## 7. 对应代码
+1. `SourceChunk[] -> EmbeddedChunk[]`
+2. query/document 两条向量化路径
 
-| 学习内容 | 对应代码 | 当前角色 |
-|----------|----------|----------|
-| 向量存储适配 | `source/04_rag/labs/phase_4_vector_databases/app/vectorstores/` | 主示例 |
-| 索引构建 | `source/04_rag/labs/phase_4_vector_databases/app/indexing/` | 工程骨架 |
-| 写入脚本 | `source/04_rag/labs/phase_4_vector_databases/scripts/build_index.py` | 第一运行入口 |
-| 查询脚本 | `source/04_rag/labs/phase_4_vector_databases/scripts/search_vectors.py` | 验证入口 |
+第四章接着解决：
 
-## 8. 实践任务
+1. 向量怎么落到存储层
+2. 查询怎么返回最相关结果
+3. metadata 过滤和删除怎么做
 
-1. 把第二章的 chunk 写入向量库
-2. 查询一个问题并打印 Top-K 文档
-3. 使用 metadata 过滤限定来源
-4. 删除某个 document_id 并验证召回结果变化
+第五章会继续建立在这里之上：
 
-## 9. 完成标准
+1. 把 Vector Store 查询能力封装成 Retriever
+2. 围绕召回质量做策略优化
 
-- 能完成写入、查询和删除
-- 能解释向量库和 Embedding Provider 的职责差异
-- 能为第五章 Retriever 提供稳定检索基础
+### 本章的学习边界
+
+本章重点解决：
+
+1. 向量存储的职责
+2. 写入、查询、过滤、删除
+3. 持久化和一致性意识
+
+本章不系统展开：
+
+- Milvus、Pinecone、Weaviate 等生产级运维
+- ANN 索引的底层算法细节
+- 检索策略优化
+- 完整 RAG Chain
+
+### 当前实现状态
+
+当前仓库里：
+
+- [phase_4_vector_databases/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md) 仍是占位
+- `phase_4_vector_databases` 还没有真实代码快照
+
+所以这一章现在承担的是：
+
+> 先把第四章应该讲清楚的正文结构立住，而不是伪装成已经完成实现。
+
+---
+
+## 2. 为什么只有向量还不够 📌
+
+### 2.1 `EmbeddedChunk[]` 不等于可检索系统
+
+第三章已经让系统拥有：
+
+- chunk 身份
+- metadata
+- 向量表示
+
+但这还不够。
+
+因为真正的在线系统还需要回答：
+
+- 这些向量放在哪里
+- 下次重启后还能不能查
+- 同一个 `document_id` 如何更新和删除
+- 如何按来源、类型、租户做过滤
+
+这就是第四章需要补的内容。
+
+### 2.2 Vector Store 在系统里负责什么
+
+Vector Store 负责的是：
+
+1. 存向量
+2. 查向量
+3. 维护向量和 metadata 的对应关系
+4. 提供后续 Retriever 可复用的查询入口
+
+它不负责：
+
+- 重新切分文档
+- 重新生成向量
+- 组织 Prompt
+- 调模型回答
+
+也就是说，它是：
+
+> 向量层和检索层之间的持久化基础设施。
+
+---
+
+## 3. 第四章要解决的几个关键问题 📌
+
+### 3.1 写入问题
+
+第四章首先要解决的是：
+
+- `EmbeddedChunk[]` 如何批量写入
+- metadata 如何与向量一起保存
+- `chunk_id / document_id` 如何成为后续更新和删除的依据
+
+### 3.2 查询问题
+
+写入之后，系统还要支持：
+
+- 相似度 Top-K 查询
+- 用 query vector 去匹配 document vectors
+- 返回文本、分数和 metadata
+
+这一层是第五章 Retriever 的基础。
+
+### 3.3 删除和更新问题
+
+真实知识库里，文档不会永远不变。
+
+所以第四章必须提前建立：
+
+- 按 `document_id` 删除
+- 重建索引
+- 避免旧向量残留
+
+如果这层没先想清楚，后面很容易把“检索变差”误判成模型问题，实际上可能只是索引脏了。
+
+### 3.4 metadata 过滤问题
+
+很多业务场景里，检索不只是“全库里找最像的”。
+
+还会需要：
+
+- 只在某个来源里查
+- 只查某类文档
+- 只查某个知识域
+
+所以 metadata 不只是调试用，它也会成为检索侧的重要过滤条件。
+
+---
+
+## 4. Vector Store 和 Retriever 为什么要分开 📌
+
+很多初学者会把“向量查询”和“检索策略”混在一起。
+
+但这两层最好分开：
+
+| 层 | 解决什么问题 |
+|----|--------------|
+| Vector Store | 向量怎么存、怎么查、怎么删 |
+| Retriever | 结果怎么召回、怎么筛选、怎么排序、怎么封装接口 |
+
+这样分开的好处是：
+
+1. 换存储时，不一定要改检索接口
+2. 调策略时，不一定要改写入逻辑
+3. 系统边界更清楚
+
+这也是为什么第四章和第五章要拆成两章。
+
+---
+
+## 5. 第四章实现后应该怎么学
+
+等第四章真实代码快照落地后，建议按这个顺序：
+
+1. 先看写入脚本
+2. 再看查询脚本
+3. 再看 `app/vectorstores/` 实现
+4. 最后看删除和 metadata 过滤测试
+
+本章最终完成标准应该是：
+
+- 能写入向量
+- 能查询 Top-K
+- 能按 metadata 过滤
+- 能按 `document_id` 删除
+- 能为第五章 Retriever 提供稳定输入
+
+---
+
+## 综合案例：为课程资料问答选择向量存储设计
+
+```python
+# 你现在已经有 EmbeddedChunk[]：
+#
+# 请回答：
+# 1. 为什么还需要 Vector Store？
+# 2. 写入时为什么不能丢掉 document_id / chunk_id / metadata？
+# 3. 为什么删除和 metadata 过滤要在第四章就考虑？
+# 4. Vector Store 和 Retriever 的职责边界应该怎么划分？
+```

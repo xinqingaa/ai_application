@@ -1,10 +1,11 @@
 # phase_8_advanced_rag
 
-对应文档：
+> 对应正文：[08_advanced_rag.md](/Users/linruiqiang/work/ai_application/docs/04_rag/08_advanced_rag.md)
 
-- [docs/04_rag/08_advanced_rag.md](/Users/lrq/work/ai_application/docs/04_rag/08_advanced_rag.md)
+当前角色：
 
-本目录将承载第八章“进阶 RAG 方向”的认知快照。
+- 第八章代码快照占位目录
+- 将来负责承载 GraphRAG / Agentic RAG 的认知示例
 
 计划内容：
 
@@ -14,4 +15,5 @@
 
 当前状态：
 
-- 占位目录，尚未实现
+- 仅占位，尚未实现真实代码
+- 当前不要把它当成已完成章节

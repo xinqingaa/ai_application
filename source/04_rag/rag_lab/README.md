@@ -4,10 +4,10 @@
 
 当前它不是学习入口。
 
-真正学习时请从九章文档和对应代码快照开始：
+真正学习时请从大纲、章节正文和对应代码快照开始：
 
-- [docs/04_rag/README.md](/Users/lrq/work/ai_application/docs/04_rag/README.md)
-- `source/04_rag/labs/phase_1_scaffold/`
+- [docs/04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
+- [source/04_rag/labs/phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
 
 最终 `rag_lab` 应在完成第九章后，由 `labs/phase_9_project_integration/` 整理形成。
 

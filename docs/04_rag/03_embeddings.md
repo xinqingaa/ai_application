@@ -1,6 +1,6 @@
 # 03. 向量化
 
-> 本节目标：理解第三章为什么不能脱离前两章单独学习，并能对着 `phase_1_scaffold -> phase_2_document_processing -> phase_3_embeddings` 这三份代码快照，看懂 RAG 的对象、输入链路和向量化能力是怎样连续长出来的。
+> 本节目标：理解第三章为什么必须建立在前两章之上，掌握 `SourceChunk -> EmbeddedChunk` 这层增量能力，并理解为什么 query 和 document 的向量化入口要分开。
 
 ---
 
@@ -8,171 +8,121 @@
 
 ### 学习目标
 
-完成本章后，你应该能够：
+- 能说明第一章、第二章、第三章在整条 RAG 主线里分别解决什么问题
+- 理解为什么第三章不是“另一套输入管道”，而是 `SourceChunk -> EmbeddedChunk` 的增量
+- 理解 `EmbeddingProvider` 在系统里的职责
+- 理解为什么 `embed_query()` 和 `embed_documents()` 要保留为两个入口
+- 能运行第三章脚本，并看出向量结果如何继承前两章的 `chunk_id / document_id / metadata`
+- 能说明第三章为什么只做到向量化，而不提前混进向量数据库和完整检索
 
-- 能说明第一章、第二章、第三章分别在整条 RAG 主线里解决什么问题
-- 能解释为什么第一章先立 `SourceChunk / RetrievalResult / AnswerResult` 和项目分层，而不是直接讲 Embedding
-- 能解释为什么第二章必须先把原始文件稳定整理成 `SourceChunk`
-- 能说明第三章新增的不是“另一套输入管道”，而是 `SourceChunk -> EmbeddedChunk` 这层增量
-- 能区分 `embed_query()` 和 `embed_documents()` 为什么要保留为两个入口
-- 能运行第三章脚本，并直接看出向量结果如何继承前两章的 `chunk_id / document_id / metadata`
-- 能说清第三章为什么只做到向量化，而不提前混进向量数据库和完整检索
+### 预计学习时间
 
-### 本章在 `04_rag` 中的位置
+- 向量化原理与对象关系：1 小时
+- query/document 区分：45 分钟
+- 第三章代码快照阅读：1-1.5 小时
 
-第三章不是一章独立的“Embedding 知识点”，而是前三章主线里的第三个连续实现阶段。
+### 本节在 AI 应用中的重要性
 
-如果把前三章压缩成一句话：
+| 场景 | 相关知识 |
+|------|---------|
+| 语义检索 | 文本向量化、相似度计算 |
+| 知识库索引 | chunk 变向量、provider 抽象 |
+| 检索排序 | query/document 表征差异 |
+| 模型替换 | provider 配置、维度和模型信息 |
+| 后续向量库接入 | `EmbeddedChunk[]` 作为标准输入 |
 
-- 第一章回答：这套系统的骨架、对象和分层为什么这样设计
-- 第二章回答：原始文件怎样稳定变成标准 `SourceChunk`
-- 第三章回答：标准 `SourceChunk` 怎样稳定变成 `EmbeddedChunk`
+> **第三章的重点不是“生成几个向量”，而是让系统第一次拥有可比较、可存储、可检索的语义表示层。**
 
-三章连起来，最小主线是：
+### 本章与前后章节的关系
 
-```text
-Phase 1:
-项目骨架 -> SourceChunk / RetrievalResult / AnswerResult -> 最小 RAG 形状
+第一章解决的是：
 
-Phase 2:
-文件 -> loader -> splitter -> metadata -> stable ids -> SourceChunk[]
+1. 系统为什么这样分层
+2. 核心对象为什么先定义
 
-Phase 3:
-SourceChunk[] -> EmbeddingProvider -> vector -> EmbeddedChunk[]
-```
+第二章解决的是：
 
-后面章节都会建立在这个连续结果之上：
+1. 原始文件怎样变成稳定 `SourceChunk[]`
+2. metadata 和 stable id 怎样固定下来
 
-- 第四章：把 `EmbeddedChunk` 写入向量存储
-- 第五章：围绕这些向量做召回和排序
-- 第六章：把检索结果接成真正的回答
+第三章接着解决的是：
 
-### 学习前提
+1. `SourceChunk[]` 怎样批量变成 `EmbeddedChunk[]`
+2. query 和 document 怎样进入两条不同的向量化路径
 
-开始第三章前，建议你至少已经回看下面这些内容：
+第四章会继续建立在这里之上：
 
-- [01_rag_basics.md](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md)
-- [02_document_processing.md](/Users/linruiqiang/work/ai_application/docs/04_rag/02_document_processing.md)
-- [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
-- [phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md)
-- [phase_1_scaffold/app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
-- [phase_2_document_processing/app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/index_manager.py)
+1. 把 `EmbeddedChunk[]` 写入向量存储
+2. 基于向量做最小检索
 
-如果这几处没先看清，第三章很容易被误读成“从文本直接生成几个向量”。
+### 本章的学习边界
 
-### 本章边界
+本章重点解决：
 
-本章重点解决的是：
-
-1. 为什么向量化必须建立在前两章之上
-2. `SourceChunk` 如何批量变成 `EmbeddedChunk`
-3. `EmbeddingProvider` 接口应该长什么样
-4. 为什么 query 和 document 的向量化入口要分开
-5. 第三章怎样为下一章向量数据库提供标准输入
+1. 向量化必须建立在前两章之上的原因
+2. `EmbeddingProvider` 和向量化流水线
+3. `SourceChunk -> EmbeddedChunk`
+4. query/document 两条向量化入口
+5. 最小相似度比较
 
 本章不展开：
 
 - 真实向量数据库写入
-- Top-K 检索、MMR、Threshold 等召回策略
+- Top-K、MMR、Threshold 等检索策略
 - Rerank 和混合检索
 - LLM 生成答案
-- Embedding 模型横向评测
+- Embedding 模型大规模横评
 - 本地推理部署和 GPU 优化
 
-第三章的目标不是“把检索系统做完”，而是先把三章主线里的“向量层”独立讲清楚。
+### 当前代码快照
 
-### 第一入口
+本章对应的代码快照是：
 
-第三章有三个层次的入口，职责不同：
-
-- 回顾入口 1：
-  [phase_1_scaffold/app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
-- 回顾入口 2：
-  [phase_2_document_processing/app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/index_manager.py)
-- 本章阅读入口：
-  [phase_3_embeddings/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md)
-
-为什么这样安排：
-
-- 第一章先提醒你：本课程最早就把 `SourceChunk` 这种标准对象立住了
-- 第二章先提醒你：第三章真正的输入不是原始文件，而是稳定 `SourceChunk`
-- 第三章 README 再带你进入向量化层本身
-
-### 第一运行入口
-
-本章第一运行入口是：
-
+- [phase_3_embeddings/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md)
 - [scripts/embed_documents.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/scripts/embed_documents.py)
-
-这份脚本现在不仅展示向量结果，还会明确打印：
-
-- 当前向量化是怎样承接第一章的对象契约
-- 当前 `EmbeddedChunk` 是怎样继承第二章的 `chunk_id / document_id / metadata`
-
-### 第二运行入口
-
-真正理解第三章时，还要尽快跑：
-
 - [scripts/compare_similarity.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/scripts/compare_similarity.py)
-
-因为第三章最关键的观察对象不是“向量长什么样”，而是：
-
-- 为什么相关文本更近
-- 为什么 query/document 两条路径要分开
-- 为什么排序结果仍然保留第二章的 chunk 身份
 
 ---
 
-## 2. 先把前三章串起来：第三章到底接在什么后面 📌
-
-第三章必须始终服从 [outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md) 的学习路线，但真正理解它时，不能只看第三章自己。
+## 2. 第三章到底接在什么后面 📌
 
 ### 2.1 第一章先立下了什么
 
-第一章的真正任务不是“把 RAG 做出来”，而是先立下后面所有章节都要复用的骨架和对象。
+第一章最重要的贡献不是“把 RAG 做出来”，而是先立住了：
 
-你需要先记住第一章已经完成了三件事：
+1. 项目分层
+2. `SourceChunk / RetrievalResult / AnswerResult`
+3. `embeddings/`、`vectorstores/`、`retrievers/` 这些扩展位
 
-1. 项目分层已经立住
-2. `SourceChunk / RetrievalResult / AnswerResult` 已经立住
-3. `embeddings/`、`vectorstores/`、`retrievers/` 这些目录已经预留好扩展位
+所以第三章今天能直接在 `app/embeddings/` 里继续长，不是突然多出来的设计，而是第一章一开始就预留好的位置。
 
-对应代码主要在：
+### 2.2 第二章真正交付了什么
 
-- [phase_1_scaffold/app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
-- [phase_1_scaffold/app/retrievers/base.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/retrievers/base.py)
-- [phase_1_scaffold/app/services/rag_service.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/services/rag_service.py)
-- [phase_1_scaffold/app/embeddings/providers.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/embeddings/providers.py)
-
-所以第三章今天能直接把 `app/embeddings/` 补成真实实现，不是突然多出来的设计，而是第一章一开始就预留好的位置。
-
-### 2.2 第二章真正产出了什么
-
-第二章的真正完成物不是“能读文件”，而是：
-
-> 把原始文件稳定整理成后续系统可复用的 `SourceChunk[]`。
-
-第二章在工程上真正交付的是：
+第二章真正交付的是：
 
 ```text
 文件
 -> discover_documents()
 -> load_document()
 -> split_text()
--> build_base_metadata()
--> build_chunk_metadata()
--> stable_document_id() / stable_chunk_id()
+-> build_metadata()
+-> stable ids
 -> SourceChunk[]
 ```
 
-对应代码主要在：
+第三章真正吃的输入不是文件，而是：
 
-- [phase_2_document_processing/app/ingestion/loaders.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/loaders.py)
-- [phase_2_document_processing/app/ingestion/splitters.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/splitters.py)
-- [phase_2_document_processing/app/ingestion/metadata.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/metadata.py)
-- [phase_2_document_processing/app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/index_manager.py)
+```text
+稳定的 chunk 列表
++ 每个 chunk 的来源信息
++ 可重复定位的 stable id
+```
 
-这就是第三章真正的输入层。
+如果这一步没有先做稳，第三章就会立刻遇到：
+
+- 相同文档每次 embedding 输入不一致
+- 后续向量写入无法知道 chunk 身份
+- 调试和删除时没有稳定锚点
 
 ### 2.3 第三章新增的到底是什么
 
@@ -186,157 +136,157 @@ SourceChunk[]
 -> EmbeddedChunk[]
 ```
 
-对应代码主要在：
+这就是第三章最重要的判断：
 
-- [phase_3_embeddings/app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/schemas.py)
-- [phase_3_embeddings/app/embeddings/providers.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/embeddings/providers.py)
-- [phase_3_embeddings/app/embeddings/vectorizer.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/embeddings/vectorizer.py)
-- [phase_3_embeddings/app/embeddings/similarity.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/embeddings/similarity.py)
+> 第三章是在第二章稳定产出的 `SourceChunk` 外面，再包一层向量表示，而不是推翻前两章。
 
-你现在最需要建立的判断不是“第三章会不会更复杂”，而是：
+---
 
-> 第三章只是把第二章稳定产出的 `SourceChunk` 再升级一层，而不是推翻前两章。
+## 3. 向量化到底在做什么 📌
 
-### 2.4 三章对象是怎样连续演进的
+### 3.1 为什么要把文本变成向量
 
-| 阶段 | 核心对象 | 这一章新增了什么 | 下一章会拿它做什么 |
-|------|----------|------------------|--------------------|
-| 第一章 | `SourceChunk`、`RetrievalResult`、`AnswerResult` | 把对象契约和系统分层立住 | 让后续每章都在同一套对象上继续长 |
-| 第二章 | `SourceChunk` | 把文件稳定产成带 metadata 和 stable ids 的 chunk | 给第三章提供统一输入 |
-| 第三章 | `EmbeddedChunk` | 在 `SourceChunk` 外包一层向量、provider、model 信息 | 给第四章提供向量存储输入 |
+模型和程序都无法直接对“语义相近”做传统字符串比较。
 
-这里最关键的一点是：
+例如：
+
+- “退款规则是什么？”
+- “如何申请退费？”
+
+它们字面上并不完全一样，但语义很接近。
+
+向量化的目标就是把文本映射成一个数值空间里的点，让：
+
+- 语义接近的文本距离更近
+- 语义无关的文本距离更远
+
+这样后续系统才能基于相似度去检索相关 chunk。
+
+### 3.2 为什么 `EmbeddedChunk` 不是替代 `SourceChunk`
+
+第三章的对象演进应该这样理解：
+
+| 阶段 | 核心对象 | 作用 |
+|------|----------|------|
+| 第一章 | `SourceChunk`、`RetrievalResult`、`AnswerResult` | 立住对象契约和系统边界 |
+| 第二章 | `SourceChunk` | 让文件稳定产出标准 chunk |
+| 第三章 | `EmbeddedChunk` | 在 `SourceChunk` 外再加向量、provider、model 信息 |
+
+关键点在于：
 
 - `EmbeddedChunk` 不是替代 `SourceChunk`
 - `EmbeddedChunk` 是把 `SourceChunk` 保留下来，再额外加上向量负载
 
-### 2.5 三章合在一起的最小主数据流
-
-把前三章合起来，最小主线应该这样理解：
-
-```text
-Phase 1:
-定义 SourceChunk / RetrievalResult / AnswerResult
-
-Phase 2:
-文件 -> loader -> splitter -> metadata -> stable ids -> SourceChunk[]
-
-Phase 3:
-SourceChunk[] -> provider.embed_documents() -> EmbeddedChunk[]
-question -> provider.embed_query() -> query vector
-query vector + EmbeddedChunk[] -> similarity score
-```
-
-如果不先这样看，第三章最常见的误解就是：
-
-1. 把向量化误读成“直接对原始文件做 embedding”
-2. 把 `EmbeddedChunk` 误读成完全替代了 `SourceChunk`
-3. 把 `embed_query()` 和 `embed_documents()` 误读成只是两个名字不同的同一接口
-
----
-
-## 3. 第三章的代码设计与目录规划 📌
-
-### 3.1 为什么第三章必须继续沿用前两章的目录
-
-第三章没有另起一套项目，而是直接继承 `phase_2_document_processing`，根本原因是：
-
-1. 第一章已经把分层和扩展点立住了
-2. 第二章已经把 chunk 输入层做稳了
-3. 第三章只需要在 `app/embeddings/` 里补当前章节的增量
-
-这也是为什么第三章的正确理解方式不是“再看一个新项目”，而是：
-
-> 在同一套项目骨架上，看本章到底补了哪一层。
-
-### 3.2 哪些部分是继承的，哪些部分是第三章新增的
-
-| 模块 | 第一章角色 | 第二章角色 | 第三章角色 |
-|------|------------|------------|------------|
-| `app/schemas.py` | 定义公共对象契约 | 继续复用 `SourceChunk` | 新增 `EmbeddedChunk` |
-| `app/ingestion/` | 先露出最小入口 | 变成真实文件输入层 | 继续沿用，不新增职责 |
-| `app/indexing/` | 先露出 chunk 收口点 | 变成真实 `SourceChunk` 生产入口 | 继续沿用，作为向量化输入 |
-| `app/embeddings/` | 只有预留接口位 | 仍然占位 | 本章补成真实实现 |
-| `scripts/` | 观察骨架和最小链路 | 观察真实 chunk | 观察 chunk 如何变成 vector |
-| `tests/` | 验证骨架存在 | 验证 chunk 稳定 | 验证向量化是对前两章的增量，而不是重写 |
+这能确保后续向量库、检索、引用和调试仍然能拿到原始 chunk 身份。
 
 ### 3.3 为什么 `app/embeddings/` 必须单独成层
 
-这是第三章最核心的设计判断之一。
-
-很多人在做 RAG 时会把这些步骤全写进一个“大索引脚本”里，但这样会破坏前三章好不容易建立起来的边界。
-
-这里必须分清：
+这里必须分清几层职责：
 
 | 层 | 解决什么问题 | 不解决什么问题 |
 |----|--------------|----------------|
-| `ingestion` | 文件如何进入系统 | 不负责生成 chunk ID 和向量 |
-| `indexing` | 标准 `SourceChunk` 如何被组织出来 | 不负责生成向量 |
+| `ingestion` | 文件如何进入系统 | 不负责生成向量 |
+| `indexing` | 标准 `SourceChunk` 如何产生 | 不负责生成向量 |
 | `embeddings` | `SourceChunk` 如何变成向量 | 不负责写入向量存储 |
 | `vectorstores` | 向量如何存和查 | 不负责重新切分文档 |
 
-你当前阶段最需要建立的判断不是“少写几层是不是更省事”，而是：
+很多人在做 RAG 时会把这些步骤全塞进一个“大索引脚本”，这样短期看起来省事，长期会很难维护。
 
-> 前三章每一层都先解决一个清晰问题，后面章节才不用回头重构。
+第三章单独成层的意义就是：
 
-### 3.4 为什么第三章默认先用本地 Provider
+> 让“文档处理”“向量化”“向量存储”成为可独立替换、可独立调试的三个层次。
 
-第三章当前最重要的学习目标是：
+---
+
+## 4. 为什么 query 和 document 要分开向量化 📌
+
+### 4.1 两者在系统中的角色不同
+
+document embedding 的目标是：
+
+- 表示知识库里的静态内容
+- 为后续索引和检索提供向量基础
+
+query embedding 的目标是：
+
+- 表示用户当前的问题
+- 在同一个向量空间里去匹配最相关的 document vectors
+
+虽然它们都叫 embedding，但在很多模型和接口设计里，这两者并不一定完全等价。
+
+### 4.2 为什么保留两个入口更稳妥
+
+保留 `embed_documents()` 和 `embed_query()` 两个入口的好处是：
+
+1. 接口语义清晰
+2. 未来更换 provider 时更容易适配
+3. 便于区分离线索引和在线检索的调用路径
+4. 便于在不同模型或不同参数下做实验
+
+即使当前 provider 内部实现很接近，这两个入口也值得保留。
+
+### 4.3 为什么第三章先用本地 provider
+
+第三章当前最重要的目标是：
 
 1. 看懂接口
 2. 看懂对象
 3. 看懂数据流
 
-不是一上来就被 API Key、网络和计费打断。
+不是一上来就被 API Key、网络、计费和 provider 差异打断。
 
-所以第三章默认策略是：
+所以当前代码快照默认先用本地 `local_hash` provider，保留 `openai_compatible` 接口位。
 
-- 先用 `local_hash` Provider 建立完整向量化直觉
-- 保留 `openai_compatible` Provider 接口位
-- 等真正需要真实 Provider 时，再切配置，而不是推翻目录和脚本
+这和 `02_llm` 的思路是一致的：
 
-这和前面 `02_llm` 里“把平台差异收敛到 Provider 和配置层”的思路是一致的。
+> 先把平台差异收敛到 provider 和配置层，再在业务链路上建立稳定心智模型。
 
 ---
 
-## 4. 按什么顺序对着三章代码学习
+## 5. 第三章应该怎么学
 
-### 第 1 步：先回看第一章的对象和分层
+### 5.1 推荐顺序
 
-**对应文件**：
+建议按这个顺序进入：
 
-- [phase_1_scaffold/app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
-- [phase_1_scaffold/app/retrievers/base.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/retrievers/base.py)
-- [phase_1_scaffold/app/embeddings/providers.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/embeddings/providers.py)
+1. 先回看 [phase_2_document_processing/app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/index_manager.py)
+2. 再看 [phase_3_embeddings/app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/config.py)
+3. 再看 [app/embeddings/providers.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/embeddings/providers.py)
+4. 再看 [app/embeddings/vectorizer.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/embeddings/vectorizer.py)
+5. 最后看 [app/embeddings/similarity.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/embeddings/similarity.py)
 
-这一小步要解决什么：
+### 5.2 建议先跑的命令
 
-- 第一章最早就把哪些对象和目录边界立住了
-- 为什么第三章今天能直接在 `app/embeddings/` 里继续长
-- 为什么 `SourceChunk` 在第三章仍然是核心对象
+```bash
+cd source/04_rag/labs/phase_3_embeddings
 
-### 第 2 步：再确认第二章到底交付了什么
+python3 scripts/embed_documents.py
+python3 scripts/compare_similarity.py
+python3 -m unittest discover -s tests
+```
 
-**对应文件**：
+这些命令最该帮你建立的直觉是：
 
-- [phase_2_document_processing/app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/index_manager.py)
-- [phase_2_document_processing/scripts/inspect_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/scripts/inspect_chunks.py)
-- [phase_2_document_processing/tests/test_document_processing.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/tests/test_document_processing.py)
+1. 向量结果仍然保留 `chunk_id / document_id / metadata`
+2. query 和 document 走的是两条语义上分开的入口
+3. 相关文本的相似度应该更高
+4. 第三章交付的是向量层，不是完整检索系统
 
-这一小步要解决什么：
+---
 
-- 第二章的输出为什么是稳定 `SourceChunk`
-- 第三章为什么不需要再重写一套文档处理
-- `chunk_id / document_id / metadata` 为什么今天还能继续被看到
+## 综合案例：为 FAQ 知识库设计向量化层
 
-### 第 3 步：再进入第三章的配置和 Provider
+```python
+# 你现在已经有稳定的 SourceChunk[]：
+#
+# 请回答：
+# 1. 为什么第三章不应该重新从文件开始做 embedding？
+# 2. EmbeddedChunk 至少应该比 SourceChunk 多哪些信息？
+# 3. 为什么 embed_query() 和 embed_documents() 不应合并成一个模糊入口？
+# 4. 为什么第三章适合先用本地 provider 建立直觉，而不是一开始就绑定真实平台？
+```
 
-**对应文件**：
-
-- [phase_3_embeddings/app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/config.py)
-- [phase_3_embeddings/app/embeddings/providers.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/embeddings/providers.py)
-
-这一小步要解决什么：
+当你能清楚回答这 4 个问题时，第三章的主线就真正建立起来了。
 
 - 当前默认 Provider 是谁
 - 默认维度和模型名是什么
