@@ -287,10 +287,10 @@ chunk 太大，常见问题是：
 ```bash
 cd source/04_rag/labs/phase_2_document_processing
 
-python3 scripts/build_index.py
-python3 scripts/inspect_chunks.py
-python3 scripts/inspect_chunks.py data/faq.txt
-python3 -m unittest discover -s tests
+python scripts/build_index.py
+python scripts/inspect_chunks.py
+python scripts/inspect_chunks.py data/faq.txt
+python -m unittest discover -s tests
 ```
 
 这些命令最该帮你建立的直觉是：

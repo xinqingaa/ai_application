@@ -283,9 +283,9 @@ RAG 重点解决的是：
 ```bash
 cd source/04_rag/labs/phase_1_scaffold
 
-python3 scripts/query_demo.py
-python3 scripts/inspect_chunks.py
-python3 -m unittest discover -s tests
+python scripts/query_demo.py
+python scripts/inspect_chunks.py
+python -m unittest discover -s tests
 ```
 
 你现在最该观察的是：
@@ -320,7 +320,7 @@ python3 -m unittest discover -s tests
 ```
 
 当你能用自己的话回答这 4 个问题时，第一章就真正学会了。
-python3 scripts/inspect_chunks.py
+python scripts/inspect_chunks.py
 ```
 
 当前输出会先让你看到：
@@ -351,7 +351,7 @@ df01139fe9617e6a9d81a290ba2eb4c0d726b727:0:a3c96f83edae {'source': 'data/sample.
 运行：
 
 ```bash
-python3 -m unittest discover -s tests
+python -m unittest discover -s tests
 ```
 
 这一步的目的不是凑测试数量，而是确认：

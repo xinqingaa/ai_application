@@ -12,7 +12,7 @@
 学习第二章时，建议先跑：
 
 ```bash
-python3 scripts/build_index.py
-python3 scripts/inspect_chunks.py
-python3 scripts/inspect_chunks.py data/faq.txt
+python scripts/build_index.py
+python scripts/inspect_chunks.py
+python scripts/inspect_chunks.py data/faq.txt
 ```

@@ -12,7 +12,7 @@
 # 练习 1：环境配置（在终端完成）
 # 对应文档：4.1 虚拟环境
 # ============================================
-# 1. 创建虚拟环境：python3 -m venv .venv
+# 1. 创建虚拟环境：python -m venv .venv
 # 2. 激活虚拟环境：source .venv/bin/activate
 # 3. 查看当前 Python：python --version
 # 4. 查看当前解释器路径：

@@ -33,7 +33,7 @@
 ```bash
 python --version
 # 或
-python3 --version
+python --version
 ```
 
 > **为什么选择 3.11+？**
@@ -55,7 +55,7 @@ python3 --version
 cd /Users/linruiqiang/work/ai_application
 
 # 创建虚拟环境（命名为 .venv）
-python3 -m venv .venv
+python -m venv .venv
 ```
 
 **激活虚拟环境**
@@ -163,7 +163,7 @@ uv pip install -r requirements.txt
 
 | 对比项 | 系统 Python | 虚拟环境 Python |
 |-------|------------|----------------|
-| 位置 | `/opt/homebrew/bin/python3` 或 `/usr/local/bin/python3` | `项目目录/.venv/bin/python` |
+| 位置 | `/opt/homebrew/bin/python` 或 `/usr/local/bin/python` | `项目目录/.venv/bin/python` |
 | 包安装位置 | 全局共享 | 项目独立 |
 | 依赖隔离 | ❌ 所有项目共享 | ✅ 每个项目独立 |
 | 适用场景 | 系统工具、简单脚本 | 项目开发 |

@@ -124,8 +124,8 @@ print(calculate_bmi(70, 1.75))
 也可以在终端直接查询（不需要写代码文件）：
 
 ```bash
-python3 -c "help(list.append)"
-python3 -c "print(list.__doc__)"
+python -c "help(list.append)"
+python -c "print(list.__doc__)"
 ```
 
 4. 读到 **第 3 章 参数类型**，从 3.1 开始，继续往下加：

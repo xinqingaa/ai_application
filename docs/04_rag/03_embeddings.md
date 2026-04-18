@@ -260,9 +260,9 @@ query embedding 的目标是：
 ```bash
 cd source/04_rag/labs/phase_3_embeddings
 
-python3 scripts/embed_documents.py
-python3 scripts/compare_similarity.py
-python3 -m unittest discover -s tests
+python scripts/embed_documents.py
+python scripts/compare_similarity.py
+python -m unittest discover -s tests
 ```
 
 这些命令最该帮你建立的直觉是：
@@ -343,7 +343,7 @@ python3 -m unittest discover -s tests
 
 ```bash
 cd source/04_rag/labs/phase_1_scaffold
-python3 scripts/query_demo.py
+python scripts/query_demo.py
 ```
 
 这一组命令的意义是：
@@ -355,7 +355,7 @@ python3 scripts/query_demo.py
 
 ```bash
 cd source/04_rag/labs/phase_2_document_processing
-python3 scripts/inspect_chunks.py
+python scripts/inspect_chunks.py
 ```
 
 这一组命令的意义是：
@@ -367,9 +367,9 @@ python3 scripts/inspect_chunks.py
 
 ```bash
 cd source/04_rag/labs/phase_3_embeddings
-python3 scripts/embed_documents.py
-python3 scripts/compare_similarity.py
-python3 -m unittest discover -s tests
+python scripts/embed_documents.py
+python scripts/compare_similarity.py
+python -m unittest discover -s tests
 ```
 
 这一组命令的意义是：

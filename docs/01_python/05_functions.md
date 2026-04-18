@@ -98,8 +98,8 @@ help(calculate_bmi)            # 输出：格式化后的完整帮助文档
 print(calculate_bmi.__doc__)  # 输出：原始文档字符串
 
 # 也可以在终端直接查询（不用写代码文件）
-python3 -c "help(list.append)"
-python3 -c "print(list.__doc__)"
+python -c "help(list.append)"
+python -c "print(list.__doc__)"
 ```
 
 **两者的区别**
@@ -112,10 +112,10 @@ python3 -c "print(list.__doc__)"
 
 **进入交互式解释器查看**
 
-在终端输入 `python3` 进入交互模式：
+在终端输入 `python` 进入交互模式：
 
 ```bash
-$ python3
+$ python
 Python 3.13.3 (main, ...)
 [GCC ...] on darwin
 Type "help", "copyright", "credits" or "license" for more information.

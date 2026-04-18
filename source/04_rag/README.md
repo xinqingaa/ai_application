@@ -35,10 +35,10 @@ source/04_rag/
 
 | 章节 | 代码入口 | 当前状态 | 第一命令 |
 |------|----------|----------|----------|
-| 1 | [phase_1_scaffold](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md) | 已实现 | `python3 scripts/query_demo.py` |
-| 2 | [phase_2_document_processing](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md) | 已实现 | `python3 scripts/build_index.py` |
-| 3 | [phase_3_embeddings](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md) | 已实现 | `python3 scripts/embed_documents.py` |
-| 4 | [phase_4_vector_databases](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md) | 占位 | 暂无 |
+| 1 | [phase_1_scaffold](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md) | 已实现 | `python scripts/query_demo.py` |
+| 2 | [phase_2_document_processing](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md) | 已实现 | `python scripts/build_index.py` |
+| 3 | [phase_3_embeddings](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md) | 已实现 | `python scripts/embed_documents.py` |
+| 4 | [phase_4_vector_databases](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md) | 已实现 | `python scripts/index_chroma.py --reset` |
 | 5 | [phase_5_retrieval_strategies](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_5_retrieval_strategies/README.md) | 占位 | 暂无 |
 | 6 | [phase_6_rag_generation](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_6_rag_generation/README.md) | 占位 | 暂无 |
 | 7 | [phase_7_rag_optimization](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_7_rag_optimization/README.md) | 占位 | 暂无 |
@@ -57,26 +57,36 @@ source/04_rag/
 
 ```bash
 cd source/04_rag/labs/phase_1_scaffold
-python3 scripts/build_index.py
-python3 scripts/inspect_chunks.py
-python3 scripts/query_demo.py
-python3 -m unittest discover -s tests
+python scripts/build_index.py
+python scripts/inspect_chunks.py
+python scripts/query_demo.py
+python -m unittest discover -s tests
 ```
 
 ```bash
 cd source/04_rag/labs/phase_2_document_processing
-python3 scripts/build_index.py
-python3 scripts/inspect_chunks.py
-python3 scripts/inspect_chunks.py data/faq.txt
-python3 -m unittest discover -s tests
+python scripts/build_index.py
+python scripts/inspect_chunks.py
+python scripts/inspect_chunks.py data/faq.txt
+python -m unittest discover -s tests
 ```
 
 ```bash
 cd source/04_rag/labs/phase_3_embeddings
-python3 scripts/build_index.py
-python3 scripts/embed_documents.py
-python3 scripts/compare_similarity.py
-python3 -m unittest discover -s tests
+python scripts/build_index.py
+python scripts/embed_documents.py
+python scripts/compare_similarity.py
+python -m unittest discover -s tests
+```
+
+```bash
+cd source/04_rag/labs/phase_4_vector_databases
+python -m pip install -r requirements.txt
+python scripts/index_chroma.py --reset
+python scripts/search_chroma.py
+python scripts/delete_document.py faq.txt
+python scripts/query_demo.py
+python -m unittest discover -s tests
 ```
 
 ## 文档和代码如何分工
@@ -84,17 +94,14 @@ python3 -m unittest discover -s tests
 - `docs/04_rag/0N_*.md`
   负责讲清本章概念、边界、主线和为什么这样设计。
 - `source/04_rag/labs/phase_*/README.md`
-  负责告诉你命令怎么跑、代码按什么顺序读、重点看什么。
-- `PHASE_CARD.md`
-  负责压缩每章增量上下文，方便快速回顾和给 AI 提供稳定上下文。
+  负责告诉你命令怎么跑、代码按什么顺序读、重点看什么，并且同时承载本章目标、输入输出契约和下一章衔接。
 
 ## 后续推进规则
 
 每推进一章，都必须同步满足：
 
 1. 当前 `phase_*` 有真实代码
-2. 当前 `phase_*` 有 `PHASE_CARD.md`
-3. 当前章节正文能对着代码读
-4. 当前 phase README 能指导运行和阅读
+2. 当前章节正文能对着代码读
+3. 当前 phase README 能同时指导运行、阅读和快速回顾
 
 如果某个 phase 只有占位 README，就不要把它当成已完成实现。

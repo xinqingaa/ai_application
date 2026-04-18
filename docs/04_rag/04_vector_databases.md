@@ -1,6 +1,6 @@
 # 04. 向量数据库
 
-> 本节目标：理解为什么只有向量还不够，为什么系统还需要一层可写入、可查询、可删除、可过滤的向量存储，并建立第四章应该交付什么的清晰预期。
+> 本节目标：理解为什么只有向量还不够，掌握 `EmbeddedChunk[] -> ChromaVectorStore` 这层新增能力，并能对着第四章代码快照看清写入、查询、过滤、删除和持久化分别落在哪里。
 
 ---
 
@@ -8,27 +8,27 @@
 
 ### 学习目标
 
-- 理解向量数据库在 RAG 系统中的职责
-- 理解为什么 `EmbeddedChunk[]` 还不能直接等同于可用检索系统
-- 掌握向量写入、相似度查询、metadata 过滤、删除和持久化的基本问题意识
-- 理解 Vector Store 和 Retriever 的职责差异
-- 明确第四章未来应该为第五章提供什么输入
+- 理解为什么第三章的 `EmbeddedChunk[]` 还不能直接等同于可用检索系统
+- 理解向量数据库在 RAG 系统中的职责边界
+- 理解为什么第四章应该先解决写入、查询、过滤、删除，再进入第五章的 Retriever 策略
+- 能运行第四章脚本，并看懂 Chroma 如何保留 `chunk_id / document_id / metadata`
+- 能说明为什么删除和持久化属于检索工程的前置能力，而不是“以后再说”的运维细节
 
 ### 预计学习时间
 
-- 向量存储基础认知：45 分钟
-- 写入 / 查询 / 删除 / 过滤：1 小时
-- 代码快照实现后阅读：1-1.5 小时
+- 向量存储职责和边界：45 分钟
+- Chroma 写入 / 查询 / 删除：1 小时
+- 第四章代码快照阅读：1-1.5 小时
 
 ### 本节在 AI 应用中的重要性
 
 | 场景 | 相关知识 |
 |------|---------|
-| 知识库写入 | 向量持久化、文档身份 |
-| 在线检索 | Top-K 查询、相似度搜索 |
+| 知识库入库 | `EmbeddedChunk[]` 写入持久化 collection |
+| 在线问答 | query vector + Top-K 查询 |
 | 多来源知识库 | metadata 过滤 |
-| 增量更新 | 删除、一致性、重建 |
-| 后续 Retriever 封装 | Vector Store 与 Retriever 分层 |
+| 增量更新 | 按 `document_id` 删除和重建 |
+| 后续 Retriever 封装 | Vector Store 与 Retriever 拆层 |
 
 > **第三章解决的是“向量怎么来”，第四章解决的是“这些向量怎么存、怎么查、怎么维护”。**
 
@@ -41,14 +41,14 @@
 
 第四章接着解决：
 
-1. 向量怎么落到存储层
-2. 查询怎么返回最相关结果
-3. metadata 过滤和删除怎么做
+1. 向量如何真正落到持久化存储
+2. 查询如何重新返回标准 `SourceChunk`
+3. metadata 过滤和按 `document_id` 删除如何建立
 
 第五章会继续建立在这里之上：
 
-1. 把 Vector Store 查询能力封装成 Retriever
-2. 围绕召回质量做策略优化
+1. 把当前最小查询能力封装成 Retriever
+2. 围绕召回质量开始做策略比较和优化
 
 ### 本章的学习边界
 
@@ -57,24 +57,25 @@
 1. 向量存储的职责
 2. 写入、查询、过滤、删除
 3. 持久化和一致性意识
+4. 当前阶段为什么选真实 Chroma
 
 本章不系统展开：
 
-- Milvus、Pinecone、Weaviate 等生产级运维
-- ANN 索引的底层算法细节
-- 检索策略优化
-- 完整 RAG Chain
+- MMR、Multi-query、HyDE 等策略优化
+- Rerank 和混合检索
+- 完整 RAG 生成
+- Milvus / Pinecone / Weaviate 的生产部署差异
+- ANN 底层算法细节
 
-### 当前实现状态
+### 当前代码快照
 
-当前仓库里：
+本章对应的代码快照是：
 
-- [phase_4_vector_databases/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md) 仍是占位
-- `phase_4_vector_databases` 还没有真实代码快照
-
-所以这一章现在承担的是：
-
-> 先把第四章应该讲清楚的正文结构立住，而不是伪装成已经完成实现。
+- [phase_4_vector_databases/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md)
+- [app/vectorstores/chroma_store.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/app/vectorstores/chroma_store.py)
+- [scripts/index_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/index_chroma.py)
+- [scripts/search_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/search_chroma.py)
+- [scripts/delete_document.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/delete_document.py)
 
 ---
 
@@ -97,7 +98,7 @@
 - 同一个 `document_id` 如何更新和删除
 - 如何按来源、类型、租户做过滤
 
-这就是第四章需要补的内容。
+如果这些问题没有先解决，后面的 Retriever 和生成链路都会建立在不稳定底座上。
 
 ### 2.2 Vector Store 在系统里负责什么
 
@@ -119,102 +120,202 @@ Vector Store 负责的是：
 
 > 向量层和检索层之间的持久化基础设施。
 
----
+### 2.3 为什么这章要用真实 Chroma
 
-## 3. 第四章要解决的几个关键问题 📌
+这门课当前的目标不是做供应商比较，而是把心智模型做稳。
 
-### 3.1 写入问题
+所以第四章选择真实 Chroma，有三个原因：
 
-第四章首先要解决的是：
+1. 本地可跑，适合课程实验
+2. 具备真实 collection / metadata / delete 语义
+3. 足够让你建立后续迁移到其他向量库时需要保留的抽象边界
 
-- `EmbeddedChunk[]` 如何批量写入
-- metadata 如何与向量一起保存
-- `chunk_id / document_id` 如何成为后续更新和删除的依据
+换句话说，这一章的重要性不在于“会不会背 Chroma API”，而在于：
 
-### 3.2 查询问题
-
-写入之后，系统还要支持：
-
-- 相似度 Top-K 查询
-- 用 query vector 去匹配 document vectors
-- 返回文本、分数和 metadata
-
-这一层是第五章 Retriever 的基础。
-
-### 3.3 删除和更新问题
-
-真实知识库里，文档不会永远不变。
-
-所以第四章必须提前建立：
-
-- 按 `document_id` 删除
-- 重建索引
-- 避免旧向量残留
-
-如果这层没先想清楚，后面很容易把“检索变差”误判成模型问题，实际上可能只是索引脏了。
-
-### 3.4 metadata 过滤问题
-
-很多业务场景里，检索不只是“全库里找最像的”。
-
-还会需要：
-
-- 只在某个来源里查
-- 只查某类文档
-- 只查某个知识域
-
-所以 metadata 不只是调试用，它也会成为检索侧的重要过滤条件。
+> 你开始第一次用真实向量库来验证前面三章建立的数据契约是否合理。
 
 ---
 
-## 4. Vector Store 和 Retriever 为什么要分开 📌
+## 3. 第四章当前代码到底新增了什么 📌
 
-很多初学者会把“向量查询”和“检索策略”混在一起。
+### 3.1 新增的核心对象
 
-但这两层最好分开：
+第四章没有重做 `SourceChunk`，也没有重做 `EmbeddedChunk`。
 
-| 层 | 解决什么问题 |
-|----|--------------|
-| Vector Store | 向量怎么存、怎么查、怎么删 |
-| Retriever | 结果怎么召回、怎么筛选、怎么排序、怎么封装接口 |
+真正新增的是：
 
-这样分开的好处是：
+```text
+EmbeddedChunk[]
+-> ChromaVectorStore.upsert()
+-> Persistent collection
+-> similarity_search()
+-> RetrievalResult[]
+```
 
-1. 换存储时，不一定要改检索接口
-2. 调策略时，不一定要改写入逻辑
-3. 系统边界更清楚
+这说明第四章依然是“在前一章稳定输出上做增量”，而不是开新分支。
 
-这也是为什么第四章和第五章要拆成两章。
+### 3.2 当前 Chroma 适配器做了什么
+
+[app/vectorstores/chroma_store.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/app/vectorstores/chroma_store.py) 当前主要交付了这些能力：
+
+1. `ChromaVectorStoreConfig`
+   负责持久化目录、collection 名、距离度量配置
+2. `upsert()`
+   把 `EmbeddedChunk[]` 真正写入 Chroma
+3. `get_chunks()`
+   把存储层数据重新还原为标准 `SourceChunk`
+4. `similarity_search()`
+   用 query vector 查询 Top-K 结果
+5. `delete_by_document_id()`
+   建立最小删除入口
+
+### 3.3 为什么 metadata 必须一起写入
+
+第四章的一个关键点是：
+
+> metadata 不再只是“方便调试看看”，而是会进入真实查询和删除路径。
+
+例如现在的代码里：
+
+- `filename` 可以直接拿来做过滤
+- `document_id` 可以拿来做删除
+- `chunk_index / source` 可以拿来做调试和展示
+
+如果你在写入时把这些字段丢掉，后面就会出现两个典型问题：
+
+1. 查到了内容，却无法解释它来自哪里
+2. 文档更新时，不知道该删哪一批旧 chunk
+
+### 3.4 为什么 `document_id` 在这一章变得特别重要
+
+第二章引入 stable id 时，这件事还只是“结构上应该有”。
+
+到了第四章，`document_id` 已经开始承担真实职责：
+
+- 作为删除入口
+- 作为一致性锚点
+- 作为后续增量更新的基础
+
+这就是为什么第二章的 stable id 不是“学术正确”，而是后面真会用到。
 
 ---
 
-## 5. 第四章实现后应该怎么学
+## 4. 第四章如何分层 📌
 
-等第四章真实代码快照落地后，建议按这个顺序：
+### 4.1 当前分层关系
 
-1. 先看写入脚本
-2. 再看查询脚本
-3. 再看 `app/vectorstores/` 实现
-4. 最后看删除和 metadata 过滤测试
+当前代码建议你这样看：
 
-本章最终完成标准应该是：
+| 层 | 当前文件 | 解决什么问题 |
+|----|----------|--------------|
+| 文档输入层 | `app/ingestion/` | 文件怎样进入系统 |
+| 标准 chunk 层 | `app/indexing/` | 如何稳定产出 `SourceChunk[]` |
+| 向量化层 | `app/embeddings/` | 如何产出 `EmbeddedChunk[]` |
+| 向量存储层 | `app/vectorstores/chroma_store.py` | 如何真正存、查、删 |
+| 最小服务演示 | `scripts/query_demo.py` | 如何让当前检索结果流进回答占位链路 |
 
-- 能写入向量
-- 能查询 Top-K
-- 能按 metadata 过滤
-- 能按 `document_id` 删除
-- 能为第五章 Retriever 提供稳定输入
+### 4.2 为什么 Vector Store 和 Retriever 还要继续分开
+
+很多初学者会觉得：
+
+> “既然现在都能查 Top-K 了，这不就是 Retriever 吗？”
+
+还不是。
+
+当前第四章的能力更接近：
+
+- 给你一个 query vector
+- 返给你最相近的 chunk
+- 支持 metadata 过滤和删除
+
+而第五章会在这里之上继续做：
+
+- 更清晰的 Retriever 接口
+- `top_k / threshold / MMR` 等策略选择
+- 召回行为的对比和坏案例分析
+
+所以第四章和第五章拆开的意义在于：
+
+- 第四章先把存储和查询基础设施做稳
+- 第五章再把“怎么召回更好”做成策略问题
+
+### 4.3 `query_demo.py` 为什么现在就接了真实检索
+
+第四章的 [scripts/query_demo.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/query_demo.py) 已经不再用 mock 检索。
+
+它现在做的是：
+
+1. 确保 Chroma 里有索引
+2. 用真实向量查询召回 chunk
+3. 把结果交给仍然是占位的 `RagService`
+
+这样处理的好处是：
+
+- 能保持与第一章到第三章的数据流连续
+- 又不会提前把第五章的 Retriever 设计塞进来
 
 ---
 
-## 综合案例：为课程资料问答选择向量存储设计
+## 5. 第四章应该怎么学
+
+### 5.1 推荐顺序
+
+建议按这个顺序进入：
+
+1. 先看 [app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/app/config.py)
+2. 再看 [app/vectorstores/chroma_store.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/app/vectorstores/chroma_store.py)
+3. 再看 [scripts/index_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/index_chroma.py)
+4. 再看 [scripts/search_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/search_chroma.py)
+5. 最后看 [tests/test_vectorstores.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/tests/test_vectorstores.py)
+
+### 5.2 建议先跑的命令
+
+```bash
+cd source/04_rag/labs/phase_4_vector_databases
+python -m pip install -r requirements.txt
+python scripts/index_chroma.py --reset
+python scripts/search_chroma.py
+```
+
+### 5.3 跑完后重点观察什么
+
+- 写入后 collection count 是否和 chunk 数一致
+- 查询结果里是否还能看到稳定的 `filename / source / chunk_index`
+- metadata filter 是否真的缩小了结果范围
+- 删除之后 collection count 是否变化
+- 重新索引后结果是否恢复
+
+### 5.4 测试在锁定什么
+
+[tests/test_vectorstores.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/tests/test_vectorstores.py) 现在锁定的是：
+
+1. 写入后重新加载仍然能取回 chunk
+2. 相似度查询会优先返回相关内容
+3. metadata 过滤会限制查询范围
+4. 按 `document_id` 删除会移除整份文档的所有 chunk
+
+这说明第四章测试的重心已经不是“目录存在”，而是开始锁定真实存储行为。
+
+---
+
+## 6. 学完这一章后你应该能回答
+
+- 为什么 `EmbeddedChunk[]` 还不等于可用检索系统
+- 为什么 metadata 不应该在写入时丢掉
+- 为什么 `document_id` 会变成删除和更新的一致性锚点
+- 为什么 `Vector Store` 和 `Retriever` 应该继续拆层
+- 为什么第四章已经能做真实查询，但仍然不应该提前把第五章的策略混进来
+
+---
+
+## 综合案例：为课程资料问答建立最小向量存储层
 
 ```python
-# 你现在已经有 EmbeddedChunk[]：
+# 你现在已经有 Phase 3 产出的 EmbeddedChunk[]：
 #
 # 请回答：
-# 1. 为什么还需要 Vector Store？
-# 2. 写入时为什么不能丢掉 document_id / chunk_id / metadata？
-# 3. 为什么删除和 metadata 过滤要在第四章就考虑？
-# 4. Vector Store 和 Retriever 的职责边界应该怎么划分？
+# 1. 为什么还需要 Vector Store，而不是直接在内存里保留这些向量？
+# 2. 写入时为什么必须保留 chunk_id / document_id / metadata？
+# 3. 为什么 metadata 过滤和删除要在第四章就建立？
+# 4. 第四章当前代码里，哪些能力属于 Vector Store，哪些能力应该留给第五章 Retriever？
 ```

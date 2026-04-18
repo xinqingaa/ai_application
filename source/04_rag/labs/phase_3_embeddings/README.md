@@ -16,12 +16,23 @@
 
 ---
 
+## 本章定位
+
+- 对应章节：[03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md)
+- 本章目标：把 `SourceChunk[]` 变成 `EmbeddedChunk[]`，建立 provider 抽象，区分 query/document 两条向量化入口
+- 上一章输入契约：稳定 `SourceChunk[]`，稳定 `chunk_id / document_id / metadata`
+- 输出契约：`EmbeddedChunk[]`、`EmbeddingProvider`、`embed_documents()`、`embed_query()`、最小相似度计算能力
+- 本章新增：`app/embeddings/providers.py`、`app/embeddings/vectorizer.py`、`app/embeddings/similarity.py`、`EmbeddedChunk`、`embed_documents.py`、`compare_similarity.py`
+- 本章可忽略：真实向量数据库、检索策略优化、完整 RAG 生成
+- 第一命令：`python scripts/embed_documents.py`
+
+---
+
 ## 项目结构
 
 ```text
 phase_3_embeddings/
 ├── README.md
-├── PHASE_CARD.md
 ├── app/
 │   ├── config.py
 │   ├── schemas.py
@@ -56,10 +67,10 @@ cd source/04_rag/labs/phase_3_embeddings
 ### 2. 当前命令
 
 ```bash
-python3 scripts/build_index.py
-python3 scripts/embed_documents.py
-python3 scripts/compare_similarity.py
-python3 -m unittest discover -s tests
+python scripts/build_index.py
+python scripts/embed_documents.py
+python scripts/compare_similarity.py
+python -m unittest discover -s tests
 ```
 
 ### 3. 先跑哪个
@@ -67,7 +78,7 @@ python3 -m unittest discover -s tests
 建议先跑：
 
 ```bash
-python3 scripts/embed_documents.py
+python scripts/embed_documents.py
 ```
 
 你现在最该先建立的直觉是：
@@ -141,7 +152,7 @@ python3 scripts/embed_documents.py
 ### 建议先跑
 
 ```bash
-python3 scripts/compare_similarity.py
+python scripts/compare_similarity.py
 ```
 
 ---
@@ -157,9 +168,34 @@ python3 scripts/compare_similarity.py
 
 ---
 
+## 推荐完整阅读顺序
+
+如果你是第一次读这一章，建议严格按这个顺序：
+
+1. `app/config.py`
+2. `app/embeddings/providers.py`
+3. `app/schemas.py`
+4. `app/embeddings/vectorizer.py`
+5. `app/embeddings/similarity.py`
+6. `scripts/embed_documents.py`
+7. `scripts/compare_similarity.py`
+8. `tests/test_embeddings.py`
+
+## 建议主动修改的地方
+
+1. 切换 provider 配置，观察 `local_hash` 和 `openai_compatible` 的接口共性。
+2. 改 embedding 维度或模型名占位，观察 `EmbeddedChunk` 里新增字段如何变化。
+3. 让 `compare_similarity.py` 多比较一组明显不相关文本，观察相似度差异。
+
 ## 学完这一章后你应该能回答
 
 - 为什么第三章必须建立在前两章之上
 - 为什么 `EmbeddedChunk` 要保留 `SourceChunk`
 - 为什么 `embed_query()` 和 `embed_documents()` 不应混成模糊接口
 - 为什么第三章现在还不应该把向量数据库也写进来
+
+## 当前真实进度和下一章
+
+- 当前真实进度：这一章已经交付向量表示层，但真实向量库存储和检索还没有落地
+- 完成标准：能解释为什么第三章只是当前章节增量，能说明 `EmbeddedChunk` 为什么保留 `SourceChunk`，能区分 query/document 两条入口
+- 下一章：把 `EmbeddedChunk[]` 写入向量存储，支持 Top-K 查询、过滤和删除

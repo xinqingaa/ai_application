@@ -221,10 +221,10 @@ foundation_lab/
 
 ```bash
 cd source/03_foundation/foundation_lab
-python3 scripts/demo_native.py
-python3 scripts/demo_langchain.py
-python3 scripts/compare_native_vs_lc.py
-python3 -m unittest discover -s tests
+python scripts/demo_native.py
+python scripts/demo_langchain.py
+python scripts/compare_native_vs_lc.py
+python -m unittest discover -s tests
 ```
 
 当前这些命令的意义是：

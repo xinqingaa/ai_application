@@ -13,7 +13,7 @@
 | Phase 1 | RAG 基础概念 | `labs/phase_1_scaffold/` | 已建立骨架 |
 | Phase 2 | 文档处理 | `labs/phase_2_document_processing/` | 已实现 |
 | Phase 3 | 向量化 | `labs/phase_3_embeddings/` | 已实现 |
-| Phase 4 | 向量数据库 | `labs/phase_4_vector_databases/` | 待实现 |
+| Phase 4 | 向量数据库 | `labs/phase_4_vector_databases/` | 已实现 |
 | Phase 5 | 检索策略 | `labs/phase_5_retrieval_strategies/` | 待实现 |
 | Phase 6 | RAG 生成 | `labs/phase_6_rag_generation/` | 待实现 |
 | Phase 7 | RAG 优化 | `labs/phase_7_rag_optimization/` | 待实现 |
