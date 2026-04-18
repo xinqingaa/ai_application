@@ -48,10 +48,14 @@ source/04_rag/
 - `labs/phase_2_document_processing/data/*`
 - `labs/phase_2_document_processing/scripts/*`
 - `labs/phase_2_document_processing/tests/*`
+- [labs/phase_3_embeddings/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md)
+- `labs/phase_3_embeddings/app/*`
+- `labs/phase_3_embeddings/data/*`
+- `labs/phase_3_embeddings/scripts/*`
+- `labs/phase_3_embeddings/tests/*`
 
 当前还只是占位的目录：
 
-- `phase_3_embeddings/`
 - `phase_4_vector_databases/`
 - `phase_5_retrieval_strategies/`
 - `phase_6_rag_generation/`
@@ -71,7 +75,7 @@ source/04_rag/
 |------|----------|----------|----------|
 | 1 | [01_rag_basics.md](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md) | `labs/phase_1_scaffold/` | 可读 |
 | 2 | [02_document_processing.md](/Users/linruiqiang/work/ai_application/docs/04_rag/02_document_processing.md) | `labs/phase_2_document_processing/` | 可读 |
-| 3 | [03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md) | `labs/phase_3_embeddings/` | 占位 |
+| 3 | [03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md) | `labs/phase_3_embeddings/` | 可读 |
 | 4 | [04_vector_databases.md](/Users/linruiqiang/work/ai_application/docs/04_rag/04_vector_databases.md) | `labs/phase_4_vector_databases/` | 占位 |
 | 5 | [05_retrieval_strategies.md](/Users/linruiqiang/work/ai_application/docs/04_rag/05_retrieval_strategies.md) | `labs/phase_5_retrieval_strategies/` | 占位 |
 | 6 | [06_rag_generation.md](/Users/linruiqiang/work/ai_application/docs/04_rag/06_rag_generation.md) | `labs/phase_6_rag_generation/` | 占位 |
@@ -112,6 +116,15 @@ python3 scripts/inspect_chunks.py data/faq.txt
 python3 -m unittest discover -s tests
 ```
 
+```bash
+cd source/04_rag/labs/phase_3_embeddings
+
+python3 scripts/build_index.py
+python3 scripts/embed_documents.py
+python3 scripts/compare_similarity.py
+python3 -m unittest discover -s tests
+```
+
 当前最值得优先跑的是：
 
 - `Phase 1 / build_index.py`
@@ -122,6 +135,10 @@ python3 -m unittest discover -s tests
   看到真实文档发现和 chunk 数量统计。
 - `Phase 2 / inspect_chunks.py`
   看到 chunk 的字符范围、来源和预览内容。
+- `Phase 3 / embed_documents.py`
+  看到稳定 chunk 如何被批量向量化。
+- `Phase 3 / compare_similarity.py`
+  看到 query/document 路径和相关文本相似度差异。
 - `unittest`
   验证当前阶段的最小稳定性检查存在。
 

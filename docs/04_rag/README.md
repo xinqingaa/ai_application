@@ -89,7 +89,7 @@
 |------|------|----------|----------|----------|
 | 1 | [01_rag_basics.md](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md) | `source/04_rag/labs/phase_1_scaffold/` | 理解项目骨架、数据结构和最小 RAG 链路形状 | 已有真实骨架 |
 | 2 | [02_document_processing.md](/Users/linruiqiang/work/ai_application/docs/04_rag/02_document_processing.md) | `source/04_rag/labs/phase_2_document_processing/` | 文档加载、切分、metadata、稳定 ID | 已有真实代码快照 |
-| 3 | [03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md) | `source/04_rag/labs/phase_3_embeddings/` | Embedding 接入与向量表示 | 占位 |
+| 3 | [03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md) | `source/04_rag/labs/phase_3_embeddings/` | Embedding 接入、query/document 区分与向量表示 | 已有真实代码快照 |
 | 4 | [04_vector_databases.md](/Users/linruiqiang/work/ai_application/docs/04_rag/04_vector_databases.md) | `source/04_rag/labs/phase_4_vector_databases/` | 向量存储与检索入口 | 占位 |
 | 5 | [05_retrieval_strategies.md](/Users/linruiqiang/work/ai_application/docs/04_rag/05_retrieval_strategies.md) | `source/04_rag/labs/phase_5_retrieval_strategies/` | 基础检索、混合检索、Rerank | 占位 |
 | 6 | [06_rag_generation.md](/Users/linruiqiang/work/ai_application/docs/04_rag/06_rag_generation.md) | `source/04_rag/labs/phase_6_rag_generation/` | Prompt、RAG Chain、带来源回答 | 占位 |
@@ -107,17 +107,21 @@
 - [02_document_processing.md](/Users/linruiqiang/work/ai_application/docs/04_rag/02_document_processing.md)
 - [source/04_rag/labs/phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md)
 - `phase_2_document_processing` 下的文档处理代码、样例数据和测试
+- [03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md)
+- [source/04_rag/labs/phase_3_embeddings/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md)
+- `phase_3_embeddings` 下的向量化代码、相似度脚本和测试
 
 当前还不能当作“已完成课程内容”的部分：
 
-- `phase_3` 到 `phase_9` 的代码
+- `phase_4` 到 `phase_9` 的代码
 - 最终 `rag_lab/`
 
 所以这门课当前的正确学习姿势不是“把九章全部看完”，而是：
 
 1. 先完成 Phase 1
 2. 再进入 Phase 2，理解文档如何变成稳定 chunk
-3. 后续每章都按同样方式推进
+3. 再进入 Phase 3，理解 chunk 如何变成稳定向量
+4. 后续每章都按同样方式推进
 
 ## 当前第一阅读入口
 
@@ -184,6 +188,7 @@
 
 - 学员能看懂 `Phase 1` 骨架为什么这样分层
 - 学员能看懂 `Phase 2` 为什么先稳定 loader、splitter、metadata 和 ID
+- 学员能看懂 `Phase 3` 为什么新增 `embeddings/`，而不是重写输入层
 - 学员能顺着文档找到代码入口
 - 学员能说清 `SourceChunk / RetrievalResult / AnswerResult` 这些对象为什么先定义
-- 学员能理解为什么当前要先做文档处理，再进入 Embedding 和检索
+- 学员能理解为什么当前要先做文档处理，再进入 Embedding、向量库和检索

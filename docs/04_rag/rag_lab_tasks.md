@@ -12,7 +12,7 @@
 |-------|----------|----------|------|
 | Phase 1 | RAG 基础概念 | `labs/phase_1_scaffold/` | 已建立骨架 |
 | Phase 2 | 文档处理 | `labs/phase_2_document_processing/` | 已实现 |
-| Phase 3 | 向量化 | `labs/phase_3_embeddings/` | 待实现 |
+| Phase 3 | 向量化 | `labs/phase_3_embeddings/` | 已实现 |
 | Phase 4 | 向量数据库 | `labs/phase_4_vector_databases/` | 待实现 |
 | Phase 5 | 检索策略 | `labs/phase_5_retrieval_strategies/` | 待实现 |
 | Phase 6 | RAG 生成 | `labs/phase_6_rag_generation/` | 待实现 |
@@ -88,12 +88,14 @@ source/04_rag/rag_lab/
 - 接入 Embedding Provider
 - 区分 query/document embedding
 - 实现最小相似度对比
+- 保持对 Phase 2 `SourceChunk` 输出的直接复用
 
 ### 完成标准
 
 - 能生成向量
 - 能计算相似度
 - 能说明模型选择的基本取舍
+- 能把 `EmbeddedChunk` 作为下一章向量数据库输入
 
 ## 5. Phase 4：向量数据库
 
