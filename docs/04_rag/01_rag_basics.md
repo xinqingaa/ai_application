@@ -288,6 +288,8 @@ python scripts/inspect_chunks.py
 python -m unittest discover -s tests
 ```
 
+### 5.3 跑完后重点观察什么
+
 你现在最该观察的是：
 
 - retriever 已经出现
@@ -299,9 +301,46 @@ python -m unittest discover -s tests
 
 > 第一章是在建立“系统形状感”，不是在追求最终答案质量。
 
+再跑一次：
+
+```bash
+python scripts/inspect_chunks.py
+```
+
+当前输出会先让你看到：
+
+```text
+Prepared 1 chunk(s).
+df01139fe9617e6a9d81a290ba2eb4c0d726b727:0:a3c96f83edae {'source': 'data/sample.md', 'filename': 'sample.md', 'suffix': '.md', 'chunk_index': 0}
+```
+
+这一步先建立两个直觉：
+
+- `SourceChunk` 已经不是裸字符串
+- `chunk_id` 和 metadata 的形状已经提前露出来了
+
+### 5.4 再读哪些核心实现文件
+
+建议按这个顺序：
+
+1. [app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/config.py)
+2. [app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
+3. [app/retrievers/base.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/retrievers/base.py)
+4. [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/indexing/index_manager.py)
+5. [app/chains/rag_chain.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/chains/rag_chain.py)
+6. [app/services/rag_service.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/services/rag_service.py)
+
+### 5.5 卡住时先回看哪里
+
+如果中途卡住，先回看这三个位置：
+
+1. [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
+2. 本章的“代码映射表”
+3. [tests/test_scaffold.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/tests/test_scaffold.py)
+
 ---
 
-## 综合案例：为课程资料问答选择合适方案
+## 6. 综合案例：为课程资料问答选择合适方案
 
 ```python
 # 你要做一个课程资料问答系统：
@@ -320,57 +359,10 @@ python -m unittest discover -s tests
 ```
 
 当你能用自己的话回答这 4 个问题时，第一章就真正学会了。
-python scripts/inspect_chunks.py
-```
-
-当前输出会先让你看到：
-
-```text
-Prepared 1 chunk(s).
-df01139fe9617e6a9d81a290ba2eb4c0d726b727:0:a3c96f83edae {'source': 'data/sample.md', 'filename': 'sample.md', 'suffix': '.md', 'chunk_index': 0}
-```
-
-这一步先建立两个直觉：
-
-- `SourceChunk` 已经不是裸字符串
-- `chunk_id` 和 metadata 的形状已经提前露出来了
-
-### 第四步：再读核心实现文件
-
-建议按这个顺序：
-
-1. [app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/config.py)
-2. [app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
-3. [app/retrievers/base.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/retrievers/base.py)
-4. [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/indexing/index_manager.py)
-5. [app/chains/rag_chain.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/chains/rag_chain.py)
-6. [app/services/rag_service.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/services/rag_service.py)
-
-### 第五步：最后跑测试
-
-运行：
-
-```bash
-python -m unittest discover -s tests
-```
-
-这一步的目的不是凑测试数量，而是确认：
-
-- 配置入口存在
-- 评估占位模块存在
-- 第一章骨架不是“只有目录，没有最小闭环”
-
-### 卡住时先回看哪里
-
-如果中途卡住，先回看这三个位置：
-
-1. [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
-2. 本章的“代码映射表”
-3. [tests/test_scaffold.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/tests/test_scaffold.py)
 
 ---
 
-## 5. 本章实施步骤应该怎么理解 📌
+## 7. 本章实施步骤应该怎么理解 📌
 
 第一章的正确实施顺序，不是“尽快接更多外部组件”，而是：
 
@@ -386,7 +378,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 6. 本章代码映射表
+## 8. 本章代码映射表
 
 | 文档部分 | 对应代码/文档 | 角色 | 说明 |
 |----------|---------------|------|------|
@@ -401,7 +393,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 7. 实践任务
+## 9. 实践任务
 
 1. 用自己的话画出最小 `2-step RAG` 数据流，不要直接抄定义。
 2. 对照 [app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)，解释为什么服务层返回 `AnswerResult` 而不是字符串。
@@ -410,7 +402,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 8. 完成标准
+## 10. 完成标准
 
 完成这一章后，至少应满足：
 

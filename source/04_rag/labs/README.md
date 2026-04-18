@@ -13,7 +13,7 @@
 | `phase_2_document_processing/` | [02_document_processing.md](/Users/linruiqiang/work/ai_application/docs/04_rag/02_document_processing.md) | 已实现 |
 | `phase_3_embeddings/` | [03_embeddings.md](/Users/linruiqiang/work/ai_application/docs/04_rag/03_embeddings.md) | 已实现 |
 | `phase_4_vector_databases/` | [04_vector_databases.md](/Users/linruiqiang/work/ai_application/docs/04_rag/04_vector_databases.md) | 已实现 |
-| `phase_5_retrieval_strategies/` | [05_retrieval_strategies.md](/Users/linruiqiang/work/ai_application/docs/04_rag/05_retrieval_strategies.md) | 占位 |
+| `phase_5_retrieval_strategies/` | [05_retrieval_strategies.md](/Users/linruiqiang/work/ai_application/docs/04_rag/05_retrieval_strategies.md) | 已实现 |
 | `phase_6_rag_generation/` | [06_rag_generation.md](/Users/linruiqiang/work/ai_application/docs/04_rag/06_rag_generation.md) | 占位 |
 | `phase_7_rag_optimization/` | [07_rag_optimization.md](/Users/linruiqiang/work/ai_application/docs/04_rag/07_rag_optimization.md) | 占位 |
 | `phase_8_advanced_rag/` | [08_advanced_rag.md](/Users/linruiqiang/work/ai_application/docs/04_rag/08_advanced_rag.md) | 占位 |

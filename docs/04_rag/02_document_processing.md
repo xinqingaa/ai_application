@@ -293,6 +293,8 @@ python scripts/inspect_chunks.py data/faq.txt
 python -m unittest discover -s tests
 ```
 
+### 5.3 跑完后重点观察什么
+
 这些命令最该帮你建立的直觉是：
 
 1. `README.md` 这类说明文件不会被当成真实输入
@@ -300,9 +302,33 @@ python -m unittest discover -s tests
 3. `chunk_id` 已经不是临时字符串，而是稳定格式
 4. 每个 chunk 已经带了来源和字符范围
 
+### 5.4 改参数时应该看什么
+
+如果你修改 `chunk_size` 或 `chunk_overlap`，建议立刻重跑：
+
+```bash
+python scripts/inspect_chunks.py
+python scripts/inspect_chunks.py data/faq.txt
+```
+
+重点观察：
+
+- chunk 数量是变多还是变少
+- `char_start / char_end` 是否覆盖得更密或更疏
+- 同一条 FAQ 是否被切得更碎
+- overlap 增大后，边界内容是否更连续
+
+### 5.5 卡住时先回看哪里
+
+如果中途卡住，先回看这三个位置：
+
+1. [phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md)
+2. 本章的“代码映射表”
+3. [tests/test_document_processing.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/tests/test_document_processing.py)
+
 ---
 
-## 综合案例：为产品帮助中心设计文档输入层
+## 6. 综合案例：为产品帮助中心设计文档输入层
 
 ```python
 # 你要为一个产品帮助中心做 RAG：
@@ -321,21 +347,9 @@ python -m unittest discover -s tests
 
 当你能清楚回答这 4 个问题时，第二章的主线就真正建立起来了。
 
-- 文档发现逻辑可验证
-- 切分结果不是裸字符串
-- 稳定 ID 逻辑能重复通过
-
-### 卡住时先回看哪里
-
-如果中途卡住，先回看这三个位置：
-
-1. [phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md)
-2. 本章的“代码映射表”
-3. [tests/test_document_processing.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/tests/test_document_processing.py)
-
 ---
 
-## 5. 本章实施步骤应该怎么理解 📌
+## 7. 本章实施步骤应该怎么理解 📌
 
 第二章的正确顺序不是“先接 embedding 再慢慢修输入”，而是：
 
@@ -350,7 +364,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 6. 本章代码映射表
+## 8. 本章代码映射表
 
 | 文档部分 | 对应代码/文档 | 角色 | 说明 |
 |----------|---------------|------|------|
@@ -368,7 +382,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 7. 实践任务
+## 9. 实践任务
 
 1. 解释为什么第二章真正交付的是 `SourceChunk[]`，而不是“能加载文件”。
 2. 对照 [loaders.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/loaders.py) 和 [splitters.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/splitters.py)，说清 loader 和 splitter 的职责边界。
@@ -377,7 +391,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 8. 完成标准
+## 10. 完成标准
 
 完成这一章后，至少应满足：
 

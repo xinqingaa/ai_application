@@ -298,17 +298,25 @@ python scripts/search_chroma.py
 
 ---
 
-## 6. 学完这一章后你应该能回答
+### 5.5 常见失败与排查
 
-- 为什么 `EmbeddedChunk[]` 还不等于可用检索系统
-- 为什么 metadata 不应该在写入时丢掉
-- 为什么 `document_id` 会变成删除和更新的一致性锚点
-- 为什么 `Vector Store` 和 `Retriever` 应该继续拆层
-- 为什么第四章已经能做真实查询，但仍然不应该提前把第五章的策略混进来
+如果第四章跑不顺，优先按这个顺序排查：
+
+1. `chromadb` 是否已安装，`requirements.txt` 是否在当前虚拟环境生效。
+2. `persist_directory` 和 collection 名是否指向你以为的那个目录。
+3. `index_chroma.py --reset` 之后 collection count 是否重新回到预期值。
+4. 查询结果里如果没有 `filename / source / chunk_index`，先检查写入时 metadata 是否被完整保留。
+5. `delete_document.py` 没效果时，先确认删除入口走的是稳定 `document_id`，而不是临时 filename 匹配。
+
+一个很典型的错误是：
+
+> Phase 3 的 embedding 没问题，但 Phase 4 写入时丢了 metadata 或写进了错误 collection。
+
+这类问题如果不先在第四章查清楚，第五章看到的所有检索差异都会带噪声。
 
 ---
 
-## 综合案例：为课程资料问答建立最小向量存储层
+## 6. 综合案例：为课程资料问答建立最小向量存储层
 
 ```python
 # 你现在已经有 Phase 3 产出的 EmbeddedChunk[]：
@@ -319,3 +327,73 @@ python scripts/search_chroma.py
 # 3. 为什么 metadata 过滤和删除要在第四章就建立？
 # 4. 第四章当前代码里，哪些能力属于 Vector Store，哪些能力应该留给第五章 Retriever？
 ```
+
+---
+
+## 7. 本章实施步骤应该怎么理解 📌
+
+第四章的正确顺序不是“先调 Retriever 再回头补存储”，而是：
+
+| 步骤 | 先做什么 | 主要落在哪些模块 | 这一步在解决什么 |
+|------|----------|------------------|------------------|
+| 1 | 先确认输入是稳定 `EmbeddedChunk[]` | `app/schemas.py`、`app/embeddings/` | 让向量存储只负责存和查，不重做向量化 |
+| 2 | 固定 Chroma 配置和持久化目录 | `app/config.py`、`app/vectorstores/chroma_store.py` | 让 collection 有稳定落点和统一默认参数 |
+| 3 | 把向量、ID 和 metadata 一起写入 | `upsert()`、`scripts/index_chroma.py` | 让后续查询、过滤、删除都有真实锚点 |
+| 4 | 暴露最小查询和过滤入口 | `similarity_search()`、`scripts/search_chroma.py` | 让系统第一次具备真实 Top-K 查询能力 |
+| 5 | 暴露按 `document_id` 删除入口 | `delete_by_document_id()`、`scripts/delete_document.py` | 建立增量更新和索引一致性意识 |
+| 6 | 用脚本和测试锁定存储行为 | `scripts/`、`tests/test_vectorstores.py` | 避免第五章在不稳定存储层上做策略比较 |
+
+---
+
+## 8. 本章代码映射表
+
+| 文档部分 | 对应代码/文档 | 角色 | 说明 |
+|----------|---------------|------|------|
+| 本章第一阅读入口 | [phase_4_vector_databases/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md) | 主入口 | 先理解第四章新增模块、运行顺序和实验目标 |
+| 配置入口 | [app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/app/config.py) | 核心配置 | 定义 Chroma 持久化目录、collection 名和批量写入参数 |
+| 向量存储适配层 | [app/vectorstores/chroma_store.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/app/vectorstores/chroma_store.py) | 核心实现 | 收束 upsert、查询、过滤、删除和读回 `SourceChunk` |
+| 写入入口 | [scripts/index_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/index_chroma.py) | 主示例文件 | 把 Phase 3 的 `EmbeddedChunk[]` 真正写进 Chroma |
+| 查询入口 | [scripts/search_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/search_chroma.py) | 主示例文件 | 直接观察 Top-K 查询、分数和 metadata 过滤 |
+| 删除入口 | [scripts/delete_document.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/delete_document.py) | 扩展示例 | 观察按 `document_id` 删除后的 collection 变化 |
+| 最小服务演示 | [scripts/query_demo.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/query_demo.py) | 链路示例 | 看真实检索如何重新接回占位 `RagService` |
+| 依赖说明 | [requirements.txt](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/requirements.txt) | 环境入口 | 明确本章需要真实 `chromadb` |
+| 验收入口 | [tests/test_vectorstores.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/tests/test_vectorstores.py) | 核心测试 | 锁定写入、查询、过滤、删除和持久化行为 |
+
+---
+
+## 9. 实践任务
+
+1. 跑一次 [scripts/index_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/index_chroma.py) 和 [scripts/search_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/search_chroma.py)，解释为什么 `EmbeddedChunk[]` 还不等于“已经可检索”。
+2. 对照 [app/vectorstores/chroma_store.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/app/vectorstores/chroma_store.py)，说清为什么写入时必须同时保留 `chunk_id / document_id / metadata`。
+3. 用 [scripts/search_chroma.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/search_chroma.py) 分别做一次无 filter 查询和带 filename filter 查询，观察结果范围如何变化。
+4. 跑一次 [scripts/delete_document.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/scripts/delete_document.py)，解释为什么删除必须收敛到稳定 `document_id`。
+5. 故意修改 collection 名或持久化目录，再重新跑写入和查询，观察第四章最容易出现的环境错误长什么样。
+
+---
+
+## 10. 完成标准
+
+完成这一章后，至少应满足：
+
+- 能解释为什么 `EmbeddedChunk[]` 还不等于可用检索系统
+- 能说明 metadata 为什么不能在写入时丢掉
+- 能解释 `document_id` 为什么在第四章开始承担真实删除和更新职责
+- 能运行写入、查询、删除和测试脚本，并读懂结果
+- 能说明为什么第四章只做存储层，不提前把第五章 Retriever 策略混进来
+- 能判断一个问题是出在向量存储层，还是应该留给第五章检索策略层解决
+
+---
+
+## 11. 小结
+
+第四章真正建立的是：
+
+> 把第三章的语义向量，变成真实、可维护、可回收的检索底座。
+
+你要记住的主线有 5 条：
+
+1. 第三章解决“向量怎么来”，第四章解决“向量怎么存、怎么查、怎么维护”。
+2. `chunk_id / document_id / metadata` 在第四章开始不再只是结构设计，而是会直接进入真实查询和删除路径。
+3. Chroma 这一章的价值不在于背 API，而在于验证前面三章建立的数据契约是否能进入真实存储层。
+4. 写入、过滤、删除和持久化如果没先做稳，第五章的策略比较就会失真。
+5. Vector Store 和 Retriever 继续拆层，是为了让“存储问题”和“召回策略问题”保持可诊断。

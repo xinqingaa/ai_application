@@ -39,7 +39,7 @@ source/04_rag/
 | 2 | [phase_2_document_processing](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md) | 已实现 | `python scripts/build_index.py` |
 | 3 | [phase_3_embeddings](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md) | 已实现 | `python scripts/embed_documents.py` |
 | 4 | [phase_4_vector_databases](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md) | 已实现 | `python scripts/index_chroma.py --reset` |
-| 5 | [phase_5_retrieval_strategies](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_5_retrieval_strategies/README.md) | 占位 | 暂无 |
+| 5 | [phase_5_retrieval_strategies](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_5_retrieval_strategies/README.md) | 已实现 | `python scripts/compare_retrievers.py` |
 | 6 | [phase_6_rag_generation](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_6_rag_generation/README.md) | 占位 | 暂无 |
 | 7 | [phase_7_rag_optimization](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_7_rag_optimization/README.md) | 占位 | 暂无 |
 | 8 | [phase_8_advanced_rag](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_8_advanced_rag/README.md) | 占位 | 暂无 |
@@ -86,6 +86,18 @@ python scripts/index_chroma.py --reset
 python scripts/search_chroma.py
 python scripts/delete_document.py faq.txt
 python scripts/query_demo.py
+python -m unittest discover -s tests
+```
+
+```bash
+cd source/04_rag/labs/phase_5_retrieval_strategies
+python -m pip install -r requirements.txt
+python scripts/index_chroma.py --reset
+python scripts/compare_retrievers.py
+python scripts/review_bad_cases.py
+python scripts/query_demo.py --strategy similarity
+python scripts/query_demo.py --strategy threshold --threshold 0.70
+python scripts/query_demo.py --strategy mmr
 python -m unittest discover -s tests
 ```
 

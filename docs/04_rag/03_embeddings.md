@@ -265,6 +265,8 @@ python scripts/compare_similarity.py
 python -m unittest discover -s tests
 ```
 
+### 5.3 跑完后重点观察什么
+
 这些命令最该帮你建立的直觉是：
 
 1. 向量结果仍然保留 `chunk_id / document_id / metadata`
@@ -272,28 +274,14 @@ python -m unittest discover -s tests
 3. 相关文本的相似度应该更高
 4. 第三章交付的是向量层，不是完整检索系统
 
----
-
-## 综合案例：为 FAQ 知识库设计向量化层
-
-```python
-# 你现在已经有稳定的 SourceChunk[]：
-#
-# 请回答：
-# 1. 为什么第三章不应该重新从文件开始做 embedding？
-# 2. EmbeddedChunk 至少应该比 SourceChunk 多哪些信息？
-# 3. 为什么 embed_query() 和 embed_documents() 不应合并成一个模糊入口？
-# 4. 为什么第三章适合先用本地 provider 建立直觉，而不是一开始就绑定真实平台？
-```
-
-当你能清楚回答这 4 个问题时，第三章的主线就真正建立起来了。
+再继续观察这些问题：
 
 - 当前默认 Provider 是谁
 - 默认维度和模型名是什么
 - 为什么 `local_hash` 和 `openai_compatible` 都要收敛到同一接口
 - 为什么 query/document 的向量化入口从这一章开始就要分开
 
-### 第 4 步：看第三章真正新增的数据流
+### 5.4 再看第三章真正新增的数据流
 
 **对应文件**：
 
@@ -307,7 +295,7 @@ python -m unittest discover -s tests
 - 为什么第三章要把 `SourceChunk` 保留下来而不是替换掉
 - 为什么脚本输出里应该还能看到 `chunk_id / document_id / metadata`
 
-### 第 5 步：最后看最小相似度实验和测试
+### 5.5 最后看最小相似度实验和测试
 
 **对应文件**：
 
@@ -323,7 +311,23 @@ python -m unittest discover -s tests
 
 ---
 
-## 5. 三章代码映射表
+## 6. 综合案例：为 FAQ 知识库设计向量化层
+
+```python
+# 你现在已经有稳定的 SourceChunk[]：
+#
+# 请回答：
+# 1. 为什么第三章不应该重新从文件开始做 embedding？
+# 2. EmbeddedChunk 至少应该比 SourceChunk 多哪些信息？
+# 3. 为什么 embed_query() 和 embed_documents() 不应合并成一个模糊入口？
+# 4. 为什么第三章适合先用本地 provider 建立直觉，而不是一开始就绑定真实平台？
+```
+
+当你能清楚回答这 4 个问题时，第三章的主线就真正建立起来了。
+
+---
+
+## 7. 三章代码映射表
 
 | 你现在要理解的内容 | 第一章代码 | 第二章代码 | 第三章代码 |
 |--------------------|------------|------------|------------|
@@ -335,7 +339,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 6. 这一章建议怎么跑
+## 8. 这一章建议怎么跑
 
 如果你要真正把前三章串起来，建议按这个顺序：
 
@@ -383,7 +387,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 7. 实践任务
+## 9. 实践任务
 
 1. 用自己的话复述前三章各自的完成物是什么，不能只说“第一章讲概念、第二章讲文档、第三章讲 embedding”。
 2. 对照 [phase_1_scaffold/app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py) 和 [phase_3_embeddings/app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/app/schemas.py)，说清 `EmbeddedChunk` 为什么不是替代 `SourceChunk`。
@@ -393,7 +397,7 @@ python -m unittest discover -s tests
 
 ---
 
-## 8. 完成标准
+## 10. 完成标准
 
 完成这一章后，至少应满足：
 
