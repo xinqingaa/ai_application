@@ -1,6 +1,8 @@
-# phase_1_scaffold - 实践指南
+# phase_1_scaffold - 旧版备份
 
-> 本文档说明如何跟着 [学习文档](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md) 阅读第一章代码快照。
+> 迁移说明：第一章新的学习入口已经切换到 [source/04_rag/01_rag_basics/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md)。这个目录目前只作为迁移期备份保留，等前六章替换完成后会删除。
+
+> 下面内容保留原样，方便对照旧结构，不再推荐作为第一章主入口。
 
 ---
 

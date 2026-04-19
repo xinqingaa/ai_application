@@ -1,6 +1,6 @@
 # 02. 文档处理
 
-> 本节目标：把“原始文件进入系统”这件事讲清楚，理解文档发现、文本规范化、切分、metadata 和稳定 ID 为什么必须在早期就设计好，并把它们收束成标准 `SourceChunk[]`。
+> 本节目标：把“原始文件进入系统”这件事讲清楚，理解文档发现、文本规范化、切分、metadata 和稳定 ID 为什么必须尽早确定，并把它们收束成稳定、可重复的 `SourceChunk[]`。
 
 ---
 
@@ -13,33 +13,21 @@
 - 理解 `chunk_size / chunk_overlap` 为什么会直接影响后续检索效果
 - 能区分 `base metadata` 和 `chunk metadata` 的职责
 - 理解为什么 `document_id / chunk_id` 必须从第二章就稳定下来
-- 能对着第二章代码快照看懂 `path -> SourceChunk[]` 的完整过程
+- 能对着第二章代码看懂 `path -> SourceChunk[]` 的完整过程
 
 ### 预计学习时间
 
-- 文档处理链路理解：1 小时
-- chunk 设计与 metadata 设计：1-1.5 小时
-- 第二章代码快照阅读：1-1.5 小时
-
-### 本节在 AI 应用中的重要性
-
-| 场景 | 相关知识 |
-|------|---------|
-| 知识库导入 | 文件发现、格式判断、文本统一 |
-| 文档问答 | chunk 设计、metadata、来源追溯 |
-| 向量索引 | 稳定输入、稳定 ID、可复用对象 |
-| 增量更新 / 删除 | `document_id / chunk_id` 稳定性 |
-| 调试和评估 | chunk 预览、字符范围、来源字段 |
-
-> **第二章真正的完成物不是“能读文件”，而是让后续系统有一份稳定、可追踪、可重复的 `SourceChunk[]` 输入。**
+- 文档输入层理解：40 分钟
+- chunk 设计与 metadata：40-60 分钟
+- 第二章代码实践：40-60 分钟
 
 ### 本章与前后章节的关系
 
 第一章解决的是：
 
 1. 为什么要做 RAG
-2. 为什么默认先做固定 `2-step RAG`
-3. 为什么项目先从骨架和对象开始
+2. 最小 `2-step RAG` 在线链路长什么样
+3. 什么情况下该用什么方案
 
 第二章接着解决的是：
 
@@ -49,10 +37,20 @@
 
 第三章会继续建立在这里之上：
 
-1. 直接消费 `SourceChunk[]`
-2. 把稳定 chunk 变成 `EmbeddedChunk[]`
+1. 直接消费稳定的 `SourceChunk[]`
+2. 把 chunk 再变成向量表示
 
-### 本章的学习边界
+### 本章代码入口
+
+本章对应的代码目录是：
+
+- [source/04_rag/02_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/README.md)
+- [document_processing.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/document_processing.py)
+- [01_discover_and_load.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/01_discover_and_load.py)
+- [02_split_and_inspect.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/02_split_and_inspect.py)
+- [03_build_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/03_build_chunks.py)
+
+### 本章边界
 
 本章重点解决：
 
@@ -71,13 +69,13 @@
 - 检索排序和 Rerank
 - 完整 RAG 问答生成
 
-### 当前代码快照
+这里故意只保留：
 
-本章对应的代码快照是：
+- `.md / .txt`
+- 本地样例文件
+- 平铺代码目录
 
-- [phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md)
-- [scripts/build_index.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/scripts/build_index.py)
-- [scripts/inspect_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/scripts/inspect_chunks.py)
+目的不是追求格式覆盖最全，而是先把文档处理主线讲清楚。
 
 ---
 
@@ -85,7 +83,7 @@
 
 ### 2.1 什么叫“文档进入系统”
 
-很多人理解文档处理时，会把注意力放在“切分器参数怎么调”。
+很多人一提文档处理，就会马上把注意力放在“切分器参数怎么调”。
 
 但更完整的视角应该是：
 
@@ -104,7 +102,7 @@
 
 > RAG 系统的知识输入层。
 
-### 2.2 第二章真正的完成物是什么
+### 2.2 第二章真正交付的是什么
 
 第二章真正交付的不是“能读 Markdown”或“能把文本切开”，而是：
 
@@ -125,12 +123,12 @@ path -> text -> text chunks -> metadata -> stable ids -> SourceChunk[]
 
 ### 2.3 为什么文档处理不能被当成附属功能
 
-如果第二章没有先把文档输入层做稳，后面会立刻出现问题：
+如果第二章没有先把文档输入层做稳，后面很快就会出现问题：
 
 - 相同文档每次生成的 chunk 不一致
-- 后续 embedding 无法判断“这是谁的向量”
+- embedding 阶段无法判断“这是谁的向量”
 - 删除和增量更新没有稳定身份
-- 检索结果变化后，无法判断是内容变了还是 ID 漂了
+- 调试时无法确认是内容变了还是 ID 漂了
 
 所以第二章并不是“还没到检索前的准备工作”，而是：
 
@@ -155,7 +153,7 @@ Loader 不负责：
 - metadata 怎么设计
 - stable id 怎么生成
 
-也就是说，Loader 的职责是“让文件可读”，不是“决定知识如何索引”。
+它的职责是“让文件可读”，不是“决定知识如何索引”。
 
 ### 3.2 Splitter 负责什么
 
@@ -181,7 +179,7 @@ Splitter 不负责：
 Metadata 负责的是：
 
 - 说明 chunk 从哪里来
-- 说明 chunk 处在文档什么位置
+- 说明 chunk 在文档什么位置
 - 为后续检索、过滤、引用和调试提供信息
 
 一个最小 RAG 系统里，metadata 至少应该能回答：
@@ -209,7 +207,7 @@ Stable ID 负责的是：
 没有稳定 ID，后面很快就会遇到：
 
 - 重复导入后无法确认是不是同一份数据
-- 向量存储里难以做更新和删除
+- 存储系统里难以做更新和删除
 - 评估和调试时无法稳定定位坏 chunk
 
 所以第二章引入稳定 ID，不是“过度工程化”，而是：
@@ -258,10 +256,10 @@ chunk 太大，常见问题是：
 
 字符范围的意义不只在调试，也在后续工程里很重要：
 
-- 可以快速定位原文位置
-- 可以帮助判断切分点是否合理
-- 可以支持更好的来源展示
-- 可以在坏案例分析时快速回溯
+- 你可以定位 chunk 覆盖了原文哪一段
+- 你可以判断切分边界是否合理
+- 你可以在引用展示时做高亮
+- 你可以在坏案例分析时稳定回到原文位置
 
 这也是为什么第二章的中间对象 `TextChunk` 会保留：
 
@@ -270,133 +268,127 @@ chunk 太大，常见问题是：
 
 ---
 
-## 5. 第二章应该怎么学
+## 5. 第二章实践：独立文档处理闭环
 
-### 5.1 推荐顺序
+### 5.1 目录结构
 
-建议按这个顺序进入：
+本章代码目录是：
 
-1. 先读 [phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md)
-2. 再看 [data/product_overview.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/data/product_overview.md) 和 [data/faq.txt](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/data/faq.txt)
-3. 再看 [app/ingestion/loaders.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/loaders.py)
-4. 再看 [app/ingestion/splitters.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/splitters.py)
-5. 再看 [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/index_manager.py)
+```text
+source/04_rag/02_document_processing/
+├── README.md
+├── document_processing.py
+├── 01_discover_and_load.py
+├── 02_split_and_inspect.py
+├── 03_build_chunks.py
+├── data/
+└── tests/
+```
 
-### 5.2 建议先跑的命令
+第二章和第一章一样，保持平铺目录。
+
+这里不做：
+
+- `app/ingestion/`
+- `app/indexing/`
+- 多层包组织
+
+因为本章重点是理解文档处理本身，不是理解工程分层。
+
+### 5.2 输入和输出
+
+本章代码的输入是：
+
+- 本地 `.md / .txt` 文件
+- `chunk_size / chunk_overlap`
+
+本章代码的输出是：
+
+- `TextChunk[]`
+- `SourceChunk[]`
+- `document_id`
+- `chunk_id`
+- `base metadata + chunk metadata`
+
+在 [document_processing.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/document_processing.py) 里，你最值得先看的是：
+
+- `discover_documents()`
+- `load_document()`
+- `split_text()`
+- `build_base_metadata()`
+- `build_chunk_metadata()`
+- `stable_document_id()`
+- `stable_chunk_id()`
+- `load_and_prepare_chunks()`
+
+### 5.3 运行方式
 
 ```bash
-cd source/04_rag/labs/phase_2_document_processing
+cd source/04_rag/02_document_processing
 
-python scripts/build_index.py
-python scripts/inspect_chunks.py
-python scripts/inspect_chunks.py data/faq.txt
+python 01_discover_and_load.py
+python 02_split_and_inspect.py
+python 02_split_and_inspect.py data/faq.txt --chunk-size 140 --chunk-overlap 20
+python 03_build_chunks.py
 python -m unittest discover -s tests
 ```
 
-### 5.3 跑完后重点观察什么
+### 5.4 你应该观察到什么
 
-这些命令最该帮你建立的直觉是：
+跑 [01_discover_and_load.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/01_discover_and_load.py) 时：
 
-1. `README.md` 这类说明文件不会被当成真实输入
-2. 同一套 chunk 配置下，不同文档会被切成不同数量的 chunk
-3. `chunk_id` 已经不是临时字符串，而是稳定格式
-4. 每个 chunk 已经带了来源和字符范围
+- `.md / .txt` 会进入系统
+- `README.md` 会被忽略
+- `ignore.csv` 不会被当成支持格式
+- 文本进入系统前会先做最小规范化
 
-### 5.4 改参数时应该看什么
+跑 [02_split_and_inspect.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/02_split_and_inspect.py) 时：
 
-如果你修改 `chunk_size` 或 `chunk_overlap`，建议立刻重跑：
+- 你能看到 chunk 的字符范围
+- 你能看到不同参数如何影响切分结果
+- 你能看到切分不是单纯按固定长度硬截断
 
-```bash
-python scripts/inspect_chunks.py
-python scripts/inspect_chunks.py data/faq.txt
-```
+跑 [03_build_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/03_build_chunks.py) 时：
 
-重点观察：
+- 你会看到每份文档产出多少个 chunk
+- 你会看到 `document_id / chunk_id`
+- 你会看到 metadata 如何跟着 chunk 一起进入系统
 
-- chunk 数量是变多还是变少
-- `char_start / char_end` 是否覆盖得更密或更疏
-- 同一条 FAQ 是否被切得更碎
-- overlap 增大后，边界内容是否更连续
+### 5.5 本章代码刻意简化了什么
 
-### 5.5 卡住时先回看哪里
+这一章的实现刻意简化了四件事：
 
-如果中途卡住，先回看这三个位置：
+1. 只支持 `.md / .txt`
+2. 不接 PDF / OCR
+3. 不做复杂版式解析
+4. 不接 embedding 和向量库
 
-1. [phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md)
-2. 本章的“代码映射表”
-3. [tests/test_document_processing.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/tests/test_document_processing.py)
+这是故意的。
 
----
+因为本章要先把下面这件事学会：
 
-## 6. 综合案例：为产品帮助中心设计文档输入层
-
-```python
-# 你要为一个产品帮助中心做 RAG：
-#
-# 当前文档类型：
-# 1. FAQ 文本
-# 2. 产品说明 Markdown
-# 3. 后续可能增加 PDF
-#
-# 请回答：
-# 1. 第二章当前最小支持哪些格式更合适？
-# 2. base metadata 至少应该包含哪些字段？
-# 3. chunk metadata 至少应该包含哪些字段？
-# 4. 为什么第二章就要引入 stable_document_id() 和 stable_chunk_id()？
-```
-
-当你能清楚回答这 4 个问题时，第二章的主线就真正建立起来了。
+> 文档处理的目标不是“支持最多格式”，而是“先稳定地产出可用 chunk”。
 
 ---
 
-## 7. 本章实施步骤应该怎么理解 📌
+## 6. 本章学完后你应该能回答
 
-第二章的正确顺序不是“先接 embedding 再慢慢修输入”，而是：
-
-| 步骤 | 先做什么 | 主要落在哪些模块 | 这一步在解决什么 |
-|------|----------|------------------|------------------|
-| 1 | 先确定支持哪些输入格式 | `app/config.py`、`data/` | 先固定当前章节边界，不假装支持所有格式 |
-| 2 | 先把文件读进来并做最小规范化 | `app/ingestion/loaders.py` | 让系统拥有稳定文本输入 |
-| 3 | 再把文本切成可检索 chunk | `app/ingestion/splitters.py` | 让后续阶段有明确检索单位 |
-| 4 | 给 chunk 注入 metadata 和稳定 ID | `metadata.py`、`id_generator.py` | 让后续引用、过滤、更新都有锚点 |
-| 5 | 收束成标准 `SourceChunk[]` | `app/indexing/index_manager.py` | 给第三章提供统一输入 |
-| 6 | 用脚本和测试验证稳定性 | `scripts/`、`tests/` | 避免后续优化只能凭感觉推进 |
+- 为什么文档处理是知识输入层，而不是附属功能
+- `loader / splitter / metadata / stable id` 各自负责什么
+- 为什么第二章真正交付的是稳定 `SourceChunk[]`
+- 为什么字符范围和稳定 ID 从第二章就应该存在
+- 为什么这一步会直接影响第三章和第四章
 
 ---
 
-## 8. 本章代码映射表
+## 7. 下一章
 
-| 文档部分 | 对应代码/文档 | 角色 | 说明 |
-|----------|---------------|------|------|
-| 本章第一阅读入口 | [phase_2_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md) | 主入口 | 先理解当前目录职责、运行方式和阅读顺序 |
-| 样例输入 | [data/product_overview.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/data/product_overview.md) | 主示例 | 观察 Markdown 文档进入系统后的效果 |
-| 样例输入 | [data/faq.txt](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/data/faq.txt) | 对照示例 | 观察纯文本文档的切分效果 |
-| 文档发现和加载 | [app/ingestion/loaders.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/loaders.py) | 核心流程 | 负责发现支持文档、规范化文本并路由 loader |
-| metadata 设计 | [app/ingestion/metadata.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/metadata.py) | 核心流程 | 定义基础 metadata 与 chunk metadata |
-| 文本切分 | [app/ingestion/splitters.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/splitters.py) | 核心流程 | 负责 chunk 切分和字符范围计算 |
-| 稳定 ID | [app/indexing/id_generator.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/id_generator.py) | 核心工具 | 生成 `document_id / chunk_id` |
-| chunk 收口 | [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/indexing/index_manager.py) | 核心入口 | 把文档处理结果统一转换为 `SourceChunk` |
-| 第一运行入口 | [scripts/build_index.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/scripts/build_index.py) | 主示例文件 | 先看到真实文档发现和 chunk 总量 |
-| chunk 观察入口 | [scripts/inspect_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/scripts/inspect_chunks.py) | 扩展示例 | 先看到 chunk 预览、ID 和字符范围 |
-| 最小验证 | [tests/test_document_processing.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/tests/test_document_processing.py) | 验收入口 | 验证文档发现、切分和稳定 ID |
+第三章开始，你才会进入向量化问题：
 
----
+- chunk 怎么变成向量
+- 向量相似度在做什么
+- 为什么向量化只是给 chunk 再包一层表示
 
-## 9. 实践任务
+也就是说，第三章处理的是“这些稳定 chunk 如何变成可检索向量”。
 
-1. 解释为什么第二章真正交付的是 `SourceChunk[]`，而不是“能加载文件”。
-2. 对照 [loaders.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/loaders.py) 和 [splitters.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/app/ingestion/splitters.py)，说清 loader 和 splitter 的职责边界。
-3. 跑一次 [scripts/inspect_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/scripts/inspect_chunks.py)，解释 `char_start / char_end / chunk_chars` 为什么重要。
-4. 修改 `chunk_size` 或 `chunk_overlap`，重新运行脚本，观察 chunk 数量和字符范围如何变化。
-
----
-
-## 10. 完成标准
-
-完成这一章后，至少应满足：
-
-- 能解释为什么文档处理是 RAG 的知识入口
-- 能说明 `loaders / splitters / metadata / indexing` 的边界差异
-- 能运行第二章脚本和测试，并读懂输出
-- 能解释为什么 `document_id / chunk_id` 必须尽早稳定
-- 能说明第二章为什么要先把 `SourceChunk` 做稳，再进入 Embedding 和检索
+第二章先把“知识怎么进入系统”立住，就够了。

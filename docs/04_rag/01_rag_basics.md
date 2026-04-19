@@ -1,6 +1,6 @@
 # 01. RAG 基础概念
 
-> 本节目标：先建立 RAG 的问题意识、架构判断和系统骨架感，明确这门课为什么默认从固定 `2-step RAG` 和项目骨架开始，而不是一上来就做完整知识库。
+> 本节目标：先理解 RAG 在解决什么问题，跑通一个最小、独立、可重复的 RAG 闭环，并建立“什么时候该用 RAG、什么时候不该用”的判断。
 
 ---
 
@@ -9,79 +9,72 @@
 ### 学习目标
 
 - 理解 RAG 解决什么问题，以及它不解决什么问题
-- 能区分长上下文、直接查现有知识系统、固定 `2-step RAG`、微调和 `Agentic RAG`
-- 能画出最小 `2-step RAG` 数据流，并说明每一步在做什么
-- 理解为什么 `04_rag` 第一章先建立项目骨架和核心对象
-- 能读懂 `SourceChunk / RetrievalResult / AnswerResult` 这三个核心对象的职责
-- 能运行第一章代码快照，并看出当前系统“已经长出什么，还没长出什么”
+- 能区分长上下文、直接查现有系统、固定 `2-step RAG`、微调和 `Agentic RAG`
+- 能画出最小 `2-step RAG` 在线数据流，并说明每一步在做什么
+- 能运行一个不依赖后续章节的最小 RAG 示例
+- 能说清本章输入、输出、现象和边界
 
 ### 预计学习时间
 
-- RAG 问题意识与方案判断：1 小时
-- 最小数据流与系统骨架：1 小时
-- 第一章代码快照阅读：1-1.5 小时
-
-### 本节在 AI 应用中的重要性
-
-| 场景 | 相关知识 |
-|------|---------|
-| 企业知识库问答 | 检索、引用、知识更新 |
-| 文档问答 | 文档进入系统、上下文拼装 |
-| 客服 / 规则问答 | 来源追溯、拒答边界 |
-| 架构选型 | 长上下文、RAG、微调、Agentic RAG 的边界 |
-| 后续工程实现 | chunk、向量、检索、生成、评估的主线 |
-
-> **第一章的重点不是“把 RAG 做完”，而是先判断为什么要做、该做到哪一层，以及这套系统应该长成什么形状。**
+- RAG 问题意识：40 分钟
+- 最小数据流：40 分钟
+- 第一章代码实践：40-60 分钟
 
 ### 本章与前后章节的关系
 
 前面的 `02_llm` 解决的是：
 
 1. 怎么稳定调用模型
-2. 怎么管理消息和上下文
-3. 怎么做结构化输出、成本控制和错误处理
+2. 怎么组织消息和上下文
+3. 怎么处理结构化输出、成本和错误
 
 `04_rag` 第一章接着解决的是：
 
 1. 为什么单次模型调用不够
 2. 什么情况下需要 RAG
-3. 为什么默认先把固定链路做稳
-4. 为什么项目要先从骨架和对象开始
+3. 最小 `2-step RAG` 在线链路长什么样
+4. 为什么在第九章之前，每章都应该保持独立闭环
 
-后续章节会沿这条主线继续展开：
+后续章节会继续分开处理：
 
-- 第二章：把原始文件整理成稳定 `SourceChunk`
-- 第三章：把 `SourceChunk` 变成 `EmbeddedChunk`
-- 第四章：把向量写进存储并支持最小检索
-- 第五章：围绕召回质量调检索策略
-- 第六章：把检索结果接成真正回答
+- 第二章：只做文档加载、切分、metadata 和 chunk 输出
+- 第三章：只做 embedding 和相似度
+- 第四章：只做向量存储
+- 第五章：只做检索策略
+- 第六章：再把检索结果接成真正回答
 
-### 本章的学习边界
+### 本章代码入口
 
-本章重点解决：
+本章对应的代码目录是：
 
-1. RAG 的定义和适用边界
-2. 常见方案梯度和默认决策顺序
-3. 为什么课程主线先从固定 `2-step RAG` 开始
-4. 为什么第一章先做骨架，而不是直接做完整问答系统
+- [source/04_rag/01_rag_basics/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md)
+- [01_why_rag.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/01_why_rag.py)
+- [02_rag_pipeline.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/02_rag_pipeline.py)
+- [03_solution_decision.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/03_solution_decision.py)
+- [rag_basics.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/rag_basics.py)
 
-本章不展开：
+### 本章边界
 
-- 真实文档加载和切分
-- 真实 Embedding 模型接入
+本章只做这些事情：
+
+1. 理解问题意识
+2. 跑通最小在线 RAG 闭环
+3. 建立方案判断顺序
+
+本章明确不做：
+
+- 项目骨架
+- 多模块拆分
+- 真实文档加载
+- 真实 Embedding
 - 真实向量数据库
-- 混合检索、Rerank、HyDE、多查询
-- 完整 RAG Chain 和 API 服务
-- `Agentic RAG` 的完整实现
+- 真实 LLM 调用
+- API 服务
+- 评估系统
 
-### 当前代码快照
+这里故意只用“内存知识库 + 关键词检索 + 规则化回答”。
 
-本章对应的代码快照是：
-
-- [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
-- [scripts/query_demo.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/scripts/query_demo.py)
-
-第一章的代码重点不是模型效果，而是系统骨架、对象和最小链路。
+目的不是追求效果最强，而是先把 RAG 的问题、数据流和边界讲清楚。
 
 ---
 
@@ -89,17 +82,17 @@
 
 ### 2.1 单次模型调用为什么不够
 
-在 `02_llm` 里，你已经学过如何稳定发出一次请求。
+在 `02_llm` 里，你已经学会了如何稳定发出一次模型请求。
 
 但真实业务很快会遇到一个问题：
 
-> 模型本身并不知道你的私有知识，也不会随着文档更新自动学会新内容。
+> 模型并不知道你的私有知识，也不会随着你的文档更新自动学会新内容。
 
-如果一个系统需要回答：
+如果一个系统要回答下面这些问题：
 
 - 公司内部制度
-- 产品帮助文档
 - 课程资料
+- 产品帮助文档
 - 运营规则
 - 法规和手册
 
@@ -107,58 +100,125 @@
 
 1. 知识过时
 2. 来源不可追溯
-3. 文档太多，无法长期手工塞进 Prompt
+3. 文档太多，不能一直手工塞进 Prompt
 4. 没有依据时容易自由发挥
 
 RAG 就是在解决这件事：
 
-> 先把相关知识找出来，再把它们连同问题一起交给模型生成答案。
+> 先把相关知识找出来，再把它们和问题一起交给模型回答。
 
-### 2.2 RAG 的最小数据流
+### 2.2 一个最小例子
 
-一个最小 `2-step RAG` 数据流可以压缩成两段：
+假设你现在有一套 Python 课程，它的退款规则写在私有文档里：
 
 ```text
-离线阶段：
-文档 -> 切分 -> 向量化 -> 向量存储
-
-在线阶段：
-问题 -> 检索 -> 上下文 -> LLM -> 答案 + 来源
+Python 系统课购买后 7 天内且学习进度不超过 20%，可以申请全额退款。
 ```
 
-这条链路里，每一层都只解决一个清晰问题：
+如果用户问：
 
-- 文档处理：把文件变成稳定 chunk
-- 向量化：把 chunk 变成可比较向量
-- 向量存储：让向量可写入、可查询、可删除
-- 检索：从知识库里找出当前问题最相关的上下文
-- 生成：让模型基于上下文回答，而不是自由发挥
+```text
+Python 系统课可以退费吗？
+```
+
+不接 RAG 时，模型并没有这份私有规则，最稳妥的行为只能是：
+
+- 承认自己不知道
+- 或者给出很泛的退款建议
+
+接入 RAG 后，系统可以先把退款规则找出来，再基于它回答，并附上来源。
+
+这就是第一章最想建立的直觉：
+
+> RAG 的价值不是“让模型更聪明”，而是“让回答有依据”。
 
 ### 2.3 RAG 解决什么，不解决什么
 
 RAG 重点解决的是：
 
 1. 知识更新问题
-2. 来源追溯问题
-3. 上下文受控问题
-4. 私有文档接入问题
+2. 私有资料接入问题
+3. 来源追溯问题
+4. 上下文受控问题
 
 但 RAG 不直接解决：
 
-- 模型本身推理能力不足
+- 模型本身推理能力不够
 - 业务规则定义不清
 - 输入文档本身质量很差
 - 根本没有可用知识源
 
-这也是为什么你不能把所有回答质量问题都归结为“RAG 没调好”。
+所以你不能把所有回答质量问题都归结为“RAG 没调好”。
 
 ---
 
-## 3. 什么情况下该选什么方案 📌
+## 3. 最小 `2-step RAG` 数据流 📌
 
-### 3.1 常见方案梯度
+### 3.1 最小在线链路
 
-很多人在做 AI 应用时，会先问“要不要上 RAG”。更准确的问法其实是：
+第一章只看在线部分，先不要背完整离线工程。
+
+最小在线链路是：
+
+```text
+问题 -> 检索 -> 上下文 -> 回答 + 来源
+```
+
+每一步都只解决一个清晰问题：
+
+- 问题：用户到底在问什么
+- 检索：从知识库里找出最相关的内容
+- 上下文：把命中的内容整理成回答阶段可消费的输入
+- 回答：基于上下文生成答案，而不是自由发挥
+- 来源：把答案对应的依据一起返回
+
+### 3.2 为什么第一章只保留这条链路
+
+因为你现在要学的是：
+
+1. RAG 到底为什么存在
+2. RAG 最小形态长什么样
+3. 回答为什么必须带依据
+
+你现在不需要一上来就理解：
+
+- loader
+- splitter
+- embeddings
+- vector DB
+- API 服务
+- 多模块目录
+
+这些都是真实系统会出现的东西，但不应该压过第一章的学习目标。
+
+### 3.3 为什么第一章不再先做项目骨架
+
+在你的学习模式里，第九章之前每一章都应该是独立知识单元。
+
+所以第一章不应该把重点放在：
+
+- 项目目录怎么拆
+- 模块怎么预留
+- 抽象怎么为后面铺路
+
+第一章应该先把最小闭环讲清楚。
+
+等你到第九章再做完整项目工程，会更自然，因为那时你已经知道：
+
+- 文档层在做什么
+- 检索层在做什么
+- 生成层在做什么
+- 评估层在做什么
+
+---
+
+## 4. 什么情况下该选什么方案 📌
+
+### 4.1 常见方案梯度
+
+很多人在做 AI 应用时，会先问“要不要上 RAG”。
+
+更准确的问法其实是：
 
 > 当前这个问题，最合适的知识接入方案是什么？
 
@@ -172,7 +232,7 @@ RAG 重点解决的是：
 | 微调 | 学习风格、格式、行为模式 | 希望频繁更新外部知识 |
 | `Agentic RAG` | 固定链路明显不够，需要动态检索决策 | 基础 RAG 还没做稳 |
 
-### 3.2 默认决策顺序
+### 4.2 默认决策顺序
 
 这门课推荐的默认决策顺序是：
 
@@ -186,228 +246,127 @@ RAG 重点解决的是：
 
 > 先用问题类型判断方案，再选技术，而不是先选技术再给它找问题。
 
-### 3.3 为什么这门课先做固定 `2-step RAG`
+### 4.3 第一章为什么只做固定 `2-step RAG` 的影子
 
-因为这门课当前主线不是“复杂动态决策”，而是“把固定链路做稳”。
+因为第一章要先建立三个最重要的习惯：
 
-固定 `2-step RAG` 的价值在于：
+1. 有问题先看知识源是否存在
+2. 有回答先看依据是否存在
+3. 有方案先按复杂度从低到高判断
 
-- 数据流清晰
-- 边界清晰
-- 便于分阶段学习
-- 便于判断问题到底出在文档、检索还是生成
+这也是为什么第一章的代码会同时包含：
 
-如果第一章就直接做复杂 Agent 工作流，学习者很容易：
-
-- 分不清问题到底出在哪一层
-- 把所有效果问题都混成“模型不稳定”
-- 还没做稳基础系统，就引入过多动态行为
+- 一个最小问答闭环
+- 一个“什么时候不用 RAG”的判断示例
 
 ---
 
-## 4. 为什么第一章先做项目骨架 📌
+## 5. 第一章实践：独立最小闭环
 
-### 4.1 为什么不一开始就接真实组件
+### 5.1 目录结构
 
-如果第一章一开始就把这些全接上：
+本章代码目录是：
 
-- 真实 loader
-- 真实 Embedding
-- 真实向量库
-- 真实 LLM
+```text
+source/04_rag/01_rag_basics/
+├── README.md
+├── rag_basics.py
+├── 01_why_rag.py
+├── 02_rag_pipeline.py
+├── 03_solution_decision.py
+└── tests/
+```
 
-读者看到的会是一堆组件，但很难看清主线。
+第一章只保留一个平铺目录，不做 `app/`、`services/`、`vectorstores/` 这种项目式拆分。
 
-第一章真正要先稳定的是：
+### 5.2 输入和输出
 
-1. 配置入口
-2. 公共数据结构
-3. 最小 chunk 准备链路
-4. retriever 协议
-5. prompt 入口
-6. service 入口
+本章代码的输入是：
 
-先把“系统形状”立住，后面的每一章才知道该往哪里继续长。
+- 一个问题字符串
+- 一组内存中的小知识块
 
-### 4.2 第一章最重要的三个对象
+本章代码的输出是：
 
-这一章最值得先看懂的是：
+- 检索结果
+- 最小上下文
+- `answer + sources`
 
-| 对象 | 作用 |
-|------|------|
-| `SourceChunk` | 标准 chunk 对象，后续文档处理和向量化都围绕它继续长 |
-| `RetrievalResult` | 检索结果对象，说明召回结果不只是字符串 |
-| `AnswerResult` | 服务层返回对象，说明最终输出不是单纯文本 |
+在 [rag_basics.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/rag_basics.py) 里，你最值得先看的是：
 
-这三个对象的重要性在于：
+- `KnowledgeChunk`
+- `RetrievalResult`
+- `AnswerResult`
+- `retrieve()`
+- `build_context()`
+- `answer_with_rag()`
+- `recommend_solution()`
 
-- 第二章继续产出 `SourceChunk`
-- 第三章继续复用 `SourceChunk`
-- 第六章以后 `RetrievalResult` 和 `AnswerResult` 会重新变成主角
-
-### 4.3 第一章的代码骨架在保护什么
-
-`phase_1_scaffold` 里的分层不是为了“看起来像正式项目”，而是在保护四件事：
-
-1. 稳定对象先于复杂实现
-2. 中间流程先于外部入口
-3. 基础设施和业务主线分离
-4. 学习入口和项目内核分离
-
-所以你会看到：
-
-- `app/` 放项目内核
-- `scripts/` 放运行和观察入口
-- `tests/` 放最小验收
-- `evals/` 提前留出评估资产位置
-- `data/` 放本地样例输入
-
-这也是为什么第一章看起来“实现不多”，但结构信息其实很关键。
-
----
-
-## 5. 第一章应该怎么学
-
-### 5.1 推荐顺序
-
-建议按这个顺序进入：
-
-1. 先读 [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
-2. 再看 [app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/config.py)
-3. 再看 [app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
-4. 再看 [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/indexing/index_manager.py)
-5. 最后看 [scripts/query_demo.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/scripts/query_demo.py)
-
-### 5.2 建议先跑的命令
+### 5.3 运行方式
 
 ```bash
-cd source/04_rag/labs/phase_1_scaffold
+cd source/04_rag/01_rag_basics
 
-python scripts/query_demo.py
-python scripts/inspect_chunks.py
+python 01_why_rag.py
+python 02_rag_pipeline.py
+python 03_solution_decision.py
 python -m unittest discover -s tests
 ```
 
-### 5.3 跑完后重点观察什么
+### 5.4 你应该观察到什么
 
-你现在最该观察的是：
+跑 [01_why_rag.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/01_why_rag.py) 时：
 
-- retriever 已经出现
-- prompt 已经出现
-- answer 结构已经出现
-- 但真实 LLM 和真实向量检索还没有接入
+- 私有知识问题在不接 RAG 时无法稳定回答
+- 接入 RAG 后会返回依据和来源
+- 通用常识问题不一定需要 RAG
 
-也就是说：
+跑 [02_rag_pipeline.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/02_rag_pipeline.py) 时：
 
-> 第一章是在建立“系统形状感”，不是在追求最终答案质量。
+- 你能看到问题如何命中关键词
+- 你能看到检索结果如何变成上下文
+- 你能看到最终返回结构为什么不只是字符串
 
-再跑一次：
+跑 [03_solution_decision.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/03_solution_decision.py) 时：
 
-```bash
-python scripts/inspect_chunks.py
-```
+- 你能把方案判断从“感觉”变成“顺序”
+- 你会看到第一章并不是在鼓励你对所有事情都先上 RAG
 
-当前输出会先让你看到：
+### 5.5 本章代码刻意简化了什么
 
-```text
-Prepared 1 chunk(s).
-df01139fe9617e6a9d81a290ba2eb4c0d726b727:0:a3c96f83edae {'source': 'data/sample.md', 'filename': 'sample.md', 'suffix': '.md', 'chunk_index': 0}
-```
+这一章的实现非常刻意地简化了三件事：
 
-这一步先建立两个直觉：
+1. 检索只是关键词匹配，不是 embedding 检索
+2. 回答只是最小规则化回答，不是真实 LLM
+3. 知识库在内存里，不是向量数据库
 
-- `SourceChunk` 已经不是裸字符串
-- `chunk_id` 和 metadata 的形状已经提前露出来了
+这是故意的，不是偷工减料。
 
-### 5.4 再读哪些核心实现文件
+因为本章要先把下面这件事学会：
 
-建议按这个顺序：
-
-1. [app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/config.py)
-2. [app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)
-3. [app/retrievers/base.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/retrievers/base.py)
-4. [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/indexing/index_manager.py)
-5. [app/chains/rag_chain.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/chains/rag_chain.py)
-6. [app/services/rag_service.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/services/rag_service.py)
-
-### 5.5 卡住时先回看哪里
-
-如果中途卡住，先回看这三个位置：
-
-1. [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
-2. 本章的“代码映射表”
-3. [tests/test_scaffold.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/tests/test_scaffold.py)
+> RAG 的本质是“先找依据，再回答”，而不是“先搭工程，再理解问题”。
 
 ---
 
-## 6. 综合案例：为课程资料问答选择合适方案
+## 6. 本章学完后你应该能回答
 
-```python
-# 你要做一个课程资料问答系统：
-#
-# 需求：
-# 1. 资料会持续更新
-# 2. 需要显示答案来源
-# 3. 资料量会逐步变大
-# 4. 用户会问细节规则和章节内容
-#
-# 请判断：
-# 1. 直接长上下文是否足够？
-# 2. 是否应该优先做固定 2-step RAG？
-# 3. 为什么不应该一开始就上 Agentic RAG？
-# 4. 第一章如果要建立项目骨架，最先固定哪些对象？
-```
-
-当你能用自己的话回答这 4 个问题时，第一章就真正学会了。
+- 为什么私有知识问题会需要 RAG
+- 最小 `2-step RAG` 在线链路长什么样
+- 为什么答案最好返回 `answer + sources`
+- 长上下文、直接查现有系统、固定 `2-step RAG`、微调、`Agentic RAG` 各自适合什么情况
+- 为什么第一章应该先做独立闭环，而不是先做完整工程骨架
 
 ---
 
-## 7. 本章实施步骤应该怎么理解 📌
+## 7. 下一章
 
-第一章的正确实施顺序，不是“尽快接更多外部组件”，而是：
+第二章开始，你才会进入真正的文档处理问题：
 
-| 步骤 | 先做什么 | 主要落在哪些模块 | 这一步在解决什么 |
-|------|----------|------------------|------------------|
-| 1 | 固定全局配置和目录位置 | `app/config.py` | 让后续代码有共同默认参数和路径 |
-| 2 | 固定公共对象 | `app/schemas.py` | 让后续模块围绕同一对象协作 |
-| 3 | 暴露最小 chunk 准备链路 | `ingestion/`、`indexing/` | 先让系统知道 chunk 长什么样 |
-| 4 | 固定 retriever / prompt / service 入口 | `retrievers/`、`chains/`、`services/` | 让最小 RAG 链路形状先出现 |
-| 5 | 留出测试和评估位置 | `tests/`、`evals/` | 避免后面只能凭感觉推进 |
+- 文件怎么加载
+- 文本怎么切分
+- metadata 怎么保留
+- chunk 怎么稳定输出
 
-这一章故意不做真实实现，不是偷懒，而是为了让后续章节始终沿同一套骨架继续长。
+也就是说，第二章才开始处理“知识怎么进入系统”。
 
----
-
-## 8. 本章代码映射表
-
-| 文档部分 | 对应代码/文档 | 角色 | 说明 |
-|----------|---------------|------|------|
-| 本章第一阅读入口 | [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md) | 主入口 | 先理解目录职责、运行方式和阅读顺序 |
-| 最小 RAG 闭环 | [scripts/query_demo.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/scripts/query_demo.py) | 主示例文件 | 先看到 `retriever -> prompt -> answer` 的占位闭环 |
-| chunk 形状 | [scripts/inspect_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/scripts/inspect_chunks.py) | 扩展示例 | 先看到 `SourceChunk`、`chunk_id` 和 metadata 长什么样 |
-| 配置入口 | [app/config.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/config.py) | 核心配置 | 定义目录、chunk 参数和默认检索参数 |
-| 核心对象 | [app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py) | 核心数据结构 | 定义 `SourceChunk / RetrievalResult / AnswerResult / EvalSample` |
-| chunk 收口 | [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/indexing/index_manager.py) | 核心流程 | 把文本、metadata 和稳定 ID 合并成标准 chunk |
-| 服务入口 | [app/services/rag_service.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/services/rag_service.py) | 项目入口 | 收束 retriever 和回答结构，形成 `ask()` 入口 |
-| 最小验证 | [tests/test_scaffold.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/tests/test_scaffold.py) | 验收入口 | 保证配置和评估占位模块不是死文件 |
-
----
-
-## 9. 实践任务
-
-1. 用自己的话画出最小 `2-step RAG` 数据流，不要直接抄定义。
-2. 对照 [app/schemas.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/schemas.py)，解释为什么服务层返回 `AnswerResult` 而不是字符串。
-3. 跑一次 [scripts/query_demo.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/scripts/query_demo.py) 和 [scripts/inspect_chunks.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/scripts/inspect_chunks.py)，说清这两个脚本分别在提前暴露什么接口。
-4. 看 [app/indexing/index_manager.py](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/app/indexing/index_manager.py)，解释为什么第一章就先把 chunk 准备链路露出来。
-
----
-
-## 10. 完成标准
-
-完成这一章后，至少应满足：
-
-- 能解释什么是 RAG，以及什么情况下不该优先做 RAG
-- 能说明为什么课程主线默认是固定 `2-step RAG`
-- 能运行第一章主示例脚本并读懂输出
-- 能解释 `SourceChunk / RetrievalResult / AnswerResult` 的职责
-- 能说明第一章为什么先做骨架，而不是直接接完整外部组件
+第一章先把“为什么要这么做”和“最小闭环是什么”立住，就够了。

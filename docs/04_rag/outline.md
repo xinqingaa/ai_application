@@ -8,13 +8,13 @@
 
 - 本课程聚焦 **检索系统工程**，不是系统学习 LangChain 全家桶。
 - 你会在本课程里使用 LangChain，但重点是把它当成 **RAG 组件的工程封装层**，而不是框架本身。
-- LangChain 的核心抽象与 LCEL 统一放在 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md) 系统学习。
-- `Agentic RAG` 在本课程只做概念认知和边界判断，详细实现放到 [05_agent/outline.md](/Users/linruiqiang/work/ai_application/docs/05_agent/outline.md)。
+- LangChain 的核心抽象与 LCEL 统一放在 [03_foundation/outline.md](../03_foundation/outline.md) 系统学习。
+- `Agentic RAG` 在本课程只做概念认知和边界判断，详细实现放到 [05_agent/outline.md](..docs/05_agent/outline.md)。
 
 ## 学习前提
 
-- 已完成 [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
-- 建议先完成 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
+- 已完成 [02_llm/outline.md](../02_llm/outline.md)
+- 建议先完成 [03_foundation/outline.md](../03_foundation/outline.md)
 - 已理解 `Document / Retriever / Runnable` 这些基础抽象
 
 ## 与前后课程的衔接
@@ -33,15 +33,15 @@
 
 ### 与 06_application 的关系
 
-- 后面的 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md) 不会重新讲一遍 RAG 原理，而是直接把这里的能力装进真实业务系统。
+- 后面的 [06_application/outline.md](../06_application/outline.md) 不会重新讲一遍 RAG 原理，而是直接把这里的能力装进真实业务系统。
 - 本课程产出的核心能力，会在后续项目里落到：知识库接入、检索链路、引用回答、效果回归、知识治理。
 - 换句话说，这门课要先把“知识系统底座”做稳，后面的项目课才能把重点放在业务闭环和产品落地上。
 
 ### 本课程的边界
 
 - 本课程重点是 **固定检索链路** 的设计、优化与治理。
-- 多步骤动态决策、状态机编排、复杂工具协作，不在这里系统展开，放到 [05_agent/outline.md](/Users/lrq/work/ai_application/docs/05_agent/outline.md)。
-- 业务系统级的权限、审计、工作台、人工协作、前后端整合，放到 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md)。
+- 多步骤动态决策、状态机编排、复杂工具协作，不在这里系统展开，放到 [05_agent/outline.md](../05_agent/outline.md)。
+- 业务系统级的权限、审计、工作台、人工协作、前后端整合，放到 [06_application/outline.md](../06_application/outline.md)。
 
 ## 本课程回答什么问题
 

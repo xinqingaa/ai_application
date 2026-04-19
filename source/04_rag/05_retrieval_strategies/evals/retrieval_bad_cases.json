@@ -1,0 +1,18 @@
+[
+  {
+    "case_id": "duplicate_refund_chunks",
+    "question": "退款规则是什么？",
+    "expected_focus": "similarity 会召回多个高度相似的退款块，MMR 应减少重复感"
+  },
+  {
+    "case_id": "metadata_scope",
+    "question": "为什么 metadata 很重要？",
+    "filename_filter": "metadata_rules.md",
+    "expected_focus": "filter 应把检索范围收缩到指定文件"
+  },
+  {
+    "case_id": "no_answer",
+    "question": "火星首都是什么？",
+    "expected_focus": "threshold 应尽量减少弱相关尾部"
+  }
+]

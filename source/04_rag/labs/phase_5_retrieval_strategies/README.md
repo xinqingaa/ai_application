@@ -1,6 +1,8 @@
-# phase_5_retrieval_strategies - 实践指南
+# phase_5_retrieval_strategies - 旧版备份
 
-> 本文档说明如何跟着 [学习文档](/Users/linruiqiang/work/ai_application/docs/04_rag/05_retrieval_strategies.md) 阅读第五章代码快照。
+> 迁移说明：第五章新的学习入口已经切换到 [source/04_rag/05_retrieval_strategies/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/05_retrieval_strategies/README.md)。这个目录目前只作为迁移期备份保留，等前六章替换完成后会删除。
+
+> 下面内容保留原样，方便对照旧结构，不再推荐作为第五章主入口。
 
 ---
 

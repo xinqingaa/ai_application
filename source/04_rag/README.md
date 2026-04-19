@@ -1,30 +1,37 @@
 # 04 RAG 代码导航
 
-> 这份 README 只负责一件事：告诉你当前 `04_rag` 的代码应该从哪里开始看、现在做到哪里、下一章该去哪里。
+> 这份 README 只负责一件事：告诉你当前 `04_rag` 应该从哪里开始学，哪些目录是当前主入口，哪些目录只是迁移期备份。
 
 ---
 
-## 学习原则
+## 当前学习原则
 
 ```text
-只看当前章节对应的 phase 快照，不提前跳到后面，不先打开最终 rag_lab。
+第九章之前，每章优先保持独立闭环；不要把项目工程结构提前压到学习入口上。
 ```
 
-- `labs/phase_*` 是按章学习入口
-- `rag_lab/` 是最终完整项目占位，不是当前入口
+- 第一章到第六章已经切换到独立目录
+- `labs/phase_1_scaffold/` 仅作为迁移期旧版本备份，不再是第一章主入口
+- `rag_lab/` 仍然是第九章后的完整项目收口点，不是当前入口
 
 ## 目录结构
 
 ```text
 source/04_rag/
 ├── README.md
+├── 01_rag_basics/
+├── 02_document_processing/
+├── 03_embeddings/
+├── 04_vector_databases/
+├── 05_retrieval_strategies/
+├── 06_rag_generation/
 ├── labs/
-│   ├── phase_1_scaffold/
-│   ├── phase_2_document_processing/
-│   ├── phase_3_embeddings/
-│   ├── phase_4_vector_databases/
-│   ├── phase_5_retrieval_strategies/
-│   ├── phase_6_rag_generation/
+│   ├── phase_1_scaffold/          ← 旧版第一章，迁移期保留
+│   ├── phase_2_document_processing/  ← 旧版第二章，迁移期保留
+│   ├── phase_3_embeddings/        ← 旧版第三章，迁移期保留
+│   ├── phase_4_vector_databases/  ← 旧版第四章，迁移期保留
+│   ├── phase_5_retrieval_strategies/ ← 旧版第五章，迁移期保留
+│   ├── phase_6_rag_generation/    ← 旧版第六章，迁移期保留
 │   ├── phase_7_rag_optimization/
 │   ├── phase_8_advanced_rag/
 │   └── phase_9_project_integration/
@@ -35,12 +42,12 @@ source/04_rag/
 
 | 章节 | 代码入口 | 当前状态 | 第一命令 |
 |------|----------|----------|----------|
-| 1 | [phase_1_scaffold](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md) | 已实现 | `python scripts/query_demo.py` |
-| 2 | [phase_2_document_processing](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_2_document_processing/README.md) | 已实现 | `python scripts/build_index.py` |
-| 3 | [phase_3_embeddings](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_3_embeddings/README.md) | 已实现 | `python scripts/embed_documents.py` |
-| 4 | [phase_4_vector_databases](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_4_vector_databases/README.md) | 已实现 | `python scripts/index_chroma.py --reset` |
-| 5 | [phase_5_retrieval_strategies](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_5_retrieval_strategies/README.md) | 已实现 | `python scripts/compare_retrievers.py` |
-| 6 | [phase_6_rag_generation](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_6_rag_generation/README.md) | 已实现 | `python scripts/query_demo.py` |
+| 1 | [01_rag_basics](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md) | 新版独立章节 | `python 01_why_rag.py` |
+| 2 | [02_document_processing](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/README.md) | 新版独立章节 | `python 01_discover_and_load.py` |
+| 3 | [03_embeddings](/Users/linruiqiang/work/ai_application/source/04_rag/03_embeddings/README.md) | 新版独立章节 | `python 01_embed_chunks.py` |
+| 4 | [04_vector_databases](/Users/linruiqiang/work/ai_application/source/04_rag/04_vector_databases/README.md) | 新版独立章节 | `python 01_index_store.py --reset` |
+| 5 | [05_retrieval_strategies](/Users/linruiqiang/work/ai_application/source/04_rag/05_retrieval_strategies/README.md) | 新版独立章节 | `python 01_compare_retrievers.py` |
+| 6 | [06_rag_generation](/Users/linruiqiang/work/ai_application/source/04_rag/06_rag_generation/README.md) | 新版独立章节 | `python 01_inspect_prompt.py` |
 | 7 | [phase_7_rag_optimization](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_7_rag_optimization/README.md) | 占位 | 暂无 |
 | 8 | [phase_8_advanced_rag](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_8_advanced_rag/README.md) | 占位 | 暂无 |
 | 9 | [phase_9_project_integration](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_9_project_integration/README.md) | 占位 | 暂无 |
@@ -51,15 +58,23 @@ source/04_rag/
 
 1. [docs/04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
 2. [docs/04_rag/01_rag_basics.md](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md)
-3. [phase_1_scaffold/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_1_scaffold/README.md)
+3. [source/04_rag/01_rag_basics/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md)
 
 ## 当前可运行命令
 
 ```bash
-cd source/04_rag/labs/phase_1_scaffold
-python scripts/build_index.py
-python scripts/inspect_chunks.py
-python scripts/query_demo.py
+cd source/04_rag/01_rag_basics
+python 01_why_rag.py
+python 02_rag_pipeline.py
+python 03_solution_decision.py
+python -m unittest discover -s tests
+```
+
+```bash
+cd source/04_rag/02_document_processing
+python 01_discover_and_load.py
+python 02_split_and_inspect.py
+python 03_build_chunks.py
 python -m unittest discover -s tests
 ```
 
@@ -72,10 +87,26 @@ python -m unittest discover -s tests
 ```
 
 ```bash
+cd source/04_rag/03_embeddings
+python 01_embed_chunks.py
+python 02_compare_similarity.py
+python 03_query_vs_document.py
+python -m unittest discover -s tests
+```
+
+```bash
 cd source/04_rag/labs/phase_3_embeddings
 python scripts/build_index.py
 python scripts/embed_documents.py
 python scripts/compare_similarity.py
+python -m unittest discover -s tests
+```
+
+```bash
+cd source/04_rag/04_vector_databases
+python 01_index_store.py --reset
+python 02_search_store.py
+python 03_delete_document.py trial
 python -m unittest discover -s tests
 ```
 
@@ -90,40 +121,44 @@ python -m unittest discover -s tests
 ```
 
 ```bash
-cd source/04_rag/labs/phase_5_retrieval_strategies
-python -m pip install -r requirements.txt
-python scripts/index_chroma.py --reset
-python scripts/compare_retrievers.py
-python scripts/review_bad_cases.py
-python scripts/query_demo.py --strategy similarity
-python scripts/query_demo.py --strategy threshold --threshold 0.70
-python scripts/query_demo.py --strategy mmr
+cd source/04_rag/05_retrieval_strategies
+python 01_compare_retrievers.py
+python 02_review_bad_cases.py
+python 03_query_demo.py --strategy similarity
 python -m unittest discover -s tests
 ```
 
 ```bash
-cd source/04_rag/labs/phase_6_rag_generation
-python -m pip install -r requirements.txt
-python scripts/index_chroma.py --reset
-python scripts/query_demo.py
-python scripts/inspect_prompt.py
-python scripts/query_demo.py "What is the capital of Mars?" --strategy threshold --threshold 0.70
+cd source/04_rag/06_rag_generation
+python 01_inspect_prompt.py
+python 02_query_demo.py
+python 03_refusal_demo.py
 python -m unittest discover -s tests
 ```
 
 ## 文档和代码如何分工
 
 - `docs/04_rag/0N_*.md`
-  负责讲清本章概念、边界、主线和为什么这样设计。
-- `source/04_rag/labs/phase_*/README.md`
-  负责告诉你命令怎么跑、代码按什么顺序读、重点看什么，并且同时承载本章目标、输入输出契约和下一章衔接。
+  负责讲清本章概念、边界、输入输出和观察重点。
+- `source/04_rag/01_rag_basics/`
+  是第一章新的独立学习入口。
+- `source/04_rag/02_document_processing/`
+  是第二章新的独立学习入口。
+- `source/04_rag/03_embeddings/`
+  是第三章新的独立学习入口。
+- `source/04_rag/04_vector_databases/`
+  是第四章新的独立学习入口。
+- `source/04_rag/05_retrieval_strategies/`
+  是第五章新的独立学习入口。
+- `source/04_rag/06_rag_generation/`
+  是第六章新的独立学习入口。
+- `source/04_rag/labs/phase_*`
+  当前仍承载第 7-9 章的旧结构实现，以及前六章的迁移期备份。
 
-## 后续推进规则
+## 迁移规则
 
-每推进一章，都必须同步满足：
+接下来逐章改造时，按这三个规则执行：
 
-1. 当前 `phase_*` 有真实代码
-2. 当前章节正文能对着代码读
-3. 当前 phase README 能同时指导运行、阅读和快速回顾
-
-如果某个 phase 只有占位 README，就不要把它当成已完成实现。
+1. 新版章节优先做成独立目录，不复用旧 phase 作为学习入口
+2. 旧 phase 只在迁移期临时保留，等前六章替换完后统一删除
+3. 第九章才重新收口成完整 RAG 项目
