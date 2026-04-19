@@ -1,12 +1,11 @@
 import argparse
 
 from retrieval_basics import (
-    InMemoryVectorStore,
     LocalKeywordEmbeddingProvider,
     RetrievalStrategyConfig,
     SimpleRetriever,
     average_redundancy,
-    demo_embedded_chunks,
+    build_demo_store,
 )
 
 
@@ -16,12 +15,14 @@ def print_results(strategy_name: str, results, provider) -> None:
         print("  no results")
         return
 
+    if strategy_name == "mmr":
+        print("  note=selection_order uses MMR diversification; displayed score is similarity_score")
     print(f"  average_redundancy={average_redundancy(results, provider):.3f}")
     for result in results:
         preview = result.chunk.content[:60]
         print(
-            f"  - score={result.score:.3f} chunk_id={result.chunk.chunk_id} "
-            f"filename={result.chunk.metadata['filename']}"
+            f"  - similarity_score={result.score:.3f} chunk_id={result.chunk.chunk_id} "
+            f"document_id={result.chunk.document_id} filename={result.chunk.metadata['filename']}"
         )
         print(f"    preview={preview}")
 
@@ -31,19 +32,27 @@ def main() -> None:
     parser.add_argument(
         "question",
         nargs="?",
-        default="退款规则是什么？",
+        default="购买后多久还能退款？",
         help="Question to retrieve against the demo store.",
     )
     parser.add_argument("--filename", help="Optional filename filter.")
     args = parser.parse_args()
 
     provider = LocalKeywordEmbeddingProvider()
-    store = InMemoryVectorStore(demo_embedded_chunks(provider))
+    store = build_demo_store(provider=provider, reset_store=True)
     retriever = SimpleRetriever(store=store, provider=provider)
 
     print(f"Question: {args.question}")
+    print(f"Store path: {store.config.store_path}")
+    current_space = store.embedding_space()
+    if current_space is not None:
+        print(f"Embedding space: {current_space.label()}")
     if args.filename:
-        print(f"Filename filter: {args.filename}")
+        print(
+            f"Filename filter: {args.filename} "
+            "(Chapter 5 currently supports filename-only filtering)"
+        )
+    print("Compare config: top_k=3 candidate_k=4 threshold=0.88 mmr_lambda=0.35")
 
     similarity = retriever.retrieve(
         args.question,
@@ -60,7 +69,7 @@ def main() -> None:
             strategy_name="threshold",
             top_k=3,
             candidate_k=4,
-            score_threshold=0.60,
+            score_threshold=0.88,
             filename_filter=args.filename,
         ),
     )

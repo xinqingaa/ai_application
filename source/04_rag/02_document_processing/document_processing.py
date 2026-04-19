@@ -28,6 +28,13 @@ class SourceChunk:
 
 
 @dataclass(frozen=True)
+class DocumentCandidate:
+    path: Path
+    accepted: bool
+    reason: str
+
+
+@dataclass(frozen=True)
 class SplitterConfig:
     chunk_size: int = DEFAULT_CHUNK_SIZE
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP
@@ -45,10 +52,58 @@ def detect_file_type(path: Path) -> str:
     return path.suffix.lower()
 
 
+def inspect_document_candidate(
+    path: Path,
+    supported_suffixes: tuple[str, ...] = SUPPORTED_SUFFIXES,
+) -> DocumentCandidate:
+    file_type = detect_file_type(path)
+
+    if not path.is_file():
+        return DocumentCandidate(
+            path=path,
+            accepted=False,
+            reason="not a file",
+        )
+
+    if path.name.lower() == "readme.md":
+        return DocumentCandidate(
+            path=path,
+            accepted=False,
+            reason="chapter helper file, not a knowledge source",
+        )
+
+    if file_type not in supported_suffixes:
+        return DocumentCandidate(
+            path=path,
+            accepted=False,
+            reason=f"unsupported suffix: {file_type or '(none)'}",
+        )
+
+    return DocumentCandidate(
+        path=path,
+        accepted=True,
+        reason=f"supported suffix: {file_type}",
+    )
+
+
 def normalize_text(text: str) -> str:
     normalized = text.replace("\ufeff", "").replace("\r\n", "\n").replace("\r", "\n")
     lines = [line.rstrip() for line in normalized.split("\n")]
     return "\n".join(lines).strip()
+
+
+def inspect_document_candidates(
+    data_dir: Path = DATA_DIR,
+    supported_suffixes: tuple[str, ...] = SUPPORTED_SUFFIXES,
+) -> list[DocumentCandidate]:
+    return sorted(
+        (
+            inspect_document_candidate(path, supported_suffixes)
+            for path in data_dir.rglob("*")
+            if path.is_file()
+        ),
+        key=lambda candidate: candidate.path.name.lower(),
+    )
 
 
 def discover_documents(
@@ -56,11 +111,9 @@ def discover_documents(
     supported_suffixes: tuple[str, ...] = SUPPORTED_SUFFIXES,
 ) -> list[Path]:
     return sorted(
-        path
-        for path in data_dir.rglob("*")
-        if path.is_file()
-        and path.name.lower() != "readme.md"
-        and detect_file_type(path) in supported_suffixes
+        candidate.path
+        for candidate in inspect_document_candidates(data_dir, supported_suffixes)
+        if candidate.accepted
     )
 
 

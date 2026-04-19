@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -7,29 +8,37 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from retrieval_basics import (
-    InMemoryVectorStore,
     LocalKeywordEmbeddingProvider,
     RetrievalStrategyConfig,
     SimpleRetriever,
     average_redundancy,
-    demo_embedded_chunks,
+    build_demo_store,
 )
 
 
 class RetrieverTests(unittest.TestCase):
     def setUp(self) -> None:
+        self.tmp_dir = tempfile.TemporaryDirectory()
+        self.store_path = Path(self.tmp_dir.name) / "retrieval_store.json"
         self.provider = LocalKeywordEmbeddingProvider()
-        self.store = InMemoryVectorStore(demo_embedded_chunks(self.provider))
+        self.store = build_demo_store(
+            provider=self.provider,
+            store_path=self.store_path,
+            reset_store=True,
+        )
         self.retriever = SimpleRetriever(store=self.store, provider=self.provider)
+
+    def tearDown(self) -> None:
+        self.tmp_dir.cleanup()
 
     def test_similarity_retriever_returns_relevant_chunk(self) -> None:
         results = self.retriever.retrieve(
-            "退款规则是什么？",
+            "购买后多久还能退款？",
             RetrievalStrategyConfig(strategy_name="similarity", top_k=3, candidate_k=4),
         )
 
         self.assertTrue(results)
-        self.assertTrue(results[0].chunk.chunk_id.startswith("refund_"))
+        self.assertEqual(results[0].chunk.chunk_id, "refund_summary:0")
 
     def test_threshold_retriever_filters_out_low_score_tail(self) -> None:
         similarity = self.retriever.retrieve(
@@ -42,12 +51,12 @@ class RetrieverTests(unittest.TestCase):
                 strategy_name="threshold",
                 top_k=3,
                 candidate_k=4,
-                score_threshold=0.60,
+                score_threshold=0.80,
             ),
         )
 
         self.assertGreaterEqual(len(similarity), len(threshold))
-        self.assertTrue(all(item.score >= 0.60 for item in threshold))
+        self.assertFalse(threshold)
 
     def test_metadata_filter_applies_inside_retriever(self) -> None:
         results = self.retriever.retrieve(
@@ -82,6 +91,16 @@ class RetrieverTests(unittest.TestCase):
             average_redundancy(mmr, self.provider),
             average_redundancy(similarity, self.provider),
         )
+
+    def test_retriever_rejects_different_embedding_space(self) -> None:
+        other_provider = LocalKeywordEmbeddingProvider(model_name="concept-space-v2")
+        mismatched_retriever = SimpleRetriever(store=self.store, provider=other_provider)
+
+        with self.assertRaisesRegex(ValueError, "embedding space"):
+            mismatched_retriever.retrieve(
+                "购买后多久还能退款？",
+                RetrievalStrategyConfig(strategy_name="similarity", top_k=3, candidate_k=4),
+            )
 
 
 if __name__ == "__main__":

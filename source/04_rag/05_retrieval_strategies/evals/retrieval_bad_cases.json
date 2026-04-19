@@ -1,18 +1,63 @@
 [
   {
     "case_id": "duplicate_refund_chunks",
-    "question": "退款规则是什么？",
-    "expected_focus": "similarity 会召回多个高度相似的退款块，MMR 应减少重复感"
+    "question": "购买后多久还能退款？",
+    "expected_focus": "similarity 会召回多个高度相似的退款块，MMR 应更容易带出流程类 chunk",
+    "expectations": {
+      "similarity": {
+        "top_chunk_id": "refund_summary:0",
+        "count": 3,
+        "must_include_chunk_ids": [
+          "refund_duplicate:0",
+          "refund_policy:0"
+        ]
+      },
+      "mmr": {
+        "top_chunk_id": "refund_summary:0",
+        "count": 3,
+        "must_include_chunk_ids": [
+          "refund_process:0"
+        ]
+      }
+    }
   },
   {
     "case_id": "metadata_scope",
     "question": "为什么 metadata 很重要？",
     "filename_filter": "metadata_rules.md",
-    "expected_focus": "filter 应把检索范围收缩到指定文件"
+    "expected_focus": "filename filter 应把检索范围收缩到指定文件",
+    "expectations": {
+      "similarity": {
+        "top_chunk_id": "metadata:0",
+        "count": 1,
+        "filename": "metadata_rules.md"
+      },
+      "threshold": {
+        "top_chunk_id": "metadata:0",
+        "count": 1,
+        "filename": "metadata_rules.md"
+      },
+      "mmr": {
+        "top_chunk_id": "metadata:0",
+        "count": 1,
+        "filename": "metadata_rules.md"
+      }
+    }
   },
   {
     "case_id": "no_answer",
     "question": "火星首都是什么？",
-    "expected_focus": "threshold 应尽量减少弱相关尾部"
+    "expected_focus": "threshold 应尽量减少弱相关尾部",
+    "expectations": {
+      "similarity": {
+        "count": 3
+      },
+      "threshold": {
+        "empty": true
+      },
+      "mmr": {
+        "count": 3
+      }
+    }
   }
 ]

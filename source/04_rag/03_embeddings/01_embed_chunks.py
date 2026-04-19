@@ -19,7 +19,9 @@ def main() -> None:
             "  inherited="
             f"source={embedded_chunk.chunk.metadata['source']} "
             f"filename={embedded_chunk.chunk.metadata['filename']} "
-            f"chunk={embedded_chunk.chunk.metadata['chunk_index']}"
+            f"suffix={embedded_chunk.chunk.metadata['suffix']} "
+            f"chunk={embedded_chunk.chunk.metadata['chunk_index']} "
+            f"range=({embedded_chunk.chunk.metadata['char_start']}, {embedded_chunk.chunk.metadata['char_end']})"
         )
         print(
             "  added="

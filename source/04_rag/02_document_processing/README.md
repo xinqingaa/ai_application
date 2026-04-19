@@ -7,7 +7,7 @@
 ## 核心原则
 
 ```text
-先看文件如何被发现和读取 -> 再看文本如何切分 -> 最后看 metadata 和稳定 ID 如何进入 chunk
+先判断哪些文件应该进入系统 -> 再看文本如何切成 TextChunk -> 最后看 metadata 和 stable id 如何落到 SourceChunk[]
 ```
 
 - 在 `source/04_rag/02_document_processing/` 目录下操作
@@ -37,13 +37,13 @@
 ```
 
 - `document_processing.py`
-  放本章所有最小对象和文档处理逻辑
+  放本章最小对象、文档发现、文本规范化、切分、metadata 和稳定 ID 逻辑
 - `01_discover_and_load.py`
-  看哪些文件会被发现、会不会被规范化
+  看哪些文件会被接受、哪些会被忽略、文本会不会被规范化
 - `02_split_and_inspect.py`
-  看文本怎么切成 `TextChunk`
+  看文本怎么切成 `TextChunk`，以及参数如何影响边界
 - `03_build_chunks.py`
-  看 `path -> text -> chunks -> metadata -> stable ids -> SourceChunk[]`
+  看 `path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]`
 
 ---
 
@@ -87,10 +87,17 @@ python 01_discover_and_load.py
 
 重点观察：
 
-- 哪些文件会被发现
+- `faq.txt` 和 `product_overview.md` 为什么会被接受
 - `README.md` 为什么会被忽略
-- 不支持的后缀为什么不会进入系统
+- `ignore.csv` 为什么不会进入系统
 - 文本被加载后，字符数和行数会怎样变化
+
+你最值得先看的是：
+
+- `inspect_document_candidate()`
+- `inspect_document_candidates()`
+- `discover_documents()`
+- `load_document()`
 
 ---
 
@@ -110,6 +117,14 @@ python 01_discover_and_load.py
 - 每个 chunk 的预览文本
 - 同一份文档在不同参数下的切分差异
 
+你还可以故意跑一个非法配置：
+
+```bash
+python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
+```
+
+你会看到脚本直接拒绝这组参数，因为 `chunk_overlap` 不能大于等于 `chunk_size`。
+
 ---
 
 ## 第 3 步：看 metadata 和稳定 ID 如何进入系统
@@ -119,7 +134,7 @@ python 01_discover_and_load.py
 第二章真正的闭环是：
 
 ```text
-path -> text -> text chunks -> metadata -> stable ids -> SourceChunk[]
+path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 ```
 
 重点观察：
@@ -127,7 +142,14 @@ path -> text -> text chunks -> metadata -> stable ids -> SourceChunk[]
 - `document_id`
 - `chunk_id`
 - `source / filename / suffix`
+- `chunk_index`
 - `char_start / char_end / chunk_chars`
+
+这一步最重要的不是“多出几个字段”，而是：
+
+- 后面 embedding 知道自己在向量化谁
+- 第四章向量库知道自己在存谁
+- 后面删除、更新、调试和引用都有稳定锚点
 
 ---
 
@@ -135,12 +157,15 @@ path -> text -> text chunks -> metadata -> stable ids -> SourceChunk[]
 
 **对应文件**：`tests/test_document_processing.py`
 
-测试只锁定本章最重要的几件事：
+测试里会保留一个 mini golden set，只锁定本章最重要的几件事：
 
 1. 文档发现逻辑正确
-2. 文本规范化没有破坏结构
-3. chunk 会带字符范围
-4. 重复处理时 ID 保持稳定
+2. 不支持文件和 README 会被明确拒绝
+3. 文本规范化没有破坏结构
+4. chunk 会带字符范围
+5. `base metadata / chunk metadata` 字段完整
+6. 重复处理时 ID 保持稳定
+7. corpus 构建结果符合当前默认参数
 
 ---
 
@@ -153,11 +178,69 @@ path -> text -> text chunks -> metadata -> stable ids -> SourceChunk[]
 
 ---
 
+## 第二章最小回归集
+
+第二章不做完整评估系统，但应该保留一个最小回归集，避免你改 loader、splitter 或 metadata 以后，不知道教学主线有没有跑偏。
+
+一个足够小的回归集可以长这样：
+
+```python
+mini_golden_set = [
+    {
+        "filename": "faq.txt",
+        "expected_chunk_count": 3,
+        "expected_source": "data/faq.txt",
+    },
+    {
+        "filename": "product_overview.md",
+        "expected_chunk_count": 9,
+        "expected_source": "data/product_overview.md",
+    },
+]
+```
+
+这不是完整评估体系，但已经足够回答几个关键问题：
+
+- 发现逻辑有没有跑偏
+- 切分结果有没有大幅漂移
+- `source` 和 metadata 是否还稳定
+- 默认参数下的 chapter demo 是否仍然成立
+
+---
+
+## 失败案例也要刻意观察
+
+第二章至少要刻意看两类失败：
+
+1. 文件发现失败
+
+运行 `python 01_discover_and_load.py`，你会看到：
+
+- `README.md` 被标记为 `ignored`
+- `ignore.csv` 被标记为 `ignored`
+
+这说明“发现文件”不是把目录里所有东西都塞进系统，而是先做输入筛选。
+
+2. splitter 参数失败
+
+运行：
+
+```bash
+python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
+```
+
+你会看到非法配置直接报错。
+
+这说明第二章不是在“随便切一下文本”，而是在建立一个有清晰边界条件的输入层。
+
+---
+
 ## 学完这一章后你应该能回答
 
 - 为什么文档处理是知识输入层，而不是附属功能
 - `loader / splitter / metadata / stable id` 各自负责什么
 - 为什么第二章真正交付的是稳定的 `SourceChunk[]`
+- 为什么 `document_id / chunk_id` 不应该拖到后面再想
 - 为什么第二章会直接影响第三章的 embedding 和第四章的向量存储
 
 ---

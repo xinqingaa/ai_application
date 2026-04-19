@@ -8,12 +8,53 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from embedding_basics import (
     DEFAULT_DIMENSIONS,
+    EmbeddedChunk,
     LocalKeywordEmbeddingProvider,
+    SourceChunk,
     cosine_similarity,
     demo_source_chunks,
     embed_chunks,
     score_query_against_chunks,
 )
+
+MINI_GOLDEN_SET = [
+    {
+        "question": "如何申请退费？",
+        "expected_top_chunk": "refund:0",
+    },
+    {
+        "question": "为什么 metadata 很重要？",
+        "expected_top_chunk": "metadata:0",
+    },
+    {
+        "question": "工作日什么时候可以答疑？",
+        "expected_top_chunk": "support:0",
+    },
+]
+
+
+class WrongCountProvider:
+    provider_name = "broken"
+    model_name = "wrong-count-v1"
+    dimensions = DEFAULT_DIMENSIONS
+
+    def embed_query(self, text: str) -> list[float]:
+        return [0.0] * self.dimensions
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * self.dimensions]
+
+
+class WrongDimensionProvider:
+    provider_name = "broken"
+    model_name = "wrong-dim-v1"
+    dimensions = DEFAULT_DIMENSIONS
+
+    def embed_query(self, text: str) -> list[float]:
+        return [0.0] * (self.dimensions - 1)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [[0.0] * (self.dimensions - 1) for _ in texts]
 
 
 class EmbeddingTests(unittest.TestCase):
@@ -35,7 +76,9 @@ class EmbeddingTests(unittest.TestCase):
         document_vector = self.provider.embed_documents([text])[0]
 
         self.assertNotEqual(query_vector, document_vector)
-        self.assertGreater(cosine_similarity(query_vector, document_vector), 0.95)
+        similarity = cosine_similarity(query_vector, document_vector)
+        self.assertGreater(similarity, 0.85)
+        self.assertLess(similarity, 0.99)
 
     def test_embed_chunks_keeps_chunk_identity(self) -> None:
         self.assertEqual(len(self.embedded_chunks), len(self.source_chunks))
@@ -47,11 +90,27 @@ class EmbeddingTests(unittest.TestCase):
         self.assertEqual(self.embedded_chunks[0].provider_name, "local_keyword")
         self.assertEqual(self.embedded_chunks[0].dimensions, DEFAULT_DIMENSIONS)
 
-    def test_query_scoring_prefers_relevant_chunk(self) -> None:
-        ranked = score_query_against_chunks("如何申请退费？", self.embedded_chunks, self.provider)
-        top_chunk, score = ranked[0]
-        self.assertGreater(score, 0.5)
-        self.assertEqual(top_chunk.chunk.chunk_id, "refund:0")
+    def test_demo_source_chunks_keep_chapter_two_style_metadata(self) -> None:
+        first_chunk = self.source_chunks[0]
+        self.assertIn("source", first_chunk.metadata)
+        self.assertIn("filename", first_chunk.metadata)
+        self.assertIn("suffix", first_chunk.metadata)
+        self.assertIn("char_count", first_chunk.metadata)
+        self.assertIn("line_count", first_chunk.metadata)
+        self.assertIn("chunk_index", first_chunk.metadata)
+        self.assertIn("char_start", first_chunk.metadata)
+        self.assertIn("char_end", first_chunk.metadata)
+        self.assertIn("chunk_chars", first_chunk.metadata)
+        self.assertEqual(
+            first_chunk.metadata["char_end"] - first_chunk.metadata["char_start"],
+            first_chunk.metadata["chunk_chars"],
+        )
+
+    def test_mini_golden_set(self) -> None:
+        for case in MINI_GOLDEN_SET:
+            with self.subTest(question=case["question"]):
+                ranked = score_query_against_chunks(case["question"], self.embedded_chunks, self.provider)
+                self.assertEqual(ranked[0][0].chunk.chunk_id, case["expected_top_chunk"])
 
     def test_related_documents_score_higher_than_unrelated_documents(self) -> None:
         base = "Embedding 会把文本映射成向量。"
@@ -66,6 +125,34 @@ class EmbeddingTests(unittest.TestCase):
             cosine_similarity(base_vector, related_vector),
             cosine_similarity(base_vector, unrelated_vector),
         )
+
+    def test_cosine_similarity_returns_zero_for_zero_vector(self) -> None:
+        self.assertEqual(cosine_similarity([0.0, 0.0], [1.0, 0.0]), 0.0)
+
+    def test_embed_chunks_rejects_wrong_vector_count(self) -> None:
+        with self.assertRaises(ValueError):
+            embed_chunks(self.source_chunks, WrongCountProvider())
+
+    def test_embed_chunks_rejects_wrong_vector_dimensions(self) -> None:
+        with self.assertRaises(ValueError):
+            embed_chunks(self.source_chunks, WrongDimensionProvider())
+
+    def test_score_query_against_chunks_rejects_query_dimension_mismatch(self) -> None:
+        document_provider = LocalKeywordEmbeddingProvider()
+        embedded_chunks = embed_chunks(self.source_chunks, document_provider)
+        with self.assertRaises(ValueError):
+            score_query_against_chunks("如何申请退费？", embedded_chunks, WrongDimensionProvider())
+
+    def test_score_query_against_chunks_rejects_provider_space_mismatch(self) -> None:
+        mismatched_provider = LocalKeywordEmbeddingProvider(model_name="concept-space-v2")
+        with self.assertRaises(ValueError):
+            score_query_against_chunks("如何申请退费？", self.embedded_chunks, mismatched_provider)
+
+    def test_embed_chunks_returns_empty_for_empty_input(self) -> None:
+        self.assertEqual(embed_chunks([], self.provider), [])
+
+    def test_score_query_against_chunks_returns_empty_for_empty_input(self) -> None:
+        self.assertEqual(score_query_against_chunks("如何申请退费？", [], self.provider), [])
 
 
 if __name__ == "__main__":

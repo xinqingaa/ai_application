@@ -6,7 +6,25 @@ from vector_store_basics import (
     PersistentVectorStore,
     VectorStoreConfig,
     demo_embedded_chunks,
+    embedding_space_from_provider,
 )
+
+
+def prepare_store(store: PersistentVectorStore, provider: LocalKeywordEmbeddingProvider) -> None:
+    expected_space = embedding_space_from_provider(provider)
+    try:
+        current_space = store.embedding_space()
+    except ValueError:
+        store.reset()
+        print("Existing store payload was invalid, so it was reset before indexing.")
+        return
+
+    if current_space is not None and current_space != expected_space:
+        store.reset()
+        print(
+            "Store embedding space changed from "
+            f"{current_space.label()} to {expected_space.label()}, so it was reset."
+        )
 
 
 def main() -> None:
@@ -15,14 +33,20 @@ def main() -> None:
     args = parser.parse_args()
 
     store = PersistentVectorStore(VectorStoreConfig())
+    provider = LocalKeywordEmbeddingProvider()
     if args.reset:
         store.reset()
+        print("Existing store was reset first.")
+    else:
+        prepare_store(store, provider)
 
-    provider = LocalKeywordEmbeddingProvider()
-    inserted = store.upsert(demo_embedded_chunks(provider))
+    inserted = store.replace_document(demo_embedded_chunks(provider))
+    current_space = store.embedding_space()
 
     print(f"Store path: {DEFAULT_STORE_PATH}")
-    print(f"Inserted {inserted} embedded chunk(s).")
+    if current_space is not None:
+        print(f"Embedding space: {current_space.label()}")
+    print(f"Replaced {inserted} embedded chunk(s) across {len(store.list_document_ids())} document(s).")
     print(f"Current count: {store.count()}")
     print(f"Document IDs: {store.list_document_ids()}")
 

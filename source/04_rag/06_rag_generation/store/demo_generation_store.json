@@ -1,0 +1,225 @@
+{
+  "records": [
+    {
+      "chunk": {
+        "chunk_id": "citation_rules:0",
+        "document_id": "citation_rules",
+        "content": "回答里要带来源标签，例如 [S1]、[S2]，这样用户才能核对答案依据和引用位置。",
+        "metadata": {
+          "source": "data/citation_rules.md",
+          "filename": "citation_rules.md",
+          "suffix": ".md",
+          "char_count": 41,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 41,
+          "chunk_chars": 41
+        }
+      },
+      "vector": [
+        0.0,
+        0.0,
+        0.25225675651180146,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5675777021515532,
+        0.3783851347677022,
+        0.5675777021515532,
+        0.3783851347677022,
+        0.0,
+        0.07567702695354044
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "metadata_rules:0",
+        "document_id": "metadata_rules",
+        "content": "每个 chunk 应保留 source、filename、suffix、char_start、char_end、chunk_chars 和 chunk_index，方便过滤、引用和调试。",
+        "metadata": {
+          "source": "data/metadata_rules.md",
+          "filename": "metadata_rules.md",
+          "suffix": ".md",
+          "char_count": 93,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 93,
+          "chunk_chars": 93
+        }
+      },
+      "vector": [
+        0.0,
+        0.0,
+        0.47771624260001244,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.537430772925014,
+        0.17914359097500465,
+        0.2985726516250078,
+        0.5971453032500156,
+        0.0,
+        0.07165743639000187
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "prompt_boundary:0",
+        "document_id": "prompt_boundary",
+        "content": "RAG Prompt 必须要求模型只依据当前上下文回答；如果上下文没有足够依据，就直接回答我不知道。",
+        "metadata": {
+          "source": "data/prompt_boundary.md",
+          "filename": "prompt_boundary.md",
+          "suffix": ".md",
+          "char_count": 50,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 50,
+          "chunk_chars": 50
+        }
+      },
+      "vector": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.40854629749382226,
+        0.3574780103070945,
+        0.6638877334274611,
+        0.5106828718672778,
+        0.0,
+        0.06128194462407333
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "refund_policy:0",
+        "document_id": "refund_policy",
+        "content": "退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
+        "metadata": {
+          "source": "data/refund_policy.md",
+          "filename": "refund_policy.md",
+          "suffix": ".md",
+          "char_count": 35,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 35,
+          "chunk_chars": 35
+        }
+      },
+      "vector": [
+        0.26236418994181965,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.32795523742727456,
+        0.19677314245636474,
+        0.5903194273690943,
+        0.6559104748545491,
+        0.0,
+        0.0787092569825459
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "refund_process:0",
+        "document_id": "refund_process",
+        "content": "退款流程：在学习后台提交申请，审核通过后 3 到 5 个工作日原路退回。",
+        "metadata": {
+          "source": "data/refund_process.md",
+          "filename": "refund_process.md",
+          "suffix": ".md",
+          "char_count": 36,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 36,
+          "chunk_chars": 36
+        }
+      },
+      "vector": [
+        0.24978543280094823,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.24978543280094823,
+        0.5620172238021335,
+        0.3122317910011853,
+        0.37467814920142234,
+        0.5620172238021335,
+        0.0,
+        0.07493562984028447
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "support_hours:0",
+        "document_id": "support_hours",
+        "content": "课程助教在工作日提供答疑支持，周末只处理紧急问题。",
+        "metadata": {
+          "source": "data/support_hours.md",
+          "filename": "support_hours.md",
+          "suffix": ".md",
+          "char_count": 25,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 25,
+          "chunk_chars": 25
+        }
+      },
+      "vector": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5650641958221382,
+        0.3531651223888364,
+        0.42379814686660366,
+        0.4944311713443709,
+        0.3531651223888364,
+        0.0,
+        0.08475962937332072
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    }
+  ],
+  "embedding_space": {
+    "provider_name": "local_keyword",
+    "model_name": "concept-space-v1",
+    "dimensions": 13
+  }
+}

@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import sys
 
 from document_processing import DATA_DIR, SplitterConfig, load_document, split_text
 
@@ -20,10 +21,15 @@ def main() -> None:
     if not target.is_absolute():
         target = DATA_DIR.parent / target
 
-    config = SplitterConfig(
-        chunk_size=args.chunk_size,
-        chunk_overlap=args.chunk_overlap,
-    )
+    try:
+        config = SplitterConfig(
+            chunk_size=args.chunk_size,
+            chunk_overlap=args.chunk_overlap,
+        )
+    except ValueError as exc:
+        print(f"Invalid splitter config: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
     text = load_document(target)
     chunks = split_text(text, config)
 

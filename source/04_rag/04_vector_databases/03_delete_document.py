@@ -5,13 +5,32 @@ from vector_store_basics import (
     PersistentVectorStore,
     VectorStoreConfig,
     demo_embedded_chunks,
+    embedding_space_from_provider,
 )
 
 
 def ensure_index(store: PersistentVectorStore, provider: LocalKeywordEmbeddingProvider) -> None:
-    if store.count() == 0:
-        store.upsert(demo_embedded_chunks(provider))
+    expected_space = embedding_space_from_provider(provider)
+    try:
+        current_space = store.embedding_space()
+    except ValueError:
+        store.reset()
+        store.replace_document(demo_embedded_chunks(provider))
+        print("Store payload was invalid, so a demo index was rebuilt first.")
+        return
+
+    if current_space is None:
+        store.replace_document(demo_embedded_chunks(provider))
         print("Store was empty, so a demo index was created first.")
+        return
+
+    if current_space != expected_space:
+        store.reset()
+        store.replace_document(demo_embedded_chunks(provider))
+        print(
+            "Store embedding space changed from "
+            f"{current_space.label()} to {expected_space.label()}, so the demo index was rebuilt first."
+        )
 
 
 def main() -> None:
@@ -29,7 +48,11 @@ def main() -> None:
     ensure_index(store, provider)
 
     deleted = store.delete_by_document_id(args.document_id)
+    current_space = store.embedding_space()
     print(f"Deleted {deleted} chunk(s) for document_id={args.document_id}.")
+    if current_space is not None:
+        print(f"Store embedding space: {current_space.label()}")
+    print("Document updates should use replace_document() to avoid stale chunks.")
     print(f"Remaining count: {store.count()}")
     print(f"Remaining document IDs: {store.list_document_ids()}")
 

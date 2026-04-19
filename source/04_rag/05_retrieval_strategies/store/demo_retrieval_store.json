@@ -1,0 +1,297 @@
+{
+  "records": [
+    {
+      "chunk": {
+        "chunk_id": "embedding:0",
+        "document_id": "embedding",
+        "content": "Embedding 会把文本映射成向量，检索时通过相似度找到相关 chunk。",
+        "metadata": {
+          "source": "data/embedding_notes.md",
+          "filename": "embedding_notes.md",
+          "suffix": ".md",
+          "char_count": 39,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 39,
+          "chunk_chars": 39
+        }
+      },
+      "vector": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.4846793883885548,
+        0.4846793883885548,
+        0.0,
+        0.4240944648399855,
+        0.4240944648399855,
+        0.3635095412914161,
+        0.18175477064570805,
+        0.0,
+        0.07270190825828322
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "metadata:0",
+        "document_id": "metadata",
+        "content": "每个 chunk 应保留 source、filename、suffix、char_start、char_end 和 chunk_chars，方便过滤、引用和调试。",
+        "metadata": {
+          "source": "data/metadata_rules.md",
+          "filename": "metadata_rules.md",
+          "suffix": ".md",
+          "char_count": 81,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 81,
+          "chunk_chars": 81
+        }
+      },
+      "vector": [
+        0.0,
+        0.0,
+        0.5015304356318921,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5015304356318921,
+        0.18807391336195955,
+        0.2507652178159461,
+        0.6269130445398652,
+        0.0,
+        0.07522956534478382
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "refund_duplicate:0",
+        "document_id": "refund_duplicate",
+        "content": "退款说明：购买后 7 天内且学习进度不超过 20%，支持全额退款。",
+        "metadata": {
+          "source": "data/refund_duplicate.md",
+          "filename": "refund_duplicate.md",
+          "suffix": ".md",
+          "char_count": 33,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 33,
+          "chunk_chars": 33
+        }
+      },
+      "vector": [
+        0.28685814463778414,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.28685814463778414,
+        0.28685814463778414,
+        0.5737162892755683,
+        0.6454308254350144,
+        0.0,
+        0.08605744339133524
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "refund_policy:0",
+        "document_id": "refund_policy",
+        "content": "退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
+        "metadata": {
+          "source": "data/refund_policy.md",
+          "filename": "refund_policy.md",
+          "suffix": ".md",
+          "char_count": 35,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 35,
+          "chunk_chars": 35
+        }
+      },
+      "vector": [
+        0.26236418994181965,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.32795523742727456,
+        0.19677314245636474,
+        0.5903194273690943,
+        0.6559104748545491,
+        0.0,
+        0.0787092569825459
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "refund_process:0",
+        "document_id": "refund_process",
+        "content": "退费申请流程：在学习后台提交退款申请，审核通过后原路退回。",
+        "metadata": {
+          "source": "data/refund_process.md",
+          "filename": "refund_process.md",
+          "suffix": ".md",
+          "char_count": 29,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 29,
+          "chunk_chars": 29
+        }
+      },
+      "vector": [
+        0.5127362435712675,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.448644213124859,
+        0.25636812178563373,
+        0.448644213124859,
+        0.5127362435712675,
+        0.0,
+        0.07691043653569012
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "refund_summary:0",
+        "document_id": "refund_summary",
+        "content": "退款政策摘要：7 天内且学习进度不超过 20%，支持全额退费。",
+        "metadata": {
+          "source": "data/refund_summary.md",
+          "filename": "refund_summary.md",
+          "suffix": ".md",
+          "char_count": 31,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 31,
+          "chunk_chars": 31
+        }
+      },
+      "vector": [
+        0.5425256391807729,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.27126281959038645,
+        0.40689422938557973,
+        0.40689422938557973,
+        0.5425256391807729,
+        0.0,
+        0.08137884587711594
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "support:0",
+        "document_id": "support",
+        "content": "课程助教在工作日提供答疑支持，周末只处理紧急问题。",
+        "metadata": {
+          "source": "data/support_hours.md",
+          "filename": "support_hours.md",
+          "suffix": ".md",
+          "char_count": 25,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 25,
+          "chunk_chars": 25
+        }
+      },
+      "vector": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.5650641958221382,
+        0.3531651223888364,
+        0.42379814686660366,
+        0.4944311713443709,
+        0.3531651223888364,
+        0.0,
+        0.08475962937332072
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    },
+    {
+      "chunk": {
+        "chunk_id": "trial:0",
+        "document_id": "trial",
+        "content": "课程支持一次 30 分钟免费试学，需要提前预约。",
+        "metadata": {
+          "source": "data/trial_policy.md",
+          "filename": "trial_policy.md",
+          "suffix": ".md",
+          "char_count": 24,
+          "line_count": 1,
+          "chunk_index": 0,
+          "char_start": 0,
+          "char_end": 24,
+          "chunk_chars": 24
+        }
+      },
+      "vector": [
+        0.0,
+        0.5955573348776585,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.22333400057912195,
+        0.29777866743882925,
+        0.6700020017373658,
+        0.22333400057912195,
+        0.0,
+        0.08933360023164877
+      ],
+      "provider_name": "local_keyword",
+      "model_name": "concept-space-v1",
+      "dimensions": 13
+    }
+  ],
+  "embedding_space": {
+    "provider_name": "local_keyword",
+    "model_name": "concept-space-v1",
+    "dimensions": 13
+  }
+}

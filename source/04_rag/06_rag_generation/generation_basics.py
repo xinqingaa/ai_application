@@ -1,8 +1,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 import re
+import sys
 from typing import Protocol
+
+
+CHAPTER_ROOT = Path(__file__).resolve().parent
+CHAPTER5_ROOT = CHAPTER_ROOT.parent / "05_retrieval_strategies"
+DEFAULT_STORE_PATH = CHAPTER_ROOT / "store" / "demo_generation_store.json"
+
+if str(CHAPTER5_ROOT) not in sys.path:
+    sys.path.insert(0, str(CHAPTER5_ROOT))
+
+from retrieval_basics import (  # noqa: E402
+    EmbeddingProvider,
+    LocalKeywordEmbeddingProvider,
+    PersistentVectorStore,
+    RetrievalResult,
+    RetrievalStrategyConfig,
+    SimpleRetriever,
+    SourceChunk,
+    VectorStoreConfig,
+    demo_chunk_metadata,
+    embed_chunks,
+)
 
 
 NO_ANSWER_TEXT = "我不知道。当前检索到的内容不足以支持这个问题。"
@@ -43,20 +66,6 @@ CONCEPT_GROUPS = [
 
 
 @dataclass(frozen=True)
-class SourceChunk:
-    chunk_id: str
-    document_id: str
-    content: str
-    metadata: dict[str, str | int | float | bool]
-
-
-@dataclass(frozen=True)
-class RetrievalResult:
-    chunk: SourceChunk
-    score: float
-
-
-@dataclass(frozen=True)
 class GenerationResult:
     content: str
     mocked: bool = True
@@ -73,92 +82,104 @@ class AnswerResult:
 class PromptInspection:
     retrieved_results: list[RetrievalResult]
     accepted_results: list[RetrievalResult]
+    prompt_results: list[RetrievalResult]
+    context_scores: dict[str, float]
     context: str
     messages: list[dict[str, str]]
     prompt_preview: str
 
 
 class Retriever(Protocol):
-    def retrieve(self, question: str, top_k: int = 3) -> list[RetrievalResult]:
+    def retrieve(self, question: str, top_k: int = 5) -> list[RetrievalResult]:
         ...
 
 
-def demo_source_chunks() -> list[SourceChunk]:
-    return [
-        SourceChunk(
-            chunk_id="refund_policy:0",
-            document_id="refund_policy",
-            content="退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
-            metadata={
-                "filename": "refund_policy.md",
-                "source": "data/refund_policy.md",
-                "chunk_index": 0,
-            },
+def generation_demo_source_chunks() -> list[SourceChunk]:
+    records = [
+        (
+            "refund_policy",
+            "data/refund_policy.md",
+            "退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
         ),
-        SourceChunk(
-            chunk_id="refund_process:0",
-            document_id="refund_process",
-            content="退款流程：在学习后台提交申请，审核通过后 3 到 5 个工作日原路退回。",
-            metadata={
-                "filename": "refund_process.md",
-                "source": "data/refund_process.md",
-                "chunk_index": 0,
-            },
+        (
+            "refund_process",
+            "data/refund_process.md",
+            "退款流程：在学习后台提交申请，审核通过后 3 到 5 个工作日原路退回。",
         ),
-        SourceChunk(
-            chunk_id="metadata_rules:0",
-            document_id="metadata_rules",
-            content="每个 chunk 应保留 source、filename 和 chunk_index，方便后续引用和调试。",
-            metadata={
-                "filename": "metadata_rules.md",
-                "source": "data/metadata_rules.md",
-                "chunk_index": 0,
-            },
+        (
+            "metadata_rules",
+            "data/metadata_rules.md",
+            "每个 chunk 应保留 source、filename、suffix、char_start、char_end、chunk_chars 和 chunk_index，方便过滤、引用和调试。",
         ),
-        SourceChunk(
-            chunk_id="citation_rules:0",
-            document_id="citation_rules",
-            content="生成答案时应在关键结论后标注 [S1] 这样的来源标签，方便用户核对依据。",
-            metadata={
-                "filename": "citation_rules.md",
-                "source": "data/citation_rules.md",
-                "chunk_index": 0,
-            },
+        (
+            "citation_rules",
+            "data/citation_rules.md",
+            "回答里要带来源标签，例如 [S1]、[S2]，这样用户才能核对答案依据和引用位置。",
         ),
-        SourceChunk(
-            chunk_id="prompt_boundary:0",
-            document_id="prompt_boundary",
-            content="RAG Prompt 必须要求模型只依据上下文回答，没依据时直接说我不知道。",
-            metadata={
-                "filename": "prompt_boundary.md",
-                "source": "data/prompt_boundary.md",
-                "chunk_index": 0,
-            },
+        (
+            "prompt_boundary",
+            "data/prompt_boundary.md",
+            "RAG Prompt 必须要求模型只依据当前上下文回答；如果上下文没有足够依据，就直接回答我不知道。",
         ),
-        SourceChunk(
-            chunk_id="support_hours:0",
-            document_id="support_hours",
-            content="课程助教在工作日提供答疑支持，周末只处理紧急问题。",
-            metadata={
-                "filename": "support_hours.md",
-                "source": "data/support_hours.md",
-                "chunk_index": 0,
-            },
+        (
+            "support_hours",
+            "data/support_hours.md",
+            "课程助教在工作日提供答疑支持，周末只处理紧急问题。",
         ),
     ]
 
+    chunks: list[SourceChunk] = []
+    for document_id, source, content in records:
+        chunks.append(
+            SourceChunk(
+                chunk_id=f"{document_id}:0",
+                document_id=document_id,
+                content=content,
+                metadata=demo_chunk_metadata(source=source, content=content),
+            )
+        )
+    return chunks
 
-class DemoRetriever:
-    def __init__(self, chunks: list[SourceChunk] | None = None) -> None:
-        self._chunks = chunks or demo_source_chunks()
 
-    def retrieve(self, question: str, top_k: int = 3) -> list[RetrievalResult]:
-        scored = [
-            RetrievalResult(chunk=chunk, score=score_question_against_chunk(question, chunk.content))
-            for chunk in self._chunks
-        ]
-        scored.sort(key=lambda item: item.score, reverse=True)
-        return scored[:top_k]
+def build_generation_demo_store(
+    provider: EmbeddingProvider | None = None,
+    store_path: Path = DEFAULT_STORE_PATH,
+    reset_store: bool = False,
+) -> PersistentVectorStore:
+    embedding_provider = provider or LocalKeywordEmbeddingProvider()
+    store = PersistentVectorStore(VectorStoreConfig(store_path=store_path))
+    if reset_store:
+        store.reset()
+    store.upsert(embed_chunks(generation_demo_source_chunks(), embedding_provider))
+    return store
+
+
+class Chapter5DemoRetriever:
+    def __init__(
+        self,
+        provider: EmbeddingProvider | None = None,
+        store: PersistentVectorStore | None = None,
+        store_path: Path = DEFAULT_STORE_PATH,
+        reset_store: bool = True,
+        filename_filter: str | None = None,
+    ) -> None:
+        self.provider = provider or LocalKeywordEmbeddingProvider()
+        self.store = store or build_generation_demo_store(
+            provider=self.provider,
+            store_path=store_path,
+            reset_store=reset_store,
+        )
+        self.retriever = SimpleRetriever(store=self.store, provider=self.provider)
+        self.filename_filter = filename_filter
+
+    def retrieve(self, question: str, top_k: int = 5) -> list[RetrievalResult]:
+        strategy = RetrievalStrategyConfig(
+            strategy_name="similarity",
+            top_k=top_k,
+            candidate_k=max(top_k, 6),
+            filename_filter=self.filename_filter,
+        )
+        return self.retriever.retrieve(question=question, strategy=strategy)
 
 
 class MockLLMClient:
@@ -174,32 +195,51 @@ class MockLLMClient:
 class RagService:
     retriever: Retriever
     llm: MockLLMClient
-    min_source_score: float = 0.35
+    min_context_score: float = 0.35
+    max_chunks: int = 3
+    max_chars_per_chunk: int = 90
     last_retrieved_results: list[RetrievalResult] = field(default_factory=list)
     last_accepted_results: list[RetrievalResult] = field(default_factory=list)
+    last_prompt_results: list[RetrievalResult] = field(default_factory=list)
     last_messages: list[dict[str, str]] = field(default_factory=list)
     last_generation_result: GenerationResult | None = None
 
-    def ask(self, question: str, top_k: int = 3) -> AnswerResult:
+    def ask(self, question: str, top_k: int = 5) -> AnswerResult:
         retrieved = self.retriever.retrieve(question=question, top_k=top_k)
-        accepted = filter_retrieval_results(retrieved, min_score=self.min_source_score)
+        accepted = filter_retrieval_results(
+            question=question,
+            results=retrieved,
+            min_context_score=self.min_context_score,
+        )
+        prompt_results = select_prompt_results(accepted, max_chunks=self.max_chunks)
         self.last_retrieved_results = retrieved
         self.last_accepted_results = accepted
+        self.last_prompt_results = prompt_results
 
-        if not accepted:
+        if not prompt_results:
             self.last_messages = []
             self.last_generation_result = None
             return AnswerResult(answer=NO_ANSWER_TEXT, sources=[])
 
-        messages = build_messages(question=question, results=accepted)
+        messages = build_messages(
+            question=question,
+            results=prompt_results,
+            max_chunks=self.max_chunks,
+            max_chars_per_chunk=self.max_chars_per_chunk,
+        )
         generation = self.llm.generate(messages)
         self.last_messages = messages
         self.last_generation_result = generation
+
         answer = generation.content.strip() or NO_ANSWER_TEXT
-        return AnswerResult(answer=answer, sources=[item.chunk for item in accepted])
+        if answer == NO_ANSWER_TEXT:
+            return AnswerResult(answer=answer, sources=[])
+
+        used_results = select_used_results(prompt_results, generation.used_labels)
+        return AnswerResult(answer=answer, sources=[item.chunk for item in used_results])
 
 
-def score_question_against_chunk(question: str, chunk_content: str) -> float:
+def context_relevance_score(question: str, chunk_content: str) -> float:
     question_text = _normalize(question)
     chunk_text = _normalize(chunk_content)
     if not question_text or not chunk_text:
@@ -226,25 +266,70 @@ def score_question_against_chunk(question: str, chunk_content: str) -> float:
     return round(min(score, 0.98), 3)
 
 
-def filter_retrieval_results(
+def score_question_against_chunk(question: str, chunk_content: str) -> float:
+    return context_relevance_score(question, chunk_content)
+
+
+def retrieval_context_scores(
+    question: str,
     results: list[RetrievalResult],
-    min_score: float,
+) -> dict[str, float]:
+    return {
+        item.chunk.chunk_id: context_relevance_score(question, item.chunk.content)
+        for item in results
+    }
+
+
+def filter_retrieval_results(
+    question: str,
+    results: list[RetrievalResult],
+    min_context_score: float,
 ) -> list[RetrievalResult]:
-    return [item for item in results if item.score >= min_score]
+    scores = retrieval_context_scores(question, results)
+    return [
+        item
+        for item in results
+        if scores.get(item.chunk.chunk_id, 0.0) >= min_context_score
+    ]
+
+
+def select_prompt_results(
+    results: list[RetrievalResult],
+    max_chunks: int,
+) -> list[RetrievalResult]:
+    return results[:max_chunks]
+
+
+def select_used_results(
+    prompt_results: list[RetrievalResult],
+    used_labels: list[str],
+) -> list[RetrievalResult]:
+    label_to_result = {
+        f"S{index}": item
+        for index, item in enumerate(prompt_results, start=1)
+    }
+    selected = [label_to_result[label] for label in used_labels if label in label_to_result]
+    return selected or prompt_results
 
 
 def format_context(
+    question: str,
     results: list[RetrievalResult],
     max_chunks: int = 3,
     max_chars_per_chunk: int = 90,
 ) -> str:
     lines: list[str] = []
-    for index, item in enumerate(results[:max_chunks], start=1):
+    for index, item in enumerate(select_prompt_results(results, max_chunks=max_chunks), start=1):
         filename = item.chunk.metadata.get("filename", "unknown")
         chunk_index = item.chunk.metadata.get("chunk_index", "unknown")
+        context_score = context_relevance_score(question, item.chunk.content)
         content = _truncate_content(item.chunk.content, max_chars_per_chunk)
         lines.append(
-            f"[S{index}] filename={filename} chunk={chunk_index} score={item.score:.3f}\n{content}"
+            (
+                f"[S{index}] filename={filename} chunk={chunk_index} "
+                f"retrieval_score={item.score:.3f} context_score={context_score:.3f}\n"
+                f"{content}"
+            )
         )
     return "\n\n".join(lines)
 
@@ -256,7 +341,8 @@ def build_user_prompt(
     max_chars_per_chunk: int = 90,
 ) -> str:
     context = format_context(
-        results,
+        question=question,
+        results=results,
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
     )
@@ -301,33 +387,42 @@ def build_prompt_preview(
 def inspect_prompt(
     question: str,
     retriever: Retriever,
-    top_k: int = 3,
-    min_score: float = 0.35,
+    top_k: int = 5,
+    min_context_score: float = 0.35,
     max_chunks: int = 3,
     max_chars_per_chunk: int = 90,
 ) -> PromptInspection:
     retrieved = retriever.retrieve(question=question, top_k=top_k)
-    accepted = filter_retrieval_results(retrieved, min_score=min_score)
+    accepted = filter_retrieval_results(
+        question=question,
+        results=retrieved,
+        min_context_score=min_context_score,
+    )
+    prompt_results = select_prompt_results(accepted, max_chunks=max_chunks)
+    scores = retrieval_context_scores(question, retrieved)
     context = format_context(
-        accepted,
+        question=question,
+        results=prompt_results,
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
     )
     messages = build_messages(
         question=question,
-        results=accepted,
+        results=prompt_results,
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
     )
     prompt_preview = build_prompt_preview(
         question=question,
-        results=accepted,
+        results=prompt_results,
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
     )
     return PromptInspection(
         retrieved_results=retrieved,
         accepted_results=accepted,
+        prompt_results=prompt_results,
+        context_scores=scores,
         context=context,
         messages=messages,
         prompt_preview=prompt_preview,

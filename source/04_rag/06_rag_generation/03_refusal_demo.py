@@ -1,4 +1,4 @@
-from generation_basics import DemoRetriever, MockLLMClient, RagService
+from generation_basics import Chapter5DemoRetriever, MockLLMClient, RagService
 
 
 QUESTIONS = [
@@ -10,9 +10,9 @@ QUESTIONS = [
 
 def main() -> None:
     service = RagService(
-        retriever=DemoRetriever(),
+        retriever=Chapter5DemoRetriever(),
         llm=MockLLMClient(),
-        min_source_score=0.35,
+        min_context_score=0.35,
     )
 
     for index, question in enumerate(QUESTIONS, start=1):

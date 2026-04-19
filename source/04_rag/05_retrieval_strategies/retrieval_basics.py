@@ -1,54 +1,34 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from math import sqrt
+from dataclasses import dataclass
 from pathlib import Path
-import hashlib
 import json
-import re
-from typing import Protocol
+import sys
 
 
-TOKEN_PATTERN = re.compile(r"[a-z0-9]+|[\u4e00-\u9fff]+", re.IGNORECASE)
-STOPWORDS = {"the", "a", "an", "is", "are", "to", "of", "and", "how", "why", "do"}
-CONCEPT_GROUPS = [
-    ("refund", ("退款", "退费", "refund")),
-    ("trial", ("试学", "预约", "trial")),
-    ("policy", ("规则", "政策", "条件")),
-    ("process", ("流程", "申请", "提交", "审核")),
-    ("metadata", ("metadata", "source", "filename", "来源")),
-    ("stable_id", ("stable", "id", "document_id", "chunk_id", "稳定")),
-    ("embedding", ("embedding", "向量", "vector")),
-    ("similarity", ("similarity", "相似度", "检索", "retrieve")),
-    ("support", ("答疑", "support", "工作日")),
-]
-HASH_BUCKETS = 4
-MODE_BUCKETS = 1
-DEFAULT_DIMENSIONS = len(CONCEPT_GROUPS) + HASH_BUCKETS + MODE_BUCKETS
-DEFAULT_BAD_CASES_PATH = Path(__file__).resolve().parent / "evals" / "retrieval_bad_cases.json"
+CHAPTER_ROOT = Path(__file__).resolve().parent
+CHAPTER4_ROOT = CHAPTER_ROOT.parent / "04_vector_databases"
+DEFAULT_STORE_PATH = CHAPTER_ROOT / "store" / "demo_retrieval_store.json"
+DEFAULT_BAD_CASES_PATH = CHAPTER_ROOT / "evals" / "retrieval_bad_cases.json"
 
+if str(CHAPTER4_ROOT) not in sys.path:
+    sys.path.insert(0, str(CHAPTER4_ROOT))
 
-@dataclass(frozen=True)
-class SourceChunk:
-    chunk_id: str
-    document_id: str
-    content: str
-    metadata: dict[str, str | int | float | bool] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class EmbeddedChunk:
-    chunk: SourceChunk
-    vector: list[float]
-    provider_name: str
-    model_name: str
-    dimensions: int
-
-
-@dataclass(frozen=True)
-class RetrievalResult:
-    chunk: SourceChunk
-    score: float
+from vector_store_basics import (  # noqa: E402
+    EmbeddedChunk,
+    EmbeddingProvider,
+    LocalKeywordEmbeddingProvider,
+    PersistentVectorStore,
+    RetrievalResult,
+    SourceChunk,
+    VectorStoreConfig,
+    cosine_similarity,
+    demo_chunk_metadata,
+    embed_chunks,
+    embedding_space_from_provider,
+    ensure_same_embedding_space,
+    ensure_vector_dimensions,
+)
 
 
 @dataclass(frozen=True)
@@ -56,7 +36,7 @@ class RetrievalStrategyConfig:
     strategy_name: str
     top_k: int = 3
     candidate_k: int = 5
-    score_threshold: float = 0.60
+    score_threshold: float = 0.80
     mmr_lambda: float = 0.65
     filename_filter: str | None = None
 
@@ -64,156 +44,89 @@ class RetrievalStrategyConfig:
         if self.strategy_name not in {"similarity", "threshold", "mmr"}:
             raise ValueError(f"Unsupported strategy: {self.strategy_name}")
         if self.top_k <= 0:
-            raise ValueError("top_k must be positive")
+            raise ValueError("top_k must be positive.")
         if self.candidate_k < self.top_k:
-            raise ValueError("candidate_k must be greater than or equal to top_k")
+            raise ValueError("candidate_k must be greater than or equal to top_k.")
         if not 0.0 <= self.score_threshold <= 1.0:
-            raise ValueError("score_threshold must be between 0.0 and 1.0")
+            raise ValueError("score_threshold must be between 0.0 and 1.0.")
         if not 0.0 <= self.mmr_lambda <= 1.0:
-            raise ValueError("mmr_lambda must be between 0.0 and 1.0")
+            raise ValueError("mmr_lambda must be between 0.0 and 1.0.")
 
 
 @dataclass(frozen=True)
 class SearchHit:
     embedded_chunk: EmbeddedChunk
-    score: float
+    similarity_score: float
 
 
-class EmbeddingProvider(Protocol):
-    provider_name: str
-    model_name: str
-    dimensions: int
-
-    def embed_query(self, text: str) -> list[float]:
-        ...
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        ...
-
-
-class LocalKeywordEmbeddingProvider:
-    def __init__(
-        self,
-        model_name: str = "concept-space-v1",
-        dimensions: int = DEFAULT_DIMENSIONS,
-    ) -> None:
-        if dimensions != DEFAULT_DIMENSIONS:
-            raise ValueError(
-                f"LocalKeywordEmbeddingProvider expects dimensions={DEFAULT_DIMENSIONS}."
-            )
-
-        self.provider_name = "local_keyword"
-        self.model_name = model_name
-        self.dimensions = dimensions
-
-    def embed_query(self, text: str) -> list[float]:
-        return self._embed(text, kind="query")
-
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return [self._embed(text, kind="document") for text in texts]
-
-    def _embed(self, text: str, kind: str) -> list[float]:
-        normalized = " ".join(text.lower().split())
-        vector = [0.0] * self.dimensions
-
-        for index, (_, keywords) in enumerate(CONCEPT_GROUPS):
-            hits = sum(1 for keyword in keywords if keyword in normalized)
-            vector[index] = float(hits)
-
-        hash_offset = len(CONCEPT_GROUPS)
-        for token in TOKEN_PATTERN.findall(normalized):
-            if token in STOPWORDS:
-                continue
-            bucket = int(hashlib.sha1(token.encode("utf-8")).hexdigest(), 16) % HASH_BUCKETS
-            vector[hash_offset + bucket] += 0.10
-
-        mode_index = self.dimensions - 1
-        vector[mode_index] = 0.15 if kind == "query" else 0.05
-
-        return normalize(vector)
+@dataclass(frozen=True)
+class BadCaseEvaluation:
+    strategy_name: str
+    status: str
+    messages: tuple[str, ...]
 
 
 def demo_source_chunks() -> list[SourceChunk]:
+    refund_policy = "退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。"
+    refund_summary = "退款政策摘要：7 天内且学习进度不超过 20%，支持全额退费。"
+    refund_duplicate = "退款说明：购买后 7 天内且学习进度不超过 20%，支持全额退款。"
+    refund_process = "退费申请流程：在学习后台提交退款申请，审核通过后原路退回。"
+    trial_policy = "课程支持一次 30 分钟免费试学，需要提前预约。"
+    metadata_rules = (
+        "每个 chunk 应保留 source、filename、suffix、char_start、char_end 和 "
+        "chunk_chars，方便过滤、引用和调试。"
+    )
+    support_hours = "课程助教在工作日提供答疑支持，周末只处理紧急问题。"
+    embedding_notes = "Embedding 会把文本映射成向量，检索时通过相似度找到相关 chunk。"
+
     return [
         SourceChunk(
             chunk_id="refund_policy:0",
             document_id="refund_policy",
-            content="退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
-            metadata={
-                "source": "data/refund_policy.md",
-                "filename": "refund_policy.md",
-                "chunk_index": 0,
-            },
+            content=refund_policy,
+            metadata=demo_chunk_metadata("data/refund_policy.md", refund_policy),
         ),
         SourceChunk(
             chunk_id="refund_summary:0",
             document_id="refund_summary",
-            content="退款政策摘要：7 天内且学习进度不超过 20%，支持全额退费。",
-            metadata={
-                "source": "data/refund_summary.md",
-                "filename": "refund_summary.md",
-                "chunk_index": 0,
-            },
+            content=refund_summary,
+            metadata=demo_chunk_metadata("data/refund_summary.md", refund_summary),
         ),
         SourceChunk(
             chunk_id="refund_duplicate:0",
             document_id="refund_duplicate",
-            content="退款说明：购买后 7 天内且学习进度不超过 20%，支持全额退款。",
-            metadata={
-                "source": "data/refund_duplicate.md",
-                "filename": "refund_duplicate.md",
-                "chunk_index": 0,
-            },
+            content=refund_duplicate,
+            metadata=demo_chunk_metadata("data/refund_duplicate.md", refund_duplicate),
         ),
         SourceChunk(
             chunk_id="refund_process:0",
             document_id="refund_process",
-            content="退费申请流程：在学习后台提交退款申请，审核通过后原路退回。",
-            metadata={
-                "source": "data/refund_process.md",
-                "filename": "refund_process.md",
-                "chunk_index": 0,
-            },
+            content=refund_process,
+            metadata=demo_chunk_metadata("data/refund_process.md", refund_process),
         ),
         SourceChunk(
-            chunk_id="metadata_rules:0",
-            document_id="metadata_rules",
-            content="每个 chunk 应保留 source、filename 和 chunk_index，方便后续引用和调试。",
-            metadata={
-                "source": "data/metadata_rules.md",
-                "filename": "metadata_rules.md",
-                "chunk_index": 0,
-            },
+            chunk_id="trial:0",
+            document_id="trial",
+            content=trial_policy,
+            metadata=demo_chunk_metadata("data/trial_policy.md", trial_policy),
         ),
         SourceChunk(
-            chunk_id="metadata_filter:0",
-            document_id="metadata_filter",
-            content="metadata filter 可以限制检索范围，只查指定 filename 或 source。",
-            metadata={
-                "source": "data/metadata_filter.md",
-                "filename": "metadata_filter.md",
-                "chunk_index": 0,
-            },
+            chunk_id="metadata:0",
+            document_id="metadata",
+            content=metadata_rules,
+            metadata=demo_chunk_metadata("data/metadata_rules.md", metadata_rules),
         ),
         SourceChunk(
             chunk_id="support:0",
             document_id="support",
-            content="课程助教在工作日提供答疑支持，周末只处理紧急问题。",
-            metadata={
-                "source": "data/support_hours.md",
-                "filename": "support_hours.md",
-                "chunk_index": 0,
-            },
+            content=support_hours,
+            metadata=demo_chunk_metadata("data/support_hours.md", support_hours),
         ),
         SourceChunk(
             chunk_id="embedding:0",
             document_id="embedding",
-            content="Embedding 会把文本映射成向量，检索时通过相似度找到相关 chunk。",
-            metadata={
-                "source": "data/embedding_notes.md",
-                "filename": "embedding_notes.md",
-                "chunk_index": 0,
-            },
+            content=embedding_notes,
+            metadata=demo_chunk_metadata("data/embedding_notes.md", embedding_notes),
         ),
     ]
 
@@ -222,53 +135,51 @@ def demo_embedded_chunks(
     provider: EmbeddingProvider | None = None,
 ) -> list[EmbeddedChunk]:
     embedding_provider = provider or LocalKeywordEmbeddingProvider()
-    chunks = demo_source_chunks()
-    vectors = embedding_provider.embed_documents([chunk.content for chunk in chunks])
-    return [
-        EmbeddedChunk(
-            chunk=chunk,
-            vector=vector,
-            provider_name=embedding_provider.provider_name,
-            model_name=embedding_provider.model_name,
-            dimensions=len(vector),
-        )
-        for chunk, vector in zip(chunks, vectors)
-    ]
+    return embed_chunks(demo_source_chunks(), embedding_provider)
 
 
-class InMemoryVectorStore:
-    def __init__(self, chunks: list[EmbeddedChunk]) -> None:
-        self._chunks = chunks
+def index_demo_chunks(
+    store: PersistentVectorStore,
+    provider: EmbeddingProvider,
+    reset_store: bool = False,
+) -> int:
+    expected_space = embedding_space_from_provider(provider)
+    expected_doc_ids = {chunk.document_id for chunk in demo_source_chunks()}
+    should_reset = reset_store
 
-    def similarity_search(
-        self,
-        query_vector: list[float],
-        top_k: int,
-        filename_filter: str | None = None,
-    ) -> list[SearchHit]:
-        candidates = self._chunks
-        if filename_filter is not None:
-            candidates = [
-                chunk
-                for chunk in candidates
-                if chunk.chunk.metadata.get("filename") == filename_filter
-            ]
+    if not should_reset:
+        try:
+            current_space = store.embedding_space()
+            current_doc_ids = set(store.list_document_ids())
+        except ValueError:
+            should_reset = True
+        else:
+            if current_space is not None and current_space != expected_space:
+                should_reset = True
+            if current_doc_ids and current_doc_ids != expected_doc_ids:
+                should_reset = True
 
-        hits = [
-            SearchHit(
-                embedded_chunk=chunk,
-                score=cosine_similarity(query_vector, chunk.vector),
-            )
-            for chunk in candidates
-        ]
-        hits.sort(key=lambda item: item.score, reverse=True)
-        return hits[:top_k]
+    if should_reset:
+        store.reset()
+
+    return store.replace_document(demo_embedded_chunks(provider))
+
+
+def build_demo_store(
+    provider: EmbeddingProvider | None = None,
+    store_path: Path = DEFAULT_STORE_PATH,
+    reset_store: bool = False,
+) -> PersistentVectorStore:
+    embedding_provider = provider or LocalKeywordEmbeddingProvider()
+    store = PersistentVectorStore(VectorStoreConfig(store_path=store_path))
+    index_demo_chunks(store, embedding_provider, reset_store=reset_store)
+    return store
 
 
 class SimpleRetriever:
     def __init__(
         self,
-        store: InMemoryVectorStore,
+        store: PersistentVectorStore,
         provider: EmbeddingProvider,
     ) -> None:
         self.store = store
@@ -280,7 +191,7 @@ class SimpleRetriever:
         strategy: RetrievalStrategyConfig,
     ) -> list[RetrievalResult]:
         query_vector = self.provider.embed_query(question)
-        candidates = self.store.similarity_search(
+        candidates = self._search_candidates(
             query_vector=query_vector,
             top_k=strategy.candidate_k,
             filename_filter=strategy.filename_filter,
@@ -290,7 +201,7 @@ class SimpleRetriever:
             selected = candidates[: strategy.top_k]
         elif strategy.strategy_name == "threshold":
             selected = [
-                item for item in candidates if item.score >= strategy.score_threshold
+                item for item in candidates if item.similarity_score >= strategy.score_threshold
             ][: strategy.top_k]
         elif strategy.strategy_name == "mmr":
             selected = maximal_marginal_relevance(
@@ -303,9 +214,37 @@ class SimpleRetriever:
             raise ValueError(f"Unsupported strategy: {strategy.strategy_name}")
 
         return [
-            RetrievalResult(chunk=item.embedded_chunk.chunk, score=item.score)
+            RetrievalResult(chunk=item.embedded_chunk.chunk, score=item.similarity_score)
             for item in selected
         ]
+
+    def _search_candidates(
+        self,
+        query_vector: list[float],
+        top_k: int,
+        filename_filter: str | None = None,
+    ) -> list[SearchHit]:
+        ensure_vector_dimensions(query_vector, self.provider.dimensions, context="query vector")
+        embedded_chunks = self.store.load_chunks()
+        for chunk in embedded_chunks:
+            ensure_same_embedding_space(chunk, self.provider)
+
+        if filename_filter is not None:
+            embedded_chunks = [
+                chunk
+                for chunk in embedded_chunks
+                if chunk.chunk.metadata.get("filename") == filename_filter
+            ]
+
+        hits = [
+            SearchHit(
+                embedded_chunk=chunk,
+                similarity_score=cosine_similarity(query_vector, chunk.vector),
+            )
+            for chunk in embedded_chunks
+        ]
+        hits.sort(key=lambda item: item.similarity_score, reverse=True)
+        return hits[:top_k]
 
 
 def maximal_marginal_relevance(
@@ -328,12 +267,14 @@ def maximal_marginal_relevance(
         best_index = 0
         best_score = float("-inf")
         for index, candidate in enumerate(remaining):
-            query_score = cosine_similarity(query_vector, candidate.embedded_chunk.vector)
             redundancy = max(
                 cosine_similarity(candidate.embedded_chunk.vector, chosen.embedded_chunk.vector)
                 for chosen in selected
             )
-            mmr_score = lambda_mult * query_score - (1 - lambda_mult) * redundancy
+            mmr_score = (
+                lambda_mult * candidate.similarity_score
+                - (1.0 - lambda_mult) * redundancy
+            )
             if mmr_score > best_score:
                 best_score = mmr_score
                 best_index = index
@@ -343,7 +284,10 @@ def maximal_marginal_relevance(
     return selected
 
 
-def average_redundancy(results: list[RetrievalResult], provider: EmbeddingProvider) -> float:
+def average_redundancy(
+    results: list[RetrievalResult],
+    provider: EmbeddingProvider,
+) -> float:
     if len(results) < 2:
         return 0.0
 
@@ -356,24 +300,105 @@ def average_redundancy(results: list[RetrievalResult], provider: EmbeddingProvid
 
 
 def load_bad_cases(path: Path = DEFAULT_BAD_CASES_PATH) -> list[dict[str, object]]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise ValueError("Bad cases payload must be a list.")
+    return [dict(case) for case in payload]
 
 
-def cosine_similarity(left: list[float], right: list[float]) -> float:
-    if len(left) != len(right):
-        raise ValueError("Cosine similarity requires vectors with the same dimensions.")
+def evaluate_bad_case(
+    case: dict[str, object],
+    strategy_name: str,
+    results: list[RetrievalResult],
+    provider: EmbeddingProvider,
+) -> BadCaseEvaluation:
+    expectations = case.get("expectations")
+    if not isinstance(expectations, dict):
+        return BadCaseEvaluation(
+            strategy_name=strategy_name,
+            status="info",
+            messages=("no machine-checkable expectations",),
+        )
 
-    left_norm = sqrt(sum(value * value for value in left))
-    right_norm = sqrt(sum(value * value for value in right))
-    if left_norm == 0.0 or right_norm == 0.0:
-        return 0.0
+    strategy_expectation = expectations.get(strategy_name)
+    if not isinstance(strategy_expectation, dict):
+        return BadCaseEvaluation(
+            strategy_name=strategy_name,
+            status="info",
+            messages=("no machine-checkable expectations for this strategy",),
+        )
 
-    dot_product = sum(left_value * right_value for left_value, right_value in zip(left, right))
-    return dot_product / (left_norm * right_norm)
+    observed_messages = [
+        f"top={results[0].chunk.chunk_id if results else 'none'}",
+        f"count={len(results)}",
+        f"redundancy={average_redundancy(results, provider):.3f}",
+    ]
+    failures: list[str] = []
 
+    expected_top_chunk = strategy_expectation.get("top_chunk_id")
+    if expected_top_chunk is not None:
+        top_chunk = results[0].chunk.chunk_id if results else "none"
+        if top_chunk != expected_top_chunk:
+            failures.append(
+                f"expected top_chunk_id={expected_top_chunk}, got {top_chunk}"
+            )
 
-def normalize(vector: list[float]) -> list[float]:
-    norm = sqrt(sum(value * value for value in vector))
-    if norm == 0.0:
-        return vector
-    return [value / norm for value in vector]
+    expected_count = strategy_expectation.get("count")
+    if expected_count is not None:
+        if not isinstance(expected_count, int) or isinstance(expected_count, bool):
+            raise ValueError("Bad case expectation count must be an integer.")
+        if len(results) != expected_count:
+            failures.append(f"expected count={expected_count}, got {len(results)}")
+
+    expected_empty = strategy_expectation.get("empty")
+    if expected_empty is not None:
+        if not isinstance(expected_empty, bool):
+            raise ValueError("Bad case expectation empty must be a boolean.")
+        if expected_empty and results:
+            failures.append("expected no results, but retriever returned hits")
+        if not expected_empty and not results:
+            failures.append("expected non-empty results, but retriever returned none")
+
+    expected_filename = strategy_expectation.get("filename")
+    if expected_filename is not None:
+        filenames = {result.chunk.metadata.get("filename") for result in results}
+        if filenames != {expected_filename}:
+            failures.append(
+                f"expected all filenames={expected_filename}, got {sorted(filenames)}"
+            )
+
+    required_chunk_ids = strategy_expectation.get("must_include_chunk_ids")
+    if required_chunk_ids is not None:
+        if not isinstance(required_chunk_ids, list):
+            raise ValueError("Bad case expectation must_include_chunk_ids must be a list.")
+        actual_chunk_ids = {result.chunk.chunk_id for result in results}
+        missing = [
+            str(chunk_id)
+            for chunk_id in required_chunk_ids
+            if str(chunk_id) not in actual_chunk_ids
+        ]
+        if missing:
+            failures.append(f"missing required chunk ids: {missing}")
+
+    max_redundancy = strategy_expectation.get("max_redundancy")
+    if max_redundancy is not None:
+        if not isinstance(max_redundancy, (int, float)) or isinstance(max_redundancy, bool):
+            raise ValueError("Bad case expectation max_redundancy must be numeric.")
+        redundancy = average_redundancy(results, provider)
+        if redundancy > float(max_redundancy):
+            failures.append(
+                f"expected redundancy <= {float(max_redundancy):.3f}, got {redundancy:.3f}"
+            )
+
+    if failures:
+        return BadCaseEvaluation(
+            strategy_name=strategy_name,
+            status="fail",
+            messages=tuple(observed_messages + failures),
+        )
+
+    return BadCaseEvaluation(
+        strategy_name=strategy_name,
+        status="pass",
+        messages=tuple(observed_messages),
+    )

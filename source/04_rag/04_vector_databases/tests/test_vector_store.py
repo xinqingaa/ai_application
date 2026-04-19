@@ -10,8 +10,10 @@ if str(PROJECT_ROOT) not in sys.path:
 from vector_store_basics import (
     LocalKeywordEmbeddingProvider,
     PersistentVectorStore,
+    SourceChunk,
     VectorStoreConfig,
     demo_embedded_chunks,
+    embed_chunks,
 )
 
 
@@ -44,7 +46,7 @@ class VectorStoreTests(unittest.TestCase):
     def test_similarity_search_prefers_relevant_chunk(self) -> None:
         self.store.upsert(self.chunks)
         query_vector = self.provider.embed_query("如何申请退费？")
-        results = self.store.similarity_search(query_vector, top_k=1)
+        results = self.store.similarity_search(query_vector, provider=self.provider, top_k=1)
 
         self.assertEqual(results[0].chunk.chunk_id, "refund:0")
         self.assertGreater(results[0].score, 0.5)
@@ -54,6 +56,7 @@ class VectorStoreTests(unittest.TestCase):
         query_vector = self.provider.embed_query("为什么 metadata 很重要？")
         results = self.store.similarity_search(
             query_vector,
+            provider=self.provider,
             top_k=3,
             filename="metadata_rules.md",
         )
@@ -68,6 +71,45 @@ class VectorStoreTests(unittest.TestCase):
         self.assertEqual(deleted, 1)
         self.assertNotIn("trial", self.store.list_document_ids())
         self.assertEqual(self.store.count(), len(self.chunks) - 1)
+
+    def test_replace_document_removes_stale_chunks_for_same_document(self) -> None:
+        self.store.upsert(self.chunks)
+        replacement_chunks = embed_chunks(
+            [
+                SourceChunk(
+                    chunk_id="trial:1",
+                    document_id="trial",
+                    content="试学需要先完成登记，再预约 30 分钟时段。",
+                    metadata={
+                        "source": "data/trial_policy.md",
+                        "filename": "trial_policy.md",
+                        "suffix": ".md",
+                        "char_count": 22,
+                        "line_count": 1,
+                        "chunk_index": 1,
+                        "char_start": 0,
+                        "char_end": 22,
+                        "chunk_chars": 22,
+                    },
+                )
+            ],
+            self.provider,
+        )
+
+        replaced = self.store.replace_document(replacement_chunks)
+        loaded_chunk_ids = {chunk.chunk.chunk_id for chunk in self.store.load_chunks()}
+
+        self.assertEqual(replaced, 1)
+        self.assertIn("trial:1", loaded_chunk_ids)
+        self.assertNotIn("trial:0", loaded_chunk_ids)
+
+    def test_similarity_search_rejects_query_from_different_embedding_space(self) -> None:
+        self.store.upsert(self.chunks)
+        other_provider = LocalKeywordEmbeddingProvider(model_name="concept-space-v2")
+        query_vector = other_provider.embed_query("如何申请退费？")
+
+        with self.assertRaisesRegex(ValueError, "embedding space"):
+            self.store.similarity_search(query_vector, provider=other_provider, top_k=1)
 
 
 if __name__ == "__main__":

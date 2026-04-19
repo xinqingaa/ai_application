@@ -15,6 +15,12 @@ def main() -> None:
     document_vector = provider.embed_documents([text])[0]
     related_vector = provider.embed_documents([related])[0]
     unrelated_vector = provider.embed_documents([unrelated])[0]
+    query_tail = ", ".join(f"{value:.3f}" for value in query_vector[-2:])
+    document_tail = ", ".join(f"{value:.3f}" for value in document_vector[-2:])
+
+    print(f"Provider/model space: {provider.provider_name} / {provider.model_name}")
+    print(f"Query tail buckets: [{query_tail}]")
+    print(f"Document tail buckets: [{document_tail}]")
 
     print(
         "Same text via query/document paths: "

@@ -19,7 +19,7 @@ CONCEPT_GROUPS = [
     ("support", ("答疑", "support", "工作日")),
 ]
 HASH_BUCKETS = 4
-MODE_BUCKETS = 1
+MODE_BUCKETS = 2
 DEFAULT_DIMENSIONS = len(CONCEPT_GROUPS) + HASH_BUCKETS + MODE_BUCKETS
 
 
@@ -88,10 +88,32 @@ class LocalKeywordEmbeddingProvider:
             bucket = int(hashlib.sha1(token.encode("utf-8")).hexdigest(), 16) % HASH_BUCKETS
             vector[hash_offset + bucket] += 0.25
 
-        mode_index = self.dimensions - 1
-        vector[mode_index] = 0.15 if kind == "query" else 0.05
+        query_mode_index = self.dimensions - 2
+        document_mode_index = self.dimensions - 1
+        if kind == "query":
+            vector[query_mode_index] = 0.30
+        else:
+            vector[document_mode_index] = 0.30
 
         return normalize(vector)
+
+
+def demo_chunk_metadata(source: str, content: str, chunk_index: int = 0) -> dict[str, str | int]:
+    filename = source.rsplit("/", maxsplit=1)[-1]
+    suffix = f".{filename.rsplit('.', maxsplit=1)[-1]}" if "." in filename else ""
+    char_count = len(content)
+    line_count = 0 if not content else content.count("\n") + 1
+    return {
+        "source": source,
+        "filename": filename,
+        "suffix": suffix,
+        "char_count": char_count,
+        "line_count": line_count,
+        "chunk_index": chunk_index,
+        "char_start": 0,
+        "char_end": char_count,
+        "chunk_chars": char_count,
+    }
 
 
 def demo_source_chunks() -> list[SourceChunk]:
@@ -100,73 +122,106 @@ def demo_source_chunks() -> list[SourceChunk]:
             chunk_id="refund:0",
             document_id="refund",
             content="购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
-            metadata={
-                "source": "data/refund_policy.md",
-                "filename": "refund_policy.md",
-                "chunk_index": 0,
-            },
+            metadata=demo_chunk_metadata(
+                source="data/refund_policy.md",
+                content="购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
+            ),
         ),
         SourceChunk(
             chunk_id="trial:0",
             document_id="trial",
             content="课程支持一次 30 分钟免费试学，需要提前预约。",
-            metadata={
-                "source": "data/trial_policy.md",
-                "filename": "trial_policy.md",
-                "chunk_index": 0,
-            },
+            metadata=demo_chunk_metadata(
+                source="data/trial_policy.md",
+                content="课程支持一次 30 分钟免费试学，需要提前预约。",
+            ),
         ),
         SourceChunk(
             chunk_id="metadata:0",
             document_id="metadata",
             content="每个 chunk 应保留 source、filename 和 chunk_index，方便后续引用和调试。",
-            metadata={
-                "source": "data/metadata_rules.md",
-                "filename": "metadata_rules.md",
-                "chunk_index": 0,
-            },
+            metadata=demo_chunk_metadata(
+                source="data/metadata_rules.md",
+                content="每个 chunk 应保留 source、filename 和 chunk_index，方便后续引用和调试。",
+            ),
         ),
         SourceChunk(
             chunk_id="embedding:0",
             document_id="embedding",
             content="Embedding 会把文本映射成向量，后续系统可以计算相似度并做检索。",
-            metadata={
-                "source": "data/embedding_notes.md",
-                "filename": "embedding_notes.md",
-                "chunk_index": 0,
-            },
+            metadata=demo_chunk_metadata(
+                source="data/embedding_notes.md",
+                content="Embedding 会把文本映射成向量，后续系统可以计算相似度并做检索。",
+            ),
         ),
         SourceChunk(
             chunk_id="support:0",
             document_id="support",
             content="课程助教在工作日提供答疑支持，周末只处理紧急问题。",
-            metadata={
-                "source": "data/support_hours.md",
-                "filename": "support_hours.md",
-                "chunk_index": 0,
-            },
+            metadata=demo_chunk_metadata(
+                source="data/support_hours.md",
+                content="课程助教在工作日提供答疑支持，周末只处理紧急问题。",
+            ),
         ),
     ]
+
+
+def ensure_vector_dimensions(
+    vector: list[float],
+    expected_dimensions: int,
+    context: str,
+) -> None:
+    if len(vector) != expected_dimensions:
+        raise ValueError(
+            f"{context} has dimensions={len(vector)}, expected {expected_dimensions}."
+        )
+
+
+def ensure_same_embedding_space(
+    chunk: EmbeddedChunk,
+    provider: EmbeddingProvider,
+) -> None:
+    if chunk.provider_name != provider.provider_name or chunk.model_name != provider.model_name:
+        raise ValueError("Query and document vectors must come from the same provider/model.")
+
+    if chunk.dimensions != provider.dimensions:
+        raise ValueError("Embedded chunk dimensions do not match provider dimensions.")
+
+    ensure_vector_dimensions(
+        chunk.vector,
+        chunk.dimensions,
+        context=f"embedded chunk {chunk.chunk.chunk_id}",
+    )
 
 
 def embed_chunks(
     chunks: list[SourceChunk],
     provider: EmbeddingProvider,
 ) -> list[EmbeddedChunk]:
+    if not chunks:
+        return []
+
     vectors = provider.embed_documents([chunk.content for chunk in chunks])
     if len(vectors) != len(chunks):
         raise ValueError("Embedding provider returned an unexpected vector count.")
 
-    return [
-        EmbeddedChunk(
-            chunk=chunk,
-            vector=vector,
-            provider_name=provider.provider_name,
-            model_name=provider.model_name,
-            dimensions=len(vector),
+    embedded_chunks: list[EmbeddedChunk] = []
+    for chunk, vector in zip(chunks, vectors):
+        ensure_vector_dimensions(
+            vector,
+            provider.dimensions,
+            context=f"document vector for {chunk.chunk_id}",
         )
-        for chunk, vector in zip(chunks, vectors)
-    ]
+        embedded_chunks.append(
+            EmbeddedChunk(
+                chunk=chunk,
+                vector=vector,
+                provider_name=provider.provider_name,
+                model_name=provider.model_name,
+                dimensions=provider.dimensions,
+            )
+        )
+    return embedded_chunks
 
 
 def cosine_similarity(left: list[float], right: list[float]) -> float:
@@ -191,10 +246,11 @@ def score_query_against_chunks(
         return []
 
     query_vector = provider.embed_query(question)
-    scored = [
-        (chunk, cosine_similarity(query_vector, chunk.vector))
-        for chunk in chunks
-    ]
+    ensure_vector_dimensions(query_vector, provider.dimensions, context="query vector")
+    scored: list[tuple[EmbeddedChunk, float]] = []
+    for chunk in chunks:
+        ensure_same_embedding_space(chunk, provider)
+        scored.append((chunk, cosine_similarity(query_vector, chunk.vector)))
     return sorted(scored, key=lambda item: item[1], reverse=True)
 
 
