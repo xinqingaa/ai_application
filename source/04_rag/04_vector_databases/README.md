@@ -14,7 +14,7 @@
 - 本章只讲向量存储层，不讲 Retriever 策略和生成
 - 为了保持章节独立，代码在本章目录里保留一份可单章运行的最小实现
 - 这份实现继续沿用第三章已经建立好的 `provider/model/dimensions` 和 metadata 契约
-- 旧的 `labs/phase_4_vector_databases/` 只作为迁移期备份，不再是当前学习入口
+- 本章目录就是当前学习入口
 
 ---
 

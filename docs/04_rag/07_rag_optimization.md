@@ -68,8 +68,9 @@
 
 当前仓库里：
 
-- [phase_7_rag_optimization/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_7_rag_optimization/README.md) 仍是占位
-- 第七章代码快照尚未落地
+- 第七章正文已经存在
+- 第七章代码目录尚未创建
+- 后续如果补代码，建议继续采用独立章节目录，例如 `source/04_rag/07_rag_optimization/`
 
 ---
 

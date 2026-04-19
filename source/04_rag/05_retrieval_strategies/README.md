@@ -14,7 +14,7 @@
 - 本章只讲 Retriever 层，不讲 Prompt 和生成
 - 本章不会再重写一套 provider 或 store，而是直接复用第四章的对象与向量空间
 - 为了保证策略实验可重复，脚本会在本章目录下重建一份固定 demo store
-- 旧的 `labs/phase_5_retrieval_strategies/` 只作为迁移期备份，不再是当前学习入口
+- 本章目录就是当前学习入口
 
 ---
 

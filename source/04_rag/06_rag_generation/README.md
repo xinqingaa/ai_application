@@ -14,7 +14,7 @@
 - 本章只讲生成闭环，不重新展开检索策略
 - 当前实现会复用第五章的 `SimpleRetriever` 和 `RetrievalResult[]` 契约
 - 本章会重建一份第六章自己的 demo store，用来突出引用、Prompt 和拒答这几个生成主题
-- 旧的 `labs/phase_6_rag_generation/` 只作为迁移期备份，不再是当前学习入口
+- 本章目录就是当前学习入口
 
 ---
 
