@@ -1,24 +1,24 @@
 # rag_lab 任务拆解
 
-> 本节目标：把 `04_rag` 的九章学习文档对应到当前真实代码结构，明确每章代码职责、完成标准和最终项目收口方式。
+> 本节目标：把 `04_rag` 的九章学习文档拆成九个可执行代码快照，明确每章对应的 phase、代码职责、完成标准和最终项目收口方式
 
 ---
 
 ## 1. 总任务顺序
 
-`04_rag` 按九章推进，但当前仓库不是九个快照目录，而是“前六章独立代码 + 后三章正文待实现 + 最终 rag_lab 收口”的结构：
+`04_rag` 按九章推进，每一章对应一个 phase：
 
-| 章节 | 对应主题 | 当前代码目录 | 状态 |
-|------|----------|--------------|------|
-| 1 | RAG 基础概念 | `source/04_rag/01_rag_basics/` | 已实现 |
-| 2 | 文档处理 | `source/04_rag/02_document_processing/` | 已实现 |
-| 3 | 向量化 | `source/04_rag/03_embeddings/` | 已实现 |
-| 4 | 向量数据库 | `source/04_rag/04_vector_databases/` | 已实现 |
-| 5 | 检索策略 | `source/04_rag/05_retrieval_strategies/` | 已实现 |
-| 6 | RAG 生成 | `source/04_rag/06_rag_generation/` | 已实现 |
-| 7 | RAG 优化 | 暂无代码目录 | 文档已完成，代码待实现 |
-| 8 | 进阶 RAG 方向 | 暂无代码目录 | 文档已完成，代码待实现 |
-| 9 | 综合项目 | `source/04_rag/rag_lab/` | 占位，整合待实现 |
+| Phase | 对应章节 | 代码目录 | 状态 |
+|-------|----------|----------|------|
+| Phase 1 | RAG 基础概念 | `labs/phase_1_scaffold/` | 已建立骨架 |
+| Phase 2 | 文档处理 | `labs/phase_2_document_processing/` | 已实现 |
+| Phase 3 | 向量化 | `labs/phase_3_embeddings/` | 已实现 |
+| Phase 4 | 向量数据库 | `labs/phase_4_vector_databases/` | 已实现 |
+| Phase 5 | 检索策略 | `labs/phase_5_retrieval_strategies/` | 已实现 |
+| Phase 6 | RAG 生成 | `labs/phase_6_rag_generation/` | 已实现 |
+| Phase 7 | RAG 优化 | `labs/phase_7_rag_optimization/` | 待实现 |
+| Phase 8 | 进阶 RAG 方向 | `labs/phase_8_advanced_rag/` | 待实现 |
+| Phase 9 | 综合项目 | `labs/phase_9_project_integration/` | 待实现 |
 
 最终完整项目：
 
@@ -26,9 +26,9 @@
 source/04_rag/rag_lab/
 ```
 
-只在第九章后整理形成。
+只在 Phase 9 后整理形成。
 
-## 2. 第一章：RAG 基础概念
+## 2. Phase 1：RAG 基础概念
 
 ### 对应文档
 
@@ -36,21 +36,21 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- `source/04_rag/01_rag_basics/`
+- `source/04_rag/labs/phase_1_scaffold/`
 
 ### 目标
 
-- 建立问题路由和方案边界意识
-- 固定最小 RAG 数据流
-- 区分直接回答、查系统和走 RAG
+- 固定项目骨架
+- 固定基础数据结构
+- 固定 RAG 主数据流的形状
 
 ### 完成标准
 
-- 能运行最小示例脚本
-- 能解释路由为什么先于检索
-- 能说明第一章为什么还不接真实 provider
+- 能运行占位脚本
+- 能通过最小测试
+- 能说明各目录职责
 
-## 3. 第二章：文档处理
+## 3. Phase 2：文档处理
 
 ### 对应文档
 
@@ -58,7 +58,7 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- `source/04_rag/02_document_processing/`
+- `source/04_rag/labs/phase_2_document_processing/`
 
 ### 目标
 
@@ -73,7 +73,7 @@ source/04_rag/rag_lab/
 - 能打印切分结果
 - 能验证 chunk id 稳定
 
-## 4. 第三章：向量化
+## 4. Phase 3：向量化
 
 ### 对应文档
 
@@ -81,14 +81,14 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- `source/04_rag/03_embeddings/`
+- `source/04_rag/labs/phase_3_embeddings/`
 
 ### 目标
 
-- 接入最小 Embedding Provider
+- 接入 Embedding Provider
 - 区分 query/document embedding
 - 实现最小相似度对比
-- 保持对第二章 `SourceChunk` 输出的直接复用
+- 保持对 Phase 2 `SourceChunk` 输出的直接复用
 
 ### 完成标准
 
@@ -97,7 +97,7 @@ source/04_rag/rag_lab/
 - 能说明模型选择的基本取舍
 - 能把 `EmbeddedChunk` 作为下一章向量数据库输入
 
-## 5. 第四章：向量数据库
+## 5. Phase 4：向量数据库
 
 ### 对应文档
 
@@ -105,7 +105,7 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- `source/04_rag/04_vector_databases/`
+- `source/04_rag/labs/phase_4_vector_databases/`
 
 ### 目标
 
@@ -119,7 +119,7 @@ source/04_rag/rag_lab/
 - 能写入、查询、删除
 - 能解释 Vector Store 和 Retriever 的区别
 
-## 6. 第五章：检索策略
+## 6. Phase 5：检索策略
 
 ### 对应文档
 
@@ -127,7 +127,7 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- `source/04_rag/05_retrieval_strategies/`
+- `source/04_rag/labs/phase_5_retrieval_strategies/`
 
 ### 目标
 
@@ -142,7 +142,7 @@ source/04_rag/rag_lab/
 - 能解释检索失败原因
 - 能判断是否需要增强检索
 
-## 7. 第六章：RAG 生成
+## 7. Phase 6：RAG 生成
 
 ### 对应文档
 
@@ -150,7 +150,7 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- `source/04_rag/06_rag_generation/`
+- `source/04_rag/labs/phase_6_rag_generation/`
 
 ### 目标
 
@@ -165,7 +165,7 @@ source/04_rag/rag_lab/
 - 答案包含来源
 - 能区分检索问题和生成问题
 
-## 8. 第七章：RAG 优化
+## 8. Phase 7：RAG 优化
 
 ### 对应文档
 
@@ -173,8 +173,7 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- 当前暂无代码目录
-- 后续如果落地，建议保持独立章节命名，例如 `source/04_rag/07_rag_optimization/`
+- `source/04_rag/labs/phase_7_rag_optimization/`
 
 ### 目标
 
@@ -189,7 +188,7 @@ source/04_rag/rag_lab/
 - 能说明改动是否变好
 - 能用坏案例驱动优化
 
-## 9. 第八章：进阶 RAG 方向
+## 9. Phase 8：进阶 RAG 方向
 
 ### 对应文档
 
@@ -197,8 +196,7 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
-- 当前暂无代码目录
-- 后续如果落地，建议保持独立章节命名，例如 `source/04_rag/08_advanced_rag/`
+- `source/04_rag/labs/phase_8_advanced_rag/`
 
 ### 目标
 
@@ -211,7 +209,7 @@ source/04_rag/rag_lab/
 - 能说明哪些场景不该上复杂 RAG
 - 能把 Agentic RAG 留到 `05_agent`
 
-## 10. 第九章：综合项目
+## 10. Phase 9：综合项目
 
 ### 对应文档
 
@@ -219,6 +217,7 @@ source/04_rag/rag_lab/
 
 ### 对应代码
 
+- `source/04_rag/labs/phase_9_project_integration/`
 - `source/04_rag/rag_lab/`
 
 ### 目标
@@ -229,22 +228,22 @@ source/04_rag/rag_lab/
 
 ### 完成标准
 
+- `phase_9_project_integration` 能展示整合过程
 - `rag_lab` 能作为最终参考项目
-- 有统一运行和评估入口
-- 学习入口仍然保持在九章文档和独立章节代码
+- 学习入口仍然保持在九章文档和 labs 快照
 
 ## 11. 执行原则
 
-每次推进只做当前章节。
+每次推进只做当前 Phase。
 
-不要提前把后续章节的功能塞进当前目录。
+不要提前把后续 Phase 的功能塞进当前目录。
 
-如果后续要补第七章到第九章代码，继续保持独立章节入口，而不是恢复已经删除的旧目录结构。
+如果当前 Phase 需要复用上一 Phase，可以复制上一阶段代码后增量修改，保留学习快照的完整性。
 
 ## 12. 最终验收
 
 - 九章文档全部存在
-- 第一章到第六章目录全部存在并可运行
-- 第七章到第九章的代码状态在文档里被明确说明
-- `rag_lab` 最终项目只在第九章后完成
+- 九个 phase 目录全部存在
+- 每个 phase README 都说明对应文档和当前边界
+- `rag_lab` 最终项目只在 Phase 9 后完成
 - `source/04_rag/README.md` 能作为代码总导航

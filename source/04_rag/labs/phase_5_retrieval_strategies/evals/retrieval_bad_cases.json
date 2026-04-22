@@ -1,0 +1,25 @@
+[
+  {
+    "name": "direct_fact_lookup",
+    "question": "Why do stable document IDs matter?",
+    "why": "基础事实问题，应该直接命中 faq.txt。"
+  },
+  {
+    "name": "duplicate_context_pressure",
+    "question": "Where do we keep source path and chunk index metadata?",
+    "why": "这个问题容易同时召回多条相似 chunk，适合比较 similarity 和 MMR 的差异。"
+  },
+  {
+    "name": "filter_scope_control",
+    "question": "Where do we keep source path and chunk index metadata?",
+    "why": "这个问题也适合演示 metadata filter 如何把检索范围限制到指定来源。",
+    "metadata_filter": {
+      "filename": "product_overview.md"
+    }
+  },
+  {
+    "name": "likely_no_answer",
+    "question": "What cafeteria lunch menus are available on Fridays?",
+    "why": "当前语料里没有食堂菜单资料，适合观察 threshold 是否减少无关召回。"
+  }
+]

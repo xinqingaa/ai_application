@@ -1,6 +1,6 @@
 # rag_lab 设计说明
 
-> 本节目标：说明 `04_rag` 为什么采用“九章文档 + 独立章节代码 + 最终 rag_lab 项目”的结构，让学习入口、章节代码和最终项目之间的关系保持清晰。
+> 本节目标：说明 `04_rag` 为什么采用“九章文档 + labs 代码快照 + 最终 rag_lab 项目”的结构，让学习入口、阶段代码和最终项目之间的关系保持清晰
 
 ---
 
@@ -11,18 +11,16 @@
 完整项目适合作为最终参考，但不适合作为第一学习入口。对学习者来说，更清晰的方式是：
 
 1. 每章先读对应文档
-2. 已经落地的章节，再进入对应代码目录
+2. 每章只看对应的 phase 代码快照
 3. 学完第九章后，再看最终完整 `rag_lab`
 
-所以当前结构是：
+所以本阶段采用三层结构：
 
 ```plain
 docs/04_rag/九章正文
-source/04_rag/01-06 独立章节代码
+source/04_rag/labs/phase_* 学习快照
 source/04_rag/rag_lab/最终完整项目
 ```
-
-第七章到第九章当前只有正文文档，代码目录后续再补。
 
 ## 2. 为什么不一次性实现完整 rag_lab
 
@@ -40,32 +38,38 @@ source/04_rag/rag_lab/最终完整项目
 
 所以代码必须跟着九章文档逐步展开。
 
-## 3. 当前目录设计
+## 3. 整体目录设计
 
 推荐结构如下：
 
 ```plain
 source/04_rag/
   README.md
-  01_rag_basics/
-  02_document_processing/
-  03_embeddings/
-  04_vector_databases/
-  05_retrieval_strategies/
-  06_rag_generation/
+  labs/
+    phase_1_scaffold/
+    phase_2_document_processing/
+    phase_3_embeddings/
+    phase_4_vector_databases/
+    phase_5_retrieval_strategies/
+    phase_6_rag_generation/
+    phase_7_rag_optimization/
+    phase_8_advanced_rag/
+    phase_9_project_integration/
   rag_lab/
 ```
 
-### 3.1 独立章节目录的职责
+### 3.1 labs 的职责
 
-`01_rag_basics/` 到 `06_rag_generation/` 负责：
+`labs/` 是学习快照目录。
 
-- 对应章节正文
-- 让每一章都有明确、独立的运行入口
-- 只展开当前章节真正需要的对象和脚本
-- 避免把最终项目结构过早压到学习入口上
+它负责：
 
-独立章节目录的首要目标是教学清晰，而不是提前做完整项目抽象。
+- 对应九章正文
+- 保留每章学习时的代码状态
+- 让每个阶段都有明确入口
+- 方便横向对比相邻阶段差异
+
+`labs/` 不追求消除代码重复，因为它的首要目标是教学清晰。
 
 ### 3.2 rag_lab 的职责
 
@@ -79,23 +83,23 @@ source/04_rag/
 
 `rag_lab/` 不作为初学入口。
 
-## 4. 九章文档和代码映射
+## 4. 九章文档和代码快照映射
 
-| 章节 | 文档 | 当前代码入口 | 主要学习目标 |
-|------|------|--------------|--------------|
-| 1 | `01_rag_basics.md` | `source/04_rag/01_rag_basics/` | 理解 RAG 主数据流和方案边界 |
-| 2 | `02_document_processing.md` | `source/04_rag/02_document_processing/` | 文档加载、切分、metadata、ID |
-| 3 | `03_embeddings.md` | `source/04_rag/03_embeddings/` | Embedding 接口和相似度 |
-| 4 | `04_vector_databases.md` | `source/04_rag/04_vector_databases/` | 向量存储、查询、删除 |
-| 5 | `05_retrieval_strategies.md` | `source/04_rag/05_retrieval_strategies/` | Retriever、Top-K、过滤、增强策略 |
-| 6 | `06_rag_generation.md` | `source/04_rag/06_rag_generation/` | Prompt、Chain、答案和来源 |
-| 7 | `07_rag_optimization.md` | 暂无代码目录 | Golden Set、评估、坏案例 |
-| 8 | `08_advanced_rag.md` | 暂无代码目录 | GraphRAG、Agentic RAG 边界认知 |
-| 9 | `09_rag_project.md` | `source/04_rag/rag_lab/` 作为最终收口目标 | 项目整合和最终收口 |
+| 章节 | 文档 | 代码快照 | 主要学习目标 |
+|------|------|----------|--------------|
+| 1 | `01_rag_basics.md` | `labs/phase_1_scaffold/` | 理解 RAG 主数据流和项目骨架 |
+| 2 | `02_document_processing.md` | `labs/phase_2_document_processing/` | 文档加载、切分、metadata、ID |
+| 3 | `03_embeddings.md` | `labs/phase_3_embeddings/` | Embedding 接口和相似度 |
+| 4 | `04_vector_databases.md` | `labs/phase_4_vector_databases/` | 向量存储、查询、删除 |
+| 5 | `05_retrieval_strategies.md` | `labs/phase_5_retrieval_strategies/` | Retriever、Top-K、过滤、增强策略 |
+| 6 | `06_rag_generation.md` | `labs/phase_6_rag_generation/` | Prompt、Chain、答案和来源 |
+| 7 | `07_rag_optimization.md` | `labs/phase_7_rag_optimization/` | Golden Set、评估、坏案例 |
+| 8 | `08_advanced_rag.md` | `labs/phase_8_advanced_rag/` | GraphRAG、Agentic RAG 边界认知 |
+| 9 | `09_rag_project.md` | `labs/phase_9_project_integration/` | 项目整合和最终收口 |
 
-## 5. 已落地章节目录的设计原则
+## 5. 每个 phase 的设计原则
 
-每个已落地章节目录都应满足：
+每个 `phase_*` 都应满足：
 
 1. 有自己的 README
 2. 能说明对应哪一章文档
@@ -103,17 +107,11 @@ source/04_rag/
 4. 能说明当前还没有实现什么
 5. 尽量可以独立运行当前阶段的脚本或测试
 
-每个已落地章节目录不要求：
+每个 `phase_*` 不要求：
 
-1. 提前实现后面章节能力
-2. 为了复用而牺牲当前教学清晰度
-3. 直接变成最终生产项目
-
-对于第七章到第九章：
-
-1. 可以先有正文文档
-2. 可以等需求明确后再补独立代码目录
-3. 不需要为了占位而额外保留失效目录
+1. 消除和前一阶段的重复代码
+2. 提前实现后面章节能力
+3. 成为最终生产项目
 
 ## 6. 最终项目生成规则
 
@@ -121,9 +119,9 @@ source/04_rag/
 
 它可以来自：
 
-1. 对前面独立章节实现的清理合并
-2. 对 README、运行命令、测试和评估入口的最终收口
-3. 对项目边界和可运行方式的统一整理
+1. `phase_9_project_integration` 的整理版
+2. 对前面 phase 代码的清理合并
+3. 对 README、运行命令、测试和评估入口的最终收口
 
 最终项目必须保留清楚边界：
 
@@ -134,8 +132,7 @@ source/04_rag/
 
 ## 7. 完成标准
 
-- 九章文档都存在并保持可读
-- 第一章到第六章有稳定的独立代码目录
-- 第七章到第九章的“代码尚未落地”状态在文档里被清楚说明
-- `source/04_rag/README.md` 能解释独立章节目录和 `rag_lab` 的关系
+- 九章文档都有对应代码快照
+- 每个 phase 的 README 都能说明学习入口和当前边界
+- `source/04_rag/README.md` 能解释 labs 和 rag_lab 的关系
 - 最终 `rag_lab` 只在第九章后作为完整项目出现

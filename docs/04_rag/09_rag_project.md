@@ -1,6 +1,6 @@
 # 09. 综合项目
 
-> 本节目标：把前八章的能力整合成一个真正可运行、可评估、可继续扩展的 RAG 项目，并明确第九章整合工作与最终 `rag_lab` 的角色边界。
+> 本节目标：把前八章的能力整合成一个真正可运行、可评估、可继续扩展的 RAG 项目，并明确 `phase_9_project_integration` 与最终 `rag_lab` 的角色边界。
 
 ---
 
@@ -9,7 +9,7 @@
 ### 学习目标
 
 - 理解为什么最终项目要在第九章才收口
-- 理解第九章整合工作和 `rag_lab` 的关系
+- 理解 `phase_9_project_integration` 和 `rag_lab` 的关系
 - 能说明一个完整 RAG 项目至少应该包含哪些能力
 - 能为后续 `06_application` 的业务项目准备知识底座
 
@@ -64,9 +64,9 @@
 
 当前仓库里：
 
+- [phase_9_project_integration/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_9_project_integration/README.md) 仍是占位
 - [rag_lab/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/rag_lab/README.md) 仍是占位
-- 前六章独立代码已经落地
-- 第九章的整合代码尚未开始
+- 第九章代码快照尚未落地
 
 ---
 
@@ -82,7 +82,7 @@
 
 ```text
 章节正文
-+ 独立章节实现
++ phase 快照
 + 最终 rag_lab
 ```
 
@@ -114,18 +114,18 @@
 
 ---
 
-## 4. 第九章整合工作和 `rag_lab` 的关系 📌
+## 4. `phase_9_project_integration` 和 `rag_lab` 的关系 📌
 
-这里的两个概念角色不一样：
+这两个目录的角色不一样：
 
-| 项目 | 角色 |
+| 目录 | 角色 |
 |------|------|
-| 第九章整合工作 | 把前面章节能力收束成统一项目的过程 |
-| `rag_lab/` | 整合完成后的最终参考目录 |
+| `phase_9_project_integration/` | 第九章的学习快照 |
+| `rag_lab/` | 最终完整参考项目 |
 
 也就是说：
 
-- 第九章首先是一次整合动作，而不是单独维护一个旧式 phase 目录
+- `phase_9_project_integration` 仍然服务于教学过程
 - `rag_lab` 才是收口后的完整参考实现
 
 但即使有了 `rag_lab`，学习入口也不应该倒退成“直接看最终项目”。
@@ -136,15 +136,15 @@
 
 等第九章真实代码快照落地后，建议按这个顺序：
 
-1. 先读本章正文
-2. 再看 `rag_lab` 的目录和 README
-3. 再看统一运行入口
-4. 最后看统一评估入口
+1. 先看 `phase_9_project_integration`
+2. 再看统一运行入口
+3. 再看统一评估入口
+4. 最后看最终 `rag_lab`
 
 本章最终完成标准应该是：
 
 - 最终 `rag_lab` 能作为完整参考项目存在
-- 学习入口仍然是九章正文和前面已经落地的独立章节目录
+- 学习入口仍然是九章正文和 `labs/phase_*`
 - 项目 README 能说明如何运行、如何评估、当前不支持什么
 
 ---
@@ -162,6 +162,6 @@
 # 请回答：
 # 1. 为什么这些能力加起来还不等于“完整项目”？
 # 2. 项目 README 至少还要补哪些信息？
-# 3. 为什么第九章整合过程和 rag_lab 不能混成一个模糊角色？
+# 3. 为什么 phase_9 和 rag_lab 不能混成一个目录角色？
 # 4. 为什么最终项目出现后，学习入口仍然应该保留章节化路径？
 ```

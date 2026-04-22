@@ -67,9 +67,8 @@
 
 当前仓库里：
 
-- 第八章正文已经存在
-- 第八章代码目录尚未创建
-- 后续如果补代码，建议继续采用独立章节目录，例如 `source/04_rag/08_advanced_rag/`
+- [phase_8_advanced_rag/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_8_advanced_rag/README.md) 仍是占位
+- 第八章代码快照尚未落地
 
 ---
 
