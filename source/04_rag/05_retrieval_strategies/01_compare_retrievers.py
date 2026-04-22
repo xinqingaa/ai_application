@@ -1,11 +1,9 @@
 import argparse
 
 from retrieval_basics import (
-    LocalKeywordEmbeddingProvider,
-    RetrievalStrategyConfig,
-    SimpleRetriever,
     average_redundancy,
-    build_demo_store,
+    build_demo_retriever,
+    RetrievalStrategyConfig,
 )
 
 
@@ -35,15 +33,33 @@ def main() -> None:
         default="购买后多久还能退款？",
         help="Question to retrieve against the demo store.",
     )
+    parser.add_argument(
+        "--backend",
+        choices=("json", "chroma"),
+        default="chroma",
+        help="Retriever backend to compare. Chapter 5 defaults to the real Chroma path.",
+    )
     parser.add_argument("--filename", help="Optional filename filter.")
+    parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--candidate-k", type=int, default=4)
+    parser.add_argument("--threshold", type=float, default=0.80)
+    parser.add_argument("--mmr-lambda", type=float, default=0.35)
+    parser.add_argument("--reset", action="store_true", help="Reset the selected backend first.")
     args = parser.parse_args()
 
-    provider = LocalKeywordEmbeddingProvider()
-    store = build_demo_store(provider=provider, reset_store=True)
-    retriever = SimpleRetriever(store=store, provider=provider)
+    retriever, store = build_demo_retriever(
+        args.backend,
+        reset_store=args.reset,
+    )
+    provider = retriever.provider
 
     print(f"Question: {args.question}")
-    print(f"Store path: {store.config.store_path}")
+    print(f"Backend: {args.backend}")
+    if args.backend == "json":
+        print(f"Store path: {store.config.store_path}")
+    else:
+        print(f"Persist dir: {store.persist_directory}")
+        print(f"Collection: {store.collection_name}")
     current_space = store.embedding_space()
     if current_space is not None:
         print(f"Embedding space: {current_space.label()}")
@@ -52,14 +68,18 @@ def main() -> None:
             f"Filename filter: {args.filename} "
             "(Chapter 5 currently supports filename-only filtering)"
         )
-    print("Compare config: top_k=3 candidate_k=4 threshold=0.88 mmr_lambda=0.35")
+    print(
+        "Compare config: "
+        f"top_k={args.top_k} candidate_k={args.candidate_k} "
+        f"threshold={args.threshold:.2f} mmr_lambda={args.mmr_lambda:.2f}"
+    )
 
     similarity = retriever.retrieve(
         args.question,
         RetrievalStrategyConfig(
             strategy_name="similarity",
-            top_k=3,
-            candidate_k=4,
+            top_k=args.top_k,
+            candidate_k=args.candidate_k,
             filename_filter=args.filename,
         ),
     )
@@ -67,9 +87,9 @@ def main() -> None:
         args.question,
         RetrievalStrategyConfig(
             strategy_name="threshold",
-            top_k=3,
-            candidate_k=4,
-            score_threshold=0.88,
+            top_k=args.top_k,
+            candidate_k=args.candidate_k,
+            score_threshold=args.threshold,
             filename_filter=args.filename,
         ),
     )
@@ -77,9 +97,9 @@ def main() -> None:
         args.question,
         RetrievalStrategyConfig(
             strategy_name="mmr",
-            top_k=3,
-            candidate_k=4,
-            mmr_lambda=0.35,
+            top_k=args.top_k,
+            candidate_k=args.candidate_k,
+            mmr_lambda=args.mmr_lambda,
             filename_filter=args.filename,
         ),
     )

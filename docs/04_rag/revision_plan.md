@@ -23,11 +23,15 @@
   - `docs/04_rag/02_document_processing.md`
   - `docs/04_rag/03_embeddings.md`
   - `docs/04_rag/04_vector_databases.md`
+  - `docs/04_rag/05_retrieval_strategies.md`
+  - `docs/04_rag/06_rag_generation.md`
 - 代码：
   - `source/04_rag/01_rag_basics/`
   - `source/04_rag/02_document_processing/`
   - `source/04_rag/03_embeddings/`
   - `source/04_rag/04_vector_databases/`
+  - `source/04_rag/05_retrieval_strategies/`
+  - `source/04_rag/06_rag_generation/`
 
 明确不把 `source/04_rag/labs/` 作为当前学习主线。
 
@@ -138,7 +142,7 @@
 
 - 第 1 章有 mini golden set
 - 但它仍然是章节内部回归
-- 没有真正成为整个 `01-04` 的共享评估基线
+- 没有真正成为整个 `01-06` 的共享评估基线
 
 影响：
 
@@ -251,7 +255,7 @@
 
 最终要达成的状态是：
 
-1. 课程仍然保持 `01-04` 线性结构
+1. 课程仍然保持 `01-06` 线性结构
 2. 每章仍然保持独立闭环
 3. 但大纲承诺的关键知识点，要么进入主线，要么被明确降级为边界
 4. 文档和代码一一对应，形成真正可跟练的学习路径
@@ -311,7 +315,7 @@ source/04_rag/
 说明：
 
 - `labs/` 保留但降级
-- 01-04 才是主学习目录
+- 01-06 才是主学习目录
 - 每章代码目录内部按照学习顺序递增命名
 
 ### 7.3 每章内部统一采用顺序脚本
@@ -353,7 +357,9 @@ docs/04_rag/
 ├── 01_rag_basics.md
 ├── 02_document_processing.md
 ├── 03_embeddings.md
-└── 04_vector_databases.md
+├── 04_vector_databases.md
+├── 05_retrieval_strategies.md
+└── 06_rag_generation.md
 
 source/04_rag/
 ├── 01_rag_basics/
@@ -392,6 +398,28 @@ source/04_rag/
 │   ├── 04_*.py
 │   ├── 05_*.py
 │   └── tests/
+├── 05_retrieval_strategies/
+│   ├── README.md
+│   ├── evals/
+│   ├── store/
+│   ├── retrieval_basics.py
+│   ├── chroma_retriever.py
+│   ├── 01_*.py
+│   ├── 02_*.py
+│   ├── 03_*.py
+│   ├── 04_*.py
+│   ├── 05_*.py
+│   └── tests/
+├── 06_rag_generation/
+│   ├── README.md
+│   ├── store/
+│   ├── generation_basics.py
+│   ├── 01_*.py
+│   ├── 02_*.py
+│   ├── 03_*.py
+│   ├── 04_*.py
+│   ├── 05_*.py
+│   └── tests/
 └── labs/
 ```
 
@@ -399,7 +427,7 @@ source/04_rag/
 
 ## 9. 文档模板规范
 
-后续修订 `01-04` 时，每章主文档统一采用以下结构：
+后续修订 `01-06` 时，每章主文档统一采用以下结构：
 
 1. 概述
 2. 学习目标
@@ -503,7 +531,7 @@ source/04_rag/
 ### 当前缺口
 
 - 缺少真正的课程级评估前置落点
-- 缺少一份后续 `01-04` 可共享的最小实验样本资产
+- 缺少一份后续 `01-06` 可共享的最小实验样本资产
 
 ### 修订目标
 
@@ -692,7 +720,135 @@ source/04_rag/
 
 - 第四章标题“向量数据库”与实际交付重新一致
 - 学员既懂原理，又能用真实工具
+## 11.5 第五章：`05_retrieval_strategies`
 
+### 当前章节价值
+
+当前第五章已经较好地完成了：
+
+- Retriever 和 Vector Store 的职责拆分
+- `top_k / candidate_k / score_threshold / MMR / filename_filter` 的基础策略参数
+- JSON 原理层和 Chroma 实践层的两条路径
+- 坏案例回归从"人工观察"升级到"PASS / FAIL 可判定"
+- `SimpleRetriever` 和 `ChromaRetriever` 共享策略配置
+
+### 当前缺口
+
+相对大纲（第五大节"检索策略"），当前第五章有以下缺口：
+
+- 缺少 Query 变换策略（多查询生成、HyDE、Query Decomposition、Step-back Prompting）
+- 缺少上下文压缩（ContextualCompressionRetriever）
+- 缺少重排序 Rerank（Cohere / BGE Reranker）
+- 缺少混合检索（BM25 + Embedding 的 EnsembleRetriever）
+- 缺少高级 Retriever 的认知（Self-Query、Parent Document、Multi-Vector）
+- 缺少 LangChain Retriever 抽象层接入
+- 当前文档明确标记了"本章不展开 rerank / hybrid / HyDE / multi-query"
+
+### 修订目标
+
+在保持"第五章先把基础策略做稳"的前提下，把大纲中最重要的高级检索内容补进来。
+
+需要区分两个层次：
+
+1. **主线扩展**：混合检索、Rerank 应该进入第五章主线，因为它们是生产 RAG 系统的高频需求
+2. **认知桥接**：Query 变换、高级 Retriever 可以作为"扩展认知 + 边界说明"存在，不要求完整实现
+
+### 计划补充
+
+文档层：
+
+- 补"混合检索"小节：BM25 + 向量检索的 EnsembleRetriever
+- 补"Rerank 重排序"小节：为什么需要两阶段检索、Cohere / BGE Reranker 的最小认知
+- 补"Query 变换策略"小节：多查询生成、HyDE 的概念和适用场景（不要求完整实现）
+- 补"高级 Retriever 概览"小节：Self-Query、Parent Document、Multi-Vector 的概念认知（选读）
+- 更新"本章边界"：把新增内容纳入边界说明
+
+代码层：
+
+- 保留现有 3 个脚本 + `retrieval_basics.py` + `chroma_retriever.py`
+- 计划新增：
+  - `04_hybrid_retrieval.py`：BM25 + 向量检索混合实验
+  - `05_rerank_demo.py`：最小 Rerank 示例（可用 mock 或真实 Reranker）
+
+可接受的范围：
+
+- 混合检索和 Rerank 应该有可运行代码
+- Query 变换和高级 Retriever 可以只在文档层做概念认知，不强求可运行脚本
+- 不在第五章展开完整的 Agent 式动态检索
+
+完成标准：
+
+- 第五章既能讲清基础策略参数
+- 又能让学员看到生产 RAG 常用的混合检索和 Rerank
+- 高级策略有概念认知，不至于在后续学习中完全陌生
+- 大纲第五大节的核心知识点在文档中有对应落点（主线或边界说明）
+
+## 11.6 第六章：`06_rag_generation`
+
+### 当前章节价值
+
+当前第六章已经较好地完成了：
+
+- `RetrievalResult[]` 输入契约的延续
+- context selection（`min_context_score` + `max_chunks`）
+- context formatter（稳定标签 `[S1]` / `[S2]`）
+- RAG Prompt 边界固定（只能依据上下文回答、无答案拒答、来源标签）
+- `answer + sources` 最小返回结构
+- 无答案处理作为主线能力
+- Mock LLM 的教学闭环
+
+### 当前缺口
+
+相对大纲（第六大节"RAG 生成"和第七大节"RAG 优化"部分内容），当前第六章有以下缺口：
+
+- 缺少真实 LLM 接入（当前只有 MockLLMClient）
+- 缺少基于 LCEL 的 RAG Chain 构建（`retriever | format_docs | prompt | llm | StrOutputParser`）
+- 缺少流式输出（SSE / streaming）
+- 缺少带引用来源的完整 Prompt 模板变体
+- 缺少多轮对话支持
+- 缺少完整 RAG 应用骨架（FastAPI + 文档上传 + 问答接口）
+- 缺少 LangChain Chain 层的接入认知
+
+### 修订目标
+
+在保持"第六章先把生成链路做稳"的前提下，把大纲中最重要的生成和应用内容补进来。
+
+需要区分两个层次：
+
+1. **主线扩展**：真实 LLM 接入、LCEL RAG Chain 应该进入第六章主线，因为它们是 RAG 问答闭环的关键
+2. **边界认知**：完整 FastAPI 应用、多轮对话、流式输出可以作为"扩展方向 + 边界说明"存在，完整实现放到后续章节或项目课
+
+### 计划补充
+
+文档层：
+
+- 补"真实 LLM 接入"小节：从 MockLLMClient 过渡到真实模型调用
+- 补"LCEL RAG Chain"小节：用 LangChain 的 `retriever | prompt | llm | parser` 构建标准 RAG Chain
+- 补"Prompt 模板设计"小节：基础问答、带引用来源、处理"不知道"等变体
+- 补"流式输出"小节：最小流式 RAG 认知（概念 + 边界说明，完整实现可放后续）
+- 补"完整 RAG 应用方向"小节：FastAPI + RAG 的最小架构认知（边界说明，完整实现放 `06_application` 或项目课）
+- 更新"本章边界"：把新增内容纳入边界说明
+
+代码层：
+
+- 保留现有 3 个脚本 + `generation_basics.py`
+- 计划新增：
+  - `04_real_llm_demo.py`：接真实 LLM 跑最小问答闭环
+  - `05_lcel_rag_chain.py`：用 LCEL 构建标准 RAG Chain
+
+可接受的范围：
+
+- 真实 LLM 接入和 LCEL RAG Chain 应该有可运行代码
+- 流式输出和完整 FastAPI 应用可以只在文档层做概念认知和方向指引
+- 不在第六章展开完整的多轮对话、文档管理、权限系统
+
+完成标准：
+
+- 第六章既能讲清受控生成链路
+- 又能让学员从 Mock 过渡到真实 LLM 问答
+- LCEL RAG Chain 有最小可运行示例
+- 完整应用和工程化方向有概念认知，指向后续章节
+- 大纲第六大节的核心知识点在文档中有对应落点（主线或边界说明）
 ---
 
 ## 12. 实施顺序
@@ -704,12 +860,16 @@ source/04_rag/
 3. 修第二章
 4. 修第三章
 5. 修第四章
-6. 最后统一回扫文档链接、README、一致性和测试
+6. 修第五章
+7. 修第六章
+8. 最后统一回扫文档链接、README、一致性和测试
 
 说明：
 
 - 先修第一章，是为了先立住课程级评估尺子
-- 第四章最后修，是因为它对第二、三章的最终表达最敏感
+- 第四章在第三章之后修，是因为它对第二、三章的最终表达最敏感
+- 第五章在第四章之后修，因为它直接复用第四章的 store 契约
+- 第六章最后修，因为它消费第五章的 Retriever 输出，需要前面全部稳定
 
 ---
 
@@ -734,14 +894,16 @@ source/04_rag/
 本轮修订明确不追求：
 
 - 把 `04_rag` 一次性扩成完整产品工程
-- 在 01-04 引入复杂多模块工程骨架
+- 在 01-06 引入复杂多模块工程骨架
 - 做统一跨章共享运行时代码
-- 过早引入 API 服务层、前后端联动或项目部署结构
+- 过早引入前后端联动或项目部署结构
 - 在第二章就把 OCR / 权限 / 多租户做成完整平台课
 - 在第三章就做大规模模型横评
-- 在第四章就讲完整 Retriever 策略和 RAG 生成链路
+- 在第五章就实现完整的 Agent 式动态检索（Query 变换的完整实现留到后续）
+- 在第六章就展开完整的多轮对话、文档管理、FastAPI 服务（完整应用放 `06_application`）
+- 在第六章就做完整的 LLMOps 观测体系
 
-这些内容要么留给后续章节，要么只在本章作为边界意识存在。
+这些内容要么留给后续章节（07-09 或项目课），要么只在本章作为边界意识存在。
 
 ---
 
@@ -751,7 +913,7 @@ source/04_rag/
 
 1. 用户当前明确偏好“章节独立”，不接受重新回到 `labs/phase_x` 的重工程主线
 2. 文档与代码必须强绑定，学习过程要能一节一节跟着跑
-3. 目录必须线性，优先 `01-04`，不要分叉编号
+3. 目录必须线性，优先 `01-06`，不要分叉编号
 4. 若一个章节真的变长，也优先在同章内组织，不默认拆新文档
 5. `labs/` 当前保留，但不作为主线入口
 6. 修订过程中应尽量减少未来章节对当前章节的污染
@@ -810,15 +972,17 @@ source/04_rag/
 
 修订完成后，至少应满足以下条件：
 
-1. `01-04` 四个主文档与大纲主线重新一致
-2. `01-04` 四个代码目录与主文档一一对应
+1. `01-06` 六个主文档与大纲主线重新一致
+2. `01-06` 六个代码目录与主文档一一对应
 3. 每章都有明确的运行入口、观察现象、失败案例和测试
 4. 第一章包含课程级最小评估基线
 5. 第二章不仅有基础输入层，也有最重要的扩展输入认知
 6. 第三章不仅有 toy provider，也有真实 Embedding 接入桥
 7. 第四章明确包含 Chroma 和 LangChain VectorStore 相关实践
-8. `labs/` 不再承担主线职责
-9. 路径引用、README、测试、章节边界保持一致
+8. 第五章不仅有基础策略参数，也有混合检索和 Rerank 的最小实践
+9. 第六章不仅有 Mock 生成链路，也有真实 LLM 接入和 LCEL RAG Chain
+10. `labs/` 不再承担主线职责
+11. 路径引用、README、测试、章节边界保持一致
 
 ---
 
@@ -852,6 +1016,6 @@ source/04_rag/
 
 而是：
 
-> 保留“独立章节闭环”这个正确方向，以大纲为基准，把缺失的关键知识点和真实工具桥接层，系统地补回 `01-04`。
+> 保留“独立章节闭环”这个正确方向，以大纲为基准，把缺失的关键知识点和真实工具桥接层，系统地补回 `01-06`。
 
 这是一轮“规格重对齐 + 章节补强”，不是“回滚迁移”。

@@ -1,10 +1,8 @@
 import argparse
 
 from retrieval_basics import (
-    LocalKeywordEmbeddingProvider,
     RetrievalStrategyConfig,
-    SimpleRetriever,
-    build_demo_store,
+    build_demo_retriever,
 )
 
 
@@ -17,6 +15,12 @@ def main() -> None:
         help="Question to retrieve against the demo store.",
     )
     parser.add_argument(
+        "--backend",
+        choices=("json", "chroma"),
+        default="chroma",
+        help="Retriever backend to query. Chapter 5 defaults to the real Chroma path.",
+    )
+    parser.add_argument(
         "--strategy",
         choices=("similarity", "threshold", "mmr"),
         default="similarity",
@@ -26,11 +30,13 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=0.80)
     parser.add_argument("--mmr-lambda", type=float, default=0.35)
     parser.add_argument("--filename", help="Optional filename filter.")
+    parser.add_argument("--reset", action="store_true", help="Reset the selected backend first.")
     args = parser.parse_args()
 
-    provider = LocalKeywordEmbeddingProvider()
-    store = build_demo_store(provider=provider, reset_store=True)
-    retriever = SimpleRetriever(store=store, provider=provider)
+    retriever, store = build_demo_retriever(
+        args.backend,
+        reset_store=args.reset,
+    )
     strategy = RetrievalStrategyConfig(
         strategy_name=args.strategy,
         top_k=args.top_k,
@@ -40,9 +46,15 @@ def main() -> None:
         filename_filter=args.filename,
     )
     results = retriever.retrieve(args.question, strategy)
+    provider = retriever.provider
 
     print(f"Question: {args.question}")
-    print(f"Store path: {store.config.store_path}")
+    print(f"Backend: {args.backend}")
+    if args.backend == "json":
+        print(f"Store path: {store.config.store_path}")
+    else:
+        print(f"Persist dir: {store.persist_directory}")
+        print(f"Collection: {store.collection_name}")
     current_space = store.embedding_space()
     if current_space is not None:
         print(f"Embedding space: {current_space.label()}")

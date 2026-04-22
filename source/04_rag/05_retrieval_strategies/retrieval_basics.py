@@ -3,17 +3,33 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
+import math
+import re
 import sys
+from typing import Literal
 
 
 CHAPTER_ROOT = Path(__file__).resolve().parent
 CHAPTER4_ROOT = CHAPTER_ROOT.parent / "04_vector_databases"
-DEFAULT_STORE_PATH = CHAPTER_ROOT / "store" / "demo_retrieval_store.json"
+DEFAULT_JSON_STORE_PATH = CHAPTER_ROOT / "store" / "demo_retrieval_store.json"
+DEFAULT_CHROMA_DIR = CHAPTER_ROOT / "store" / "chroma"
 DEFAULT_BAD_CASES_PATH = CHAPTER_ROOT / "evals" / "retrieval_bad_cases.json"
+DEFAULT_TOP_K = 3
+DEFAULT_CANDIDATE_K = 4
+DEFAULT_SCORE_THRESHOLD = 0.80
+DEFAULT_MMR_LAMBDA = 0.35
+DEFAULT_HYBRID_ALPHA = 0.5
+SUPPORTED_STRATEGIES = {"similarity", "threshold", "mmr", "hybrid"}
+SUPPORTED_BACKENDS = ("json", "chroma")
 
 if str(CHAPTER4_ROOT) not in sys.path:
     sys.path.insert(0, str(CHAPTER4_ROOT))
 
+from chroma_store import (  # noqa: E402
+    ChromaVectorStore,
+    ChromaVectorStoreConfig,
+    chromadb_is_available,
+)
 from vector_store_basics import (  # noqa: E402
     EmbeddedChunk,
     EmbeddingProvider,
@@ -30,18 +46,20 @@ from vector_store_basics import (  # noqa: E402
     ensure_vector_dimensions,
 )
 
+BackendName = Literal["json", "chroma"]
+
 
 @dataclass(frozen=True)
 class RetrievalStrategyConfig:
     strategy_name: str
-    top_k: int = 3
-    candidate_k: int = 5
-    score_threshold: float = 0.80
-    mmr_lambda: float = 0.65
+    top_k: int = DEFAULT_TOP_K
+    candidate_k: int = DEFAULT_CANDIDATE_K
+    score_threshold: float = DEFAULT_SCORE_THRESHOLD
+    mmr_lambda: float = DEFAULT_MMR_LAMBDA
     filename_filter: str | None = None
 
     def __post_init__(self) -> None:
-        if self.strategy_name not in {"similarity", "threshold", "mmr"}:
+        if self.strategy_name not in SUPPORTED_STRATEGIES:
             raise ValueError(f"Unsupported strategy: {self.strategy_name}")
         if self.top_k <= 0:
             raise ValueError("top_k must be positive.")
@@ -165,15 +183,176 @@ def index_demo_chunks(
     return store.replace_document(demo_embedded_chunks(provider))
 
 
-def build_demo_store(
+def build_demo_json_store(
     provider: EmbeddingProvider | None = None,
-    store_path: Path = DEFAULT_STORE_PATH,
+    store_path: Path = DEFAULT_JSON_STORE_PATH,
     reset_store: bool = False,
 ) -> PersistentVectorStore:
     embedding_provider = provider or LocalKeywordEmbeddingProvider()
     store = PersistentVectorStore(VectorStoreConfig(store_path=store_path))
     index_demo_chunks(store, embedding_provider, reset_store=reset_store)
     return store
+
+
+def build_demo_store(
+    provider: EmbeddingProvider | None = None,
+    store_path: Path = DEFAULT_JSON_STORE_PATH,
+    reset_store: bool = False,
+) -> PersistentVectorStore:
+    return build_demo_json_store(
+        provider=provider,
+        store_path=store_path,
+        reset_store=reset_store,
+    )
+
+
+def index_demo_chroma_chunks(
+    store: ChromaVectorStore,
+    provider: EmbeddingProvider,
+    reset_store: bool = False,
+) -> int:
+    expected_space = embedding_space_from_provider(provider)
+    expected_doc_ids = {chunk.document_id for chunk in demo_source_chunks()}
+    should_reset = reset_store
+
+    if not should_reset:
+        try:
+            current_space = store.embedding_space()
+            current_doc_ids = set(store.list_document_ids())
+        except ValueError:
+            should_reset = True
+        else:
+            if current_space is not None and current_space != expected_space:
+                should_reset = True
+            if current_doc_ids and current_doc_ids != expected_doc_ids:
+                should_reset = True
+
+    if should_reset:
+        store.reset()
+
+    return store.replace_document(demo_embedded_chunks(provider))
+
+
+def build_demo_chroma_store(
+    provider: EmbeddingProvider | None = None,
+    persist_directory: Path = DEFAULT_CHROMA_DIR,
+    collection_name: str = "chapter5_retrieval_chunks",
+    reset_store: bool = False,
+) -> ChromaVectorStore:
+    if not chromadb_is_available():
+        raise RuntimeError(
+            "Real Chroma support requires the `chromadb` package. "
+            "Run `python -m pip install -r requirements.txt` in this chapter directory."
+        )
+
+    embedding_provider = provider or LocalKeywordEmbeddingProvider()
+    store = ChromaVectorStore(
+        ChromaVectorStoreConfig(
+            persist_directory=persist_directory,
+            collection_name=collection_name,
+        )
+    )
+    index_demo_chroma_chunks(store, embedding_provider, reset_store=reset_store)
+    return store
+
+
+def build_demo_retriever(
+    backend: BackendName,
+    provider: EmbeddingProvider | None = None,
+    *,
+    reset_store: bool = False,
+    json_store_path: Path = DEFAULT_JSON_STORE_PATH,
+    chroma_persist_directory: Path = DEFAULT_CHROMA_DIR,
+):
+    embedding_provider = provider or LocalKeywordEmbeddingProvider()
+    if backend == "json":
+        store = build_demo_json_store(
+            provider=embedding_provider,
+            store_path=json_store_path,
+            reset_store=reset_store,
+        )
+        return SimpleRetriever(store=store, provider=embedding_provider), store
+
+    if backend == "chroma":
+        from chroma_retriever import ChromaRetriever
+
+        store = build_demo_chroma_store(
+            provider=embedding_provider,
+            persist_directory=chroma_persist_directory,
+            reset_store=reset_store,
+        )
+        return ChromaRetriever(store=store, provider=embedding_provider), store
+
+    raise ValueError(f"Unsupported backend: {backend}")
+
+
+def strategy_from_case(
+    case: dict[str, object],
+    strategy_name: str,
+) -> RetrievalStrategyConfig:
+    values: dict[str, object] = {
+        "strategy_name": strategy_name,
+        "top_k": DEFAULT_TOP_K,
+        "candidate_k": DEFAULT_CANDIDATE_K,
+        "score_threshold": DEFAULT_SCORE_THRESHOLD,
+        "mmr_lambda": DEFAULT_MMR_LAMBDA,
+        "filename_filter": case.get("filename_filter"),
+    }
+
+    strategy_configs = case.get("strategy_configs")
+    if isinstance(strategy_configs, dict):
+        overrides = strategy_configs.get(strategy_name)
+        if isinstance(overrides, dict):
+            for key in (
+                "top_k",
+                "candidate_k",
+                "score_threshold",
+                "mmr_lambda",
+                "filename_filter",
+            ):
+                if key in overrides:
+                    values[key] = overrides[key]
+
+    filename_filter = values["filename_filter"]
+    return RetrievalStrategyConfig(
+        strategy_name=str(values["strategy_name"]),
+        top_k=int(values["top_k"]),
+        candidate_k=int(values["candidate_k"]),
+        score_threshold=float(values["score_threshold"]),
+        mmr_lambda=float(values["mmr_lambda"]),
+        filename_filter=str(filename_filter) if filename_filter else None,
+    )
+
+
+def select_search_hits(
+    query_vector: list[float],
+    candidates: list[SearchHit],
+    strategy: RetrievalStrategyConfig,
+) -> list[SearchHit]:
+    if strategy.strategy_name == "similarity":
+        return candidates[: strategy.top_k]
+
+    if strategy.strategy_name == "threshold":
+        return [
+            item for item in candidates if item.similarity_score >= strategy.score_threshold
+        ][: strategy.top_k]
+
+    if strategy.strategy_name == "mmr":
+        return maximal_marginal_relevance(
+            query_vector=query_vector,
+            candidates=candidates,
+            top_k=strategy.top_k,
+            lambda_mult=strategy.mmr_lambda,
+        )
+
+    raise ValueError(f"Unsupported strategy: {strategy.strategy_name}")
+
+
+def hits_to_results(hits: list[SearchHit]) -> list[RetrievalResult]:
+    return [
+        RetrievalResult(chunk=item.embedded_chunk.chunk, score=item.similarity_score)
+        for item in hits
+    ]
 
 
 class SimpleRetriever:
@@ -193,35 +372,15 @@ class SimpleRetriever:
         query_vector = self.provider.embed_query(question)
         candidates = self._search_candidates(
             query_vector=query_vector,
-            top_k=strategy.candidate_k,
+            candidate_k=strategy.candidate_k,
             filename_filter=strategy.filename_filter,
         )
-
-        if strategy.strategy_name == "similarity":
-            selected = candidates[: strategy.top_k]
-        elif strategy.strategy_name == "threshold":
-            selected = [
-                item for item in candidates if item.similarity_score >= strategy.score_threshold
-            ][: strategy.top_k]
-        elif strategy.strategy_name == "mmr":
-            selected = maximal_marginal_relevance(
-                query_vector=query_vector,
-                candidates=candidates,
-                top_k=strategy.top_k,
-                lambda_mult=strategy.mmr_lambda,
-            )
-        else:
-            raise ValueError(f"Unsupported strategy: {strategy.strategy_name}")
-
-        return [
-            RetrievalResult(chunk=item.embedded_chunk.chunk, score=item.similarity_score)
-            for item in selected
-        ]
+        return hits_to_results(select_search_hits(query_vector, candidates, strategy))
 
     def _search_candidates(
         self,
         query_vector: list[float],
-        top_k: int,
+        candidate_k: int,
         filename_filter: str | None = None,
     ) -> list[SearchHit]:
         ensure_vector_dimensions(query_vector, self.provider.dimensions, context="query vector")
@@ -244,7 +403,7 @@ class SimpleRetriever:
             for chunk in embedded_chunks
         ]
         hits.sort(key=lambda item: item.similarity_score, reverse=True)
-        return hits[:top_k]
+        return hits[:candidate_k]
 
 
 def maximal_marginal_relevance(
@@ -402,3 +561,207 @@ def evaluate_bad_case(
         status="pass",
         messages=tuple(observed_messages),
     )
+
+
+# ---------------------------------------------------------------------------
+# BM25 scorer — 最小自实现，不依赖外部库
+# ---------------------------------------------------------------------------
+# 教学目标：让学员看清 TF-IDF + 文档长度归一化在做什么。
+# 生产环境应使用 jieba 分词 + rank_bm25 或 Elasticsearch BM25。
+# 这里用字符 bigram + 单字作为 tokenizer，对中文短文本 demo 语料够用。
+# ---------------------------------------------------------------------------
+
+_PUNCTUATION = re.compile(r"[\s\u3000-\u303f\uff00-\uffef，。！？、；：""''（）【】]+")
+
+
+def _simple_tokenize(text: str) -> list[str]:
+    """字符 bigram + 单字 tokenizer，适用于中文短文本 demo。
+
+    不引入 jieba 或其他分词库，保持零额外依赖。
+    """
+    cleaned = _PUNCTUATION.sub("", text.lower())
+    tokens: list[str] = list(cleaned)  # 单字
+    for i in range(len(cleaned) - 1):  # bigram
+        tokens.append(cleaned[i : i + 2])
+    return tokens
+
+
+class SimpleBM25Scorer:
+    """最小 BM25 实现，只服务于教学。
+
+    标准 BM25 公式:
+      score(q, d) = Σ IDF(t) * (tf(t,d) * (k1 + 1)) / (tf(t,d) + k1 * (1 - b + b * |d| / avgdl))
+
+    其中:
+      - IDF(t) = log((N - df(t) + 0.5) / (df(t) + 0.5) + 1)
+      - tf(t, d) = term frequency of t in document d
+      - |d| = document length in tokens
+      - avgdl = average document length
+      - k1, b = tuning parameters (defaults: 1.5, 0.75)
+    """
+
+    def __init__(
+        self,
+        corpus: list[SourceChunk],
+        k1: float = 1.5,
+        b: float = 0.75,
+    ) -> None:
+        self.corpus = corpus
+        self.k1 = k1
+        self.b = b
+
+        self._doc_tokens: list[list[str]] = [
+            _simple_tokenize(chunk.content) for chunk in corpus
+        ]
+        self._doc_lens = [len(tokens) for tokens in self._doc_tokens]
+        self._avgdl = sum(self._doc_lens) / max(len(self._doc_lens), 1)
+        self._n = len(corpus)
+
+        # document frequency: term -> number of documents containing it
+        self._df: dict[str, int] = {}
+        for tokens in self._doc_tokens:
+            for term in set(tokens):
+                self._df[term] = self._df.get(term, 0) + 1
+
+    def _idf(self, term: str) -> float:
+        df = self._df.get(term, 0)
+        return math.log((self._n - df + 0.5) / (df + 0.5) + 1.0)
+
+    def score(self, query: str) -> list[tuple[SourceChunk, float]]:
+        """返回 (chunk, bm25_score) 列表，按 score 降序排列。"""
+        query_tokens = _simple_tokenize(query)
+        scores: list[tuple[SourceChunk, float]] = []
+
+        for idx, chunk in enumerate(self.corpus):
+            doc_tokens = self._doc_tokens[idx]
+            doc_len = self._doc_lens[idx]
+            tf_map: dict[str, int] = {}
+            for t in doc_tokens:
+                tf_map[t] = tf_map.get(t, 0) + 1
+
+            total = 0.0
+            for qt in query_tokens:
+                tf = tf_map.get(qt, 0)
+                if tf == 0:
+                    continue
+                idf = self._idf(qt)
+                numerator = tf * (self.k1 + 1)
+                denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / self._avgdl)
+                total += idf * numerator / denominator
+
+            scores.append((chunk, total))
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return scores
+
+
+# ---------------------------------------------------------------------------
+# 混合检索 — 向量 + BM25 加权融合
+# ---------------------------------------------------------------------------
+
+
+def _min_max_normalize(scores: list[float]) -> list[float]:
+    """将分数归一化到 [0, 1] 区间。"""
+    if not scores:
+        return []
+    lo, hi = min(scores), max(scores)
+    span = hi - lo
+    if span == 0:
+        return [1.0] * len(scores)
+    return [(s - lo) / span for s in scores]
+
+
+def hybrid_search(
+    query: str,
+    vector_results: list[RetrievalResult],
+    bm25_scorer: SimpleBM25Scorer,
+    alpha: float = DEFAULT_HYBRID_ALPHA,
+    top_k: int = DEFAULT_TOP_K,
+) -> list[RetrievalResult]:
+    """向量分数 + BM25 分数加权融合。
+
+    hybrid_score = alpha * norm(vector_score) + (1 - alpha) * norm(bm25_score)
+
+    alpha 越大越偏向语义相似度，越小越偏向关键词匹配。
+    """
+    bm25_all = bm25_scorer.score(query)
+    bm25_by_id: dict[str, float] = {chunk.chunk_id: score for chunk, score in bm25_all}
+
+    # 收集所有出现过的 chunk（两路取并集）
+    chunk_by_id: dict[str, SourceChunk] = {}
+    vector_by_id: dict[str, float] = {}
+    for result in vector_results:
+        chunk_by_id[result.chunk.chunk_id] = result.chunk
+        vector_by_id[result.chunk.chunk_id] = result.score
+    for chunk, _ in bm25_all:
+        chunk_by_id.setdefault(chunk.chunk_id, chunk)
+
+    all_ids = list(chunk_by_id.keys())
+
+    raw_vector = [vector_by_id.get(cid, 0.0) for cid in all_ids]
+    raw_bm25 = [bm25_by_id.get(cid, 0.0) for cid in all_ids]
+
+    norm_vector = _min_max_normalize(raw_vector)
+    norm_bm25 = _min_max_normalize(raw_bm25)
+
+    combined: list[tuple[str, float]] = []
+    for i, cid in enumerate(all_ids):
+        hybrid_score = alpha * norm_vector[i] + (1 - alpha) * norm_bm25[i]
+        combined.append((cid, hybrid_score))
+    combined.sort(key=lambda x: x[1], reverse=True)
+
+    return [
+        RetrievalResult(chunk=chunk_by_id[cid], score=score)
+        for cid, score in combined[:top_k]
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 两阶段检索 — toy Reranker
+# ---------------------------------------------------------------------------
+# 教学目标：看清"先粗筛再精排"的两阶段架构。
+# 真实 Reranker 使用 cross-encoder 模型（如 Cohere Rerank、BGE Reranker），
+# 效果远强于关键词匹配，但原理相同：对 query-document pair 重新打分。
+# ---------------------------------------------------------------------------
+
+
+class SimpleCrossReranker:
+    """最小关键词交叉打分 reranker，只用于教学演示。
+
+    对每个 candidate 计算 query 和 document 之间的词级 F1：
+      precision = |query_tokens ∩ doc_tokens| / |query_tokens|
+      recall    = |query_tokens ∩ doc_tokens| / |doc_tokens|
+      f1        = 2 * precision * recall / (precision + recall)
+
+    真实 Reranker 用 cross-encoder（如 BAAI/bge-reranker-large），效果远强于此。
+    """
+
+    def rerank(
+        self,
+        query: str,
+        candidates: list[RetrievalResult],
+        top_n: int | None = None,
+    ) -> list[RetrievalResult]:
+        """返回按 rerank_score 降序的结果。"""
+        query_tokens = set(_simple_tokenize(query))
+        if not query_tokens:
+            return candidates[:top_n]
+
+        scored: list[tuple[RetrievalResult, float]] = []
+        for result in candidates:
+            doc_tokens = set(_simple_tokenize(result.chunk.content))
+            if not doc_tokens:
+                scored.append((result, 0.0))
+                continue
+            overlap = len(query_tokens & doc_tokens)
+            precision = overlap / len(query_tokens)
+            recall = overlap / len(doc_tokens)
+            f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+            scored.append((result, f1))
+
+        scored.sort(key=lambda x: x[1], reverse=True)
+        limit = top_n if top_n is not None else len(scored)
+        return [
+            RetrievalResult(chunk=result.chunk, score=rerank_score)
+            for result, rerank_score in scored[:limit]
+        ]

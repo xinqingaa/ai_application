@@ -134,9 +134,10 @@ python -m unittest discover -s tests
 
 ```bash
 cd source/04_rag/05_retrieval_strategies
-python 01_compare_retrievers.py
-python 02_review_bad_cases.py
-python 03_query_demo.py --strategy similarity
+python -m pip install -r requirements.txt
+python 01_compare_retrievers.py --backend chroma --reset
+python 02_review_bad_cases.py --backend chroma
+python 03_query_demo.py --backend chroma --strategy similarity
 python -m unittest discover -s tests
 ```
 

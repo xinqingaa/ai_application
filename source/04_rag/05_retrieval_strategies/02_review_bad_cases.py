@@ -1,16 +1,15 @@
 from retrieval_basics import (
-    LocalKeywordEmbeddingProvider,
+    EmbeddingProvider,
     RetrievalResult,
-    RetrievalStrategyConfig,
-    SimpleRetriever,
     average_redundancy,
-    build_demo_store,
+    build_demo_retriever,
     evaluate_bad_case,
     load_bad_cases,
+    strategy_from_case,
 )
 
 
-def summarize_results(results: list[RetrievalResult], provider: LocalKeywordEmbeddingProvider) -> str:
+def summarize_results(results: list[RetrievalResult], provider: EmbeddingProvider) -> str:
     top_chunk_id = results[0].chunk.chunk_id if results else "none"
     chunk_ids = [result.chunk.chunk_id for result in results]
     redundancy = average_redundancy(results, provider)
@@ -21,9 +20,23 @@ def summarize_results(results: list[RetrievalResult], provider: LocalKeywordEmbe
 
 
 def main() -> None:
-    provider = LocalKeywordEmbeddingProvider()
-    store = build_demo_store(provider=provider, reset_store=True)
-    retriever = SimpleRetriever(store=store, provider=provider)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run Chapter 5 bad-case regression.")
+    parser.add_argument(
+        "--backend",
+        choices=("json", "chroma"),
+        default="chroma",
+        help="Retriever backend to evaluate. Chapter 5 defaults to the real Chroma path.",
+    )
+    parser.add_argument("--reset", action="store_true", help="Reset the selected backend first.")
+    args = parser.parse_args()
+
+    retriever, store = build_demo_retriever(
+        args.backend,
+        reset_store=args.reset,
+    )
+    provider = retriever.provider
     failures = 0
 
     for case in load_bad_cases():
@@ -34,19 +47,21 @@ def main() -> None:
         print(f"Case: {case['case_id']}")
         print(f"Question: {question}")
         print(f"Expected focus: {expected}")
-        print(f"Store path: {store.config.store_path}")
-        print("Regression config: top_k=3 candidate_k=4 threshold=0.80 mmr_lambda=0.35")
+        print(f"Backend: {args.backend}")
+        if args.backend == "json":
+            print(f"Store path: {store.config.store_path}")
+        else:
+            print(f"Persist dir: {store.persist_directory}")
+            print(f"Collection: {store.collection_name}")
         if filename:
             print(f"Filename filter: {filename} (filename-only)")
 
         for strategy_name in ("similarity", "threshold", "mmr"):
-            strategy = RetrievalStrategyConfig(
-                strategy_name=strategy_name,
-                top_k=3,
-                candidate_k=4,
-                score_threshold=0.80,
-                mmr_lambda=0.35,
-                filename_filter=str(filename) if filename else None,
+            strategy = strategy_from_case(case, strategy_name)
+            print(
+                "  config: "
+                f"top_k={strategy.top_k} candidate_k={strategy.candidate_k} "
+                f"threshold={strategy.score_threshold:.2f} mmr_lambda={strategy.mmr_lambda:.2f}"
             )
             results = retriever.retrieve(question, strategy)
             evaluation = evaluate_bad_case(case, strategy_name, results, provider)

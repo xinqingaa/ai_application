@@ -1,6 +1,6 @@
 # 05. 检索策略
 
-> 本节目标：理解为什么第四章的向量查询结果还不能直接等同于“好的检索”，跑通一个最小的 Retriever 闭环，并建立 `top_k / candidate_k / score_threshold / MMR / filename filter` 分别在解决什么问题的判断。
+> 本章目标：理解为什么第四章的向量查询结果还不能直接等同于“好的检索”，先用 JSON store 看清基础策略参数在做什么，再把同一套策略真正挂到第四章的 `Chroma` 上，然后进一步掌握混合检索和两阶段检索（Rerank）的核心原理。
 
 ---
 
@@ -9,57 +9,71 @@
 ### 学习目标
 
 - 理解 Retriever 在 RAG 系统里的职责边界
-- 理解为什么很多回答问题，根因其实在检索而不是 Prompt
-- 看懂第五章如何继续站在第四章的 `PersistentVectorStore + EmbeddingSpace` 契约之上
-- 掌握 `top_k / candidate_k / score_threshold / MMR / filename filter` 的基本边界
+- 理解为什么很多回答错误，根因其实在检索而不是 Prompt
+- 看懂第五章如何继续站在第四章的 `PersistentVectorStore / ChromaVectorStore + EmbeddingSpace` 契约之上
+- 掌握 `top_k / candidate_k / score_threshold / MMR / filename_filter` 的基本边界
 - 能运行第五章脚本，并解释坏案例回归为什么要变成可判定的 `PASS / FAIL`
+- 理解混合检索（BM25 + 向量）如何取长补短
+- 理解两阶段检索（Rerank）的架构和价值
+- 了解 Query 变换策略和高级 Retriever 的概念边界
 
 ### 预计学习时间
 
 - Retriever 边界理解：30-40 分钟
-- 基础检索参数：40-60 分钟
-- 坏案例与策略对比：40-60 分钟
+- 策略参数与坏案例：40-60 分钟
+- 真实 Chroma 实践：30-40 分钟
+- 混合检索：40-60 分钟
+- Rerank 两阶段检索：40-60 分钟
+- Query 变换与高级 Retriever 概念认知：20-30 分钟
 
 ### 本章在 RAG 工程中的重要性
 
 | 场景 | 第五章先解决什么 |
 |------|------------------|
 | 基础 Top-K 查询之后 | 为什么还需要 Retriever 层而不是直接把 store 暴露给业务 |
-| 上下文控制 | `top_k / candidate_k / threshold` 怎么影响噪声和覆盖范围 |
-| 重复内容较多 | 为什么要引入 MMR 而不只是继续拉高 `top_k` |
-| 范围约束 | 为什么 `filename` 过滤应进入策略配置，而不是散在脚本里 |
-| 评估与调优 | 为什么坏案例不能只靠人工观察，而要开始有最小可判定回归 |
+| 噪声控制 | `top_k / candidate_k / threshold` 怎么影响上下文质量 |
+| 重复内容较多 | 为什么要引入 MMR 而不只是继续增大 `top_k` |
+| 范围约束 | 为什么 `filename_filter` 应进入策略配置 |
+| 回归调试 | 为什么坏案例不能只靠人工观察，而要开始有机器可判定标准 |
+| 精确关键词查询 | 为什么纯向量检索会漏掉精确匹配，混合检索怎么补 |
+| 候选池噪声大 | 两阶段检索（Rerank）为什么能提升精排质量 |
 
 ### 本章与前后章节的关系
 
 第四章已经解决：
 
-1. 向量如何被持久化存起来
+1. 向量怎样被持久化存起来
 2. 怎么做最小相似度查询
 3. query 和 store 必须保持同一 embedding space
-4. `filename` 过滤和 `document_id` 删除 / 替换为什么重要
+4. JSON store、Chroma、LangChain Chroma 的映射关系
 
 第五章接着解决：
 
 1. 如何把底层查询收束成 Retriever
 2. 如何控制召回数量、噪声和多样性
-3. 检索失败时先从哪里排查
-4. 坏案例回归怎样开始变成可重复实验
+3. 如何把策略差异做成可重复实验
+4. 如何把第四章的真实 Chroma 变成第五章的真实策略实验底座
 
-第六章会继续建立在这里之上：
+第六章才继续解决：
 
-1. 把 Retriever 返回的结果拼进 Prompt
+1. 把 Retriever 返回结果拼进 Prompt
 2. 形成真正的 RAG Chain
 
 ### 第五章与第四章的连续性
 
 第五章不应该重新发明一套 provider、chunk 或 store。
 
-当前代码改成了下面这条连续路径：
+当前代码有两条连续路径：
 
 ```text
-chapter 4 SourceChunk / EmbeddedChunk / PersistentVectorStore
--> chapter 5 RetrievalStrategyConfig / SimpleRetriever
+chapter 4 PersistentVectorStore
+-> chapter 5 SimpleRetriever
+-> RetrievalResult[]
+```
+
+```text
+chapter 4 ChromaVectorStore
+-> chapter 5 ChromaRetriever
 -> RetrievalResult[]
 ```
 
@@ -67,26 +81,36 @@ chapter 4 SourceChunk / EmbeddedChunk / PersistentVectorStore
 
 - `SourceChunk`
 - `EmbeddedChunk`
-- `LocalKeywordEmbeddingProvider`
-- `PersistentVectorStore`
+- embedding provider
+- 向量空间契约
+- store 持久化
 
-本章会复用第四章已经立住的边界：
+### 关于代码复制的说明
 
-- 单一 `provider / model / dimensions` 空间
-- richer metadata
-- `filename`-only filter
-- 持久化 store 作为底层数据源
+第五章新增的：
+
+- [chroma_retriever.py](../../source/04_rag/05_retrieval_strategies/chroma_retriever.py)
+
+是从旧的 `labs/phase_5_retrieval_strategies/app/retrievers/chroma.py` 扁平化提炼出来的。
+
+保留独立副本的原因是：
+
+- 当前主线章节不再回到 `app/` 工程骨架
+- 但第五章仍然需要一个真实 `ChromaRetriever`
+- 所以这里保留一个“只服务于第五章策略实验”的平铺版实现
 
 ### 本章代码入口
 
-本章对应的代码目录是：
-
-- [../../source/04_rag/05_retrieval_strategies/README.md](../../source/04_rag/05_retrieval_strategies/README.md)
-- [../../source/04_rag/05_retrieval_strategies/retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py)
-- [../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py](../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py)
-- [../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py](../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py)
-- [../../source/04_rag/05_retrieval_strategies/03_query_demo.py](../../source/04_rag/05_retrieval_strategies/03_query_demo.py)
-- [../../source/04_rag/05_retrieval_strategies/evals/retrieval_bad_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_bad_cases.json)
+- [README.md](../../source/04_rag/05_retrieval_strategies/README.md)
+- [requirements.txt](../../source/04_rag/05_retrieval_strategies/requirements.txt)
+- [retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py)
+- [chroma_retriever.py](../../source/04_rag/05_retrieval_strategies/chroma_retriever.py)
+- [01_compare_retrievers.py](../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py)
+- [02_review_bad_cases.py](../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py)
+- [03_query_demo.py](../../source/04_rag/05_retrieval_strategies/03_query_demo.py)
+- [04_hybrid_retrieval.py](../../source/04_rag/05_retrieval_strategies/04_hybrid_retrieval.py)
+- [05_rerank_demo.py](../../source/04_rag/05_retrieval_strategies/05_rerank_demo.py)
+- [evals/retrieval_bad_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_bad_cases.json)
 
 ### 本章边界
 
@@ -97,17 +121,19 @@ chapter 4 SourceChunk / EmbeddedChunk / PersistentVectorStore
 3. MMR 多样性控制
 4. `filename` 范围约束
 5. 坏案例记录和最小可判定回归
+6. JSON 原理层和 Chroma 实践层的对照
+7. 混合检索：BM25 + 向量加权融合
+8. 两阶段检索：Rerank 重排序
 
-本章不要求：
+本章做概念认知但不展开实现：
 
-- 一次性把混合检索、Rerank、HyDE 都实现一遍
-- 做通用 metadata filter DSL
-- 进入完整 Agent 级动态决策
-- 把所有高级 Retriever 做成生产级组件
+- Query 变换策略（Multi-Query / HyDE / Query Decomposition）
+- 高级 Retriever（Self-Query / Parent Document / Multi-Vector）
 
-这一章的目标不是把检索工程做完，而是把下面这件事学会：
+本章不展开：
 
-> 第五章解决的是“怎么查得更稳、更可控”，不是“怎么把整条 RAG 链都接完”。
+- LangChain Retriever 抽象
+- Prompt 和生成答案
 
 ---
 
@@ -127,32 +153,21 @@ Retriever 更偏应用层，负责：
 
 - 接收用户问题
 - 决定查询参数
-- 决定返回多少结果
+- 决定召回数量
 - 决定是否做阈值过滤或多样性控制
-- 把结果整理成后续 Chain 能消费的统一接口
+- 把结果整理成后续链路能消费的统一接口
 
 所以 Retriever 的本质不是“再包一层类”，而是：
 
 > 把底层查询能力收束成稳定的应用侧检索接口。
 
-### 2.2 第五章到底新增了什么
+### 2.2 第五章真正新增了什么
 
-第五章当前代码没有重做第四章的 chunk 或 store。
-
-真正新增的是：
-
-```text
-question
--> Retriever config
--> load EmbeddedChunk[] from chapter 4 store
--> strategy selection
--> RetrievalResult[]
-```
-
-也就是说，第五章真正交付的是：
+第五章当前真正新增的是：
 
 - `RetrievalStrategyConfig`
 - `SimpleRetriever`
+- `ChromaRetriever`
 - `maximal_marginal_relevance()`
 - 最小 bad-case regression
 
@@ -160,61 +175,48 @@ question
 
 如果召回结果本身不对，后面 Prompt 写得再好，模型也只能在错误上下文里回答。
 
-所以第五章要建立一个很重要的习惯：
+所以第五章要建立的习惯是：
 
 > 先看召回结果，再看生成结果。
 
-这也是为什么这一章开始把坏案例从“看一眼输出”推进到“至少有最小可判定回归”。
-
 ---
 
-## 3. 当前章节里有哪些基础策略 📌
+## 3. 这些策略参数分别在解决什么 📌
 
-### 3.1 similarity
+### 3.1 `top_k`
 
-这是最直接的策略：
+`top_k` 决定最终要带多少条结果进入后续链路。
 
-- 拿 query vector 去查最相近的 chunk
-- 按相似度从高到低返回
+它太小：
 
-它适合：
+- 可能漏掉关键依据
 
-- 先确认系统基本能召回正确上下文
-- 作为所有增强策略的对照基线
+它太大：
 
-但它的问题也很典型：
+- 会把噪声和冗余一起带进去
 
-- 容易带入低分尾部
-- 容易把高度相似的 chunk 一起召回来
+### 3.2 `candidate_k`
 
-### 3.2 `score_threshold`
+很多人只盯 `top_k`，但 Retriever 真正先控制的是候选池。
+
+`candidate_k` 的作用是：
+
+> 先把“可能有用的范围”拉出来，再让 threshold 或 MMR 在这批候选里做进一步选择。
+
+这一点在第五章的 `candidate_pool_for_mmr` case 里会被显式看到。
+
+### 3.3 `score_threshold`
 
 阈值过滤解决的是：
 
-- 不让明显不相关的结果也进入上下文
-
-它的价值主要在于：
-
-- 控制噪声
+- 不让明显弱相关的尾部进入上下文
 - 更好地处理“无答案”场景
-- 让系统更容易说“我不知道”，而不是强行在弱相关上下文里回答
 
-要注意一件事：
+要注意：
 
 > threshold 没有跨模型通用的最佳值。
 
-当前第五章 demo 复用了第四章的 embedding space，因此默认阈值基线改成了 `0.80`，而不是旧实现里的 `0.60`。
-
-### 3.3 `candidate_k`
-
-很多人只关注最终 `top_k`，但 `candidate_k` 同样重要：
-
-- threshold 需要先有足够候选，才有东西可筛
-- MMR 需要先有一批候选，才有空间做多样性选择
-
-所以 `candidate_k` 的作用是：
-
-> 先控制候选范围，再在 Retriever 层做进一步选择。
+当前第五章默认阈值基线是 `0.80`，因为它复用了本章当前 embedding space 的分布。
 
 ### 3.4 MMR
 
@@ -227,257 +229,159 @@ MMR 的目标不是单纯找“最像”的结果，而是：
 - 重复内容较多
 - 希望上下文覆盖更多角度
 
-要注意当前脚本里的一个细节：
-
-> MMR 输出时展示的 `score` 仍然是 similarity score，不是内部 MMR selection score。
-
-也就是说：
-
-- 显示分数用来帮助你看相关性强弱
-- 选择顺序来自 MMR 的多样性算法
-
-### 3.5 当前过滤边界是什么
+### 3.5 `filename_filter`
 
 第五章当前确实支持过滤，但要说准确：
 
 > 当前最小实现只支持 `filename_filter`，不是通用 metadata filter DSL。
 
-这一点和第四章保持一致。
-
-所以文档里如果说“按来源、知识域、租户自由过滤”，那就是把实现说强了。
+这和第四章保持一致。
 
 ---
 
-## 4. 当前第五章代码具体怎么落地 📌
+## 4. JSON 原理层和真实 Chroma 层怎么分工 📌
 
-### 4.1 `RetrievalStrategyConfig`
+### 4.1 为什么第五章现在还保留 JSON 路径
 
-[retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py) 里最关键的策略对象是：
+JSON 路径仍然很有价值，因为它最适合把策略本身看清楚。
 
-- `strategy_name`
-- `top_k`
-- `candidate_k`
-- `score_threshold`
-- `mmr_lambda`
-- `filename_filter`
+在这条路径里，你可以直接看到：
 
-这说明第五章的重心已经从“怎么存向量”转向：
+- query vector
+- candidate pool
+- similarity score
+- MMR 选择顺序
 
-> 同一份底层数据，在应用层应该怎么组织检索策略。
+它更像一个“策略教学放大镜”。
 
-### 4.2 `SimpleRetriever`
+### 4.2 为什么第五章默认切到 Chroma
 
-`SimpleRetriever` 当前负责：
+如果第五章只停留在 JSON 路径，会和第四章刚补上的真实存储层脱节。
 
-1. 把用户问题变成 query vector
-2. 从第四章 store 里读取标准 `EmbeddedChunk[]`
-3. 校验 query 和 stored vectors 是否属于同一 embedding space
-4. 在 Retriever 层应用 `candidate_k / threshold / MMR / filename_filter`
-5. 输出标准 `RetrievalResult[]`
+所以第五章现在默认把脚本切到：
 
-第五章真正新增的代码重心就在这里。
+> `--backend chroma`
 
-### 4.3 为什么 demo store 仍然存在
+这样你会直接在真实向量数据库上比较：
 
-第五章当前仍然保留一个本章目录下的 demo store 文件：
+- similarity
+- threshold
+- MMR
+- filename filter
 
-`source/04_rag/05_retrieval_strategies/store/demo_retrieval_store.json`
+### 4.3 当前代码里的两种 Retriever
 
-但它的职责已经变了：
+当前主线里：
 
-- 不再定义新的 store 契约
-- 只是为了让策略对比有一份固定、可重复的样例索引
+- [retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py)
+  提供 `SimpleRetriever`
+- [chroma_retriever.py](../../source/04_rag/05_retrieval_strategies/chroma_retriever.py)
+  提供 `ChromaRetriever`
 
-脚本运行时会用固定 demo corpus 重建这份 store，目的是保证策略实验可重复。
+它们共享同一套：
 
-### 4.4 坏案例为什么要进 `evals/`
-
-现在 [retrieval_bad_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_bad_cases.json) 已经不只是“写几句期望”。
-
-它开始包含最小 machine-checkable assertions，例如：
-
-- `top_chunk_id`
-- `count`
-- `empty`
-- `filename`
-- `must_include_chunk_ids`
-
-这一步很重要，因为后面的优化不应该只靠“感觉更好”，而要开始能回答：
-
-- 哪个策略通过了
-- 哪个策略失败了
-- 它失败在哪个检查点
-
----
-
-## 5. 检索效果差时先看什么 📌
-
-第五章建议建立这个排查顺序：
-
-1. 用户问题本身是否清晰
-2. similarity 基线里有没有正确来源
-3. 低分尾部是不是太多
-4. 结果之间是不是高度重复
-5. 检索范围是不是过宽或过窄
-6. 最后才看 Prompt 和生成
-
-这也是为什么当前脚本分成了三个入口：
-
-- [01_compare_retrievers.py](../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py)
-  适合看同一问题在不同策略下的即时对比
-- [02_review_bad_cases.py](../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py)
-  适合固定案例回归，并直接输出 `PASS / FAIL / INFO`
-- [03_query_demo.py](../../source/04_rag/05_retrieval_strategies/03_query_demo.py)
-  适合单独跑某一种策略
-
-没有这三类入口，你很难回答：
-
-- 现在到底是哪种失败
-- 加一个策略到底有没有变好
-
----
-
-## 6. 第五章实践：独立 Retriever 闭环
-
-### 6.1 目录结构
-
-```text
-source/04_rag/05_retrieval_strategies/
-├── README.md
-├── retrieval_basics.py
-├── 01_compare_retrievers.py
-├── 02_review_bad_cases.py
-├── 03_query_demo.py
-├── evals/
-├── store/
-└── tests/
-```
-
-第五章保持和前几章一样的平铺目录。
-
-这里不做：
-
-- 生产级检索服务
-- 通用 Retriever 注册体系
-- 混合检索和 Rerank
-- Prompt 和答案生成
-
-### 6.2 输入和输出
-
-本章代码的输入是：
-
-- 一个问题
-- 一份固定 demo corpus
-- 一份 `RetrievalStrategyConfig`
-
-本章代码的输出是：
-
-- `RetrievalResult[]`
-- 各策略下的结果差异
-- bad-case regression 的 `PASS / FAIL / INFO`
-
-在 [retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py) 里，你最值得先看的是：
-
-- `demo_source_chunks()`
-- `build_demo_store()`
 - `RetrievalStrategyConfig`
-- `SimpleRetriever`
+- `SearchHit`
 - `maximal_marginal_relevance()`
 - `evaluate_bad_case()`
 
-### 6.3 运行方式
+也就是说：
+
+> 第五章把“策略逻辑”和“底层存储后端”拆开了，但没有把课程结构重新工程化。
+
+---
+
+## 5. 坏案例为什么现在必须变成 PASS / FAIL 📌
+
+第五章现在的 [retrieval_bad_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_bad_cases.json) 已经不只是“写几句期望”。
+
+它现在至少覆盖：
+
+1. `duplicate_refund_chunks`
+2. `candidate_pool_for_mmr`
+3. `metadata_scope`
+4. `no_answer`
+
+这些 case 的价值是：
+
+- 让你不再只凭印象判断策略好坏
+- 把策略调优变成最小可回归实验
+- 让 `candidate_k / threshold / MMR / filter` 的作用都能落到机器可判定的现象上
+
+---
+
+## 6. 第五章实践：建议运行顺序
+
+### 6.1 安装依赖
 
 ```bash
 cd source/04_rag/05_retrieval_strategies
+python -m pip install -r requirements.txt
+```
 
-python 01_compare_retrievers.py
-python 01_compare_retrievers.py "为什么 metadata 很重要？" --filename metadata_rules.md
-python 02_review_bad_cases.py
-python 03_query_demo.py --strategy similarity
-python 03_query_demo.py --strategy threshold --threshold 0.80 "火星首都是什么？"
-python 03_query_demo.py --strategy mmr
+### 6.2 先看原理层
+
+```bash
+python 01_compare_retrievers.py --backend json --reset
+```
+
+你应该先建立的直觉是：
+
+- `top_k / candidate_k / threshold / MMR / filename_filter` 都属于 Retriever 层
+- 不同策略的差异可以通过同一问题重复观察
+
+### 6.3 再看真实 Chroma
+
+```bash
+python 01_compare_retrievers.py --backend chroma --reset
+python 03_query_demo.py --backend chroma --strategy mmr --candidate-k 4 --mmr-lambda 0.35 "购买后多久还能退款？"
+```
+
+你应该观察到：
+
+- 第四章的真实 Chroma 现在直接成了第五章的实验底座
+- `MMR` 不是靠“多拿点结果”解决，而是靠“在候选池里做选择”
+
+### 6.4 跑坏案例回归
+
+```bash
+python 02_review_bad_cases.py --backend chroma
+```
+
+你应该观察到：
+
+- 输出里已经有明确的 `PASS / FAIL / INFO`
+- `candidate_pool_for_mmr` 会显式体现 `candidate_k`
+- `no_answer` 会显式体现 `threshold`
+- `metadata_scope` 会显式体现 `filename_filter`
+
+### 6.5 测试
+
+```bash
 python -m unittest discover -s tests
 ```
 
-测试命令不是本章重点，但可以作为辅助验证。
+当前测试锁定两类路径：
 
-### 6.4 你应该观察到什么
-
-跑 [01_compare_retrievers.py](../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py) 时：
-
-- similarity 会召回多条非常接近的退款规则
-- threshold 会在默认示例里截掉一部分低分尾部
-- MMR 会更容易带出流程类 chunk，而不是只保留重复规则
-- `filename` filter 会明显缩小结果范围
-
-当前 compare 脚本会把 threshold 设成 `0.88`，目的是让“截尾”效果更容易被观察到。
-
-跑 [02_review_bad_cases.py](../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py) 时：
-
-- 你会看到固定坏案例在不同策略下的行为差异
-- 你会看到哪些策略有明确断言，哪些暂时只是信息输出
-- 你会看到 `PASS / FAIL / INFO` 已经开始替代纯人工观察
-
-跑 [03_query_demo.py](../../source/04_rag/05_retrieval_strategies/03_query_demo.py) 时：
-
-- 你会看到单一策略配置如何变成一次完整检索实验
-- 你会看到 Retriever 返回的仍然是稳定的结构化结果
-- 如果策略是 MMR，脚本会明确提示“显示分数是 similarity score”
-
-### 6.5 本章代码刻意简化了什么
-
-这一章的实现刻意简化了五件事：
-
-1. 只用固定 demo corpus
-2. 只支持 `filename_filter`
-3. 不做混合检索和 Rerank
-4. 只保留最小 bad-case regression
-5. 不进入 Prompt 和生成
-
-这是故意的。
-
-因为本章真正要先学会的是：
-
-> 第五章解决的是“怎么查得更好”，不是“怎么把整条 RAG 链都接完”。
-
-### 6.6 这一章值得刻意观察的失败案例
-
-第五章至少要刻意观察三类失败：
-
-1. 重复召回
-
-similarity 把多条几乎相同的规则一起带回来，说明单纯拉 `top_k` 不够。
-
-2. 无答案场景
-
-如果一个明显无答案的问题仍然带回多条弱相关结果，说明需要 threshold。
-
-3. 范围约束失败
-
-如果你明明只想看 `metadata_rules.md`，结果却召回了别的文件，说明范围控制没有进 Retriever 配置。
-
-这些失败都不是“体验细节”，而是后面 Prompt 和生成是否稳定的前置条件。
+1. JSON Retriever
+2. Chroma Retriever
 
 ---
 
 ## 7. 本章学完后你应该能回答
 
 - 为什么 Vector Store 和 Retriever 最好继续拆层
-- 为什么第五章应该复用第四章的 store 契约，而不是再造一套 provider / store
+- 为什么第五章应该复用第四章 store 契约，而不是再造一套 provider / store
 - `top_k / candidate_k / threshold / MMR / filename_filter` 各自解决什么问题
-- 为什么当前第五章只支持 `filename` 过滤
+- 为什么第五章现在默认要跑真实 Chroma
 - 为什么坏案例回归应该开始变成可判定的最小实验
 
 ---
 
 ## 8. 下一章
 
-第六章开始，你才会把当前 Retriever 输出接进 Prompt 和答案生成：
+第六章开始，你才会把当前 Retriever 输出接进 Prompt 和答案生成。
 
-- 检索结果怎么拼进上下文
-- 怎么要求模型引用来源
-- 什么情况下应该拒答
+也就是说：
 
-也就是说，第六章处理的是“如何基于检索结果生成回答”。
-
-第五章先把“查得更稳、更可控、更可回归”立住，就够了。
+> 第五章解决的是“怎么查得更稳、更可控”，不是“怎么生成最终回答”。

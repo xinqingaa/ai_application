@@ -22,6 +22,26 @@
     }
   },
   {
+    "case_id": "candidate_pool_for_mmr",
+    "question": "购买后多久还能退款？",
+    "expected_focus": "只有先把 candidate_k 放大到能看到更多候选，MMR 才有机会把流程类 chunk 带进结果集",
+    "strategy_configs": {
+      "mmr": {
+        "top_k": 3,
+        "candidate_k": 4,
+        "mmr_lambda": 0.35
+      }
+    },
+    "expectations": {
+      "mmr": {
+        "count": 3,
+        "must_include_chunk_ids": [
+          "refund_process:0"
+        ]
+      }
+    }
+  },
+  {
     "case_id": "metadata_scope",
     "question": "为什么 metadata 很重要？",
     "filename_filter": "metadata_rules.md",
