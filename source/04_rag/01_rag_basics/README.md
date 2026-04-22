@@ -1,20 +1,20 @@
 # 01. RAG 基础概念 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md) 学完第一章，并在不依赖后续章节的前提下跑通最小 RAG 闭环。
+> 本文档说明如何跟着 [学习文档](../../../docs/04_rag/01_rag_basics.md) 学完第一章，并在不依赖后续章节的前提下跑通最小 RAG 闭环，同时建立后续 `01-04` 共享的最小评估集。
 
 ---
 
 ## 核心原则
 
 ```text
-先判断问题该走哪条路 -> 再看最小检索问答闭环 -> 最后判断什么时候该用什么方案
+先固定最小评估尺子 -> 再理解为什么需要 RAG -> 再看最小在线链路 -> 最后判断什么时候该用什么方案
 ```
 
 - 在 `source/04_rag/01_rag_basics/` 目录下操作
 - 本章不做项目骨架，不做多模块预埋，不接真实 Embedding / 向量库 / LLM
-- 本章代码只保留三个目标：问题意识、最小链路、方案边界
+- 本章代码只保留四个目标：评估前置、问题意识、最小链路、方案边界
 - 不需要 API Key
-- 旧的 `labs/phase_1_scaffold/` 只作为迁移期备份，不再是当前学习入口
+- `data/minimum_golden_set.json` 是课程共享样本资产，后续章节会继续复用
 
 ---
 
@@ -24,21 +24,28 @@
 01_rag_basics/
 ├── README.md
 ├── rag_basics.py
-├── 01_why_rag.py
-├── 02_rag_pipeline.py
-├── 03_solution_decision.py
+├── 01_minimum_eval.py
+├── 02_why_rag.py
+├── 03_rag_pipeline.py
+├── 04_solution_decision.py
+├── data/
+│   └── minimum_golden_set.json
 └── tests/
     └── test_rag_basics.py
 ```
 
 - `rag_basics.py`
-  放本章所有最小对象、问题路由、内存知识库、关键词检索、回答生成和方案判断逻辑
-- `01_why_rag.py`
+  放本章所有最小对象、问题路由、内存知识库、关键词检索、回答生成、方案判断，以及 golden set 加载逻辑
+- `01_minimum_eval.py`
+  运行课程共享最小评估集，并按第一章边界打印 pass/fail
+- `02_why_rag.py`
   对比“只做单次模型调用”和“先判断再选方案”面对同一个问题时的差异
-- `02_rag_pipeline.py`
+- `03_rag_pipeline.py`
   逐步打印 `先路由 -> 再决定是否进入 RAG -> 检索 -> 上下文 -> 回答 + 来源`
-- `03_solution_decision.py`
+- `04_solution_decision.py`
   把“什么时候该用长上下文 / 现有系统 / Hosted File Search / 固定 RAG / Hybrid RAG / Agentic RAG”变成可执行的判断示例
+- `data/minimum_golden_set.json`
+  课程共享最小样本，既保留课程目标，也保留第一章当前预期
 
 ---
 
@@ -53,9 +60,10 @@ cd source/04_rag/01_rag_basics
 ### 2. 当前命令
 
 ```bash
-python 01_why_rag.py
-python 02_rag_pipeline.py
-python 03_solution_decision.py
+python 01_minimum_eval.py
+python 02_why_rag.py
+python 03_rag_pipeline.py
+python 04_solution_decision.py
 python -m unittest discover -s tests
 ```
 
@@ -64,21 +72,35 @@ python -m unittest discover -s tests
 建议先跑：
 
 ```bash
-python 01_why_rag.py
+python 01_minimum_eval.py
 ```
 
 你最先要建立的直觉是：
 
-- 模型不懂你的私有资料时，单次调用并不能自动知道答案
-- 不是所有问题都应该先进入 RAG
-- 如果问题更像结构化查询，应该优先查现有系统
-- RAG 的最小价值不是“更聪明”，而是“先找到依据，再回答”
+- 第一章从一开始就要固定实验尺子，而不是改完再凭感觉判断
+- 这份样本不仅服务第一章，也会继续服务后续 `01-04`
+- 第一章当前只验证最小路由、最小来源和 toy RAG 边界
 
 ---
 
-## 第 1 步：先看为什么需要 RAG
+## 第 0 步：先看课程共享最小评估集
 
-**对应文件**：`01_why_rag.py`
+**对应文件**：`01_minimum_eval.py`、`data/minimum_golden_set.json`
+
+这一步不是完整评估平台，而是课程级最小起点。
+
+重点观察：
+
+- 样本里同时存在通用常识、结构化查询、私有知识和已知失败样本
+- `course_target` 描述的是整门课最终想达到的方向
+- `chapter_expectations.01_rag_basics` 锁定的是第一章今天真正能承诺什么
+- `Python 系统课可以退钱吗？` 会被保留为已知缺口，后续章节继续复用
+
+---
+
+## 第 1 步：再看为什么需要 RAG
+
+**对应文件**：`02_why_rag.py`
 
 这个脚本会打印三类问题：
 
@@ -96,7 +118,7 @@ python 01_why_rag.py
 
 ## 第 2 步：看最小 RAG 数据流
 
-**对应文件**：`02_rag_pipeline.py`
+**对应文件**：`03_rag_pipeline.py`
 
 这一章真正要看的链路是：
 
@@ -123,7 +145,7 @@ python 01_why_rag.py
 
 ## 第 3 步：看什么时候该用什么方案
 
-**对应文件**：`03_solution_decision.py`
+**对应文件**：`04_solution_decision.py`
 
 这一章不只讲“RAG 是什么”，还要讲“什么时候不用它”。
 
@@ -142,56 +164,38 @@ python 01_why_rag.py
 
 **对应文件**：`tests/test_rag_basics.py`
 
-测试里会保留一个 mini golden set，只锁定本章最重要的几件事：
+测试直接读取 `data/minimum_golden_set.json`，只锁定第一章最重要的几件事：
 
 1. 通用常识问题不会误走 RAG
 2. 结构化查询会直接查现有系统
-3. 私有知识问题能检索到正确来源
-4. 课程类问题即使路由正确，也可能因为关键词检索太弱而漏召回
+3. 私有知识精确表达能检索到正确来源
+4. 同义表达样本会以“已知缺口”形式保留下来
 5. 方案判断顺序符合课程主线
 
 ---
 
 ## 建议学习顺序
 
-1. 先读 [01_rag_basics.md](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md)
-2. 再跑 `python 01_why_rag.py`
-3. 再跑 `python 02_rag_pipeline.py`
-4. 最后跑 `python 03_solution_decision.py`
+1. 先读 [01_rag_basics.md](../../../docs/04_rag/01_rag_basics.md)
+2. 跑 `python 01_minimum_eval.py`
+3. 再跑 `python 02_why_rag.py`
+4. 再跑 `python 03_rag_pipeline.py`
+5. 最后跑 `python 04_solution_decision.py`
 
 ---
 
-## 第一章最小回归集
+## 第一章共享样本长什么样
 
-第一章不做完整评估系统，但应该保留一个最小回归集，避免你改完示例后不知道有没有偏离教学主线。
+`data/minimum_golden_set.json` 里每条样本至少包含：
 
-一个足够小的回归集可以长这样：
+- `case_id`
+- `question`
+- `course_target.reference_answer_points`
+- `course_target.reference_sources`
+- `chapter_expectations.01_rag_basics`
+- `tags`
 
-```python
-mini_golden_set = [
-    {
-        "question": "法国首都是什么？",
-        "expected_route": "直接回答",
-        "expected_sources": [],
-    },
-    {
-        "question": "订单 1024 的状态是什么？",
-        "expected_route": "直接查现有系统",
-        "expected_sources": ["orders_table"],
-    },
-    {
-        "question": "Python 系统课可以退费吗？",
-        "expected_route": "固定 2-step RAG",
-        "expected_sources": ["refund_policy.md"],
-    },
-]
-```
-
-这不是完整评估体系，但已经足够回答三个问题：
-
-- 教学主线有没有跑偏
-- 来源有没有丢
-- 路由逻辑有没有把所有问题都错误塞进 RAG
+这份文件不是只给第一章看的本地测试夹带数据，而是后续章节可以继续复用的最小公共资产。
 
 ---
 
@@ -200,7 +204,7 @@ mini_golden_set = [
 运行下面这条命令：
 
 ```bash
-python 02_rag_pipeline.py "Python 系统课可以退钱吗？"
+python 03_rag_pipeline.py "Python 系统课可以退钱吗？"
 ```
 
 你会看到：
@@ -221,13 +225,13 @@ python 02_rag_pipeline.py "Python 系统课可以退钱吗？"
 - 为什么不是所有问题都该上 RAG
 - 为什么应该先判断问题类型，再决定是否进入 RAG
 - 最小 `2-step RAG` 在线链路长什么样
-- 为什么第一章就应该保留最小回归样本
+- 为什么第一章就应该固定共享最小评估样本
 - 为什么第一章先做独立闭环，而不是先搭完整项目工程
 
 ---
 
 ## 当前真实进度和下一章
 
-- 当前真实进度：第一章已经改成独立学习单元
-- 完成标准：能跑通最小闭环，能解释路由、输入输出和来源，能做基本方案判断
-- 下一章：进入 [source/04_rag/02_document_processing/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/README.md)，只处理文档加载、切分、metadata 和 chunk 输出
+- 当前真实进度：第一章已经补上课程级最小评估前置
+- 完成标准：能跑通最小闭环，能解释路由、输入输出和来源，能理解共享 golden set 的作用
+- 下一章：进入 [02_document_processing](../02_document_processing/README.md)，只处理文档加载、切分、metadata 和 chunk 输出

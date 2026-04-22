@@ -1,1 +1,3 @@
 *.json
+chroma/
+langchain_chroma/

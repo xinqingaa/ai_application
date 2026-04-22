@@ -1,0 +1,27 @@
+[
+  {
+    "filename": "faq.txt",
+    "expected_loader": "text_loader",
+    "expected_chunk_count": 3,
+    "expected_source": "data/faq.txt"
+  },
+  {
+    "filename": "product_overview.md",
+    "expected_loader": "markdown_loader",
+    "expected_chunk_count": 8,
+    "expected_source": "data/product_overview.md",
+    "expected_header_paths": [
+      "Product Overview",
+      "Product Overview > Ingestion Policy",
+      "Product Overview > Chunking Notes",
+      "Product Overview > Metadata Rules"
+    ]
+  },
+  {
+    "filename": "course_policy.pdf",
+    "expected_loader": "pypdf.PdfReader",
+    "expected_chunk_count": 3,
+    "expected_source": "data/course_policy.pdf",
+    "expected_page_count": 2
+  }
+]

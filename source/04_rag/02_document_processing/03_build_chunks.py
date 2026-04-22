@@ -27,8 +27,13 @@ def main() -> None:
         print(f"  source={chunk.metadata['source']}")
         print(
             f"  filename={chunk.metadata['filename']} "
-            f"suffix={chunk.metadata['suffix']} chunk_index={chunk.metadata['chunk_index']}"
+            f"suffix={chunk.metadata['suffix']} loader={chunk.metadata['loader']} "
+            f"chunk_index={chunk.metadata['chunk_index']}"
         )
+        if "page_count" in chunk.metadata:
+            print(f"  page_count={chunk.metadata['page_count']}")
+        if chunk.metadata.get("header_path"):
+            print(f"  header_path={chunk.metadata['header_path']}")
         print(
             f"  range=({chunk.metadata['char_start']}, {chunk.metadata['char_end']}) "
             f"chars={chunk.metadata['chunk_chars']}"

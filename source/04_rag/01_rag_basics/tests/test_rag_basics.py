@@ -7,34 +7,31 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from rag_basics import (
+    CHAPTER_KEY,
     Scenario,
     answer_question,
     answer_with_rag,
     answer_without_rag,
+    get_chapter_expectation,
+    load_minimum_golden_set,
     recommend_solution,
     retrieve,
 )
 
-MINI_GOLDEN_SET = [
-    {
-        "question": "法国首都是什么？",
-        "expected_route": "直接回答",
-        "expected_sources": (),
-        "expected_used_rag": False,
-    },
-    {
-        "question": "订单 1024 的状态是什么？",
-        "expected_route": "直接查现有系统",
-        "expected_sources": ("orders_table",),
-        "expected_used_rag": False,
-    },
-    {
-        "question": "Python 系统课可以退费吗？",
-        "expected_route": "固定 2-step RAG",
-        "expected_sources": ("refund_policy.md",),
-        "expected_used_rag": True,
-    },
-]
+MINIMUM_GOLDEN_SET = load_minimum_golden_set()
+
+
+def as_strings(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    return tuple(str(item) for item in value)
+
+
+def get_case(case_id: str) -> dict[str, object]:
+    for case in MINIMUM_GOLDEN_SET:
+        if case.get("case_id") == case_id:
+            return case
+    raise KeyError(f"missing case: {case_id}")
 
 
 class RagBasicsTests(unittest.TestCase):
@@ -44,13 +41,16 @@ class RagBasicsTests(unittest.TestCase):
         self.assertEqual(results[0].chunk.source, "refund_policy.md")
 
     def test_minimum_golden_set(self) -> None:
-        for case in MINI_GOLDEN_SET:
+        for case in MINIMUM_GOLDEN_SET:
             with self.subTest(question=case["question"]):
-                result = answer_question(case["question"])
-                self.assertEqual(result.route, case["expected_route"])
-                self.assertEqual(result.used_rag, case["expected_used_rag"])
-                for source in case["expected_sources"]:
+                expectation = get_chapter_expectation(case, CHAPTER_KEY)
+                result = answer_question(str(case["question"]))
+                self.assertEqual(result.route, str(expectation["expected_route"]))
+                self.assertEqual(result.used_rag, bool(expectation["expected_used_rag"]))
+                for source in as_strings(expectation.get("expected_sources")):
                     self.assertIn(source, result.sources)
+                for point in as_strings(expectation.get("expected_answer_points")):
+                    self.assertIn(point, result.answer)
 
     def test_answer_with_rag_returns_sources(self) -> None:
         result = answer_with_rag("如何申请退款？")
@@ -64,10 +64,14 @@ class RagBasicsTests(unittest.TestCase):
         self.assertIn("单次调用", answer)
 
     def test_course_like_question_can_route_to_rag_but_still_miss_keywords(self) -> None:
-        result = answer_question("Python 系统课可以退钱吗？")
-        self.assertEqual(result.route, "固定 2-step RAG")
-        self.assertFalse(result.used_rag)
-        self.assertIn("没有命中", result.answer)
+        case = get_case("private_refund_synonym_gap")
+        expectation = get_chapter_expectation(case, CHAPTER_KEY)
+        result = answer_question(str(case["question"]))
+        self.assertEqual(result.route, str(expectation["expected_route"]))
+        self.assertEqual(result.used_rag, bool(expectation["expected_used_rag"]))
+        for point in as_strings(expectation.get("expected_answer_points")):
+            self.assertIn(point, result.answer)
+        self.assertIn("known_gap", expectation)
 
     def test_recommend_solution_prefers_existing_system(self) -> None:
         choice, _ = recommend_solution(

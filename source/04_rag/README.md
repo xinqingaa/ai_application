@@ -42,39 +42,43 @@ source/04_rag/
 
 | 章节 | 代码入口 | 当前状态 | 第一命令 |
 |------|----------|----------|----------|
-| 1 | [01_rag_basics](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md) | 新版独立章节 | `python 01_why_rag.py` |
-| 2 | [02_document_processing](/Users/linruiqiang/work/ai_application/source/04_rag/02_document_processing/README.md) | 新版独立章节 | `python 01_discover_and_load.py` |
-| 3 | [03_embeddings](/Users/linruiqiang/work/ai_application/source/04_rag/03_embeddings/README.md) | 新版独立章节 | `python 01_embed_chunks.py` |
-| 4 | [04_vector_databases](/Users/linruiqiang/work/ai_application/source/04_rag/04_vector_databases/README.md) | 新版独立章节 | `python 01_index_store.py --reset` |
-| 5 | [05_retrieval_strategies](/Users/linruiqiang/work/ai_application/source/04_rag/05_retrieval_strategies/README.md) | 新版独立章节 | `python 01_compare_retrievers.py` |
-| 6 | [06_rag_generation](/Users/linruiqiang/work/ai_application/source/04_rag/06_rag_generation/README.md) | 新版独立章节 | `python 01_inspect_prompt.py` |
-| 7 | [phase_7_rag_optimization](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_7_rag_optimization/README.md) | 占位 | 暂无 |
-| 8 | [phase_8_advanced_rag](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_8_advanced_rag/README.md) | 占位 | 暂无 |
-| 9 | [phase_9_project_integration](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_9_project_integration/README.md) | 占位 | 暂无 |
+| 1 | [01_rag_basics](./01_rag_basics/README.md) | 新版独立章节 | `python 01_minimum_eval.py` |
+| 2 | [02_document_processing](./02_document_processing/README.md) | 新版独立章节 | `python 01_discover_and_load.py` |
+| 3 | [03_embeddings](./03_embeddings/README.md) | 新版独立章节 | `python 01_embed_chunks.py` |
+| 4 | [04_vector_databases](./04_vector_databases/README.md) | 新版独立章节 | `python 01_index_store.py --reset` |
+| 5 | [05_retrieval_strategies](./05_retrieval_strategies/README.md) | 新版独立章节 | `python 01_compare_retrievers.py` |
+| 6 | [06_rag_generation](./06_rag_generation/README.md) | 新版独立章节 | `python 01_inspect_prompt.py` |
+| 7 | [phase_7_rag_optimization](./labs/phase_7_rag_optimization/README.md) | 占位 | 暂无 |
+| 8 | [phase_8_advanced_rag](./labs/phase_8_advanced_rag/README.md) | 占位 | 暂无 |
+| 9 | [phase_9_project_integration](./labs/phase_9_project_integration/README.md) | 占位 | 暂无 |
 
 ## 当前正确入口
 
 如果你现在开始 `04_rag`，按这个顺序：
 
-1. [docs/04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
-2. [docs/04_rag/01_rag_basics.md](/Users/linruiqiang/work/ai_application/docs/04_rag/01_rag_basics.md)
-3. [source/04_rag/01_rag_basics/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md)
+1. [docs/04_rag/outline.md](../../docs/04_rag/outline.md)
+2. [docs/04_rag/01_rag_basics.md](../../docs/04_rag/01_rag_basics.md)
+3. [source/04_rag/01_rag_basics/README.md](./01_rag_basics/README.md)
 
 ## 当前可运行命令
 
 ```bash
 cd source/04_rag/01_rag_basics
-python 01_why_rag.py
-python 02_rag_pipeline.py
-python 03_solution_decision.py
+python 01_minimum_eval.py
+python 02_why_rag.py
+python 03_rag_pipeline.py
+python 04_solution_decision.py
 python -m unittest discover -s tests
 ```
 
 ```bash
 cd source/04_rag/02_document_processing
+python -m pip install -r requirements.txt
 python 01_discover_and_load.py
 python 02_split_and_inspect.py
 python 03_build_chunks.py
+python 04_loader_extensions.py
+python 05_document_pipeline.py
 python -m unittest discover -s tests
 ```
 
@@ -88,9 +92,12 @@ python -m unittest discover -s tests
 
 ```bash
 cd source/04_rag/03_embeddings
+python -m pip install -r requirements.txt
 python 01_embed_chunks.py
 python 02_compare_similarity.py
 python 03_query_vs_document.py
+python 04_real_embeddings.py
+python 05_semantic_search.py
 python -m unittest discover -s tests
 ```
 
@@ -104,9 +111,14 @@ python -m unittest discover -s tests
 
 ```bash
 cd source/04_rag/04_vector_databases
+python -m pip install -r requirements.txt
 python 01_index_store.py --reset
 python 02_search_store.py
 python 03_delete_document.py trial
+python 04_chroma_crud.py --reset
+python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --reset
+python 07_vector_store_manager.py --backend chroma "如何申请退费？"
 python -m unittest discover -s tests
 ```
 

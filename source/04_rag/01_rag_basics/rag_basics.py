@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,10 @@ class Scenario:
     has_precise_keywords: bool = False
 
 
+CHAPTER_KEY = "01_rag_basics"
+DATA_DIR = Path(__file__).resolve().parent / "data"
+MINIMUM_GOLDEN_SET_PATH = DATA_DIR / "minimum_golden_set.json"
+
 COURSE_KNOWLEDGE_BASE = [
     KnowledgeChunk(
         chunk_id="kb-1",
@@ -110,6 +116,30 @@ PRIVATE_KNOWLEDGE_HINTS = (
     "助教",
     "课时",
 )
+
+
+def load_minimum_golden_set(path: Path | None = None) -> list[dict[str, object]]:
+    target_path = path or MINIMUM_GOLDEN_SET_PATH
+    with target_path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+
+    if not isinstance(data, list):
+        raise TypeError("minimum golden set must be a list of cases")
+    return data
+
+
+def get_chapter_expectation(
+    case: dict[str, object],
+    chapter_key: str = CHAPTER_KEY,
+) -> dict[str, object]:
+    expectations = case.get("chapter_expectations")
+    if not isinstance(expectations, dict):
+        raise KeyError("case is missing chapter_expectations")
+
+    expectation = expectations.get(chapter_key)
+    if not isinstance(expectation, dict):
+        raise KeyError(f"case is missing expectation for {chapter_key}")
+    return expectation
 
 
 def lookup_general_knowledge(question: str) -> str | None:

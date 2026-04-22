@@ -1,0 +1,23 @@
+[
+  {
+    "question": "如何申请退费？",
+    "local_expected_top_chunk": "refund:0",
+    "semantic_expected_top_chunk": "refund:0"
+  },
+  {
+    "question": "为什么 metadata 很重要？",
+    "local_expected_top_chunk": "metadata:0",
+    "semantic_expected_top_chunk": "metadata:0"
+  },
+  {
+    "question": "工作日什么时候可以答疑？",
+    "local_expected_top_chunk": "support:0",
+    "semantic_expected_top_chunk": "support:0"
+  },
+  {
+    "question": "为什么文档块要记录出处？",
+    "local_expected_top_chunk": "refund:0",
+    "semantic_expected_top_chunk": "metadata:0",
+    "known_gap": "toy provider 更依赖表面词和哈希桶；真实语义 embedding 更应该把“出处”理解为来源字段问题。"
+  }
+]

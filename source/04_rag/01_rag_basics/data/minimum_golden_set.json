@@ -1,0 +1,71 @@
+[
+  {
+    "case_id": "general_knowledge_capital",
+    "question": "法国首都是什么？",
+    "course_target": {
+      "reference_answer_points": ["巴黎"],
+      "reference_sources": []
+    },
+    "chapter_expectations": {
+      "01_rag_basics": {
+        "expected_route": "直接回答",
+        "expected_sources": [],
+        "expected_used_rag": false,
+        "expected_answer_points": ["巴黎"]
+      }
+    },
+    "tags": ["general_knowledge", "direct_answer"]
+  },
+  {
+    "case_id": "structured_order_status",
+    "question": "订单 1024 的状态是什么？",
+    "course_target": {
+      "reference_answer_points": ["已支付", "等待开课"],
+      "reference_sources": ["orders_table"]
+    },
+    "chapter_expectations": {
+      "01_rag_basics": {
+        "expected_route": "直接查现有系统",
+        "expected_sources": ["orders_table"],
+        "expected_used_rag": false,
+        "expected_answer_points": ["已支付", "等待开课"]
+      }
+    },
+    "tags": ["structured_query", "existing_system"]
+  },
+  {
+    "case_id": "private_refund_exact_match",
+    "question": "Python 系统课可以退费吗？",
+    "course_target": {
+      "reference_answer_points": ["7 天内", "学习进度不超过 20%", "全额退款"],
+      "reference_sources": ["refund_policy.md"]
+    },
+    "chapter_expectations": {
+      "01_rag_basics": {
+        "expected_route": "固定 2-step RAG",
+        "expected_sources": ["refund_policy.md"],
+        "expected_used_rag": true,
+        "expected_answer_points": ["[S1]", "7 天内", "全额退款"]
+      }
+    },
+    "tags": ["private_knowledge", "rag", "exact_match"]
+  },
+  {
+    "case_id": "private_refund_synonym_gap",
+    "question": "Python 系统课可以退钱吗？",
+    "course_target": {
+      "reference_answer_points": ["7 天内", "学习进度不超过 20%", "全额退款"],
+      "reference_sources": ["refund_policy.md"]
+    },
+    "chapter_expectations": {
+      "01_rag_basics": {
+        "expected_route": "固定 2-step RAG",
+        "expected_sources": [],
+        "expected_used_rag": false,
+        "expected_answer_points": ["没有命中"],
+        "known_gap": "当前 toy 关键词检索还不能把“退钱”映射到“退款/退费”；这条样本会在后续章节继续复用。"
+      }
+    },
+    "tags": ["private_knowledge", "rag", "synonym_gap", "known_gap"]
+  }
+]

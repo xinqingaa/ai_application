@@ -1,19 +1,19 @@
-# 04. 向量存储 - 实践指南
+# 04. 向量数据库 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/04_rag/04_vector_databases.md) 学完第四章，并在不依赖第五章以后的前提下，看懂向量如何被真正存下来、查回来、按文档替换、按 `document_id` 删除，以及为什么存储层必须守住 embedding space 契约。
+> 这份 README 只负责一件事：带你按正确顺序跑完第四章，先看最小 JSON store，再看真实 `Chroma`，最后看 `LangChain Chroma`，把“原理层”和“真实工具层”连起来。
 
 ---
 
 ## 核心原则
 
 ```text
-先把向量写进持久化存储 -> 再看 query 如何查回来 -> 最后看文档替换、filename 过滤和删除为什么必须提前出现
+先看原理层 -> 再看真实数据库 -> 最后看上层 VectorStore 抽象
 ```
 
 - 在 `source/04_rag/04_vector_databases/` 目录下操作
-- 本章只讲向量存储层，不讲 Retriever 策略和生成
-- 为了保持章节独立，代码在本章目录里保留一份可单章运行的最小实现
-- 这份实现继续沿用第三章已经建立好的 `provider/model/dimensions` 和 metadata 契约
+- 第四章只讲向量存储层，不讲 Retriever 策略和生成
+- 原有 JSON store 继续保留，作为教学原理层
+- `Chroma` 和 `LangChain Chroma` 是本章新增的真实工具层
 - 旧的 `labs/phase_4_vector_databases/` 只作为迁移期备份，不再是当前学习入口
 
 ---
@@ -23,24 +23,36 @@
 ```text
 04_vector_databases/
 ├── README.md
+├── requirements.txt
 ├── vector_store_basics.py
+├── chroma_store.py
+├── langchain_adapter.py
 ├── 01_index_store.py
 ├── 02_search_store.py
 ├── 03_delete_document.py
+├── 04_chroma_crud.py
+├── 05_chroma_filter_delete.py
+├── 06_langchain_vectorstore.py
+├── 07_vector_store_manager.py
 ├── store/
-│   └── .gitignore
 └── tests/
-    └── test_vector_store.py
+    ├── test_vector_store.py
+    ├── test_chroma_store.py
+    └── test_langchain_vectorstore.py
 ```
 
 - `vector_store_basics.py`
-  放本章最小对象、样例 `EmbeddedChunk[]`、本地持久化向量存储和契约校验逻辑
-- `01_index_store.py`
-  看 demo chunks 如何按文档级 `replace_document()` 真正写入磁盘
-- `02_search_store.py`
-  看 query 如何在同一 embedding space 里查回最相关 chunk
-- `03_delete_document.py`
-  看按 `document_id` 删除为什么重要，以及文档更新为什么不能只做 chunk 级 `upsert()`
+  第四章原理层：对象、最小 JSON store、契约校验
+- `chroma_store.py`
+  真实 `Chroma` 存储适配
+- `langchain_adapter.py`
+  把当前章节的 `EmbeddingProvider` 包成 LangChain `Embeddings`
+- `01-03`
+  原理层脚本
+- `04-05`
+  原生 Chroma 脚本
+- `06-07`
+  LangChain Chroma 和 backend 对照脚本
 
 ---
 
@@ -52,114 +64,125 @@
 cd source/04_rag/04_vector_databases
 ```
 
-### 2. 当前命令
+### 2. 安装依赖
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+### 3. 当前命令
 
 ```bash
 python 01_index_store.py --reset
 python 02_search_store.py
-python 02_search_store.py "为什么 metadata 很重要？" --filename metadata_rules.md
 python 03_delete_document.py trial
+python 04_chroma_crud.py --reset
+python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --reset
+python 07_vector_store_manager.py --backend chroma "如何申请退费？"
 python -m unittest discover -s tests
 ```
-
-### 3. 先跑哪个
-
-建议先跑：
-
-```bash
-python 01_index_store.py --reset
-```
-
-你最先要建立的直觉是：
-
-- `EmbeddedChunk[]` 现在会被真正写进持久化存储
-- store 会打印当前 `provider/model/dimensions` 空间
-- 文档更新路径应该优先走 `replace_document()`
-- `chunk_id / document_id / metadata` 不再只是“留着以后用”，而是现在就进入存储和查询路径
-
----
-
-## 第 1 步：看真实写入如何发生
-
-**对应文件**：`01_index_store.py`
-
-重点观察：
-
-- 存储文件路径在哪里
-- 当前 store 使用的 embedding space 是什么
-- 为什么 demo index 默认走文档级 `replace_document()`
-- 为什么 `--reset` 对实验很重要
-
----
-
-## 第 2 步：看 query 如何查回 chunk
-
-**对应文件**：`02_search_store.py`
-
-重点观察：
-
-- query 会先变成 query vector
-- store 会校验 query provider 和 store provider 是否一致
-- store 当前只支持 `filename` 过滤，不是通用 metadata filter
-- 返回结果里为什么还要保留 `filename / source / suffix / chunk_index / range`
-
-运行后重点看：
-
-- `score`
-- `document_id`
-- `filename`
-- filter 前后结果范围的变化
-
----
-
-## 第 3 步：看删除为什么必须按 document_id 做
-
-**对应文件**：`03_delete_document.py`
-
-重点观察：
-
-- 为什么删除不能只删一条文本
-- 为什么 `document_id` 是一致性锚点
-- 为什么文档更新应该走 `replace_document()`，而不是仅依赖 `upsert()`
-
----
-
-## 第 4 步：最后看测试在锁定什么
-
-**对应文件**：`tests/test_vector_store.py`
-
-测试不是这一章的重点，但可以用来锁定最重要的边界：
-
-1. 写入后重新加载仍然能读回 chunk
-2. 相似度查询会优先返回相关内容
-3. `filename` filter 会限制结果范围
-4. 按 `document_id` 删除会移除整份文档
-5. `replace_document()` 会清理同文档旧 chunk
-6. query 和 store 不能跨 embedding space 混查
 
 ---
 
 ## 建议学习顺序
 
-1. 先读 [第四章学习文档](../../../docs/04_rag/04_vector_databases.md)
-2. 再跑 `python 01_index_store.py --reset`
-3. 再跑 `python 02_search_store.py`
-4. 最后跑 `python 03_delete_document.py trial`
+### 第 1 步：先跑原理层
+
+```bash
+python 01_index_store.py --reset
+python 02_search_store.py
+python 03_delete_document.py trial
+```
+
+重点观察：
+
+- JSON store 的持久化路径
+- `replace_document()` 为什么是默认更新入口
+- query/store 的 embedding space 校验
+- 删除为什么围绕 `document_id`
+
+### 第 2 步：再跑真实 Chroma
+
+```bash
+python 04_chroma_crud.py --reset
+python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
+python 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id trial
+```
+
+重点观察：
+
+- `store/chroma/` 下真的会有持久化数据
+- Chroma 也必须保留 `chunk_id / document_id / provider / model / dimensions`
+- metadata filter 已经走真实数据库
+- 删除已经不是“删 JSON 记录”，而是删 collection 中的一批向量
+
+### 第 3 步：最后跑 LangChain Chroma
+
+```bash
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --reset
+python 07_vector_store_manager.py --backend json "如何申请退费？"
+python 07_vector_store_manager.py --backend chroma "如何申请退费？"
+python 07_vector_store_manager.py --backend langchain "如何申请退费？"
+```
+
+重点观察：
+
+- 同一个本章 provider 怎样映射成 LangChain `Embeddings`
+- 同一批 chunk 怎样映射成 LangChain `Document`
+- `json / chroma / langchain` 三个 backend 只是接口形态不同，职责边界相同
+
+### 第 4 步：最后跑测试
+
+```bash
+python -m unittest discover -s tests
+```
+
+这组测试锁定三类行为：
+
+1. JSON store 的基本契约
+2. Chroma 的真实持久化、过滤、删除
+3. LangChain Chroma 的最小接入闭环
+
+---
+
+## Mini 回归集
+
+第四章当前最值得反复观察的几条 case：
+
+1. `如何申请退费？` 应优先命中 `refund:0`
+2. `为什么 metadata 很重要？` 应优先命中 `metadata:0`
+3. `filename=metadata_rules.md` 过滤后，结果只应留在对应文档范围
+4. 删除 `trial` 后，不应再保留该文档 chunk
+5. 若 query/provider 和 store 不在同一 embedding space，系统应直接拒绝
+
+---
+
+## 本章边界
+
+- 不展开 Retriever 策略
+- 不展开 rerank
+- 不展开 hybrid retrieval
+- 不做多向量库横评
+- 不系统展开复杂 metadata DSL
+
+第四章当前真正要立住的是：
+
+> 向量怎么稳地存、查、替换、删，以及这些能力怎样映射到真实工具。
 
 ---
 
 ## 学完这一章后你应该能回答
 
-- 为什么只有向量还不够
-- 为什么向量存储要负责写入、查询、替换、删除和持久化
-- 为什么同一个 store 只能保留一个 embedding space
-- 为什么 `upsert()` 和 `replace_document()` 不能混成一个模糊接口
-- 为什么第四章当前只支持 `filename` 过滤
+- 为什么第四章不能只剩一个本地 JSON 示例
+- 为什么 Chroma 里仍然需要自己守住 embedding space
+- 为什么 LangChain VectorStore 仍然属于第四章而不是第五章
+- 为什么 `upsert()` 和 `replace_document()` 不能混成一个模糊概念
 
 ---
 
-## 当前真实进度和下一章
+## 下一章
 
-- 当前真实进度：第四章已经改成独立学习单元，并与第三章对象契约对齐
-- 完成标准：能写入、查询、按文档替换、删除，并解释这些能力为什么属于存储层
-- 下一章：进入 [../05_retrieval_strategies/README.md](../05_retrieval_strategies/README.md)，把当前最小查询能力抽象成 Retriever，并比较 `top_k / threshold / MMR` 等策略
+下一章进入 [../05_retrieval_strategies/README.md](../05_retrieval_strategies/README.md)。
+
+第五章开始，你才会正式把当前最小查询能力抽象成 Retriever，并比较 `top_k / threshold / MMR` 等策略。

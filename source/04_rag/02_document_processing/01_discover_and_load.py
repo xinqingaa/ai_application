@@ -2,7 +2,7 @@ from document_processing import (
     DATA_DIR,
     discover_documents,
     inspect_document_candidates,
-    load_document,
+    load_document_record,
 )
 
 
@@ -19,9 +19,13 @@ def main() -> None:
 
     print("Loaded documents:")
     for path in documents:
-        text = load_document(path)
+        document = load_document_record(path)
+        text = document.content
         first_line = text.splitlines()[0] if text else "(empty)"
         print(f"- {path.name}")
+        print(f"  loader={document.metadata['loader']}")
+        if "page_count" in document.metadata:
+            print(f"  pages={document.metadata['page_count']}")
         print(f"  chars={len(text)} lines={text.count(chr(10)) + 1 if text else 0}")
         print(f"  preview={first_line}")
 

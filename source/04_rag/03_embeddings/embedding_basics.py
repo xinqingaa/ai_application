@@ -2,10 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import sqrt
+from pathlib import Path
 import hashlib
+import json
+import os
 import re
-from typing import Protocol
+from typing import Any, Protocol
 
+
+CHAPTER_ROOT = Path(__file__).resolve().parent
+DATA_DIR = CHAPTER_ROOT / "data"
+SOURCE_CHUNKS_PATH = DATA_DIR / "source_chunks.json"
+SEARCH_CASES_PATH = DATA_DIR / "search_cases.json"
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+|[\u4e00-\u9fff]", re.IGNORECASE)
 STOPWORDS = {"the", "a", "an", "is", "are", "to", "of", "and", "how", "why", "do"}
@@ -21,6 +29,20 @@ CONCEPT_GROUPS = [
 HASH_BUCKETS = 4
 MODE_BUCKETS = 2
 DEFAULT_DIMENSIONS = len(CONCEPT_GROUPS) + HASH_BUCKETS + MODE_BUCKETS
+
+SEMANTIC_CONCEPT_GROUPS = [
+    ("refund", ("退款", "退费", "退钱", "退回来", "refund")),
+    ("trial", ("试学", "预约", "trial")),
+    ("metadata", ("metadata", "source", "filename", "header_path", "来源", "出处", "引用", "出处字段")),
+    ("stable_id", ("stable", "id", "document_id", "chunk_id", "更新", "删除", "稳定")),
+    ("embedding", ("embedding", "向量", "向量化")),
+    ("similarity", ("similarity", "相似度", "检索", "召回")),
+    ("support", ("答疑", "support", "工作日", "助教")),
+]
+SEMANTIC_DIMENSIONS = len(SEMANTIC_CONCEPT_GROUPS)
+EMBEDDING_API_KEY_ENV_KEYS = ("EMBEDDING_API_KEY", "OPENAI_API_KEY")
+EMBEDDING_BASE_URL_ENV_KEYS = ("EMBEDDING_BASE_URL", "OPENAI_BASE_URL")
+EMBEDDING_MODEL_ENV_KEYS = ("EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL")
 
 
 @dataclass(frozen=True)
@@ -38,6 +60,18 @@ class EmbeddedChunk:
     provider_name: str
     model_name: str
     dimensions: int
+
+
+@dataclass(frozen=True)
+class MockEmbeddingData:
+    index: int
+    embedding: list[float]
+
+
+@dataclass(frozen=True)
+class MockEmbeddingResponse:
+    data: list[MockEmbeddingData]
+    model: str
 
 
 class EmbeddingProvider(Protocol):
@@ -98,6 +132,148 @@ class LocalKeywordEmbeddingProvider:
         return normalize(vector)
 
 
+class OpenAICompatibleEmbeddingProvider:
+    def __init__(
+        self,
+        *,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model_name: str = "text-embedding-3-small",
+        expected_dimensions: int | None = None,
+        client: Any | None = None,
+    ) -> None:
+        self.provider_name = "openai_compatible"
+        self.model_name = model_name
+        self.dimensions = expected_dimensions or 0
+        self.api_key = api_key
+        self.base_url = base_url
+        self._client = client
+
+    @classmethod
+    def from_env(
+        cls,
+        *,
+        model_name: str | None = None,
+        expected_dimensions: int | None = None,
+        client: Any | None = None,
+    ) -> OpenAICompatibleEmbeddingProvider:
+        configured_dimensions = expected_dimensions
+        dimensions_text = os.getenv("EMBEDDING_DIMENSIONS")
+        if configured_dimensions is None and dimensions_text:
+            configured_dimensions = int(dimensions_text)
+
+        return cls(
+            api_key=first_env(*EMBEDDING_API_KEY_ENV_KEYS),
+            base_url=first_env(*EMBEDDING_BASE_URL_ENV_KEYS),
+            model_name=(
+                model_name
+                or first_env(*EMBEDDING_MODEL_ENV_KEYS)
+                or "text-embedding-3-small"
+            ),
+            expected_dimensions=configured_dimensions,
+            client=client,
+        )
+
+    @property
+    def is_ready(self) -> bool:
+        return self._client is not None or bool(self.api_key)
+
+    def describe(self) -> dict[str, str | int | bool | None]:
+        return {
+            "provider_name": self.provider_name,
+            "model_name": self.model_name,
+            "base_url": self.base_url,
+            "dimensions": self.dimensions or None,
+            "ready": self.is_ready,
+            "client_type": type(self._client).__name__ if self._client else None,
+        }
+
+    def embed_query(self, text: str) -> list[float]:
+        vectors = self._embed_many([text])
+        return vectors[0]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._embed_many(texts)
+
+    def _embed_many(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        client = self._ensure_client()
+        response = client.embeddings.create(model=self.model_name, input=texts)
+        data = getattr(response, "data", None)
+        if not isinstance(data, list):
+            raise ValueError("Embedding response must expose a list-like `data` field.")
+
+        vectors: list[list[float]] = []
+        for index, item in enumerate(data):
+            raw_vector = getattr(item, "embedding", None)
+            if not isinstance(raw_vector, list):
+                raise ValueError(f"Embedding item at index {index} is missing a vector.")
+            self._record_dimensions(raw_vector)
+            vectors.append(normalize([float(value) for value in raw_vector]))
+
+        if len(vectors) != len(texts):
+            raise ValueError("Embedding provider returned an unexpected vector count.")
+        return vectors
+
+    def _record_dimensions(self, vector: list[float]) -> None:
+        if self.dimensions == 0:
+            self.dimensions = len(vector)
+            return
+        if len(vector) != self.dimensions:
+            raise ValueError(
+                f"Embedding vector has dimensions={len(vector)}, expected {self.dimensions}."
+            )
+
+    def _ensure_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+
+        if not self.api_key:
+            raise ValueError(
+                "Missing embedding API key. Set EMBEDDING_API_KEY or OPENAI_API_KEY."
+            )
+
+        try:
+            from openai import OpenAI
+        except ImportError as exc:  # pragma: no cover - depends on local env
+            raise ImportError(
+                "openai is required for real embedding calls. Run `python -m pip install -r requirements.txt`."
+            ) from exc
+
+        kwargs: dict[str, str] = {"api_key": self.api_key}
+        if self.base_url:
+            kwargs["base_url"] = self.base_url
+        self._client = OpenAI(**kwargs)
+        return self._client
+
+
+class MockSemanticOpenAIClient:
+    def __init__(self) -> None:
+        self.embeddings = _MockSemanticEmbeddingsResource()
+
+
+class _MockSemanticEmbeddingsResource:
+    def create(self, *, model: str, input: list[str] | str) -> MockEmbeddingResponse:
+        texts = [input] if isinstance(input, str) else list(input)
+        return MockEmbeddingResponse(
+            data=[
+                MockEmbeddingData(index=index, embedding=build_mock_semantic_vector(text))
+                for index, text in enumerate(texts)
+            ],
+            model=model,
+        )
+
+
+def first_env(*keys: str) -> str | None:
+    for key in keys:
+        value = os.getenv(key)
+        if value:
+            return value
+    return None
+
+
 def demo_chunk_metadata(source: str, content: str, chunk_index: int = 0) -> dict[str, str | int]:
     filename = source.rsplit("/", maxsplit=1)[-1]
     suffix = f".{filename.rsplit('.', maxsplit=1)[-1]}" if "." in filename else ""
@@ -116,54 +292,74 @@ def demo_chunk_metadata(source: str, content: str, chunk_index: int = 0) -> dict
     }
 
 
-def demo_source_chunks() -> list[SourceChunk]:
-    return [
-        SourceChunk(
-            chunk_id="refund:0",
-            document_id="refund",
-            content="购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
-            metadata=demo_chunk_metadata(
-                source="data/refund_policy.md",
-                content="购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
+def load_demo_source_chunk_specs(path: Path | None = None) -> list[dict[str, Any]]:
+    target_path = path or SOURCE_CHUNKS_PATH
+    with target_path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    if not isinstance(data, list):
+        raise TypeError("source chunk specs must be a list")
+    return data
+
+
+def load_search_cases(path: Path | None = None) -> list[dict[str, Any]]:
+    target_path = path or SEARCH_CASES_PATH
+    with target_path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    if not isinstance(data, list):
+        raise TypeError("search cases must be a list")
+    return data
+
+
+def build_openai_provider_or_mock(
+    *,
+    force_mock: bool = False,
+    model_name: str | None = None,
+) -> tuple[OpenAICompatibleEmbeddingProvider, str]:
+    if force_mock:
+        return (
+            OpenAICompatibleEmbeddingProvider(
+                client=MockSemanticOpenAIClient(),
+                model_name=model_name or "mock-semantic-bridge",
+                expected_dimensions=SEMANTIC_DIMENSIONS,
             ),
+            "mock",
+        )
+
+    provider = OpenAICompatibleEmbeddingProvider.from_env(model_name=model_name)
+    if provider.is_ready:
+        return provider, "real"
+
+    return (
+        OpenAICompatibleEmbeddingProvider(
+            client=MockSemanticOpenAIClient(),
+            model_name=model_name or "mock-semantic-bridge",
+            expected_dimensions=SEMANTIC_DIMENSIONS,
         ),
-        SourceChunk(
-            chunk_id="trial:0",
-            document_id="trial",
-            content="课程支持一次 30 分钟免费试学，需要提前预约。",
-            metadata=demo_chunk_metadata(
-                source="data/trial_policy.md",
-                content="课程支持一次 30 分钟免费试学，需要提前预约。",
-            ),
-        ),
-        SourceChunk(
-            chunk_id="metadata:0",
-            document_id="metadata",
-            content="每个 chunk 应保留 source、filename 和 chunk_index，方便后续引用和调试。",
-            metadata=demo_chunk_metadata(
-                source="data/metadata_rules.md",
-                content="每个 chunk 应保留 source、filename 和 chunk_index，方便后续引用和调试。",
-            ),
-        ),
-        SourceChunk(
-            chunk_id="embedding:0",
-            document_id="embedding",
-            content="Embedding 会把文本映射成向量，后续系统可以计算相似度并做检索。",
-            metadata=demo_chunk_metadata(
-                source="data/embedding_notes.md",
-                content="Embedding 会把文本映射成向量，后续系统可以计算相似度并做检索。",
-            ),
-        ),
-        SourceChunk(
-            chunk_id="support:0",
-            document_id="support",
-            content="课程助教在工作日提供答疑支持，周末只处理紧急问题。",
-            metadata=demo_chunk_metadata(
-                source="data/support_hours.md",
-                content="课程助教在工作日提供答疑支持，周末只处理紧急问题。",
-            ),
-        ),
-    ]
+        "mock",
+    )
+
+
+def demo_source_chunks(path: Path | None = None) -> list[SourceChunk]:
+    chunks: list[SourceChunk] = []
+    for spec in load_demo_source_chunk_specs(path):
+        source = str(spec["source"])
+        content = str(spec["content"])
+        chunk_index = int(spec.get("chunk_index", 0))
+        metadata = demo_chunk_metadata(source, content, chunk_index)
+
+        extra_metadata = spec.get("metadata")
+        if isinstance(extra_metadata, dict):
+            metadata.update(extra_metadata)
+
+        chunks.append(
+            SourceChunk(
+                chunk_id=str(spec["chunk_id"]),
+                document_id=str(spec["document_id"]),
+                content=content,
+                metadata=metadata,
+            )
+        )
+    return chunks
 
 
 def ensure_vector_dimensions(
@@ -252,6 +448,17 @@ def score_query_against_chunks(
         ensure_same_embedding_space(chunk, provider)
         scored.append((chunk, cosine_similarity(query_vector, chunk.vector)))
     return sorted(scored, key=lambda item: item[1], reverse=True)
+
+
+def build_mock_semantic_vector(text: str) -> list[float]:
+    normalized = " ".join(text.lower().split())
+    vector = [0.0] * SEMANTIC_DIMENSIONS
+
+    for index, (_, keywords) in enumerate(SEMANTIC_CONCEPT_GROUPS):
+        hits = sum(1.0 for keyword in keywords if keyword in normalized)
+        vector[index] = hits
+
+    return normalize(vector)
 
 
 def normalize(vector: list[float]) -> list[float]:

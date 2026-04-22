@@ -1,6 +1,6 @@
 # 01. RAG 基础概念
 
-> 本节目标：先理解 RAG 在解决什么问题，跑通一个最小、独立、可重复的 RAG 闭环，并建立“什么时候该用 RAG、什么时候不该用”的判断。
+> 本章目标：先理解 RAG 在解决什么问题，跑通一个最小、独立、可重复的 RAG 闭环，并把课程共享的最小评估集放进正式学习入口。
 
 ---
 
@@ -12,11 +12,13 @@
 - 理解为什么不是所有问题都应该直接进入 RAG
 - 能区分长上下文、直接查现有系统、`Hosted File Search`、固定 `2-step RAG`、`Hybrid RAG`、微调和 `Agentic RAG`
 - 能画出最小 `2-step RAG` 在线数据流，并说明每一步在做什么
+- 能运行课程共享最小评估集，并理解后续章节如何复用
 - 能运行一个不依赖后续章节的最小 RAG 示例
 - 能说清本章输入、输出、现象和边界
 
 ### 预计学习时间
 
+- 评估前置：20 分钟
 - RAG 问题意识：40 分钟
 - 最小数据流：40 分钟
 - 第一章代码实践：40-60 分钟
@@ -28,7 +30,7 @@
 | 私有知识问答 | 该不该先检索依据 |
 | 通用常识问答 | 是否根本不需要 RAG |
 | 结构化查询 | 是否更适合直接查现有系统 |
-| 后续 RAG 学习 | 为什么要先把“路由和边界”立住，再做检索工程 |
+| 后续 RAG 学习 | 为什么要先把“实验尺子、路由和边界”立住，再做检索工程 |
 
 ### 学习前提
 
@@ -49,8 +51,9 @@
 1. 为什么单次模型调用不够
 2. 什么情况下需要 RAG
 3. 为什么要先判断“这题该不该走 RAG”
-4. 最小 `2-step RAG` 在线链路长什么样
-5. 为什么在第九章之前，每章都应该保持独立闭环
+4. 为什么课程从第一章就要固定最小评估尺子
+5. 最小 `2-step RAG` 在线链路长什么样
+6. 为什么在第九章之前，每章都应该保持独立闭环
 
 后续章节会继续分开处理：
 
@@ -64,20 +67,23 @@
 
 本章对应的代码目录是：
 
-- [source/04_rag/01_rag_basics/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md)
-- [01_why_rag.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/01_why_rag.py)
-- [02_rag_pipeline.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/02_rag_pipeline.py)
-- [03_solution_decision.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/03_solution_decision.py)
-- [rag_basics.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/rag_basics.py)
+- [README.md](../../source/04_rag/01_rag_basics/README.md)
+- [01_minimum_eval.py](../../source/04_rag/01_rag_basics/01_minimum_eval.py)
+- [02_why_rag.py](../../source/04_rag/01_rag_basics/02_why_rag.py)
+- [03_rag_pipeline.py](../../source/04_rag/01_rag_basics/03_rag_pipeline.py)
+- [04_solution_decision.py](../../source/04_rag/01_rag_basics/04_solution_decision.py)
+- [rag_basics.py](../../source/04_rag/01_rag_basics/rag_basics.py)
+- [data/minimum_golden_set.json](../../source/04_rag/01_rag_basics/data/minimum_golden_set.json)
 
 ### 本章边界
 
 本章只做这些事情：
 
-1. 理解问题意识
-2. 跑通最小在线 RAG 闭环
-3. 建立方案判断顺序
-4. 建立“不是所有问题都该先进 RAG”的最小路由直觉
+1. 建立课程级最小评估前置
+2. 理解问题意识
+3. 跑通最小在线 RAG 闭环
+4. 建立方案判断顺序
+5. 建立“不是所有问题都该先进 RAG”的最小路由直觉
 
 本章明确不做：
 
@@ -88,19 +94,114 @@
 - 真实向量数据库
 - 真实 LLM 调用
 - API 服务
-- 完整评估系统
+- 完整评估平台
 
-这里故意只用“内存知识库 + 关键词检索 + 规则化回答 + 最小路由判断”。
+这里故意只用“内存知识库 + 关键词检索 + 规则化回答 + 最小路由判断 + 最小 golden set”。
 
-目的不是追求效果最强，而是先把 RAG 的问题、数据流和边界讲清楚。
-
-但第一章仍然会保留一个最小回归集，避免示例代码一改就偏离教学主线。
+目的不是追求效果最强，而是先把 RAG 的问题、实验尺子、数据流和边界讲清楚。
 
 ---
 
-## 2. 为什么会需要 RAG 📌
+## 2. 开始前：最小评估集 📌
 
-### 2.1 单次模型调用为什么不够
+### 2.1 为什么评估要前置
+
+RAG 不是“换个 Prompt 看感觉”的练习，而是一个持续调参、持续对比的系统工程。
+
+如果没有一套固定样本，后面你每改一次：
+
+- `chunk_size`
+- 切分规则
+- Embedding
+- 检索策略
+- Prompt
+- Rerank
+
+都很难判断到底是变好了，还是只是换了一种失败方式。
+
+所以这门课不把评估放在最后补，而是把它放进第一章开头，作为整个 `01-04` 的共享实验尺子。
+
+### 2.2 第一章里保留什么程度的评估
+
+第一章不会展开完整评估平台，也不会一上来就做复杂自动打分。
+
+第一章只做最小、够用、可复跑的评估前置：
+
+- 固定一份共享样本文件
+- 让这份样本能被脚本直接跑起来
+- 明确第一章当前真正能承诺的结果边界
+- 把已知失败样本保留下来，方便后续章节继续收敛
+
+这一步的重点不是“评估体系完整”，而是“课程主线从第一天起有统一尺子”。
+
+### 2.3 课程共享样本长什么样
+
+第一章现在使用的最小样本文件是：
+
+- [data/minimum_golden_set.json](../../source/04_rag/01_rag_basics/data/minimum_golden_set.json)
+
+每条样本至少包含：
+
+- `case_id`
+- `question`
+- `course_target.reference_answer_points`
+- `course_target.reference_sources`
+- `chapter_expectations.01_rag_basics`
+- `tags`
+
+这里要区分两个层次：
+
+1. `course_target`
+   - 代表整门课最终希望逼近的正确方向
+2. `chapter_expectations.01_rag_basics`
+   - 代表第一章今天真正会检查什么
+
+例如：
+
+- `Python 系统课可以退费吗？`
+  - 在第一章已经应该命中 `refund_policy.md`
+- `Python 系统课可以退钱吗？`
+  - 在第一章会被保留为已知缺口
+  - 后续章节会继续复用同一条样本去观察召回是否改善
+
+### 2.4 第一章怎么运行这套样本
+
+对应脚本是：
+
+- [01_minimum_eval.py](../../source/04_rag/01_rag_basics/01_minimum_eval.py)
+
+运行方式：
+
+```bash
+cd source/04_rag/01_rag_basics
+python 01_minimum_eval.py
+```
+
+你应该观察到：
+
+- 通用常识样本不会误走 RAG
+- 结构化查询样本会直接查现有系统
+- 私有知识精确表达样本会命中 `refund_policy.md`
+- 同义表达样本会被标记为第一章当前已知缺口
+
+### 2.5 后续章节怎么复用
+
+从第二章开始，这份样本不应该被丢掉，而应该继续复用。
+
+复用方式不是“每章检查完全相同的指标”，而是：
+
+- 第一章：看路由、toy RAG 行为、最小来源边界
+- 第二章：看文档进入系统后，metadata 和稳定标识是否支撑这些样本
+- 第三章：看 embedding 以后，同义表达类样本是否开始改善
+- 第四章：看进入持久化存储后，召回结果和来源是否稳定
+
+也就是说，同一份样本是共享的，但每章观察的维度可以不同。
+
+---
+
+## 3. 为什么会需要 RAG 📌
+
+### 3.1 单次模型调用为什么不够
 
 在 `02_llm` 里，你已经学会了如何稳定发出一次模型请求。
 
@@ -127,7 +228,7 @@ RAG 就是在解决这件事：
 
 > 先把相关知识找出来，再把它们和问题一起交给模型回答。
 
-### 2.2 一个最小例子
+### 3.2 一个最小例子
 
 假设你现在有一套 Python 课程，它的退款规则写在私有文档里：
 
@@ -152,7 +253,7 @@ Python 系统课可以退费吗？
 
 > RAG 的价值不是“让模型更聪明”，而是“让回答有依据”。
 
-### 2.3 RAG 解决什么，不解决什么
+### 3.3 RAG 解决什么，不解决什么
 
 RAG 重点解决的是：
 
@@ -172,9 +273,9 @@ RAG 重点解决的是：
 
 ---
 
-## 3. 最小 `2-step RAG` 数据流 📌
+## 4. 最小 `2-step RAG` 数据流 📌
 
-### 3.1 最小在线链路
+### 4.1 最小在线链路
 
 第一章只看在线部分，先不要背完整离线工程。
 
@@ -192,7 +293,7 @@ RAG 重点解决的是：
 - 回答：基于上下文生成答案，而不是自由发挥
 - 来源：把答案对应的依据一起返回
 
-### 3.2 进入 RAG 之前先做一次分流判断
+### 4.2 进入 RAG 之前先做一次分流判断
 
 第一章虽然重点在最小 `2-step RAG`，但不应该给你建立一个错误直觉：
 
@@ -207,24 +308,26 @@ RAG 重点解决的是：
   └── 私有非结构化知识 -> 固定 2-step RAG
 ```
 
-第一章代码里会用三种最小示例把这个习惯立住：
+第一章代码里会用四种最小样例把这个习惯立住：
 
 - `法国首都是什么？`：直接回答
 - `订单 1024 的状态是什么？`：直接查现有系统
 - `Python 系统课可以退费吗？`：固定 `2-step RAG`
+- `Python 系统课可以退钱吗？`：路由正确，但当前召回仍有缺口
 
 注意：
 
 - 这里只有“最小路由”，不是完整 router 工程
 - 第一章不会实现真实数据库或搜索服务，只会用很小的规则示例说明边界
 
-### 3.3 为什么第一章只保留这条链路
+### 4.3 为什么第一章只保留这条链路
 
 因为你现在要学的是：
 
 1. RAG 到底为什么存在
 2. RAG 最小形态长什么样
 3. 回答为什么必须带依据
+4. 为什么实验尺子要先固定
 
 你现在不需要一上来就理解：
 
@@ -237,7 +340,7 @@ RAG 重点解决的是：
 
 这些都是真实系统会出现的东西，但不应该压过第一章的学习目标。
 
-### 3.4 为什么第一章不再先做项目骨架
+### 4.4 为什么第一章不再先做项目骨架
 
 在你的学习模式里，第九章之前每一章都应该是独立知识单元。
 
@@ -258,9 +361,9 @@ RAG 重点解决的是：
 
 ---
 
-## 4. 什么情况下该选什么方案 📌
+## 5. 什么情况下该选什么方案 📌
 
-### 4.1 常见方案梯度
+### 5.1 常见方案梯度
 
 很多人在做 AI 应用时，会先问“要不要上 RAG”。
 
@@ -280,7 +383,7 @@ RAG 重点解决的是：
 | 微调 | 学习风格、格式、行为模式 | 希望频繁更新外部知识 |
 | `Agentic RAG` | 固定链路明显不够，需要动态检索决策 | 基础 RAG 还没做稳 |
 
-### 4.2 默认决策顺序
+### 5.2 默认决策顺序
 
 这门课推荐的默认决策顺序是：
 
@@ -295,25 +398,27 @@ RAG 重点解决的是：
 
 > 先用问题类型判断方案，再选技术，而不是先选技术再给它找问题。
 
-### 4.3 第一章为什么只做固定 `2-step RAG` 的影子
+### 5.3 第一章为什么只做固定 `2-step RAG` 的影子
 
-因为第一章要先建立三个最重要的习惯：
+因为第一章要先建立四个最重要的习惯：
 
 1. 有问题先判断它属于哪类知识访问问题
 2. 有回答先看依据是否存在
-3. 有方案先按复杂度从低到高判断
+3. 有实验先看有没有固定样本
+4. 有方案先按复杂度从低到高判断
 
 这也是为什么第一章的代码会同时包含：
 
 - 一个最小分流判断
 - 一个最小问答闭环
 - 一个“什么时候不用 RAG”的判断示例
+- 一个课程共享的最小评估入口
 
 ---
 
-## 5. 第一章实践：独立最小闭环
+## 6. 第一章实践：独立最小闭环
 
-### 5.1 目录结构
+### 6.1 目录结构
 
 本章代码目录是：
 
@@ -321,20 +426,24 @@ RAG 重点解决的是：
 source/04_rag/01_rag_basics/
 ├── README.md
 ├── rag_basics.py
-├── 01_why_rag.py
-├── 02_rag_pipeline.py
-├── 03_solution_decision.py
+├── 01_minimum_eval.py
+├── 02_why_rag.py
+├── 03_rag_pipeline.py
+├── 04_solution_decision.py
+├── data/
+│   └── minimum_golden_set.json
 └── tests/
 ```
 
 第一章只保留一个平铺目录，不做 `app/`、`services/`、`vectorstores/` 这种项目式拆分。
 
-### 5.2 输入和输出
+### 6.2 输入和输出
 
 本章代码的输入是：
 
 - 一个问题字符串
 - 一组内存中的小知识块
+- 一份课程共享的最小样本文件
 
 本章代码的输出是：
 
@@ -342,14 +451,17 @@ source/04_rag/01_rag_basics/
 - 检索结果
 - 最小上下文
 - `answer + sources`
+- 共享样本在第一章边界下的运行结果
 
-在 [rag_basics.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/rag_basics.py) 里，你最值得先看的是：
+在 [rag_basics.py](../../source/04_rag/01_rag_basics/rag_basics.py) 里，你最值得先看的是：
 
 - `KnowledgeChunk`
 - `RetrievalResult`
 - `AnswerResult`
 - `RouteDecision`
 - `RoutedAnswerResult`
+- `load_minimum_golden_set()`
+- `get_chapter_expectation()`
 - `route_question()`
 - `retrieve()`
 - `build_context()`
@@ -357,74 +469,76 @@ source/04_rag/01_rag_basics/
 - `answer_question()`
 - `recommend_solution()`
 
-### 5.3 运行方式
+### 6.3 运行方式
 
 ```bash
 cd source/04_rag/01_rag_basics
 
-python 01_why_rag.py
-python 02_rag_pipeline.py
-python 03_solution_decision.py
+python 01_minimum_eval.py
+python 02_why_rag.py
+python 03_rag_pipeline.py
+python 04_solution_decision.py
 python -m unittest discover -s tests
 ```
 
-### 5.4 你应该观察到什么
+### 6.4 你应该观察到什么
 
-跑 [01_why_rag.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/01_why_rag.py) 时：
+跑 [01_minimum_eval.py](../../source/04_rag/01_rag_basics/01_minimum_eval.py) 时：
+
+- 你会先看到第一章到底在拿什么样本当课程共享起点
+- 你会看到 `course_target` 和 `chapter_expectations.01_rag_basics` 不是同一层东西
+- 你会看到“退钱”这条样本被明确保留为已知缺口，而不是被测试偷偷删掉
+
+跑 [02_why_rag.py](../../source/04_rag/01_rag_basics/02_why_rag.py) 时：
 
 - 课程私有知识问题会被路由到 `固定 2-step RAG`
 - 通用常识问题会被路由到“直接回答”
 - 结构化查询会被路由到“直接查现有系统”
 
-跑 [02_rag_pipeline.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/02_rag_pipeline.py) 时：
+跑 [03_rag_pipeline.py](../../source/04_rag/01_rag_basics/03_rag_pipeline.py) 时：
 
 - 你会先看到“这题该不该进入 RAG”
 - 你能看到问题如何命中关键词
 - 你能看到检索结果如何变成上下文
 - 你能看到最终返回结构为什么不只是字符串
-- 当你运行 `python 02_rag_pipeline.py "Python 系统课可以退钱吗？"` 时，会看到“路由正确，但关键词检索漏召回”的失败案例
+- 当你运行 `python 03_rag_pipeline.py "Python 系统课可以退钱吗？"` 时，会看到“路由正确，但关键词检索漏召回”的失败案例
 
-跑 [03_solution_decision.py](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/03_solution_decision.py) 时：
+跑 [04_solution_decision.py](../../source/04_rag/01_rag_basics/04_solution_decision.py) 时：
 
 - 你能把方案判断从“感觉”变成“顺序”
 - 你会看到 `Hosted File Search` 和 `Hybrid RAG` 在主线里的位置
 - 你会看到第一章并不是在鼓励你对所有事情都先上 RAG
 
-### 5.5 第一章最小回归集
+### 6.5 第一章共享最小评估集
 
-第一章不做完整评估系统，但应该从一开始就保留一个最小回归集。
+第一章不做完整评估平台，但会正式建立课程共享最小评估集。
 
-因为你后面会不断改：
+这一章锁定的不是“整门课所有正确答案”，而是：
 
-- 路由规则
-- 检索方式
-- 输出结构
+1. 路由逻辑有没有跑偏
+2. 来源有没有丢
+3. toy RAG 在当前边界下能做到什么，做不到什么
 
-如果连第一章都没有最小回归样本，很容易出现这样的情况：
+样本文件里现在至少保留四类问题：
 
-- 文档还说“不是所有问题都该上 RAG”
-- 代码却已经把所有问题都塞进了 RAG
-- 你自己还没发现
-
-这一章最小回归集只需要锁定三类问题：
-
-```python
-mini_golden_set = [
-    {
-        "question": "法国首都是什么？",
-        "expected_route": "直接回答",
-        "expected_sources": [],
-    },
-    {
-        "question": "订单 1024 的状态是什么？",
-        "expected_route": "直接查现有系统",
-        "expected_sources": ["orders_table"],
-    },
-    {
-        "question": "Python 系统课可以退费吗？",
-        "expected_route": "固定 2-step RAG",
-        "expected_sources": ["refund_policy.md"],
-    },
+```json
+[
+  {
+    "case_id": "general_knowledge_capital",
+    "question": "法国首都是什么？"
+  },
+  {
+    "case_id": "structured_order_status",
+    "question": "订单 1024 的状态是什么？"
+  },
+  {
+    "case_id": "private_refund_exact_match",
+    "question": "Python 系统课可以退费吗？"
+  },
+  {
+    "case_id": "private_refund_synonym_gap",
+    "question": "Python 系统课可以退钱吗？"
+  }
 ]
 ```
 
@@ -432,27 +546,28 @@ mini_golden_set = [
 
 1. 教学主线有没有跑偏
 2. 来源有没有丢
-3. 路由逻辑有没有把所有问题都错误塞进 RAG
+3. 课程共享样本有没有被后续修改悄悄破坏
 
-### 5.6 本章代码刻意简化了什么
+### 6.6 本章代码刻意简化了什么
 
-这一章的实现非常刻意地简化了四件事：
+这一章的实现非常刻意地简化了五件事：
 
-1. 检索只是关键词匹配，不是 embedding 检索
-2. 回答只是最小规则化回答，不是真实 LLM
-3. 知识库在内存里，不是向量数据库
-4. 路由只是最小规则判断，不是真实线上 router
+1. 评估只是最小 golden set，不是完整评估平台
+2. 检索只是关键词匹配，不是 embedding 检索
+3. 回答只是最小规则化回答，不是真实 LLM
+4. 知识库在内存里，不是向量数据库
+5. 路由只是最小规则判断，不是真实线上 router
 
 这是故意的，不是偷工减料。
 
 因为本章要先把下面这件事学会：
 
-> RAG 的本质是“先找依据，再回答”，而不是“先搭工程，再理解问题”。
+> RAG 的本质是“先找依据，再回答”，并且整个过程需要有固定尺子来复跑。
 
 这一节还要刻意观察一个失败案例：
 
 ```bash
-python 02_rag_pipeline.py "Python 系统课可以退钱吗？"
+python 03_rag_pipeline.py "Python 系统课可以退钱吗？"
 ```
 
 你会看到：
@@ -471,20 +586,20 @@ python 02_rag_pipeline.py "Python 系统课可以退钱吗？"
 
 ---
 
-## 6. 本章学完后你应该能回答
+## 7. 本章学完后你应该能回答
 
 - 为什么私有知识问题会需要 RAG
 - 为什么不是所有问题都应该先进 RAG
 - 最小 `2-step RAG` 在线链路长什么样
 - 最小问题分流应该长什么样
 - 为什么答案最好返回 `answer + sources`
+- 为什么课程从第一章就要固定最小评估集
 - 长上下文、直接查现有系统、`Hosted File Search`、固定 `2-step RAG`、`Hybrid RAG`、微调、`Agentic RAG` 各自适合什么情况
-- 为什么第一章就应该保留一个最小回归集
 - 为什么第一章应该先做独立闭环，而不是先做完整工程骨架
 
 ---
 
-## 7. 下一章
+## 8. 下一章
 
 第二章开始，你才会进入真正的文档处理问题：
 
@@ -495,4 +610,4 @@ python 02_rag_pipeline.py "Python 系统课可以退钱吗？"
 
 也就是说，第二章才开始处理“知识怎么进入系统”。
 
-第一章先把“为什么要这么做”“最小闭环是什么”“为什么不是所有问题都先上 RAG”立住，就够了。
+第一章先把“为什么要这么做”“最小闭环是什么”“为什么要先固定共享样本”“为什么不是所有问题都先上 RAG”立住，就够了。

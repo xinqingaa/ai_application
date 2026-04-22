@@ -1,0 +1,32 @@
+[
+  {
+    "chunk_id": "refund:0",
+    "document_id": "refund",
+    "source": "data/refund_policy.md",
+    "content": "购买后 7 天内且学习进度不超过 20%，可以申请全额退款。"
+  },
+  {
+    "chunk_id": "trial:0",
+    "document_id": "trial",
+    "source": "data/trial_policy.md",
+    "content": "课程支持一次 30 分钟免费试学，需要提前预约。"
+  },
+  {
+    "chunk_id": "metadata:0",
+    "document_id": "metadata",
+    "source": "data/metadata_rules.md",
+    "content": "每个文档块都应该保留 source、filename 和 header_path 这类来源字段，方便引用、过滤和调试。"
+  },
+  {
+    "chunk_id": "embedding:0",
+    "document_id": "embedding",
+    "source": "data/embedding_notes.md",
+    "content": "Embedding 会把文本映射成向量，后续系统可以计算相似度并做检索。"
+  },
+  {
+    "chunk_id": "support:0",
+    "document_id": "support",
+    "source": "data/support_hours.md",
+    "content": "课程助教在工作日提供答疑支持，周末只处理紧急问题。"
+  }
+]
