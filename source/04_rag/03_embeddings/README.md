@@ -7,7 +7,7 @@
 ## 核心原则
 
 ```text
-先看稳定 chunk 如何变成向量 -> 再看 query/document 契约 -> 最后补真实 embeddings endpoint 的接入桥
+先看稳定 chunk 如何变成向量 -> 再看 query/document 契约 -> 再看最小排序和回归 -> 最后补真实 embeddings endpoint 的接入桥
 ```
 
 - 在 `source/04_rag/03_embeddings/` 目录下操作
@@ -111,6 +111,57 @@ python 01_embed_chunks.py
 
 ---
 
+## 先怎么读代码
+
+### 1. 第一遍只看对象
+
+先打开 [embedding_basics.py](./embedding_basics.py)，只看这些对象：
+
+- `SourceChunk`
+- `EmbeddedChunk`
+- `EmbeddingProvider`
+- `LocalKeywordEmbeddingProvider`
+- `OpenAICompatibleEmbeddingProvider`
+- `MockEmbeddingResponse`
+- `MockSemanticOpenAIClient`
+
+这一遍的目标不是理解所有逻辑，而是先知道：
+
+- 系统里有哪些最小运行时对象
+- 每个对象分别描述哪一层状态
+- 为什么第三章不是直接返回一个二维浮点数组
+
+### 2. 第二遍只看主流程
+
+然后再看这些函数：
+
+- `demo_source_chunks()`
+- `load_search_cases()`
+- `build_openai_provider_or_mock()`
+- `embed_chunks()`
+- `ensure_vector_dimensions()`
+- `ensure_same_embedding_space()`
+- `score_query_against_chunks()`
+- `cosine_similarity()`
+
+这一遍只回答一个问题：
+
+```text
+一个稳定 chunk 进入第三章以后，到底按什么顺序变成可排序的结果？
+```
+
+### 3. 第三遍再看回归、坏例和桥接
+
+最后再看：
+
+- `source_chunks.json`
+- `search_cases.json`
+- `tests/test_embeddings.py`
+
+这样读会比一开始从头到尾顺着扫更容易建立结构感。
+
+---
+
 ## 第 1 步：看 `SourceChunk -> EmbeddedChunk`
 
 **对应文件**：`01_embed_chunks.py`
@@ -187,13 +238,15 @@ python 01_embed_chunks.py
 
 测试会锁定第三章最重要的几件事：
 
-1. toy provider 维度固定
-2. `EmbeddedChunk` 保留原始 chunk 身份
+1. demo chunks 仍然保留第二章风格的 metadata
+2. toy provider 维度固定
 3. query/document 两条路径在 toy provider 下不同但可比较
-4. local search cases 仍然稳定
-5. `OpenAICompatibleEmbeddingProvider` 能通过 fake client 走通
-6. 已知缺口样本在 semantic provider 下会被修正
-7. 错误响应形态、错误数量、维度漂移会直接失败
+4. `EmbeddedChunk` 保留原始 chunk 身份
+5. local search cases 仍然稳定
+6. semantic provider 能修正显式保留的 known gap
+7. `OpenAICompatibleEmbeddingProvider` 能通过 fake client 走通
+8. 错误响应形态、错误数量、维度漂移会直接失败
+9. 空输入和零向量边界有明确行为
 
 ---
 
@@ -205,6 +258,7 @@ python 01_embed_chunks.py
 4. 再跑 `python 03_query_vs_document.py`
 5. 再跑 `python 04_real_embeddings.py`
 6. 最后跑 `python 05_semantic_search.py`
+7. 最后用 `python -m unittest discover -s tests` 看回归边界
 
 ---
 
@@ -229,18 +283,46 @@ python 01_embed_chunks.py
 
 ## 失败案例也要刻意观察
 
-第三章至少要刻意看三类失败：
+第三章至少要刻意看四类失败：
 
 1. provider 契约失败
    - 向量数量和输入数量不匹配
-   - 向量维度漂移
+   - 响应形状不符合预期
 
-2. 向量空间混用失败
+2. 维度漂移失败
+   - query vector 维度不对
+   - document vectors 前后维度不一致
+
+3. 向量空间混用失败
    - query 和 document 向量不是同一个 provider/model 空间
 
-3. toy provider 语义缺口
+4. toy provider 语义缺口
    - `为什么文档块要记录出处？` 在 local provider 下会先命中错误 chunk
    - 这不是 bug 修完就结束，而是第三章真实 embedding 桥接存在的理由
+
+这些失败案例很重要，因为它们会帮你分清：
+
+- 哪些是章节边界
+- 哪些是向量层不变量
+- 哪些变化会影响后续章节
+
+---
+
+## 建议主动修改的地方
+
+如果你只阅读不改动，很容易停留在“看懂了”的错觉里。
+
+建议主动试三类小改动：
+
+1. 修改 `CONCEPT_GROUPS` 或 `STOPWORDS`，观察 local provider 排序如何变化
+2. 修改 `search_cases.json` 里的一个问题，观察 local/semantic top result 如何变化
+3. 故意写一个维度不一致或 provider/model 不一致的 provider，观察测试如何失败
+
+每次只改一处，这样你才能看清楚：
+
+- 哪个规则影响了哪个向量层行为
+- 哪个字段在支撑后续存储和检索
+- 哪种变化属于“契约设计变化”，哪种只是“样例内容变化”
 
 ---
 
@@ -249,14 +331,16 @@ python 01_embed_chunks.py
 - 为什么第三章只增加向量层，而不是重做输入管道
 - 为什么 `EmbeddedChunk` 要保留 `SourceChunk`
 - 为什么 `embed_query()` 和 `embed_documents()` 不该混成一个模糊接口
+- 为什么 query/document 必须落在同一向量空间里
 - 为什么真实 embeddings 和 chat completions 虽然都走 OpenAI-compatible，但关注点完全不同
 - 为什么维度、批量数量和同一 embedding space 必须在第三章就立住
+- 为什么第三章就要开始有最小回归和 known gap 视角
 - 为什么 toy provider 和真实 provider 应该在同一章内形成桥接，而不是互相替代
 
 ---
 
 ## 当前真实进度和下一章
 
-- 当前真实进度：第三章已经补上真实 embeddings endpoint 的桥接层
-- 完成标准：能看懂向量化增量、相似度排序、provider 契约和 toy -> real 的过渡关系
+- 当前真实进度：第三章已经补上真实 embeddings endpoint 的桥接层和最小回归边界
+- 完成标准：能看懂向量化增量、相似度排序、provider 契约、known gap 和 toy -> real 的过渡关系
 - 下一章：进入 [04_vector_databases](../04_vector_databases/README.md)，把 `EmbeddedChunk[]` 写进向量存储，做最小查询、过滤和删除

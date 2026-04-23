@@ -7,14 +7,14 @@
 ## 核心原则
 
 ```text
-先看原理层 -> 再看真实数据库 -> 最后看上层 VectorStore 抽象
+先看原理层 -> 再看真实数据库 -> 再看 LangChain 映射 -> 最后看统一管理器
 ```
 
 - 在 `source/04_rag/04_vector_databases/` 目录下操作
 - 第四章只讲向量存储层，不讲 Retriever 策略和生成
 - 原有 JSON store 继续保留，作为教学原理层
 - `Chroma` 和 `LangChain Chroma` 是本章新增的真实工具层
-- 第 10 节“向量数据库基础”以文档讲解为主，不额外造 FAISS/Pinecone/Milvus demo
+- 第 10 节“向量数据库基础”以文档讲解为主，不额外造 FAISS / Pinecone / Milvus demo
 - 旧的 `labs/phase_4_vector_databases/` 只作为迁移期备份，不再是当前学习入口
 
 ---
@@ -45,7 +45,7 @@
 ```
 
 - `vector_store_basics.py`
-  第四章原理层：对象、最小 JSON store、契约校验
+  第四章原理层：对象、`EmbeddingSpace`、最小 JSON store、契约校验
 - `chroma_store.py`
   真实 `Chroma` 存储适配
 - `langchain_adapter.py`
@@ -91,6 +91,65 @@ python -m unittest discover -s tests
 
 ---
 
+## 先怎么读代码
+
+### 1. 第一遍只看对象
+
+先打开 [vector_store_basics.py](./vector_store_basics.py)，只看这些对象：
+
+- `SourceChunk`
+- `EmbeddedChunk`
+- `RetrievalResult`
+- `EmbeddingSpace`
+- `VectorStoreConfig`
+- `PersistentVectorStore`
+
+然后再补看：
+
+- `ChromaVectorStoreConfig`
+- `ChromaVectorStore`
+- `ProviderEmbeddingsAdapter`
+- `VectorStoreManager`
+
+这一遍的目标不是理解所有逻辑，而是先知道：
+
+- 第四章有哪些最小运行时对象
+- 哪些对象属于原理层，哪些属于真实工具层
+- 为什么第四章不是只返回一组相似度分数
+
+### 2. 第二遍只看主流程
+
+然后再看这些函数和方法：
+
+- `embed_chunks()`
+- `embedding_space()`
+- `upsert()`
+- `replace_document()`
+- `similarity_search()`
+- `delete_by_document_id()`
+- `build_documents()`
+- `retrieval_results_from_scored_documents()`
+- `VectorStoreManager.search()`
+
+这一遍只回答一个问题：
+
+```text
+一组 EmbeddedChunk 进入第四章以后，到底按什么顺序变成可持久化、可查询、可替换、可删除的结果？
+```
+
+### 3. 第三遍再看 backend 映射和回归
+
+最后再看：
+
+- `chroma_store.py`
+- `langchain_adapter.py`
+- `vector_store_manager.py`
+- `tests/`
+
+这样读会比一开始从头到尾顺着扫更容易建立结构感。
+
+---
+
 ## 建议学习顺序
 
 ### 第 1 步：先跑原理层
@@ -105,7 +164,7 @@ python 03_delete_document.py trial
 
 - JSON store 的持久化路径
 - `replace_document()` 为什么是默认更新入口
-- query/store 的 embedding space 校验
+- query / store 的 embedding space 校验
 - 删除为什么围绕 `document_id`
 
 ### 第 2 步：再跑真实 Chroma
@@ -158,7 +217,7 @@ python 07_vector_store_manager.py --backend langchain --replace-document-id tria
 - 当前综合案例先统一 `json / chroma / langchain`
 - `FAISS` 作为适配器扩展位保留在文档层，不在第四章硬造伪实现
 
-### 第 5 步：最后跑测试
+### 第 5 步：最后看测试在锁定什么
 
 ```bash
 python -m unittest discover -s tests
@@ -173,7 +232,7 @@ python -m unittest discover -s tests
 
 ---
 
-## Mini 回归集
+## 第四章最小回归集
 
 第四章当前最值得反复观察的几条 case：
 
@@ -181,9 +240,54 @@ python -m unittest discover -s tests
 2. `为什么 metadata 很重要？` 应优先命中 `metadata:0`
 3. `filename=metadata_rules.md` 过滤后，结果只应留在对应文档范围
 4. 删除 `trial` 后，不应再保留该文档 chunk
-5. 若 query/provider 和 store 不在同一 embedding space，系统应直接拒绝
+5. 若 query / provider 和 store 不在同一 embedding space，系统应直接拒绝
 6. Chroma 复合过滤会使用显式 `$and`
 7. LangChain `from_documents` 和 `add_documents` 都能建立同一类查询闭环
+
+---
+
+## 失败案例也要刻意观察
+
+第四章至少要刻意看五类失败：
+
+1. embedding space 混用失败
+   - query provider 和 store 空间不一致
+
+2. 文档替换失败
+   - `replace_document()` 后旧 chunk 没有被清掉
+
+3. 删除失败
+   - `delete_by_document_id()` 后同文档结果仍然残留
+
+4. metadata 过滤失败
+   - 过滤后结果没有明显收窄
+
+5. 依赖缺失失败
+   - `chromadb` 或 `langchain_chroma` 缺失时无法进入真实 backend
+
+这些失败案例很重要，因为它们会帮你分清：
+
+- 哪些是章节边界
+- 哪些是存储层不变量
+- 哪些变化会影响后续章节
+
+---
+
+## 建议主动修改的地方
+
+如果你只阅读不改动，很容易停留在“看懂了”的错觉里。
+
+建议主动试三类小改动：
+
+1. 改一个 `document_id`，观察 replace / delete 路径会怎样变化
+2. 增加一个 metadata 字段，观察 JSON / Chroma / LangChain 三层如何透传
+3. 故意换一个 `model_name`，观察 store space 校验如何直接失败
+
+每次只改一处，这样你才能看清楚：
+
+- 哪个字段在支撑替换和删除
+- 哪个规则在支撑空间一致性
+- 哪种变化属于“存储契约变化”，哪种只是“样例内容变化”
 
 ---
 
@@ -205,6 +309,7 @@ python -m unittest discover -s tests
 
 - 为什么第四章不能只剩一个本地 JSON 示例
 - 为什么第 10 节的“选型基础”更适合先放在文档里讲清楚
+- 为什么 `EmbeddingSpace` 是第四章真正的核心身份对象
 - 为什么 Chroma 里仍然需要自己守住 embedding space
 - 为什么 LangChain VectorStore 仍然属于第四章而不是第五章
 - 为什么 `upsert()` 和 `replace_document()` 不能混成一个模糊概念

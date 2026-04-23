@@ -1,21 +1,23 @@
 # 06. RAG 生成 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/04_rag/06_rag_generation.md) 学完第六章，并把第五章的检索结果真正接成一个稳定的问答闭环。
+> 这份 README 只负责一件事：带你按正确顺序跑完第六章，先看检索候选怎样变成 Prompt，再看 `answer + sources`、拒答、真实 LLM fallback 和 LCEL，最后把“生成主线”和“真实接入”连起来。
 
 ---
 
 ## 核心原则
 
 ```text
-先看候选如何进入 Prompt -> 再看答案和 sources 如何对齐 -> 最后再接真实 LLM 和 LCEL
+先看候选如何进入 Prompt -> 再看 answer + sources -> 再看 refusal -> 最后接真实 LLM 和 LCEL
 ```
 
 - 在 `source/04_rag/06_rag_generation/` 目录下操作
 - 本章主线仍然是生成闭环，不重新展开检索策略
-- 当前章节分成两层：
-  - 稳定主线：context selection、formatter、Prompt、answer + sources、refusal
-  - 扩展主线：真实 LLM 接入、LCEL RAG Chain
+- 第六章当前有三条观察路径：
+  - mock 主线：先把生成链路讲清楚
+  - real LLM 路径：把同一条链路接到真实模型
+  - LCEL 路径：把同一条链路换成标准链式表达
 - 真实 LLM 调用参考 `02_llm/02_multi_provider` 的最小抽象方式，但不会把第二章整套多平台教学复制进来
+- 第六章当前真正要立住的是：同一批 `RetrievalResult[]` 在应用层怎样收缩成可回答、可拒答、可追溯的 `answer + sources`
 
 ---
 
@@ -39,9 +41,9 @@
 ```
 
 - `llm_utils.py`
-  放第六章最小真实调用接缝：provider config、统一响应对象、OpenAI-compatible client
+  第六章最小真实调用接缝：provider config、统一响应对象、OpenAI-compatible client
 - `generation_basics.py`
-  放本章核心对象：demo retriever、chapter 5 retriever adapter、context selection、Prompt、mock 生成器和 `RagService`
+  第六章主线文件：demo retriever、chapter 5 retriever adapter、context selection、formatter、Prompt、mock 生成器和 `RagService`
 - `01_inspect_prompt.py`
   看候选结果如何被收缩成 Prompt
 - `02_query_demo.py`
@@ -52,6 +54,8 @@
   把第五章检索器接到真实 LLM 或 mock fallback
 - `05_lcel_rag_chain.py`
   用 LCEL 重写第六章最小 RAG 闭环
+- `tests/test_generation.py`
+  锁定 `format_context`、拒答、sources 对齐、mock fallback 和第五章运行时复用
 
 ---
 
@@ -94,124 +98,183 @@ python -m unittest discover -s tests
 
 ---
 
-## 第 1 步：先看输入和输出契约
+## 先怎么读代码
 
-**对应文件**：[generation_basics.py](./generation_basics.py)
+### 1. 第一遍只看对象
 
-重点观察：
+先打开 [generation_basics.py](./generation_basics.py)，只看这些对象：
 
-- 为什么输入应该是稳定 `RetrievalResult[]`
-- 为什么输出应该是稳定 `AnswerResult`
-- `RagService.ask()` 为什么要先筛上下文、再生成、再对齐 `sources`
+- `AnswerResult`
+- `PromptInspection`
+- `GenerationDemoRetriever`
+- `Chapter5StrategyRetriever`
+- `MockLLMClient`
+- `ResilientGenerationClient`
+- `RagService`
 
----
+然后再补看：
 
-## 第 2 步：看候选结果如何被收缩成 Prompt
+- `GenerationProviderConfig`
+- `GenerationResult`
+- `OpenAICompatibleLLMClient`
 
-**对应文件**：[generation_basics.py](./generation_basics.py)、[01_inspect_prompt.py](./01_inspect_prompt.py)
+这一遍的目标不是理解所有逻辑，而是先知道：
 
-重点观察：
+- 第六章有哪些最小运行时对象
+- 哪些对象属于教学主线，哪些对象属于真实调用接缝
+- 为什么第六章不是只返回一段答案
 
-- `GenerationDemoRetriever` 如何服务当前 mock 教学语料
-- `filter_retrieval_results()` 如何根据 `min_context_score` 挡掉弱相关 chunk
-- `prompt_results` 为什么可能少于 `retrieved_results`
-- 为什么 `max_chunks` 是上下文边界，而不是细节参数
+### 2. 第二遍只看主流程
 
----
+然后再看这些函数和方法：
 
-## 第 3 步：看检索结果如何变成上下文
-
-**对应文件**：[generation_basics.py](./generation_basics.py)、[01_inspect_prompt.py](./01_inspect_prompt.py)
-
-重点观察：
-
-- `format_context()` 如何生成 `[S1] / [S2]`
-- 为什么上下文里还要显式保留 `filename / chunk_index`
-- 为什么现在会同时展示 `retrieval_score / context_score`
-
----
-
-## 第 4 步：先跑 mock 闭环，再看拒答
-
-**对应文件**：[02_query_demo.py](./02_query_demo.py)、[03_refusal_demo.py](./03_refusal_demo.py)
-
-重点观察：
-
-- `MockLLMClient.generate()`
-- `_build_mock_answer()`
+- `filter_retrieval_results()`
+- `select_prompt_results()`
 - `select_used_results()`
+- `format_context()`
+- `build_messages()`
+- `inspect_prompt()`
+- `create_generation_client()`
 - `RagService.ask()`
+- `OpenAICompatibleLLMClient.generate()`
 
-运行后重点看：
+这一遍只回答一个问题：
 
-- 回答里是否出现 `[S1]`
-- `sources` 是否只返回答案实际使用到的来源
-- 为什么“火星首都是什么？”会在生成前直接拒答
-
----
-
-## 第 5 步：接真实 LLM，但不破坏主线
-
-**对应文件**：[llm_utils.py](./llm_utils.py)、[04_real_llm_demo.py](./04_real_llm_demo.py)
-
-重点观察：
-
-- `load_generation_provider_config()` 如何把环境变量收束成配置对象
-- `OpenAICompatibleLLMClient` 如何复用第二章的 OpenAI-compatible 调用方式
-- `create_generation_client()` 为什么要保留 mock fallback
-- `Chapter5StrategyRetriever` 如何把第五章的 `backend / strategy` 直接接进第六章
-
-建议先跑：
-
-```bash
-python 04_real_llm_demo.py
+```text
+一个 question 进入第六章以后，到底按什么顺序变成可控、可追溯、可拒答的 answer + sources？
 ```
 
-然后再改参数：
+### 3. 第三遍再看脚本和 tests
 
-```bash
-python 04_real_llm_demo.py --backend chroma --strategy mmr --provider bailian
-python 04_real_llm_demo.py "为什么 metadata 很重要？" --filename metadata_rules.md
-```
+最后再看：
 
-这里最重要的观察点是：
+- `01_inspect_prompt.py`
+- `02_query_demo.py`
+- `03_refusal_demo.py`
+- `04_real_llm_demo.py`
+- `05_lcel_rag_chain.py`
+- `tests/test_generation.py`
 
-- 没有真实环境时，为什么仍然能看到 provider 信息和 fallback 原因
-- 第五章检索策略变化，怎样影响第六章最终答案和来源
-
----
-
-## 第 6 步：看 LCEL 如何重写同一条链路
-
-**对应文件**：[05_lcel_rag_chain.py](./05_lcel_rag_chain.py)
-
-重点观察：
-
-- `retriever -> context -> ChatPromptTemplate -> LLMClient -> StrOutputParser`
-- 为什么 LCEL 不是“另一套 RAG”，而只是把当前链路换成标准可组合写法
-- 为什么第六章这里仍然不引入完整服务层
-
-建议跑：
-
-```bash
-python 05_lcel_rag_chain.py
-```
-
-运行后重点看：
-
-- Prompt Preview 是否仍然是你前面已经理解过的那套 Prompt
-- LCEL 版本和手写版本的上下文、答案边界是否一致
+这样读会比一开始顺着扫更容易建立结构感。
 
 ---
 
 ## 建议学习顺序
 
-1. 先读 [第六章学习文档](../../../docs/04_rag/06_rag_generation.md)
-2. 跑 `python 01_inspect_prompt.py`
-3. 跑 `python 02_query_demo.py`
-4. 跑 `python 03_refusal_demo.py`
-5. 跑 `python 04_real_llm_demo.py`
-6. 最后跑 `python 05_lcel_rag_chain.py`
+### 第 1 步：先看候选如何进入 Prompt
+
+```bash
+python 01_inspect_prompt.py
+python 01_inspect_prompt.py "火星首都是什么？"
+python 01_inspect_prompt.py "退款规则是什么？" --top-k 5 --min-context-score 0.35 --max-chunks 2
+```
+
+重点观察：
+
+- `retrieved_results / accepted_results / prompt_results` 的差异
+- 哪些 chunk 被 `min_context_score` 挡掉
+- `max_chunks` 怎样进一步裁剪 Prompt 上下文
+- Prompt Preview 里是否已经带有 `[S1] / [S2]`
+
+### 第 2 步：再跑 mock 闭环
+
+```bash
+python 02_query_demo.py
+python 02_query_demo.py "为什么回答里要带来源标签？"
+```
+
+重点观察：
+
+- Answer 里是否出现 `[S1]`
+- `sources` 是否只返回实际使用到的来源
+- `prompt_results` 是否比 `retrieved_results` 更少
+
+### 第 3 步：专门看 refusal
+
+```bash
+python 03_refusal_demo.py
+```
+
+重点观察：
+
+- 可回答问题和应拒答问题是否被明显分开
+- `火星首都是什么？` 是否在生成前就停止
+- 拒答时是否没有多余 `sources`
+
+### 第 4 步：接真实 LLM，但不破坏主线
+
+```bash
+python 04_real_llm_demo.py
+python 04_real_llm_demo.py --backend chroma --strategy mmr --provider openai
+python 04_real_llm_demo.py "为什么 metadata 很重要？" --filename metadata_rules.md
+```
+
+重点观察：
+
+- 没有真实环境时，为什么仍然能看到 provider 信息和 fallback 原因
+- 第五章检索策略变化，怎样影响第六章最终答案和来源
+- 真实路径里 `request_preview / response_preview` 为什么重要
+
+### 第 5 步：最后看 LCEL
+
+```bash
+python 05_lcel_rag_chain.py
+python 05_lcel_rag_chain.py --backend chroma --strategy threshold --threshold 0.80
+```
+
+重点观察：
+
+- Prompt Preview 是否仍然是你前面已经理解过的那套 Prompt
+- LCEL 版本和手写版本的上下文、答案边界是否一致
+- LCEL 是否只是换了表达方式，而没有改变主线语义
+
+### 第 6 步：最后看测试
+
+```bash
+python -m unittest discover -s tests
+```
+
+测试当前锁定的不是“脚本能跑”，而是：
+
+1. 第六章 demo retriever 继续复用第五章富 metadata 契约
+2. `format_context()` 会显式带上标签、文件名和分数
+3. `build_messages()` 会保留系统 Prompt、上下文和问题
+4. 无可用上下文时 `RagService` 会直接拒答
+5. `RagService` 返回的 `sources` 会和答案标签对齐
+6. 当 `top_k > max_chunks` 时，`sources` 仍只跟 `prompt_results` 对齐
+7. provider 未就绪时 `create_generation_client()` 会回退到 mock
+8. `Chapter5StrategyRetriever` 会直接复用第五章运行时路径
+
+---
+
+## 第六章最小回归集
+
+第六章当前最值得反复观察的几条 case：
+
+1. `退款规则是什么？`
+   应能返回带 `[S1]` 的简洁答案，并带出对应来源
+2. `为什么回答里要带来源标签？`
+   `sources` 应该和答案中的标签对齐，而不是把所有候选全返回
+3. `火星首都是什么？`
+   应在生成前直接拒答
+4. `top_k > max_chunks`
+   `sources` 仍应只跟 `prompt_results` 对齐
+5. mock fallback
+   没有真实环境时仍应保留 provider、error 和 request preview 等可观察信息
+
+---
+
+## 本章边界
+
+- 不展开完整多平台 provider 教学
+- 不实现流式服务端输出
+- 不展开完整线上服务工程
+- 不进入复杂 Agent、多工具路由和多轮状态管理
+- 不做复杂答案后处理或 citation post-processing
+
+第六章当前真正要立住的是：
+
+> 同一批 `RetrievalResult[]` 在应用层怎样收缩成可回答、可拒答、可追溯的 `answer + sources`。
 
 ---
 
@@ -219,14 +282,18 @@ python 05_lcel_rag_chain.py
 
 - 为什么第五章的 `RetrievalResult[]` 还不能直接等于模型输入
 - 为什么第六章必须显式增加 context selection
-- 为什么真实 LLM 接入应该抽取最小配置层，而不是在业务代码里散落 provider 判断
-- 为什么一个稳的最小返回结构应该是 `answer + sources`
-- 为什么 LCEL 是第六章链路的标准表达，不是另一套平行体系
+- 为什么 context formatter 是生成链路里的独立职责
+- 为什么真实 LLM 接入只应该抽取最小配置层，而不是把 provider 判断散落到业务代码
+- 为什么最小结果应该是 `answer + sources`
+- 为什么“我不知道”必须被当成正确输出之一
+- 为什么 LCEL 只是当前链路的标准表达，而不是另一套平行体系
 
 ---
 
-## 当前真实进度和下一章
+## 下一章
 
-- 当前真实进度：第六章已经同时具备 mock 主线、真实 LLM fallback 主线、LCEL 最小链路
-- 完成标准：能解释 context selection、Prompt、答案引用、拒答、真实调用接缝和 LCEL 对照关系
-- 下一章：继续做效果评估，判断一次改动到底改善了检索、生成还是两者都没有改善
+下一章开始评估这一条问答链路到底表现得怎么样。
+
+也就是说：
+
+> 第六章解决的是“把检索结果稳定接成可回答链路”，第七章才开始判断“这条链路到底有没有变好”。

@@ -55,6 +55,8 @@
   看真实 PDF loader、目录扫描和 Markdown 按标题切分
 - `05_document_pipeline.py`
   看通用 `DocumentPipeline` 视角和最小治理落点
+- `tests/test_document_processing.py`
+  把第二章最重要的输入层行为正式锁进测试
 
 ---
 
@@ -100,16 +102,84 @@ python 01_discover_and_load.py
 
 ---
 
+## 先怎么读代码
+
+### 1. 第一遍只看对象
+
+先打开 [document_processing.py](./document_processing.py)，只看这些数据对象：
+
+- `DocumentCandidate`
+- `LoadedDocument`
+- `TextChunk`
+- `MarkdownSection`
+- `ChunkDraft`
+- `SourceChunk`
+- `SplitterConfig`
+- `DocumentPipelineResult`
+
+这一遍的目标不是理解所有逻辑，而是先知道：
+
+- 系统里有哪些最小运行时对象
+- 每个对象分别描述哪一层状态
+- 为什么第二章不是直接返回一个字符串列表
+
+### 2. 第二遍只看主流程
+
+然后再看这些函数：
+
+- `inspect_document_candidate()`
+- `inspect_document_candidates()`
+- `discover_documents()`
+- `load_document_record()`
+- `split_text()`
+- `split_markdown_by_headers()`
+- `split_document()`
+- `prepare_chunks()`
+- `run_document_pipeline()`
+
+这一遍只回答一个问题：
+
+```text
+一个文件进入系统以后，到底按什么顺序变成 SourceChunk[]？
+```
+
+### 3. 第三遍再看 metadata、ID 和回归
+
+最后再看：
+
+- `build_base_metadata()`
+- `build_chunk_metadata()`
+- `stable_document_id()`
+- `stable_chunk_id()`
+- `document_processing_golden_set.json`
+
+这样读会比一开始从头到尾顺着扫更容易建立结构感。
+
+---
+
 ## 第 1 步：看文件如何进入系统
 
 **对应文件**：`01_discover_and_load.py`
 
+这个脚本会把文件发现和 loader 结果直接打印出来。
+
 重点观察：
 
-- `faq.txt`、`product_overview.md`、`course_policy.pdf` 为什么会被接受
+- `faq.txt`、`product_overview.md` 和 `course_policy.pdf` 为什么会被接受
 - `README.md` 为什么会被忽略
 - `ignore.csv` 为什么不会进入系统
 - `course_policy.pdf` 为什么会显示 `loader=pypdf.PdfReader` 和 `pages=2`
+
+这里最重要的不是接受了多少文件，而是：
+
+> 输入层一开始就应该告诉你自己为什么接受、为什么忽略。
+
+如果你想真正吃透这一步，不要只看 `accepted / ignored`，还要一起看：
+
+- 文件名
+- 接受或忽略理由
+- 对应 loader
+- 读取后的首行预览
 
 ---
 
@@ -117,11 +187,18 @@ python 01_discover_and_load.py
 
 **对应文件**：`02_split_and_inspect.py`
 
+这一节是在看：
+
+```text
+统一文本 -> TextChunk[]
+```
+
 重点观察：
 
 - `chunk_size` 和 `chunk_overlap` 会怎样影响结果
 - 为什么 chunk 最好保留字符范围
 - 为什么切分不应该只是机械定长截断
+- 为什么非法参数应该尽早失败
 
 你还可以故意跑一个非法配置：
 
@@ -130,6 +207,10 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 ```
 
 你会看到脚本直接拒绝这组参数，因为 `chunk_overlap` 不能大于等于 `chunk_size`。
+
+这里最值得建立的直觉不是“默认参数是多少”，而是：
+
+> 切分器不是文本裁纸刀，而是在定义后续索引片段的边界。
 
 ---
 
@@ -153,6 +234,12 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 - Markdown chunk 的 `header_path`
 - PDF chunk 的 `page_count`
 
+这一节真正要看的不是“打印了很多字段”，而是：
+
+- 哪些字段属于文档级
+- 哪些字段属于 chunk 级
+- 为什么 `document_id` 和 `chunk_id` 都需要存在
+
 ---
 
 ## 第 4 步：看更真实的 Loader 扩展
@@ -168,20 +255,39 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 - 为什么 Markdown 可以先按标题切分，再继续做 chunk 切分
 - 为什么目录批量扫描和 loader 选择本身就是输入层的一部分
 
+如果你看这一节时只记住“PDF 可以读了”，那还不够。
+
+更重要的是你要建立这个判断：
+
+```text
+同样是文件，进入文本世界之前的复杂度可能完全不同
+```
+
 ---
 
 ## 第 5 步：看文档处理流水线和最小治理落点
 
 **对应文件**：`05_document_pipeline.py`
 
+这一节是把整个第二章从分散步骤收束成一个可观察结果。
+
 重点观察：
 
-- `DocumentPipeline` 视角下的 `candidates / accepted / ignored / chunks`
+- `DocumentPipeline` 视角下的 `candidates / accepted / ignored / total_chunks`
 - 每份文档的 `document_id`
+- 每份文档的 chunk 数
+- sample `chunk_id`
 - 为什么更新/删除应该锚定 `document_id`
 - 为什么 upsert 应该锚定 `chunk_id`
 
 这一步不是在做后台平台，而是在把治理意识落到可运行对象上。
+
+如果你只看最终 `total_chunks`，会错过这一节最重要的意义。
+
+真正应该看的，是：
+
+- pipeline 怎么把分散动作收束起来
+- 为什么治理锚点从第二章就开始出现
 
 ---
 
@@ -199,6 +305,12 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 6. 重复处理时 ID 保持稳定
 7. 默认参数下的 golden set 仍然成立
 
+这一章看测试，重点不是学 `unittest`，而是理解：
+
+- 输入层行为也需要被正式回归
+- metadata 丢失也是回归问题
+- “稳定 ID” 应该通过测试体现，而不是只写在文档里
+
 ---
 
 ## 建议学习顺序
@@ -209,7 +321,8 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 4. 跑 `python 02_split_and_inspect.py`
 5. 跑 `python 03_build_chunks.py`
 6. 跑 `python 04_loader_extensions.py`
-7. 最后跑 `python 05_document_pipeline.py`
+7. 跑 `python 05_document_pipeline.py`
+8. 如果你想看边界被正式固定，再看 `tests/test_document_processing.py`
 
 ---
 
@@ -234,11 +347,15 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 - `source / loader / page_count / header_path` 是否还稳定
 - `DocumentPipeline` 的默认演示是否仍然成立
 
+这里最重要的直觉是：
+
+> 第二章回归的重点不是“回答质量”，而是“输入层稳定性”。
+
 ---
 
 ## 失败案例也要刻意观察
 
-第二章至少要刻意看三类失败：
+第二章至少要刻意看四类失败：
 
 1. 文件发现失败
    - `README.md` 会被忽略
@@ -254,6 +371,34 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
    - 如果 PDF 没有可提取文本，当前 loader 会直接报错
    - 这代表“扫描件/OCR 仍然超出第二章边界”
 
+4. 输入层回归失败
+   - 如果你改了 chunk 参数、loader 逻辑或 metadata 字段
+   - golden set 和测试结果就可能变化
+
+这些失败案例很重要，因为它们会帮你分清：
+
+- 哪些是章节边界
+- 哪些是输入层不变量
+- 哪些变化会影响后续章节
+
+---
+
+## 建议主动修改的地方
+
+如果你只阅读不改动，很容易停留在“看懂了”的错觉里。
+
+建议主动试三类小改动：
+
+1. 修改 `chunk_size / chunk_overlap`，观察 chunk 边界和 chunk 数如何变化
+2. 在 Markdown 样例里改一个标题，观察 `header_path` 如何变化
+3. 新增一个不支持的文件类型，观察 candidate 判断和 pipeline 汇总如何变化
+
+每次只改一处，这样你才能看清楚：
+
+- 哪个规则影响了哪个输入层行为
+- 哪个字段在支撑后续治理
+- 哪种变化属于“接口设计变化”，哪种只是“样例内容变化”
+
 ---
 
 ## 学完这一章后你应该能回答
@@ -264,6 +409,7 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 - 为什么 Markdown 会值得做标题感知切分
 - 为什么真实 PDF 解析能进第二章，但 OCR 还不该一起拉进来
 - 为什么 `document_id / chunk_id` 会直接影响后面的更新、删除和治理
+- 为什么第二章的 golden set 锁定的是输入层稳定性，而不是回答质量
 
 ---
 
