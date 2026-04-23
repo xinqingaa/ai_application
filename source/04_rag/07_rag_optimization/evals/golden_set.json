@@ -1,0 +1,72 @@
+[
+  {
+    "case_id": "refund_policy",
+    "question": "购买后多久还能申请全额退款？",
+    "expected_answer": "购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
+    "expected_answer_points": ["7 天内", "学习进度不超过 20%", "全额退款"],
+    "expected_sources": ["refund_policy.md"],
+    "retrieval_expected_chunk_ids": ["refund_policy:0"],
+    "should_refuse": false,
+    "tags": ["answerable", "retrieval", "generation"]
+  },
+  {
+    "case_id": "refund_process",
+    "question": "退款申请通过后多久会退回？",
+    "expected_answer": "审核通过后 3 到 5 个工作日原路退回。",
+    "expected_answer_points": ["3 到 5 个工作日", "原路退回"],
+    "expected_sources": ["refund_process.md"],
+    "retrieval_expected_chunk_ids": ["refund_process:0"],
+    "should_refuse": false,
+    "tags": ["answerable", "retrieval", "generation"]
+  },
+  {
+    "case_id": "metadata_rules",
+    "question": "为什么 chunk 要保留 metadata？",
+    "expected_answer": "保留 metadata 方便过滤、引用和调试。",
+    "expected_answer_points": ["过滤", "引用", "调试"],
+    "expected_sources": ["metadata_rules.md"],
+    "retrieval_expected_chunk_ids": ["metadata_rules:0"],
+    "should_refuse": false,
+    "tags": ["answerable", "retrieval", "generation"]
+  },
+  {
+    "case_id": "citation_rules",
+    "question": "为什么回答里要带来源标签？",
+    "expected_answer": "这样用户才能核对答案依据和引用位置。",
+    "expected_answer_points": ["核对答案依据", "引用位置"],
+    "expected_sources": ["citation_rules.md"],
+    "retrieval_expected_chunk_ids": ["citation_rules:0"],
+    "should_refuse": false,
+    "tags": ["answerable", "retrieval", "generation"]
+  },
+  {
+    "case_id": "prompt_boundary",
+    "question": "上下文不足时为什么要直接回答我不知道？",
+    "expected_answer": "因为只能依据当前上下文回答，证据不足时不能编造。",
+    "expected_answer_points": ["只依据当前上下文", "我不知道"],
+    "expected_sources": ["prompt_boundary.md"],
+    "retrieval_expected_chunk_ids": ["prompt_boundary:0"],
+    "should_refuse": false,
+    "tags": ["answerable", "retrieval", "generation"]
+  },
+  {
+    "case_id": "support_hours",
+    "question": "助教什么时候提供答疑支持？",
+    "expected_answer": "工作日提供答疑支持，周末只处理紧急问题。",
+    "expected_answer_points": ["工作日", "周末只处理紧急问题"],
+    "expected_sources": ["support_hours.md"],
+    "retrieval_expected_chunk_ids": ["support_hours:0"],
+    "should_refuse": false,
+    "tags": ["answerable", "retrieval", "generation"]
+  },
+  {
+    "case_id": "no_answer",
+    "question": "火星首都是什么？",
+    "expected_answer": "我不知道。当前检索到的内容不足以支持这个问题。",
+    "expected_answer_points": [],
+    "expected_sources": [],
+    "retrieval_expected_chunk_ids": [],
+    "should_refuse": true,
+    "tags": ["refusal", "generation"]
+  }
+]

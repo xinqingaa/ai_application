@@ -1,0 +1,63 @@
+[
+  {
+    "config_id": "baseline_similarity",
+    "label": "Baseline Similarity",
+    "strategy": "similarity",
+    "top_k": 3,
+    "candidate_k": 4,
+    "min_context_score": 0.35,
+    "max_chunks": 2,
+    "prompt_variant": "baseline",
+    "notes": "第七章默认基线：保持第六章默认 Prompt，只比较最小固定链路。"
+  },
+  {
+    "config_id": "strict_threshold",
+    "label": "Strict Threshold + Citation",
+    "strategy": "threshold",
+    "top_k": 3,
+    "candidate_k": 4,
+    "score_threshold": 0.8,
+    "min_context_score": 0.4,
+    "max_chunks": 2,
+    "prompt_variant": "strict_citation",
+    "notes": "通过更严格的上下文过滤和更强的 citation 约束，换取更稳的引用与拒答。"
+  },
+  {
+    "config_id": "mmr_balanced",
+    "label": "MMR Balanced",
+    "strategy": "mmr",
+    "top_k": 3,
+    "candidate_k": 5,
+    "mmr_lambda": 0.35,
+    "min_context_score": 0.35,
+    "max_chunks": 2,
+    "prompt_variant": "baseline",
+    "notes": "在重复内容较多时，优先观察 MMR 是否让上下文更分散。"
+  },
+  {
+    "config_id": "hybrid_rerank_strict",
+    "label": "Hybrid + Rerank + Strict Prompt",
+    "strategy": "hybrid",
+    "top_k": 3,
+    "candidate_k": 5,
+    "hybrid_alpha": 0.45,
+    "rerank": true,
+    "fetch_k": 5,
+    "rerank_top_n": 3,
+    "min_context_score": 0.3,
+    "max_chunks": 2,
+    "prompt_variant": "strict_citation",
+    "notes": "把检索层优化和 Prompt 约束叠加，观察端到端是否真的变好。"
+  },
+  {
+    "config_id": "loose_prompt_similarity",
+    "label": "Loose Prompt Similarity",
+    "strategy": "similarity",
+    "top_k": 3,
+    "candidate_k": 4,
+    "min_context_score": 0.35,
+    "max_chunks": 2,
+    "prompt_variant": "loose_answer",
+    "notes": "故意弱化 citation 要求，用来制造可回看的坏案例。"
+  }
+]

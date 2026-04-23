@@ -10,7 +10,7 @@
 第九章之前，每章优先保持独立闭环；不要把项目工程结构提前压到学习入口上。
 ```
 
-- 第一章到第六章已经切换到独立目录
+- 第一章到第七章已经切换到独立目录
 - `labs/phase_1_scaffold/` 仅作为迁移期旧版本备份，不再是第一章主入口
 - `rag_lab/` 仍然是第九章后的完整项目收口点，不是当前入口
 
@@ -25,6 +25,7 @@ source/04_rag/
 ├── 04_vector_databases/
 ├── 05_retrieval_strategies/
 ├── 06_rag_generation/
+├── 07_rag_optimization/
 ├── labs/
 │   ├── phase_1_scaffold/          ← 旧版第一章，迁移期保留
 │   ├── phase_2_document_processing/  ← 旧版第二章，迁移期保留
@@ -48,7 +49,7 @@ source/04_rag/
 | 4 | [04_vector_databases](./04_vector_databases/README.md) | 新版独立章节 | `python 01_index_store.py --reset` |
 | 5 | [05_retrieval_strategies](./05_retrieval_strategies/README.md) | 新版独立章节 | `python 01_compare_retrievers.py` |
 | 6 | [06_rag_generation](./06_rag_generation/README.md) | 新版独立章节 | `python 01_inspect_prompt.py` |
-| 7 | [phase_7_rag_optimization](./labs/phase_7_rag_optimization/README.md) | 占位 | 暂无 |
+| 7 | [07_rag_optimization](./07_rag_optimization/README.md) | 新版独立章节 | `python 01_inspect_golden_set.py` |
 | 8 | [phase_8_advanced_rag](./labs/phase_8_advanced_rag/README.md) | 占位 | 暂无 |
 | 9 | [phase_9_project_integration](./labs/phase_9_project_integration/README.md) | 占位 | 暂无 |
 
@@ -149,6 +150,17 @@ python 03_refusal_demo.py
 python -m unittest discover -s tests
 ```
 
+```bash
+cd source/04_rag/07_rag_optimization
+python 01_inspect_golden_set.py
+python 02_eval_retrieval.py --config baseline_similarity
+python 03_eval_generation.py --config baseline_similarity
+python 04_compare_configs.py
+python 05_review_bad_cases.py --config loose_prompt_similarity
+python 06_real_llm_eval.py --config baseline_similarity --case-id citation_rules --provider openai
+python -m unittest discover -s tests
+```
+
 ## 文档和代码如何分工
 
 - `docs/04_rag/0N_*.md`
@@ -165,8 +177,10 @@ python -m unittest discover -s tests
   是第五章新的独立学习入口。
 - `source/04_rag/06_rag_generation/`
   是第六章新的独立学习入口。
+- `source/04_rag/07_rag_optimization/`
+  是第七章新的独立学习入口。
 - `source/04_rag/labs/phase_*`
-  当前仍承载第 7-9 章的旧结构实现，以及前六章的迁移期备份。
+  当前仍承载第 8-9 章的旧结构实现，以及前六章的迁移期备份。
 
 ## 迁移规则
 

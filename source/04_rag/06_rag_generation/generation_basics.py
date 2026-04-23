@@ -315,6 +315,8 @@ class RagService:
     min_context_score: float = 0.35
     max_chunks: int = 3
     max_chars_per_chunk: int = 90
+    system_prompt: str = RAG_SYSTEM_PROMPT
+    user_template: str = RAG_USER_TEMPLATE
     last_retrieved_results: list[RetrievalResult] = field(default_factory=list)
     last_accepted_results: list[RetrievalResult] = field(default_factory=list)
     last_prompt_results: list[RetrievalResult] = field(default_factory=list)
@@ -343,6 +345,8 @@ class RagService:
             results=prompt_results,
             max_chunks=self.max_chunks,
             max_chars_per_chunk=self.max_chars_per_chunk,
+            system_prompt=self.system_prompt,
+            user_template=self.user_template,
         )
         generation = self.llm.generate(messages)
         self.last_messages = messages
@@ -457,6 +461,7 @@ def build_user_prompt(
     results: list[RetrievalResult],
     max_chunks: int = 3,
     max_chars_per_chunk: int = 90,
+    user_template: str = RAG_USER_TEMPLATE,
 ) -> str:
     context = format_context(
         question=question,
@@ -464,7 +469,7 @@ def build_user_prompt(
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
     )
-    return RAG_USER_TEMPLATE.format(context=context, question=question)
+    return user_template.format(context=context, question=question)
 
 
 def build_messages(
@@ -472,9 +477,11 @@ def build_messages(
     results: list[RetrievalResult],
     max_chunks: int = 3,
     max_chars_per_chunk: int = 90,
+    system_prompt: str = RAG_SYSTEM_PROMPT,
+    user_template: str = RAG_USER_TEMPLATE,
 ) -> list[dict[str, str]]:
     return [
-        {"role": "system", "content": RAG_SYSTEM_PROMPT},
+        {"role": "system", "content": system_prompt},
         {
             "role": "user",
             "content": build_user_prompt(
@@ -482,6 +489,7 @@ def build_messages(
                 results=results,
                 max_chunks=max_chunks,
                 max_chars_per_chunk=max_chars_per_chunk,
+                user_template=user_template,
             ),
         },
     ]
@@ -492,12 +500,16 @@ def build_prompt_preview(
     results: list[RetrievalResult],
     max_chunks: int = 3,
     max_chars_per_chunk: int = 90,
+    system_prompt: str = RAG_SYSTEM_PROMPT,
+    user_template: str = RAG_USER_TEMPLATE,
 ) -> str:
     messages = build_messages(
         question=question,
         results=results,
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
+        system_prompt=system_prompt,
+        user_template=user_template,
     )
     return "\n\n".join(f"{message['role'].upper()}:\n{message['content']}" for message in messages)
 
@@ -509,6 +521,8 @@ def inspect_prompt(
     min_context_score: float = 0.35,
     max_chunks: int = 3,
     max_chars_per_chunk: int = 90,
+    system_prompt: str = RAG_SYSTEM_PROMPT,
+    user_template: str = RAG_USER_TEMPLATE,
 ) -> PromptInspection:
     retrieved = retriever.retrieve(question=question, top_k=top_k)
     accepted = filter_retrieval_results(
@@ -529,12 +543,16 @@ def inspect_prompt(
         results=prompt_results,
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
+        system_prompt=system_prompt,
+        user_template=user_template,
     )
     prompt_preview = build_prompt_preview(
         question=question,
         results=prompt_results,
         max_chunks=max_chunks,
         max_chars_per_chunk=max_chars_per_chunk,
+        system_prompt=system_prompt,
+        user_template=user_template,
     )
     return PromptInspection(
         retrieved_results=retrieved,
