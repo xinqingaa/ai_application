@@ -1,6 +1,8 @@
+import os
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -8,6 +10,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from generation_basics import (
     Chapter5DemoRetriever,
+    Chapter5StrategyRetriever,
+    GenerationResult,
     MockLLMClient,
     NO_ANSWER_TEXT,
     RAG_SYSTEM_PROMPT,
@@ -16,6 +20,7 @@ from generation_basics import (
     SourceChunk,
     build_messages,
     context_relevance_score,
+    create_generation_client,
     extract_source_labels,
     format_context,
 )
@@ -148,6 +153,71 @@ class GenerationTests(unittest.TestCase):
             [source.metadata["filename"] for source in result.sources],
             [item.chunk.metadata["filename"] for item in service.last_prompt_results],
         )
+
+    def test_create_generation_client_falls_back_to_mock_when_provider_not_ready(self) -> None:
+        result = make_result(
+            "退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。",
+            score=0.921,
+            filename="refund_policy.md",
+            chunk_index=0,
+        )
+        messages = build_messages("退款规则是什么？", [result])
+
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "",
+                "OPENAI_BASE_URL": "",
+                "OPENAI_MODEL": "",
+            },
+            clear=False,
+        ):
+            client = create_generation_client("openai")
+            generation = client.generate(messages)
+
+        self.assertTrue(generation.mocked)
+        self.assertEqual(generation.provider, "openai")
+        self.assertIsNotNone(generation.error)
+        self.assertIn("missing_generation_env", generation.error)
+
+    def test_chapter5_strategy_retriever_reuses_chapter5_runtime_path(self) -> None:
+        results = Chapter5StrategyRetriever(
+            backend="json",
+            strategy_name="similarity",
+            reset_store=True,
+        ).retrieve("购买后多久还能退款？", top_k=3)
+
+        self.assertTrue(results)
+        self.assertIn(results[0].chunk.metadata["filename"], {"refund_policy.md", "refund_summary.md", "refund_duplicate.md"})
+        self.assertTrue(any("退款" in item.chunk.content or "退费" in item.chunk.content for item in results))
+        self.assertIn("suffix", results[0].chunk.metadata)
+        self.assertIn("char_start", results[0].chunk.metadata)
+
+    def test_rag_service_can_align_sources_from_answer_labels_without_mock_metadata(self) -> None:
+        class LabelOnlyLLM:
+            def describe(self) -> dict[str, object]:
+                return {"provider": "openai", "model": "gpt-4o-mini", "mocked": False}
+
+            def generate(self, messages: list[dict[str, str]]) -> GenerationResult:
+                return GenerationResult(
+                    provider="openai",
+                    model="gpt-4o-mini",
+                    content="根据检索到的内容，回答里要带来源标签。 [S1]",
+                    mocked=False,
+                )
+
+        service = RagService(
+            retriever=Chapter5DemoRetriever(),
+            llm=LabelOnlyLLM(),
+            min_context_score=0.35,
+            max_chunks=2,
+        )
+
+        result = service.ask("为什么回答里要带来源标签？", top_k=5)
+
+        self.assertEqual(len(result.sources), 1)
+        self.assertEqual(result.sources[0].metadata["filename"], "citation_rules.md")
+        self.assertEqual(extract_source_labels(result.answer), ["S1"])
 
 
 if __name__ == "__main__":

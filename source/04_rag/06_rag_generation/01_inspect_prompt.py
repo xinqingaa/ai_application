@@ -1,6 +1,6 @@
 import argparse
 
-from generation_basics import Chapter5DemoRetriever, inspect_prompt
+from generation_basics import GenerationDemoRetriever, inspect_prompt
 
 
 def main() -> None:
@@ -12,7 +12,7 @@ def main() -> None:
     parser.add_argument("--max-chars", type=int, default=90)
     args = parser.parse_args()
 
-    retriever = Chapter5DemoRetriever()
+    retriever = GenerationDemoRetriever()
     inspection = inspect_prompt(
         question=args.question,
         retriever=retriever,

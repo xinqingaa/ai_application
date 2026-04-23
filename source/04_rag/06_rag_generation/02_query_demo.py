@@ -1,7 +1,7 @@
 import argparse
 
 from generation_basics import (
-    Chapter5DemoRetriever,
+    GenerationDemoRetriever,
     MockLLMClient,
     RagService,
     context_relevance_score,
@@ -17,7 +17,7 @@ def main() -> None:
     args = parser.parse_args()
 
     service = RagService(
-        retriever=Chapter5DemoRetriever(),
+        retriever=GenerationDemoRetriever(),
         llm=MockLLMClient(),
         min_context_score=args.min_context_score,
         max_chunks=args.max_chunks,

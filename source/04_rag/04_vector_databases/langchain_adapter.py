@@ -86,6 +86,27 @@ def create_langchain_chroma(
     )
 
 
+def create_langchain_chroma_from_documents(
+    provider: EmbeddingProvider,
+    config: LangChainChromaConfig | None = None,
+    chunks: list[SourceChunk] | None = None,
+) -> Any:
+    require_langchain_vectorstore()
+    from langchain_chroma import Chroma
+
+    actual_config = config or LangChainChromaConfig()
+    actual_config.persist_directory.mkdir(parents=True, exist_ok=True)
+    documents = build_documents(chunks)
+    ids = [str(document.metadata["chunk_id"]) for document in documents]
+    return Chroma.from_documents(
+        documents=documents,
+        embedding=ProviderEmbeddingsAdapter(provider),
+        ids=ids,
+        collection_name=actual_config.collection_name,
+        persist_directory=actual_config.persist_directory.as_posix(),
+    )
+
+
 def reset_langchain_chroma(config: LangChainChromaConfig | None = None) -> None:
     actual_config = config or LangChainChromaConfig()
     if actual_config.persist_directory.exists():

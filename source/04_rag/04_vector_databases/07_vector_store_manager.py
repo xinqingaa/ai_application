@@ -1,97 +1,11 @@
 import argparse
-from dataclasses import dataclass
-from typing import Literal
 
-from chroma_store import ChromaVectorStore, ChromaVectorStoreConfig
-from langchain_adapter import (
-    LangChainChromaConfig,
-    build_documents,
-    create_langchain_chroma,
-    retrieval_results_from_scored_documents,
-    reset_langchain_chroma,
-)
-from vector_store_basics import (
-    LocalKeywordEmbeddingProvider,
-    PersistentVectorStore,
-    RetrievalResult,
-    SourceChunk,
-    VectorStoreConfig,
-    demo_embedded_chunks,
-)
-
-BackendName = Literal["json", "chroma", "langchain"]
-
-
-@dataclass
-class VectorStoreManager:
-    backend: BackendName
-    provider: LocalKeywordEmbeddingProvider
-
-    def reset(self) -> None:
-        if self.backend == "json":
-            PersistentVectorStore(VectorStoreConfig()).reset()
-            return
-        if self.backend == "chroma":
-            ChromaVectorStore(ChromaVectorStoreConfig()).reset()
-            return
-        reset_langchain_chroma(LangChainChromaConfig())
-
-    def ensure_index(self) -> None:
-        if self.backend == "json":
-            store = PersistentVectorStore(VectorStoreConfig())
-            if store.count() == 0:
-                store.replace_document(demo_embedded_chunks(self.provider))
-            return
-
-        if self.backend == "chroma":
-            store = ChromaVectorStore(ChromaVectorStoreConfig())
-            if store.count() == 0:
-                store.replace_document(demo_embedded_chunks(self.provider))
-            return
-
-        vectorstore = create_langchain_chroma(self.provider, LangChainChromaConfig())
-        if vectorstore._collection.count() == 0:
-            documents = build_documents()
-            ids = [str(document.metadata["chunk_id"]) for document in documents]
-            vectorstore.add_documents(documents=documents, ids=ids)
-
-    def search(
-        self,
-        question: str,
-        *,
-        top_k: int,
-        filename: str | None = None,
-    ) -> list[RetrievalResult]:
-        if self.backend == "json":
-            store = PersistentVectorStore(VectorStoreConfig())
-            query_vector = self.provider.embed_query(question)
-            return store.similarity_search(
-                query_vector=query_vector,
-                provider=self.provider,
-                top_k=top_k,
-                filename=filename,
-            )
-
-        if self.backend == "chroma":
-            store = ChromaVectorStore(ChromaVectorStoreConfig())
-            query_vector = self.provider.embed_query(question)
-            return store.similarity_search(
-                query_vector=query_vector,
-                provider=self.provider,
-                top_k=top_k,
-                where={"filename": filename} if filename else None,
-            )
-
-        vectorstore = create_langchain_chroma(self.provider, LangChainChromaConfig())
-        search_kwargs: dict[str, object] = {"k": top_k}
-        if filename:
-            search_kwargs["filter"] = {"filename": filename}
-        results = vectorstore.similarity_search_with_score(question, **search_kwargs)
-        return retrieval_results_from_scored_documents(results)
+from vector_store_basics import LocalKeywordEmbeddingProvider
+from vector_store_manager import VectorStoreManager
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compare JSON store, Chroma, and LangChain Chroma backends.")
+    parser = argparse.ArgumentParser(description="Run the Chapter 4 vector store manager demo.")
     parser.add_argument(
         "--backend",
         choices=["json", "chroma", "langchain"],
@@ -107,7 +21,17 @@ def main() -> None:
     parser.add_argument("--filename", help="Optional filename filter.")
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--reset", action="store_true", help="Reset the selected backend before indexing.")
+    parser.add_argument("--add-document-id", help="Optional document_id to add before search.")
+    parser.add_argument("--add-text", help="Optional raw document text to add before search.")
+    parser.add_argument("--replace-document-id", help="Optional document_id to replace before search.")
+    parser.add_argument("--replace-text", help="Optional raw document text to use during replacement.")
+    parser.add_argument("--delete-document-id", help="Optional document_id to delete before search.")
     args = parser.parse_args()
+
+    if bool(args.add_document_id) != bool(args.add_text):
+        parser.error("--add-document-id and --add-text must be provided together.")
+    if bool(args.replace_document_id) != bool(args.replace_text):
+        parser.error("--replace-document-id and --replace-text must be provided together.")
 
     manager = VectorStoreManager(
         backend=args.backend,
@@ -117,6 +41,24 @@ def main() -> None:
         manager.reset()
         print(f"Backend `{args.backend}` was reset first.")
     manager.ensure_index()
+
+    if args.add_document_id and args.add_text:
+        added = manager.add_documents(
+            [args.add_text],
+            ids=[args.add_document_id],
+        )
+        print(f"Added {added} document(s) through VectorStoreManager.")
+
+    if args.replace_document_id and args.replace_text:
+        replaced = manager.replace_document(
+            args.replace_document_id,
+            args.replace_text,
+        )
+        print(f"Replaced {replaced} document chunk(s) through VectorStoreManager.")
+
+    if args.delete_document_id:
+        deleted = manager.delete_document(args.delete_document_id)
+        print(f"Deleted {deleted} document chunk(s) for document_id={args.delete_document_id}.")
 
     results = manager.search(
         args.question,
@@ -128,6 +70,8 @@ def main() -> None:
     print(f"Question: {args.question}")
     if args.filename:
         print(f"Filename filter: {args.filename}")
+    print(f"Count: {manager.count()}")
+    print(f"Document IDs: {manager.list_document_ids()}")
     for result in results:
         print(
             f"- score={result.score:.3f} chunk_id={result.chunk.chunk_id} "

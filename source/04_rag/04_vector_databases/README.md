@@ -1,6 +1,6 @@
 # 04. 向量数据库 - 实践指南
 
-> 这份 README 只负责一件事：带你按正确顺序跑完第四章，先看最小 JSON store，再看真实 `Chroma`，最后看 `LangChain Chroma`，把“原理层”和“真实工具层”连起来。
+> 这份 README 只负责一件事：带你按正确顺序跑完第四章，先看最小 JSON store，再看真实 `Chroma`，然后补上 LangChain VectorStore 和统一管理器，把“原理层”和“真实工具层”连起来。
 
 ---
 
@@ -14,6 +14,7 @@
 - 第四章只讲向量存储层，不讲 Retriever 策略和生成
 - 原有 JSON store 继续保留，作为教学原理层
 - `Chroma` 和 `LangChain Chroma` 是本章新增的真实工具层
+- 第 10 节“向量数据库基础”以文档讲解为主，不额外造 FAISS/Pinecone/Milvus demo
 - 旧的 `labs/phase_4_vector_databases/` 只作为迁移期备份，不再是当前学习入口
 
 ---
@@ -27,6 +28,7 @@
 ├── vector_store_basics.py
 ├── chroma_store.py
 ├── langchain_adapter.py
+├── vector_store_manager.py
 ├── 01_index_store.py
 ├── 02_search_store.py
 ├── 03_delete_document.py
@@ -38,7 +40,8 @@
 └── tests/
     ├── test_vector_store.py
     ├── test_chroma_store.py
-    └── test_langchain_vectorstore.py
+    ├── test_langchain_vectorstore.py
+    └── test_vector_store_manager.py
 ```
 
 - `vector_store_basics.py`
@@ -47,12 +50,14 @@
   真实 `Chroma` 存储适配
 - `langchain_adapter.py`
   把当前章节的 `EmbeddingProvider` 包成 LangChain `Embeddings`
+- `vector_store_manager.py`
+  第四章综合案例：统一的向量存储管理器
 - `01-03`
   原理层脚本
 - `04-05`
-  原生 Chroma 脚本
+  原生 Chroma 脚本，包含复合 `where` 过滤演示
 - `06-07`
-  LangChain Chroma 和 backend 对照脚本
+  LangChain Chroma 和统一管理器脚本
 
 ---
 
@@ -77,9 +82,10 @@ python 01_index_store.py --reset
 python 02_search_store.py
 python 03_delete_document.py trial
 python 04_chroma_crud.py --reset
-python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
-python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --reset
-python 07_vector_store_manager.py --backend chroma "如何申请退费？"
+python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md --suffix .md --document-id metadata
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode from_documents --retriever-search-type similarity --reset
+python 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
+python 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
 python -m unittest discover -s tests
 ```
 
@@ -107,6 +113,7 @@ python 03_delete_document.py trial
 ```bash
 python 04_chroma_crud.py --reset
 python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
+python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md --suffix .md --document-id metadata
 python 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id trial
 ```
 
@@ -115,34 +122,54 @@ python 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id t
 - `store/chroma/` 下真的会有持久化数据
 - Chroma 也必须保留 `chunk_id / document_id / provider / model / dimensions`
 - metadata filter 已经走真实数据库
+- 多字段过滤在 Chroma 中会落成显式 `$and`
 - 删除已经不是“删 JSON 记录”，而是删 collection 中的一批向量
 
 ### 第 3 步：最后跑 LangChain Chroma
 
 ```bash
-python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --reset
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode add_documents --reset
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode from_documents
+python 06_langchain_vectorstore.py "如何申请退费？" --retriever-search-type mmr
 python 07_vector_store_manager.py --backend json "如何申请退费？"
-python 07_vector_store_manager.py --backend chroma "如何申请退费？"
-python 07_vector_store_manager.py --backend langchain "如何申请退费？"
+python 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
+python 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
 ```
 
 重点观察：
 
 - 同一个本章 provider 怎样映射成 LangChain `Embeddings`
 - 同一批 chunk 怎样映射成 LangChain `Document`
+- `add_documents` 和 `from_documents` 都只是不同初始化入口
+- `as_retriever()` 在第四章只做接口认知，第五章才展开策略
 - `json / chroma / langchain` 三个 backend 只是接口形态不同，职责边界相同
 
-### 第 4 步：最后跑测试
+### 第 4 步：最后跑统一管理器
+
+```bash
+python 07_vector_store_manager.py --backend json --delete-document-id trial "如何申请退费？"
+python 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
+python 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
+```
+
+重点观察：
+
+- manager 不再只是 backend 对照脚本，而是有真实 `add / search / replace / delete`
+- 当前综合案例先统一 `json / chroma / langchain`
+- `FAISS` 作为适配器扩展位保留在文档层，不在第四章硬造伪实现
+
+### 第 5 步：最后跑测试
 
 ```bash
 python -m unittest discover -s tests
 ```
 
-这组测试锁定三类行为：
+这组测试锁定四类行为：
 
 1. JSON store 的基本契约
 2. Chroma 的真实持久化、过滤、删除
-3. LangChain Chroma 的最小接入闭环
+3. LangChain Chroma 的 `from_documents / similarity_search / as_retriever`
+4. `VectorStoreManager` 的统一增删查改能力
 
 ---
 
@@ -155,6 +182,8 @@ python -m unittest discover -s tests
 3. `filename=metadata_rules.md` 过滤后，结果只应留在对应文档范围
 4. 删除 `trial` 后，不应再保留该文档 chunk
 5. 若 query/provider 和 store 不在同一 embedding space，系统应直接拒绝
+6. Chroma 复合过滤会使用显式 `$and`
+7. LangChain `from_documents` 和 `add_documents` 都能建立同一类查询闭环
 
 ---
 
@@ -175,9 +204,11 @@ python -m unittest discover -s tests
 ## 学完这一章后你应该能回答
 
 - 为什么第四章不能只剩一个本地 JSON 示例
+- 为什么第 10 节的“选型基础”更适合先放在文档里讲清楚
 - 为什么 Chroma 里仍然需要自己守住 embedding space
 - 为什么 LangChain VectorStore 仍然属于第四章而不是第五章
 - 为什么 `upsert()` 和 `replace_document()` 不能混成一个模糊概念
+- 为什么综合案例需要统一 manager，而不是继续堆 backend 对照脚本
 
 ---
 

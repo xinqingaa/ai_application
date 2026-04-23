@@ -1,6 +1,6 @@
 """05_rerank_demo.py — 两阶段检索（Rerank）演示
 
-对应文档: docs/04_rag/05_retrieval_strategies.md  第 7 节「两阶段检索 — Rerank 重排序」
+对应文档: docs/04_rag/05_retrieval_strategies.md  「4. Rerank 重排序」
 
 教学目标:
 - 看清"先粗筛再精排"的两阶段架构

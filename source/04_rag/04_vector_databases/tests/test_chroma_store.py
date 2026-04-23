@@ -7,7 +7,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from chroma_store import ChromaVectorStore, ChromaVectorStoreConfig, chromadb_is_available
+from chroma_store import (
+    DOCUMENT_ID_KEY,
+    ChromaVectorStore,
+    ChromaVectorStoreConfig,
+    chromadb_is_available,
+)
 from vector_store_basics import (
     LocalKeywordEmbeddingProvider,
     SourceChunk,
@@ -70,6 +75,24 @@ class ChromaVectorStoreTests(unittest.TestCase):
 
         self.assertTrue(results)
         self.assertTrue(all(item.chunk.metadata["filename"] == "metadata_rules.md" for item in results))
+
+    def test_composite_metadata_filter_limits_results(self) -> None:
+        query_vector = self.provider.embed_query("为什么 metadata 很重要？")
+        results = self.store.similarity_search(
+            query_vector,
+            provider=self.provider,
+            top_k=3,
+            where={
+                "$and": [
+                    {"filename": "metadata_rules.md"},
+                    {"suffix": ".md"},
+                    {DOCUMENT_ID_KEY: "metadata"},
+                ]
+            },
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].chunk.document_id, "metadata")
 
     def test_delete_by_document_id_removes_every_chunk_for_that_document(self) -> None:
         deleted = self.store.delete_by_document_id("trial")

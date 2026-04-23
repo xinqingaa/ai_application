@@ -1,20 +1,20 @@
 # 05. 检索策略 - 实践指南
 
-> 这份 README 只负责一件事：带你按正确顺序跑完第五章，先用 JSON 看清策略逻辑，再切到真实 `Chroma`，把第四章的存储层真正接到 Retriever 上。
+> 这份 README 负责把第五章跑通为一个完整章节：先理解基础 Retriever，再观察 hybrid 和 rerank，最后进入统一的 `SmartRetrievalEngine`。
 
 ---
 
 ## 核心原则
 
 ```text
-先看策略原理 -> 再看真实 Chroma -> 最后用坏案例和测试把策略锁住
+先看基础 Retriever -> 再看 hybrid / rerank -> 最后用统一引擎和评估把能力收束
 ```
 
 - 在 `source/04_rag/05_retrieval_strategies/` 目录下操作
-- 本章只讲 Retriever 层，不讲 Prompt 和生成
+- 本章只讲检索层，不讲 Prompt 和生成
 - 第五章不会再重写 provider 或 store，而是直接复用第四章的对象与向量空间
 - `chroma_retriever.py` 是从旧 `phase_5` 扁平化提炼出来的真实实践层
-- 旧的 `labs/phase_5_retrieval_strategies/` 只作为迁移期备份，不再是当前学习入口
+- `hybrid` 和 `rerank` 不再是附录 demo，而是第五章正式内容
 
 ---
 
@@ -26,30 +26,48 @@
 ├── requirements.txt
 ├── retrieval_basics.py
 ├── chroma_retriever.py
+├── retrieval_metrics.py
+├── smart_retrieval_engine.py
 ├── 01_compare_retrievers.py
 ├── 02_review_bad_cases.py
 ├── 03_query_demo.py
+├── 04_hybrid_retrieval.py
+├── 05_rerank_demo.py
+├── 06_smart_retrieval_engine.py
 ├── evals/
-│   └── retrieval_bad_cases.json
+│   ├── retrieval_bad_cases.json
+│   └── retrieval_eval_cases.json
 ├── store/
 │   ├── .gitignore
 │   ├── demo_retrieval_store.json
 │   └── chroma/
 └── tests/
     ├── test_retrievers.py
-    └── test_chroma_retrievers.py
+    ├── test_chroma_retrievers.py
+    ├── test_retrieval_metrics.py
+    └── test_smart_retrieval_engine.py
 ```
 
 - `retrieval_basics.py`
-  放第五章共享策略层：策略配置、JSON retriever、MMR、坏案例评估、demo store 构建
+  放第五章共享基础策略层：策略配置、JSON retriever、MMR、BM25、toy reranker、demo store 构建
 - `chroma_retriever.py`
   放第五章真实 `ChromaRetriever`
+- `retrieval_metrics.py`
+  放固定评估集与 `Recall@K / MRR / Hit Rate` 计算
+- `smart_retrieval_engine.py`
+  放统一检索引擎：`similarity / threshold / mmr / hybrid + optional rerank`
 - `01_compare_retrievers.py`
   对比同一问题在不同策略和不同 backend 下的差异
 - `02_review_bad_cases.py`
   用固定坏案例跑最小 `PASS / FAIL / INFO` 回归
 - `03_query_demo.py`
   用单一策略跑一次完整检索实验
+- `04_hybrid_retrieval.py`
+  单独观察 BM25、向量检索和混合检索的差异
+- `05_rerank_demo.py`
+  单独观察两阶段检索和 Rerank 重排
+- `06_smart_retrieval_engine.py`
+  从统一引擎入口运行检索和评估
 
 ---
 
@@ -77,6 +95,9 @@ python 02_review_bad_cases.py --backend chroma
 python 03_query_demo.py --backend chroma --strategy similarity
 python 03_query_demo.py --backend chroma --strategy threshold --threshold 0.80 "火星首都是什么？"
 python 03_query_demo.py --backend chroma --strategy mmr --candidate-k 4
+python 04_hybrid_retrieval.py --backend chroma --alpha 0.3 "退费申请流程"
+python 05_rerank_demo.py --backend chroma --fetch-k 6 --top-n 3
+python 06_smart_retrieval_engine.py --backend chroma --strategy hybrid --rerank --evaluate
 python -m unittest discover -s tests
 ```
 
@@ -124,7 +145,31 @@ python 02_review_bad_cases.py --backend chroma
 
 这四类 case 已经把第五章最关键的策略差异变成了机器可判定现象。
 
-### 第 4 步：最后看测试
+### 第 4 步：观察 hybrid 和 rerank
+
+```bash
+python 04_hybrid_retrieval.py --backend chroma --reset
+python 05_rerank_demo.py --backend chroma --reset
+```
+
+重点观察：
+
+- 关键词和语义相似度各自擅长什么
+- `alpha` 怎样改变混合排序
+- `fetch_k` 为什么必须大于最终 `top_n`
+
+### 第 5 步：进入统一引擎
+
+```bash
+python 06_smart_retrieval_engine.py --backend chroma --strategy hybrid --rerank --evaluate
+```
+
+这一层开始，你看到的已经不是零散 demo，而是统一应用接口：
+
+- `retrieve(question, config)`
+- `evaluate(test_cases, config)`
+
+### 第 6 步：最后看测试
 
 ```bash
 python -m unittest discover -s tests
@@ -138,6 +183,8 @@ python -m unittest discover -s tests
 4. `filename_filter` 真正作用在 Retriever 层
 5. `MMR` 的平均冗余度低于纯 `similarity`
 6. `candidate_k` 会改变 MMR 的可选候选池
+7. `Recall@K / MRR` 能在固定评估集上稳定计算
+8. `SmartRetrievalEngine` 能统一跑 `hybrid` 和可选 `rerank`
 
 ---
 
@@ -158,14 +205,13 @@ python -m unittest discover -s tests
 
 ## 本章边界
 
-- 不展开 LangChain Retriever
-- 不展开 rerank
-- 不展开 hybrid retrieval
+- 不展开 LangChain 内建高级 Retriever 的完整工程实现
+- 不把 toy reranker 当成真实生产方案
 - 不展开 Prompt 和生成
 
 第五章当前真正要立住的是：
 
-> 同一份底层向量数据，在应用层怎样查得更稳、更可控、更可回归。
+> 同一份底层向量数据，在应用层怎样查得更稳、更可控、更可评估。
 
 ---
 
@@ -174,7 +220,8 @@ python -m unittest discover -s tests
 - 为什么 Retriever 不能等同于 Vector Store
 - 为什么第五章应该复用第四章的 store 契约
 - 为什么第五章现在默认要跑真实 Chroma
-- 为什么坏案例回归是检索调优的起点，而不是可有可无的附件
+- 为什么坏案例回归和固定评估集都必须存在
+- 为什么 `hybrid` 和 `rerank` 最后要进入统一引擎而不是继续做散落脚本
 
 ---
 

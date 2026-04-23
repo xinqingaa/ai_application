@@ -1,6 +1,10 @@
 import argparse
 
-from chroma_store import ChromaVectorStore, ChromaVectorStoreConfig
+from chroma_store import (
+    DOCUMENT_ID_KEY,
+    ChromaVectorStore,
+    ChromaVectorStoreConfig,
+)
 from vector_store_basics import (
     LocalKeywordEmbeddingProvider,
     demo_embedded_chunks,
@@ -28,6 +32,26 @@ def ensure_index(
         )
 
 
+def build_where_filter(
+    *,
+    filename: str | None,
+    suffix: str | None,
+    document_id: str | None,
+) -> dict[str, object] | None:
+    clauses: list[dict[str, str]] = []
+    if filename:
+        clauses.append({"filename": filename})
+    if suffix:
+        clauses.append({"suffix": suffix})
+    if document_id:
+        clauses.append({DOCUMENT_ID_KEY: document_id})
+    if not clauses:
+        return None
+    if len(clauses) == 1:
+        return clauses[0]
+    return {"$and": clauses}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Search and delete against the Chroma collection.")
     parser.add_argument(
@@ -37,6 +61,11 @@ def main() -> None:
         help="Question to search against the Chroma vectors.",
     )
     parser.add_argument("--filename", help="Optional equality filter on filename metadata.")
+    parser.add_argument("--suffix", help="Optional equality filter on suffix metadata.")
+    parser.add_argument(
+        "--document-id",
+        help="Optional equality filter on stored document_id metadata.",
+    )
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument(
         "--delete-document-id",
@@ -48,7 +77,11 @@ def main() -> None:
     store = ChromaVectorStore(ChromaVectorStoreConfig())
     ensure_index(store, provider)
 
-    where = {"filename": args.filename} if args.filename else None
+    where = build_where_filter(
+        filename=args.filename,
+        suffix=args.suffix,
+        document_id=args.document_id,
+    )
     query_vector = provider.embed_query(args.question)
     results = store.similarity_search(
         query_vector=query_vector,
@@ -66,7 +99,7 @@ def main() -> None:
     if current_space is not None:
         print(f"Chroma embedding space: {current_space.label()}")
     if where:
-        print(f"Metadata filter: {where}")
+        print(f"Metadata filter: {where} (Chapter 4 demonstrates equality AND filters)")
 
     for result in results:
         preview = result.chunk.content[:70]

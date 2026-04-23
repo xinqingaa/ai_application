@@ -19,7 +19,7 @@ DEFAULT_CANDIDATE_K = 4
 DEFAULT_SCORE_THRESHOLD = 0.80
 DEFAULT_MMR_LAMBDA = 0.35
 DEFAULT_HYBRID_ALPHA = 0.5
-SUPPORTED_STRATEGIES = {"similarity", "threshold", "mmr", "hybrid"}
+SUPPORTED_STRATEGIES = {"similarity", "threshold", "mmr"}
 SUPPORTED_BACKENDS = ("json", "chroma")
 
 if str(CHAPTER4_ROOT) not in sys.path:

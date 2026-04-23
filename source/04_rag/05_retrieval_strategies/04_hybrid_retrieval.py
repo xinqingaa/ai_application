@@ -1,6 +1,6 @@
 """04_hybrid_retrieval.py — 混合检索演示
 
-对应文档: docs/04_rag/05_retrieval_strategies.md  第 6 节「混合检索」
+对应文档: docs/04_rag/05_retrieval_strategies.md  「3.3 混合检索」
 
 教学目标:
 - 看清纯向量检索和纯 BM25 各自的优势与盲区

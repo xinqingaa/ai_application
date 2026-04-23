@@ -4,16 +4,29 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import re
 import sys
-from typing import Protocol
+from typing import Any, Protocol
 
 
 CHAPTER_ROOT = Path(__file__).resolve().parent
+CHAPTER4_ROOT = CHAPTER_ROOT.parent / "04_vector_databases"
 CHAPTER5_ROOT = CHAPTER_ROOT.parent / "05_retrieval_strategies"
 DEFAULT_STORE_PATH = CHAPTER_ROOT / "store" / "demo_generation_store.json"
 
+if str(CHAPTER4_ROOT) not in sys.path:
+    sys.path.insert(0, str(CHAPTER4_ROOT))
 if str(CHAPTER5_ROOT) not in sys.path:
     sys.path.insert(0, str(CHAPTER5_ROOT))
 
+from langchain_adapter import langchain_vectorstore_is_available  # noqa: E402
+from llm_utils import (  # noqa: E402
+    GenerationProviderConfig,
+    GenerationResult,
+    LLMClient,
+    OpenAICompatibleLLMClient,
+    load_env_if_possible,
+    load_generation_provider_config,
+    missing_generation_fields,
+)
 from retrieval_basics import (  # noqa: E402
     EmbeddingProvider,
     LocalKeywordEmbeddingProvider,
@@ -23,6 +36,7 @@ from retrieval_basics import (  # noqa: E402
     SimpleRetriever,
     SourceChunk,
     VectorStoreConfig,
+    build_demo_retriever,
     demo_chunk_metadata,
     embed_chunks,
 )
@@ -63,13 +77,6 @@ CONCEPT_GROUPS = [
     ("prompt", ("prompt", "上下文", "context", "依据")),
     ("support", ("答疑", "助教", "support", "工作日")),
 ]
-
-
-@dataclass(frozen=True)
-class GenerationResult:
-    content: str
-    mocked: bool = True
-    used_labels: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -154,7 +161,7 @@ def build_generation_demo_store(
     return store
 
 
-class Chapter5DemoRetriever:
+class GenerationDemoRetriever:
     def __init__(
         self,
         provider: EmbeddingProvider | None = None,
@@ -182,19 +189,129 @@ class Chapter5DemoRetriever:
         return self.retriever.retrieve(question=question, strategy=strategy)
 
 
+# 兼容旧脚本和测试导入；教学文档改用 GenerationDemoRetriever 名称。
+Chapter5DemoRetriever = GenerationDemoRetriever
+
+
+@dataclass
+class Chapter5StrategyRetriever:
+    backend: str = "json"
+    strategy_name: str = "similarity"
+    provider: EmbeddingProvider | None = None
+    candidate_k: int = 6
+    score_threshold: float = 0.80
+    mmr_lambda: float = 0.35
+    filename_filter: str | None = None
+    reset_store: bool = False
+
+    def __post_init__(self) -> None:
+        self.provider = self.provider or LocalKeywordEmbeddingProvider()
+        self.retriever, self.store = build_demo_retriever(
+            self.backend,
+            provider=self.provider,
+            reset_store=self.reset_store,
+        )
+
+    def retrieve(self, question: str, top_k: int = 5) -> list[RetrievalResult]:
+        strategy = RetrievalStrategyConfig(
+            strategy_name=self.strategy_name,
+            top_k=top_k,
+            candidate_k=max(top_k, self.candidate_k),
+            score_threshold=self.score_threshold,
+            mmr_lambda=self.mmr_lambda,
+            filename_filter=self.filename_filter,
+        )
+        return self.retriever.retrieve(question, strategy)
+
+
+@dataclass
 class MockLLMClient:
+    provider_name: str = "mock"
+    model_name: str = "mock-rag-answer-v1"
+    fallback_reason: str | None = None
+
+    def describe(self) -> dict[str, Any]:
+        return {
+            "provider": self.provider_name,
+            "model": self.model_name,
+            "mocked": True,
+            "ready": False,
+            "error": self.fallback_reason,
+        }
+
     def generate(self, messages: list[dict[str, str]]) -> GenerationResult:
         user_content = messages[-1]["content"] if messages else ""
         question = _extract_section(user_content, "问题：", "回答要求：") or ""
         context = _extract_section(user_content, "上下文：", "问题：") or ""
         answer, labels = _build_mock_answer(question=question, context=context)
-        return GenerationResult(content=answer, mocked=True, used_labels=labels)
+        return GenerationResult(
+            provider=self.provider_name,
+            model=self.model_name,
+            content=answer,
+            finish_reason="mock_stop",
+            request_preview={"messages": messages},
+            raw_response_preview={"answer_preview": answer[:200]},
+            mocked=True,
+            error=self.fallback_reason,
+            used_labels=labels,
+        )
+
+
+@dataclass
+class ResilientGenerationClient:
+    primary: LLMClient
+    fallback_config: GenerationProviderConfig
+
+    def describe(self) -> dict[str, Any]:
+        description = dict(self.primary.describe())
+        description["fallback_to_mock"] = True
+        return description
+
+    def generate(self, messages: list[dict[str, str]]) -> GenerationResult:
+        try:
+            return self.primary.generate(messages)
+        except Exception as exc:
+            fallback = MockLLMClient(
+                provider_name=self.fallback_config.key,
+                model_name=self.fallback_config.model,
+                fallback_reason=f"{type(exc).__name__}: {exc}",
+            )
+            return fallback.generate(messages)
+
+
+def create_generation_client(
+    provider: str | None = None,
+    *,
+    temperature: float = 0.0,
+    max_tokens: int = 280,
+    timeout: float = 20.0,
+    max_retries: int = 0,
+) -> LLMClient:
+    load_env_if_possible()
+    config = load_generation_provider_config(
+        provider,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+    if not config.is_ready:
+        missing = ",".join(missing_generation_fields(config))
+        return MockLLMClient(
+            provider_name=config.key,
+            model_name=config.model,
+            fallback_reason=f"missing_generation_env:{missing}",
+        )
+    primary = OpenAICompatibleLLMClient(
+        config=config,
+        timeout=timeout,
+        max_retries=max_retries,
+    )
+    return ResilientGenerationClient(primary=primary, fallback_config=config)
 
 
 @dataclass
 class RagService:
     retriever: Retriever
-    llm: MockLLMClient
+    llm: LLMClient
     min_context_score: float = 0.35
     max_chunks: int = 3
     max_chars_per_chunk: int = 90
@@ -235,7 +352,8 @@ class RagService:
         if answer == NO_ANSWER_TEXT:
             return AnswerResult(answer=answer, sources=[])
 
-        used_results = select_used_results(prompt_results, generation.used_labels)
+        used_labels = generation.used_labels or extract_source_labels(answer)
+        used_results = select_used_results(prompt_results, used_labels)
         return AnswerResult(answer=answer, sources=[item.chunk for item in used_results])
 
 
@@ -436,6 +554,18 @@ def extract_source_labels(text: str) -> list[str]:
         if label not in seen:
             seen.append(label)
     return seen
+
+
+def lcel_runtime_is_available() -> bool:
+    return langchain_vectorstore_is_available() or _langchain_core_is_available()
+
+
+def _langchain_core_is_available() -> bool:
+    try:
+        import langchain_core  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
 
 def _build_mock_answer(question: str, context: str) -> tuple[str, list[str]]:

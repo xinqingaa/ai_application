@@ -1,6 +1,6 @@
 # 04. 向量数据库
 
-> 本章目标：先用一个最小 JSON store 把“向量怎么存、怎么查、怎么替换、怎么删”讲清楚，再补上真实 `Chroma` 和 `LangChain VectorStore`，让第四章的标题和实际交付重新一致。
+> 本章目标：把第三章的 `EmbeddedChunk[]` 推进成真正可持久化、可查询、可替换、可删除的存储层。你会先看最小 JSON store，再进入真实 `Chroma` 和 `LangChain VectorStore`，最后用一个最小 `VectorStoreManager` 把不同 backend 收束成统一接口。
 
 ---
 
@@ -9,27 +9,11 @@
 ### 学习目标
 
 - 理解为什么第三章的 `EmbeddedChunk[]` 还不等于可用检索系统
-- 理解第四章为什么要同时讲“原理实现”和“真实工具”
-- 看懂第四章如何继续沿用第三章的 `SourceChunk / EmbeddedChunk / provider / model / dimensions` 契约
-- 能运行第四章脚本，并解释 `upsert()`、`replace_document()`、`similarity_search()`、`delete_by_document_id()` 的职责
-- 能说明 JSON store、Chroma、LangChain Chroma 在这一章里的对应关系
-
-### 预计学习时间
-
-- 向量存储职责与边界：30-40 分钟
-- 最小 JSON store：30-40 分钟
-- Chroma 实践：30-40 分钟
-- LangChain VectorStore 映射：20-30 分钟
-
-### 本章在 RAG 工程中的重要性
-
-| 场景 | 本章先解决什么 |
-|------|----------------|
-| 离线索引 | `EmbeddedChunk[]` 怎样真正落到持久化存储 |
-| 在线检索 | query vector 怎样在同一 embedding space 中查回 chunk |
-| 文档更新 | 为什么要区分 chunk 级 `upsert()` 和文档级 `replace_document()` |
-| 数据治理 | 为什么删除和替换必须围绕 `document_id` |
-| 工具接入 | 为什么你既要懂原理，也要会用真实向量数据库 |
+- 理解向量数据库在 RAG 工程中的职责边界
+- 掌握第四章的核心契约：`upsert / replace_document / similarity_search / delete_by_document_id`
+- 理解 JSON store、Chroma、LangChain Chroma 在本章里的对应关系
+- 认识 `ANN vs 精确搜索` 的权衡和主流向量数据库的选型差异
+- 了解为什么第四章要有统一的 `VectorStoreManager`
 
 ### 本章与前后章节的关系
 
@@ -37,14 +21,14 @@
 
 1. `SourceChunk[] -> EmbeddedChunk[]`
 2. `embed_query / embed_documents`
-3. provider/model/dimensions 的最小契约
+3. provider / model / dimensions 的最小契约
 
-第四章接着解决：
+第四章继续解决：
 
-1. 向量怎样真正被存下来
+1. 向量怎样真正落到持久化存储
 2. 查询怎样把结果重新还原成标准 chunk
-3. metadata 和 `document_id` 怎样进入真实查询/替换/删除路径
-4. 最小原理实现和真实工具如何一一对应
+3. metadata 和 `document_id` 怎样进入真实查询/更新/删除路径
+4. 原理层和真实工具层怎样一一对应
 
 第五章才继续解决：
 
@@ -52,21 +36,13 @@
 2. Retriever 抽象
 3. “怎么查得更好”
 
-### 学习前提
-
-- 建议先完成第二章和第三章
-- 建议你已经掌握 `02_llm/02_multi_provider` 中的真实 provider 基础调用
-- 第四章不会重讲 OpenAI-compatible 的基础接入
-
-本章的重点不是“怎么调 embeddings API”，而是“向量进入真实存储以后，系统需要补上哪些能力”。
-
-### 本章代码入口
+### 当前代码入口
 
 - [README.md](../../source/04_rag/04_vector_databases/README.md)
-- [requirements.txt](../../source/04_rag/04_vector_databases/requirements.txt)
 - [vector_store_basics.py](../../source/04_rag/04_vector_databases/vector_store_basics.py)
 - [chroma_store.py](../../source/04_rag/04_vector_databases/chroma_store.py)
 - [langchain_adapter.py](../../source/04_rag/04_vector_databases/langchain_adapter.py)
+- [vector_store_manager.py](../../source/04_rag/04_vector_databases/vector_store_manager.py)
 - [01_index_store.py](../../source/04_rag/04_vector_databases/01_index_store.py)
 - [02_search_store.py](../../source/04_rag/04_vector_databases/02_search_store.py)
 - [03_delete_document.py](../../source/04_rag/04_vector_databases/03_delete_document.py)
@@ -84,22 +60,84 @@
 3. 文档级替换
 4. `document_id` 删除
 5. metadata 过滤路径
-6. JSON store、Chroma、LangChain Chroma 的映射关系
+6. LangChain VectorStore 接口映射
+7. 统一管理器的最小适配器结构
 
 本章不展开：
 
-- `MMR`、`Multi-query`、`HyDE`
+- `MMR`、`threshold`、`Multi-query`、`HyDE`
 - rerank
 - hybrid retrieval
 - 复杂 metadata DSL
-- 多向量库横评
-- ANN 底层算法细节
+- 多向量库完整实现横评
 
 ---
 
-## 2. 为什么只有向量还不够 📌
+## 2. 向量数据库基础（对应大纲第 10 节） 📌
 
-### 2.1 `EmbeddedChunk[]` 还不是可用检索系统
+### 2.1 什么是向量数据库
+
+向量数据库本质上是在解决三件事：
+
+1. 把高维向量稳定存下来
+2. 能用相似度快速查回最相关的向量
+3. 让向量和原始文档、metadata、文档身份保持绑定
+
+所以它不是“只会存一个 `list[float]` 的数据库”，而是：
+
+> 面向语义检索场景的存储和查询系统。
+
+### 2.2 ANN vs 精确搜索
+
+大纲要求你至少知道：
+
+- 精确搜索会逐个比较候选，结果最准，但规模一大就慢
+- `ANN`（Approximate Nearest Neighbor）会牺牲一点精确性，换取更好的查询速度
+
+第四章当前不会手写 ANN 索引实现，因为这会把注意力从“存储契约”拉走。
+
+你现在只需要先建立这个判断：
+
+- 教学 demo、小规模数据：可以先不深挖 ANN 细节
+- 真正上线、数据量大：ANN 是现实选择
+
+### 2.3 主流向量数据库的最小选型表
+
+这一节按大纲要求做认知对齐，但不强行给每个库都补 demo。
+
+| 数据库 | 特点 | 更适合什么 |
+|--------|------|------------|
+| Chroma | 轻量、上手快、本地持久化方便 | 教学、原型、小项目 |
+| FAISS | Meta 开源、纯本地、高性能 | 本地实验、离线索引、高性能原型 |
+| Pinecone | 云服务、免运维 | 不想自建基础设施的生产场景 |
+| Milvus | 开源、分布式、规模能力强 | 大规模生产部署 |
+| Weaviate | 开源、功能丰富 | 企业知识库和复杂检索场景 |
+
+为什么第四章当前只正式实现 `Chroma`：
+
+- 它最适合作为第一站真实数据库
+- 能直接看清 persistent collection、metadata filter、delete
+- 不会让课程一开始就掉进运维和平台差异里
+
+为什么这里不硬造 FAISS / Pinecone / Milvus demo：
+
+> 第 10 节的核心是选型认知，不是为了“代码覆盖率”而把第四章拖成工具拼盘。
+
+### 2.4 向量数据库的核心操作
+
+无论你最终用哪一种库，这一章都要先把下面这些动作立住：
+
+1. 插入向量
+2. 相似度搜索
+3. 更新 / 替换
+4. 删除
+5. metadata 过滤
+
+第四章接下来的代码，就是围绕这五件事展开。
+
+---
+
+## 3. 为什么只有向量还不够 📌
 
 第三章已经让系统拥有：
 
@@ -117,13 +155,13 @@
 
 如果这些问题没有先立住，第五章的 Retriever 只会建立在松散对象上。
 
-### 2.2 向量存储层负责什么
+### 3.1 存储层负责什么
 
 向量存储层至少要负责五件事：
 
 1. 存向量
 2. 查向量
-3. 保留向量和原始 chunk/metadata 的绑定关系
+3. 保留向量和原始 chunk / metadata 的绑定关系
 4. 支持删除和文档级替换
 5. 守住 embedding space 一致性
 
@@ -135,82 +173,17 @@
 - 组织 Prompt
 - 让 LLM 生成答案
 
-### 2.3 为什么第四章现在必须补真实工具
+### 3.2 第四章要立住的最小契约
 
-原来的第四章已经把“最小存储原理”讲得差不多了，但相对课程标题还有两个明显缺口：
-
-- 没有真实向量数据库
-- 没有 LangChain VectorStore
-
-所以本章现在拆成两层：
-
-1. 原理层：本地 JSON store
-2. 实践层：真实 `Chroma` + `LangChain Chroma`
-
-JSON store 不删除，因为它仍然是最容易看清契约的教学放大镜。
-
----
-
-## 3. 本章真正新增了什么 📌
-
-### 3.1 核心数据流
-
-第四章沿用第三章的对象契约，新增的是这条数据流：
-
-```text
-EmbeddedChunk[]
--> replace_document()
--> vector store
--> similarity_search(query_vector)
--> RetrievalResult[]
-```
-
-如果是底层原语，则会退回到：
-
-```text
-EmbeddedChunk[]
--> upsert()
-```
-
-### 3.2 本章要立住的存储层契约
-
-第四章至少要守住这些契约：
-
-1. 同一个 store 只能保存一个 provider/model/dimensions 空间
+1. 同一个 store 只能保存一个 provider / model / dimensions 空间
 2. query 和 stored vectors 必须来自同一个 embedding space
-3. metadata 不能在写入时被悄悄丢掉
+3. metadata 不能在写入时悄悄丢失
 4. `upsert()` 和 `replace_document()` 必须是两个不同语义
-5. `document_id` 删除必须是真实能力，而不是演示名词
-
-### 3.3 为什么 `document_id` 在这一章变成真实职责
-
-到了第四章，`document_id` 不再只是“结构上应该有”：
-
-- 它是删除入口
-- 它是文档级替换入口
-- 它是增量更新的一致性锚点
-
-这就是为什么第二章的 stable id 不能只停留在“看起来规范”。
-
-### 3.4 metadata 在这一章里为什么必须一起落库
-
-第四章至少会继续保留：
-
-- `source`
-- `filename`
-- `suffix`
-- `chunk_index`
-- `char_start / char_end / chunk_chars`
-
-因为现在这些字段已经进入真实路径：
-
-- `filename` 会进入过滤
-- `source / chunk_index / range` 会进入调试输出
-- `document_id` 会进入替换和删除
+5. `document_id` 删除必须是真实能力，不是演示名词
 
 ---
 
-## 4. 原理层：最小 JSON store 📌
+## 4. 原理层：最小 JSON store
 
 ### 4.1 这一层解决什么
 
@@ -228,7 +201,7 @@ EmbeddedChunk[]
 - `replace_document()` 和 `upsert()` 为什么不是一回事
 - 删除为什么必须围绕 `document_id`
 
-### 4.2 JSON store 当前交付了什么
+### 4.2 JSON store 当前交付
 
 `PersistentVectorStore` 当前交付：
 
@@ -246,22 +219,22 @@ EmbeddedChunk[]
 1. 只用本地 JSON 文件
 2. 只做最小相似度查询
 3. 过滤只支持 `filename`
-4. 不引入外部库
+4. 不引入外部索引库
 
-这不是因为这些能力不重要，而是为了把注意力集中在存储层契约上。
+这不是因为这些能力不重要，而是为了先把存储层契约看清楚。
 
 ---
 
-## 5. 真实工具层：Chroma 📌
+## 5. Chroma 实践（对应大纲第 11 节） 📌
 
 ### 5.1 为什么选 Chroma
 
-在第四章里，`Chroma` 是一个合适的真实工具层：
+在第四章里，`Chroma` 是合适的第一站真实工具层：
 
-- 它有真实持久化目录
-- 它有真实 collection
-- 它能直接做 query / filter / delete
-- 它足够轻量，适合作为课程里的第一站
+- 有真实持久化目录
+- 有真实 collection
+- 能直接做 query / filter / delete
+- 足够轻量，适合作为课程里的第一种真实数据库
 
 ### 5.2 本章里 Chroma 的定位
 
@@ -275,7 +248,7 @@ EmbeddedChunk[]
 | `delete_by_document_id()` | Chroma `delete(where=...)` |
 | `load_chunks()` | 从 Chroma 读回并重新水合 |
 
-### 5.3 Chroma 层为什么还要补自己的契约校验
+### 5.3 Chroma 层为什么还要做自己的契约校验
 
 真实向量数据库不会替你自动保证：
 
@@ -293,25 +266,31 @@ EmbeddedChunk[]
 
 写进 metadata，并在读取和查询时自己做校验。
 
-### 5.4 当前 Chroma 层演示到什么程度
+### 5.4 Chroma 的 CRUD 与过滤
 
-本章当前交付：
+当前代码入口：
 
 - [chroma_store.py](../../source/04_rag/04_vector_databases/chroma_store.py)
 - [04_chroma_crud.py](../../source/04_rag/04_vector_databases/04_chroma_crud.py)
 - [05_chroma_filter_delete.py](../../source/04_rag/04_vector_databases/05_chroma_filter_delete.py)
 
-你可以直接看到：
+这一层当前覆盖：
 
-- collection 的持久化目录
-- 写入后的文档列表
-- metadata filter
-- `document_id` 删除
-- 真实数据库里依然要守住 embedding space
+1. 添加 / 替换
+2. 查询
+3. 按 `document_id` 删除
+4. metadata 过滤
+5. 复合过滤
+
+这里需要注意一个真实细节：
+
+> Chroma 的复合 `where` 过滤不是简单多 key dict，而是显式 `$and` 条件。
+
+第五章不会再回头讲这个细节，所以第四章就要先把这件事讲清楚。
 
 ---
 
-## 6. 真实工具层：LangChain VectorStore 📌
+## 6. 基于 LangChain 的向量数据库接入（对应大纲第 12 节） 📌
 
 ### 6.1 为什么第四章现在还要补 LangChain
 
@@ -321,29 +300,28 @@ EmbeddedChunk[]
 
 也就是：
 
-- 你不一定直接调用底层数据库 SDK
+- 你不一定直接调数据库 SDK
 - 你可能通过 LangChain 等上层抽象接入同一个数据库
 
 ### 6.2 这一章里 LangChain 的关注点
 
-你已经在前面掌握了 provider 真实调用，这一章不再重讲 `OpenAIEmbeddings` 一类平台接入。
+第四章不再重讲平台 embeddings 接入，而是只关注：
 
-第四章只关注：
-
-1. 现有 `EmbeddingProvider` 怎样包装成 LangChain 的 `Embeddings`
+1. 现有 `EmbeddingProvider` 怎样包装成 LangChain `Embeddings`
 2. `SourceChunk` 怎样映射成 LangChain `Document`
-3. `similarity_search_with_score()` 怎样对应当前存储层查询
+3. `add_documents()` 和 `from_documents()` 是什么关系
+4. `similarity_search()`、`similarity_search_with_score()` 怎样对应存储层查询
+5. `as_retriever()` 的接口长什么样
 
 ### 6.3 当前映射关系
-
-本章当前的映射是：
 
 | 第四章对象/能力 | LangChain 对应 |
 |----------------|----------------|
 | `EmbeddingProvider` | `ProviderEmbeddingsAdapter` |
 | `SourceChunk` | `Document` |
 | `filename` metadata | `filter={"filename": ...}` |
-| query 搜索 | `similarity_search_with_score()` |
+| query 搜索 | `similarity_search()` / `similarity_search_with_score()` |
+| 上层检索入口 | `as_retriever()` |
 
 对应实现：
 
@@ -357,25 +335,88 @@ EmbeddedChunk[]
 - 向量存储抽象
 - 不是 Retriever 策略层
 
-第五章才会继续讨论：
+第四章只让你看到：
+
+- `as_retriever()` 存在
+- 它是上层接口入口
+
+真正去展开：
 
 - `top_k`
 - `threshold`
 - `MMR`
 - bad cases
 
+是在第五章。
+
 ---
 
-## 7. 第四章实践：建议运行顺序
+## 7. 综合案例：向量存储管理器
 
-### 7.1 安装依赖
+大纲要求的不是“再写一个 backend 对照脚本”，而是一个最小可扩展管理器。
+
+当前代码入口：
+
+- 模块：[vector_store_manager.py](../../source/04_rag/04_vector_databases/vector_store_manager.py)
+- CLI：[07_vector_store_manager.py](../../source/04_rag/04_vector_databases/07_vector_store_manager.py)
+
+### 7.1 这个综合案例解决什么
+
+它要把这些动作统一起来：
+
+1. `add_documents()`
+2. `search()`
+3. `replace_document()`
+4. `delete_document()`
+
+并且把这些动作统一映射到不同 backend：
+
+- `json`
+- `chroma`
+- `langchain`
+
+### 7.2 当前 manager 的边界
+
+当前 `VectorStoreManager` 是教学最小实现，所以有两个边界要说明白：
+
+1. 一条输入文本先当成一个文档块，不在这里引入切分流水线
+2. 大纲里提到的 `FAISS` 当前不做硬接入，而是保留适配器扩展位
+
+这不是偷懒，而是因为第四章真正要先立住的是：
+
+> “统一接口”比“堆更多 backend 名字”更重要。
+
+### 7.3 当前综合案例已覆盖什么
+
+1. 自动 embedding 处理
+2. 文档添加
+3. 文档删除
+4. 文档替换
+5. metadata 透传
+6. backend 适配
+
+也就是说，第四章现在已经从：
+
+- 只会单独跑 JSON
+- 只会单独跑 Chroma
+- 只会单独跑 LangChain
+
+推进到了：
+
+- 有一个统一管理入口
+
+---
+
+## 8. 第四章实践：建议运行顺序
+
+### 8.1 安装依赖
 
 ```bash
 cd source/04_rag/04_vector_databases
 python -m pip install -r requirements.txt
 ```
 
-### 7.2 先跑原理层
+### 8.2 先跑原理层
 
 ```bash
 python 01_index_store.py --reset
@@ -391,11 +432,11 @@ python 03_delete_document.py trial
 - `filename` 过滤怎么缩小范围
 - 删除为什么围绕 `document_id`
 
-### 7.3 再跑 Chroma
+### 8.3 再跑 Chroma
 
 ```bash
 python 04_chroma_crud.py --reset
-python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
+python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md --suffix .md --document-id metadata
 python 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id trial
 ```
 
@@ -403,60 +444,78 @@ python 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id t
 
 - Chroma 真的创建了 collection
 - metadata filter 现在走真实数据库
+- 复合过滤会显式落成 `$and`
 - 删除和替换已经不是“本地文件操作”，而是数据库行为
 
-### 7.4 最后跑 LangChain Chroma
+### 8.4 最后跑 LangChain Chroma
 
 ```bash
-python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --reset
-python 07_vector_store_manager.py --backend json "如何申请退费？"
-python 07_vector_store_manager.py --backend chroma "如何申请退费？"
-python 07_vector_store_manager.py --backend langchain "如何申请退费？"
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode add_documents --reset
+python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode from_documents
+python 06_langchain_vectorstore.py "如何申请退费？" --retriever-search-type mmr
 ```
 
 你应该观察到：
 
 - 同一个 provider 可以通过 LangChain `Embeddings` 适配器接入
-- LangChain Chroma 仍然在做“向量存储”
-- 三个 backend 的调用形态不同，但职责边界相同
+- `add_documents()` 和 `from_documents()` 都只是不同初始化入口
+- `as_retriever()` 现在只做接口演示，策略解释放到第五章
 
-### 7.5 测试
+### 8.5 跑统一管理器
+
+```bash
+python 07_vector_store_manager.py --backend json --delete-document-id trial "如何申请退费？"
+python 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
+python 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
+```
+
+你应该观察到：
+
+- manager 已经不是纯 backend 对照脚本
+- 它已经具备真实 `add / search / replace / delete`
+- 不同 backend 的调用形态不同，但管理职责相同
+
+### 8.6 测试
 
 ```bash
 python -m unittest discover -s tests
 ```
 
-当前测试锁定三层行为：
+当前测试锁定四层行为：
 
 1. JSON store
 2. 原生 Chroma
 3. LangChain Chroma
+4. `VectorStoreManager`
 
 ---
 
-## 8. Mini 回归集
+## 9. Mini 回归集
 
 第四章当前的最小回归观察点至少包括：
 
 1. `如何申请退费？` 应优先命中 `refund:0`
 2. `为什么 metadata 很重要？` 应优先命中 `metadata:0`
 3. `filename=metadata_rules.md` 过滤后，结果范围必须明显收窄
-4. 删除 `trial` 后，不应再保留该文档 chunk
-5. query 和 store 若不在同一 embedding space，应直接失败
+4. Chroma 复合过滤会使用显式 `$and`
+5. 删除 `trial` 后，不应再保留该文档 chunk
+6. query 和 store 若不在同一 embedding space，应直接失败
 
 ---
 
-## 9. 本章学完后你应该能回答
+## 10. 本章学完后你应该能回答
 
 - 为什么 `EmbeddedChunk[]` 还不等于可用检索系统
-- 为什么第四章现在必须同时讲原理层和真实工具层
+- 为什么第四章必须同时讲原理层和真实工具层
+- 为什么第 10 节的“选型基础”更适合先放在文档里讲清楚
 - 为什么 `upsert()` 和 `replace_document()` 不能混成一个模糊接口
 - 为什么真实 Chroma 里仍然要自己守住 embedding space
 - 为什么 LangChain VectorStore 仍然属于第四章，而不是第五章
+- 为什么综合案例需要统一 manager，而不是继续堆 backend 对照脚本
 
 ---
 
-## 10. 下一章
+## 11. 下一章
 
 第五章开始，你才会真正进入 Retriever 策略：
 

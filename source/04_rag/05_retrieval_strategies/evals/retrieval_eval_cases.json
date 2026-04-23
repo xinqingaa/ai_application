@@ -1,0 +1,26 @@
+[
+  {
+    "case_id": "refund_policy",
+    "question": "购买后多久还能退款？",
+    "expected_chunk_ids": [
+      "refund_summary:0",
+      "refund_policy:0",
+      "refund_duplicate:0"
+    ]
+  },
+  {
+    "case_id": "refund_process",
+    "question": "退费申请流程",
+    "expected_chunk_ids": [
+      "refund_process:0"
+    ]
+  },
+  {
+    "case_id": "metadata_scope",
+    "question": "为什么 metadata 很重要？",
+    "filename_filter": "metadata_rules.md",
+    "expected_chunk_ids": [
+      "metadata:0"
+    ]
+  }
+]

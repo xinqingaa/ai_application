@@ -1,0 +1,4 @@
+chromadb
+langchain-core
+openai
+python-dotenv
