@@ -1,600 +1,627 @@
-# 04 RAG Todo
+# 综合 RAG 项目 Todo
 
-> 目标：基于当前课程真实定位，整理 `04_rag` 下一步修改重点。
-> 当前定位不是“企业级工程落地课”，而是“概念与认知优先的 RAG 学习课”。
-
----
-
-## 一、先明确当前课程定位
-
-### 1. 当前正确定位
-
-- `04_rag` 当前阶段优先目标是：
-  - 快速建立对 RAG 主线的正确认知
-  - 理解固定检索链路的输入、输出、边界和常见失败模式
-  - 形成“先评估、再调优、再判断是否升级”的学习顺序
-- 当前阶段**不主动追求工程化完整度**
-- 当前阶段**不主动展开 Agent、复杂工作流、多角色协作**
-- 当前阶段**不把 LangChain 当主线框架**
-
-### 2. 与 `02_llm` 的关系
-
-- `02_llm` 已经解决：
-  - 真实模型调用
-  - 多平台接入
-  - 消息组织
-  - 结构化输出
-  - 成本、错误与流式输出
-- `04_rag` 当前不需要重复教授这些能力
-- 但 `04_rag` 的后续综合项目，应该把 `02_llm` 已掌握能力与 RAG 主线做一次自然串联
-
-### 3. 与 `05_agent` 的关系
-
-- `04_rag` 重点是固定链路
-- `05_agent` 才是动态决策、Tool 调用、LangGraph、Agentic RAG 的主战场
-- 因此第八章只做概念认知和升级判断，不强行扩展大量代码，是合理方向
-
-### 4. 当前评估结论
-
-- 如果按“概念学习课”标准看，`01-07` 章已经可以视为一套完整教程
-- 当前整体评价：
-  - 概念主线完整度：`9.2/10`
-  - 章节连续性：`9.0/10`
-  - 学习路径清晰度：`9.1/10`
-  - 工程化完整度：不作为当前阶段核心目标
+> 目标：基于当前已经掌握的 `02_llm + 04_rag` 能力，做一个可运行、可评估、可视化操作的综合 RAG 项目。
+> 当前版本不做企业知识库产品，但项目架构、模块边界和演进方向要向企业级知识库对齐，保证后续扩展时核心 RAG 模块可以复用。
 
 ---
 
-## 二、第五章当前存在的问题与修改建议
+## 一、项目定位
 
-> 这里说的问题，不是“做错了”，而是“对于当前课程目标，还可以更清楚、更克制”。
+- 这是一个**固定 RAG 主链路项目**
+- 这是一个**教学型、可落地、可扩展的项目**
+- 这不是：
+  - Agent 项目
+  - LangGraph 项目
+  - 企业后台管理系统
+  - 多租户知识平台
+  - 重型工程框架演示
 
-### 1. 当前主要问题
+这个项目的核心价值不是“功能堆得多”，而是：
 
-#### 问题 1：正文覆盖面略大于当前主线实现
-
-- 当前第五章正文已经覆盖：
-  - 基础检索
-  - hybrid
-  - rerank
-  - query 变换
-  - 高级 retriever
-- 但当前真正的主线实现更集中在：
-  - `similarity`
-  - `threshold`
-  - `mmr`
-  - `hybrid`
-  - `toy rerank`
-  - `SmartRetrievalEngine`
-- 这会让学习者产生一种感觉：
-  - “好像第五章讲了很多高级技术”
-  - 但代码主线其实仍然是“把固定检索层做稳”
-
-#### 问题 2：部分高级主题虽然已降级为概念认知，但视觉权重仍偏高
-
-- 当前 `Multi-Query / HyDE / Query Decomposition / Step-back / 上下文压缩 / 高级 Retriever`
-  在正文中已经说明不是主线实现
-- 但从章节结构上，它们仍然容易被初学者误判成“这一章必须学会并实现”
-
-#### 问题 3：检索策略的默认升级顺序还可以更明确
-
-- 当前读完第五章后，学习者可能会知道很多名词
-- 但还不一定会形成一个非常清晰的决策顺序：
-  - 什么时候先调 `top_k`
-  - 什么时候加 `threshold`
-  - 什么时候上 `MMR`
-  - 什么时候再考虑 `hybrid`
-  - 什么时候才值得 `rerank`
-
-#### 问题 4：当前 metadata filter 的教学还偏保守
-
-- 当前显式过滤重点放在 `filename_filter`
-- 这对教学是简洁的
-- 但也会让学习者对 metadata filter 的真实价值建立得不够完整
-
-### 2. 修改方向
-
-#### 建议 1：把第五章重新强调成“固定检索层做稳”
-
-- 在章节开头更明确地写出：
-  - 第五章不是“高级检索技巧大全”
-  - 第五章的核心目标是把检索做成稳定、可控、可评估的策略层
-
-#### 建议 2：弱化非主线高级主题的权重
-
-- 对以下内容统一改成“概念认知 / 选读 / 不进入当前主线代码实现”：
-  - Multi-Query
-  - HyDE
-  - Query Decomposition
-  - Step-back Prompting
-  - 上下文压缩
-  - Self-Query / Parent Document / Multi-Vector Retriever
-- 保留它们的价值判断，但避免和主线并列得太重
-
-#### 建议 3：补一段“检索升级决策顺序”
-
-- 建议显式加入这一顺序：
-
-```text
-先确认 chunk 和 metadata 没问题
--> 再调 top_k / threshold
--> 再处理重复召回（MMR）
--> 再处理关键词与语义混合问题（Hybrid）
--> 最后才考虑两阶段精排（Rerank）
-```
-
-#### 建议 4：补“为什么当前只保留 filename_filter”
-
-- 明确告诉学习者：
-  - 不是 metadata filter 不重要
-  - 而是为了先把过滤思想讲清楚
-  - 复杂 DSL、多字段结构化过滤放到后续综合项目或应用课更合适
-
-### 3. 建议补充的具体内容
-
-- 增加一个小节：
-  - `第五章当前真正应该学会什么`
-- 增加一个表格：
-  - `问题现象 -> 应先调哪里`
-- 增加一个小节：
-  - `当前不建议展开实现的高级检索能力`
+- 用当前已经掌握的知识，把 `LLM -> RAG -> API -> UI` 串成一条完整主线
+- 把模块边界设计清楚，避免后续一扩展就推倒重来
+- 让当前实现保持克制，但让未来升级方向明确
 
 ---
 
-## 三、第六章当前存在的问题与修改建议
+## 二、项目总目标
 
-### 1. 当前主要问题
-
-#### 问题 1：章节标题与读者预期之间有一点偏差
-
-- 当前大纲里会出现：
-  - `完整 RAG 应用`
-  - `RAG 问答服务`
-- 但当前真正落地的是：
-  - `RetrievalResult[] -> context selection -> prompt -> answer + sources`
-- 也就是说，第六章当前真实重点是：
-  - 稳定生成链路
-  - 来源对齐
-  - refusal
-  - 最小真实 LLM 接缝
-- 而不是：
-  - API 服务
-  - 文档上传
-  - 索引管理
-  - 流式问答服务工程
-
-#### 问题 2：与 `02_llm` 的连接感还不够强
-
-- 当前第六章已经接入真实 LLM
-- 但读者还不一定能明显感受到：
-  - 前面 `02_llm` 学到的能力，怎样自然进入 RAG 系统
-- 现在更像：
-  - “第六章额外接了一个模型”
-- 还不够像：
-  - “把 `02_llm` 的真实调用能力，收编进 RAG 生成层”
-
-#### 问题 3：第六章与“完整系统”之间的边界还可以说得更明确
-
-- 当前正文其实已经很克制
-- 但对学习者来说，仍可能产生疑问：
-  - “为什么已经能回答了，却还不做 API？”
-  - “为什么还不直接做完整项目？”
-
-### 2. 修改方向
-
-#### 建议 1：重新强调第六章的章节目标
-
-- 在开头更明确写出：
-  - 第六章不是“做完整应用”
-  - 第六章是“把检索结果稳定接成生成链路”
-
-#### 建议 2：补一节“第六章如何复用 `02_llm`”
-
-- 明确指出第六章真正复用的是：
-  - provider config
-  - OpenAI-compatible client
-  - messages 构造
-  - 真实调用与 mock fallback
-- 同时说明第六章刻意不重复：
-  - 多平台教学
-  - 流式输出教学
-  - 完整统一 provider registry
-
-#### 建议 3：把“完整 RAG 应用”措辞改得更收缩
-
-- 例如从：
-  - `完整 RAG 应用`
-- 改成：
-  - `最小 RAG 问答闭环`
-  - `固定生成链路`
-  - `从检索结果到 answer + sources`
-
-#### 建议 4：明确第六章结束后“会什么，不会什么”
-
-- 建议显式写出：
-  - 会：
-    - 构造可控生成链路
-    - 处理来源标签
-    - 处理拒答
-    - 接入真实 LLM
-  - 不会：
-    - 构建完整线上问答服务
-    - 处理上传索引 API
-    - 处理多轮 Agent 工作流
-
-### 3. 建议补充的具体内容
-
-- 增加一个小节：
-  - `第六章与 02_llm 的最小接缝`
-- 增加一个小节：
-  - `为什么这一步先不做 API`
-- 增加一个表格：
-  - `02_llm 已掌握能力 -> 第六章如何复用`
-
----
-
-## 四、第八章的计划
-
-> 第八章不再复制前七章的节奏，不以“大量代码实现”为目标。
-
-### 1. 第八章定位
-
-- 第八章是：
-  - 进阶方向认知章
-  - 升级条件判断章
-  - 边界建立章
-- 第八章不是：
-  - GraphRAG 系统实现章
-  - Agentic RAG 工程实现章
-  - LangGraph 编排实战章
-
-### 2. 第八章应该解决什么
-
-#### 主题 1：什么时候固定 RAG 已经不够
-
-- 哪些问题只是固定链路没调好
-- 哪些问题才是真的需要升级复杂方案
-
-#### 主题 2：GraphRAG 在解决什么
-
-- 多跳关系问题
-- 图结构知识表达
-- 实体关系推理
-
-#### 主题 3：Agentic RAG 在解决什么
-
-- 动态判断是否检索
-- 多轮检索与查询改写
-- 多知识源路由
-- 子问题拆分
-
-#### 主题 4：为什么不要过早升级
-
-- 复杂度上升
-- 成本和延迟上升
-- 调试难度上升
-- 责任边界更模糊
-
-### 3. 第八章建议写法
-
-#### 文档侧建议
-
-- 保持为概念学习章
-- 重点写：
-  - 适用场景
-  - 升级信号
-  - 常见误判
-  - 与固定 RAG 的边界
-- 不需要铺很多实现代码
-
-#### 代码侧建议
-
-- 只保留非常轻量的辅助材料即可
-- 可选形式：
-  - 场景判断脚本
-  - 对比例子
-  - 决策树式练习题
-- 不建议投入大量系统代码
-
-### 4. 第八章建议目录内容
-
-```text
-08_advanced_rag.md
-  1. 固定 RAG 的升级信号
-  2. GraphRAG 解决什么问题
-  3. Agentic RAG 解决什么问题
-  4. 为什么不要过早上复杂方案
-  5. 场景判断练习
-```
-
-### 5. 第八章完成标准
-
-- 能判断什么时候固定 RAG 足够
-- 能说明 GraphRAG 的核心价值
-- 能说明 Agentic RAG 的核心价值
-- 能避免因为“更高级”而过早上复杂方案
-- 能自然衔接到 `05_agent`
-
-### 6. 第八章待办
-
-- [ ] 调整第八章定位措辞，进一步弱化“实现预期”
-- [ ] 补一个“升级信号判断表”
-- [ ] 补一个“固定 RAG / GraphRAG / Agentic RAG”对比表
-- [ ] 只保留轻量示例，不新增重代码目录
-- [ ] 在章节末尾显式跳转到 `05_agent`
-
----
-
-## 五、综合 RAG 项目计划：串联 `02_llm + 04_rag`
-
-> 目标：做一个“理解知识 + 串联设计”为主的综合项目。
-> 这个项目不是 Agent 项目，不依赖 LangChain 主线，也不追求完整企业级工程。
-
-### 1. 项目定位
-
-- 用一个完整但克制的项目，把前面的知识串起来：
-  - `02_llm`
-  - `04_rag 01-07`
-- 项目重点是：
-  - 知识串联
-  - 设计清晰
-  - 对象明确
-  - 数据流清楚
-  - 评估闭环存在
-- 项目不做：
-  - Agent
-  - LangGraph
-  - Multi-Agent
-  - 复杂前端
-  - 重型工程框架依赖
-
-### 2. 项目应解决什么
-
-- 文档如何进入系统
-- chunk 如何变成向量并进入 store
-- query 如何经过 retriever 变成候选
-- 候选如何进入 prompt
-- 真实 LLM 如何基于上下文生成 `answer + sources`
-- 如何用固定 golden set 评估 retrieval 与 generation
-
-### 3. 项目建议目标
-
-#### 核心目标
+### 1. 当前的目标
 
 - 跑通完整固定 RAG 主链路
-- 自然复用 `02_llm` 的真实调用能力
-- 保持 `04_rag` 的对象和章节边界
+- 自然复用 `02_llm` 的真实模型调用能力
+- 保持 `04_rag` 各章节已经建立的对象边界
+- 提供一层 `FastAPI` 接口
+- 提供一个 `Vite + React` 的可视化操作台
+- 让用户可以图形化观察和操作 RAG 的关键步骤
+- 保留最小评估闭环，而不是只做一个“能回答”的 demo
 
-#### 次级目标
+### 2. 架构的目标
 
-- 有最小 CLI 或超薄 API
-- 能切换至少一种检索策略
-- 能输出带来源的回答
-- 能对无答案问题拒答
+- 当前实现轻量
+- 核心 RAG 模块可复用
+- API 层足够支持业务
+- 前端只负责交互与可视化，不承载 RAG 核心逻辑
+- 将来向企业级知识库扩展时，只需要补充相关技术栈和外围基础设施
 
-### 4. 建议项目范围
+---
 
-#### 建议做
+## 三、项目设计原则
 
-- 文档加载：`.md / .txt / .pdf`
-- 切分与 stable ID
-- embeddings
-- vector store
-- retriever
-- generation
-- evaluation
-- mock 与 real LLM 双路径
+- **主链路优先**：先保证 `document -> chunk -> embedding -> store -> retrieval -> context -> llm -> answer + sources` 完整成立
+- **边界优先**：先把对象、模块、输入输出契约设计清楚，再考虑增加功能
+- **复用优先**：尽量复用 `02_llm` 和 `04_rag` 已有心智模型，不额外引入过重概念
+- **可扩展优先**：当前不实现的企业能力，要在结构上预留扩展点
+- **可观察优先**：前端不只是“聊天框”，而是要能看到文档、chunk、检索结果、来源和评估
 
-#### 不建议做
+---
 
-- 多租户
-- ACL
-- 审计系统
-- 异步任务平台
-- 工作流引擎
+## 四、当前版本范围
+
+### 1. 必做
+
+- 文档接入：支持 `.md / .txt / .pdf`
+- 文档切分与 `metadata`
+- `stable document_id / chunk_id`
+- `embedding` 生成
+- 向量存储
+- 基础检索
+- context selection
+- RAG prompt 组织
+- 真实 LLM 生成
+- `answer + sources`
+- refusal
+- 最小 golden set
+- 最小 retrieval / end-to-end eval
+- `FastAPI` 后端接口
+- `Vite + React` 可视化前端
+
+### 2. 可选，建议加上
+
+- `threshold`
+- `mmr`
+- `hybrid` 作为实验性保留项
+- mock / real LLM 双路径
+- 普通问答接口和流式问答接口
+
+### 3. `V1` 明确不做
+
 - Agent
-- 复杂前端
-- 大量框架抽象
+- LangGraph
+- GraphRAG
+- 多租户
+- ACL 权限控制
+- 审计系统
+- 异步任务编排平台
+- 对象存储接入
+- 数据库持久化治理体系
+- 企业级监控告警
+- 复杂前端后台系统
 
-### 5. 建议项目结构
+---
+
+## 五、项目主链路
+
+项目必须围绕下面这条固定链路展开：
 
 ```text
-rag_project/
+document
+-> load
+-> normalize
+-> split
+-> metadata + stable ids
+-> embed_documents
+-> vector store
+-> retrieve
+-> context selection
+-> prompt
+-> llm
+-> answer + sources
+-> eval
+```
+
+这条链路里：
+
+- `02_llm` 主要贡献：
+  - provider config
+  - OpenAI-compatible client
+  - messages 组织
+  - prompt 工程能力
+  - 结构化输出认知
+  - 流式输出与 API 经验
+  - 错误处理、成本、安全的服务层意识
+
+- `04_rag` 主要贡献：
+  - 文档处理
+  - chunk / metadata / stable id
+  - embedding 契约
+  - vector store
+  - retrieval 策略
+  - generation 链路
+  - `answer + sources`
+  - refusal
+  - 评估闭环
+
+---
+
+## 六、后端架构规划
+
+后端固定使用：
+
+- `Python`
+- `FastAPI`
+
+后端目标不是把所有逻辑塞进路由，而是做成“可复用 RAG 内核 + 薄 API 壳”。
+
+### 1. 建议目录结构
+
+```text
+rag_lab/
 ├── README.md
 ├── app/
-│   ├── schemas.py
-│   ├── config.py
+│   ├── config/
+│   ├── schemas/
+│   ├── llm/
 │   ├── ingestion/
 │   ├── embeddings/
 │   ├── store/
 │   ├── retrieval/
 │   ├── generation/
 │   ├── evals/
-│   └── llm/
+│   ├── services/
+│   └── api/
 ├── data/
 ├── scripts/
-│   ├── ingest.py
-│   ├── build_index.py
-│   ├── query.py
-│   ├── eval_retrieval.py
-│   └── eval_rag.py
-└── tests/
+├── tests/
+└── frontend/
 ```
 
-### 6. 各模块设计建议
+### 2. 模块职责
 
-#### 模块 1：`llm/`
+#### `schemas/`
 
-- 目标：
-  - 复用 `02_llm` 已掌握的真实调用能力
-- 最小内容：
-  - provider config
-  - OpenAI-compatible client
-  - normalized generation result
-  - mock fallback
+- 统一项目级对象契约
+- 尽量复用当前课程已经建立的对象边界
+- 项目内任何模块通信都尽量先过 schema
 
-#### 模块 2：`ingestion/`
+建议重点统一：
 
-- 目标：
-  - 复用第二章输入层能力
-- 最小内容：
-  - discover
-  - load
-  - split
-  - metadata
-  - stable ids
+- `SourceDocument`
+- `SourceChunk`
+- `EmbeddedChunk`
+- `RetrievalResult`
+- `RagAnswer`
+- `SourceCitation`
+- `GoldenSetCase`
+- `ExperimentConfig`
 
-#### 模块 3：`embeddings/`
+#### `llm/`
 
-- 目标：
-  - 复用第三章 embedding 契约
-- 最小内容：
-  - `embed_documents`
-  - `embed_query`
-  - same embedding space 校验
+- 复用 `02_llm` 的最小真实调用能力
+- 收敛 provider config 和 client 初始化
+- 统一普通生成和流式生成入口
+- 保留 mock fallback 的扩展位
 
-#### 模块 4：`store/`
+最小职责：
 
-- 目标：
-  - 复用第四章存储层能力
-- 最小内容：
-  - upsert
-  - replace document
-  - delete document
-  - similarity search
+- `create_client()`
+- `chat()`
+- `chat_stream()`
+- generation result normalize
 
-#### 模块 5：`retrieval/`
+#### `ingestion/`
 
-- 目标：
-  - 复用第五章检索策略层
-- 最小内容：
-  - similarity
-  - threshold
-  - 可选 hybrid
-- 建议：
-  - `MMR` 可保留
-  - `rerank` 可先做成可选项
+- 处理文档进入系统的完整输入层
+- 保持对 `loader / splitter / metadata / stable id` 的独立封装
 
-#### 模块 6：`generation/`
+最小职责：
 
-- 目标：
-  - 复用第六章稳定生成层
-- 最小内容：
-  - context selection
-  - formatter
-  - prompt builder
-  - refusal
-  - `answer + sources`
+- discover
+- load
+- normalize
+- split
+- build metadata
+- build stable ids
 
-#### 模块 7：`evals/`
+#### `embeddings/`
 
-- 目标：
-  - 复用第七章评估闭环
-- 最小内容：
-  - golden set
-  - retrieval eval
-  - generation eval
-  - config compare
+- 保持 `embed_documents / embed_query` 的区分
+- 明确 embedding space 一致性
 
-### 7. 项目建议分阶段推进
+最小职责：
 
-#### Phase 1：先串通固定主链路
+- documents embedding
+- query embedding
+- provider/model/dimensions 校验
 
-- 输入文档
-- 建立索引
-- 发起问题
-- 返回 `answer + sources`
+#### `store/`
 
-#### Phase 2：再接入真实 LLM
+- 提供最小存储层契约
+- 保证后续替换存储实现时，上层 retrieval 不被迫重写
 
-- 把 `02_llm` 的真实 client 接进生成层
-- 保留 mock fallback
+最小职责：
 
-#### Phase 3：再补评估
+- `upsert`
+- `replace_document`
+- `delete_document`
+- `similarity_search`
+- metadata filter 扩展位
 
-- 固定 golden set
-- 跑 retrieval eval
-- 跑 end-to-end rag eval
+#### `retrieval/`
 
-#### Phase 4：最后再做极简交互层
+- 负责把底层查询能力组织成稳定检索层
+- 当前实现保持固定 RAG 可控策略
 
-- CLI
-- 或非常薄的一层 FastAPI
+最小职责：
 
-### 8. 项目完成标准
+- `similarity`
+- `threshold`
+- `mmr`
+- 可选 `hybrid`
 
-- 能说清完整数据流：
+设计要求：
 
-```text
-document
--> chunk
--> embedding
--> store
--> retrieval
--> context selection
--> prompt
--> llm
--> answer + sources
-```
+- 检索参数显式化
+- 检索输出统一为 `RetrievalResult[]`
+- 不把检索策略散落进 API 和前端
 
-- 能清楚说明 `02_llm` 与 `04_rag` 的衔接点
-- 能对无答案问题稳定拒答
-- 能输出来源
-- 能基于 golden set 做最小回归
-- 不引入 Agent 复杂度
+#### `generation/`
 
-### 9. 项目待办
+- 负责从 `RetrievalResult[]` 到最终 `answer + sources`
+- 明确生成层和检索层是两个不同责任区域
 
-- [ ] 明确项目名称与最终目录
-- [ ] 确定项目是否放在 `source/04_rag/` 下，还是单独新目录
-- [ ] 设计项目级 `schemas`
-- [ ] 从 `02_llm` 抽取最小真实 LLM client 接缝
-- [ ] 从 `04_rag` 前七章抽取最小可复用对象
-- [ ] 设计项目级 golden set
-- [ ] 设计最小 CLI 或薄 API
-- [ ] 明确第一版只支持哪些输入格式与检索策略
+最小职责：
+
+- context selection
+- context formatter
+- prompt builder
+- refusal policy
+- `answer + sources`
+
+#### `evals/`
+
+- 负责最小评估闭环
+- 保证这个项目不仅“能回答”，还“能回归”
+
+最小职责：
+
+- golden set
+- retrieval eval
+- end-to-end rag eval
+- bad case review
+
+#### `services/`
+
+- 项目级编排层
+- 负责串接 ingestion、store、retrieval、generation、evals
+- 保证 CLI、API、前端都复用同一套服务层能力
+
+建议拆成：
+
+- `DocumentService`
+- `IndexService`
+- `RagQueryService`
+- `EvaluationService`
+
+#### `api/`
+
+- `FastAPI` 薄路由层
+- 只做请求校验、调用 service、返回响应
+- 不在这里写 RAG 细节
 
 ---
 
-## 六、建议的下一步执行顺序
+## 七、前端规划
 
-### 优先级 A：先修正文档定位
+前端固定使用：
 
-- [ ] 调整 `outline.md` 中对第八、九章的预期描述
-- [ ] 调整验收标准，区分：
-  - 核心验收
-  - 扩展验收
-- [ ] 在第五、六章正文里进一步强化“当前课程是概念主线，不是完整服务工程”
+- `Vite`
+- `React`
 
-### 优先级 B：修第五、六章表达
+前端定位不是“企业知识库前台”，而是：
 
-- [ ] 给第五章补“检索升级决策顺序”
-- [ ] 给第五章补“当前不做哪些高级检索实现”
-- [ ] 给第六章补“与 `02_llm` 的最小接缝”
-- [ ] 给第六章补“为什么此时先不做 API”
+> 一个用于图形化操作和观察 RAG 主链路的工作台。
 
-### 优先级 C：收束第八章
+### 1. 前端必须解决什么
 
-- [ ] 把第八章进一步收成“概念认知章”
-- [ ] 不新增大量代码
-- [ ] 重点做场景判断和升级信号
-- [ ] 与 `05_agent` 建立明确跳转
+- 用户可以导入文档
+- 用户可以看到文档被切成什么样
+- 用户可以看到当前检索策略和检索结果
+- 用户可以看到哪些 chunk 被送进上下文
+- 用户可以看到最终答案和来源
+- 用户可以看到最小评估结果
 
-### 优先级 D：开始综合项目
+### 2. 建议页面/面板
 
-- [ ] 先写项目大纲
-- [ ] 再定目录结构
-- [ ] 再按固定主链路逐步实现
+#### 文档面板
+
+- 上传文档
+- 文档列表
+- 文档基础信息
+- 当前索引状态
+
+#### Chunk 面板
+
+- 展示 chunk 列表
+- 展示 chunk metadata
+- 展示 `document_id / chunk_id`
+
+#### 检索面板
+
+- 输入 query
+- 选择检索策略
+- 设置 `top_k / threshold / mmr` 等参数
+- 查看召回结果与分数
+
+#### 生成面板
+
+- 查看被选中的 context
+- 查看最终 answer
+- 查看 refusal
+- 查看 sources
+
+#### 评估面板
+
+- 运行最小 golden set
+- 展示 retrieval 指标
+- 展示 end-to-end 结果
+- 展示 bad cases
+
+### 3. 前端边界
+
+- 前端不直接承载检索和生成逻辑
+- 前端不引入复杂状态机
+- 前端不提前做后台系统能力
+- 前端只围绕观察、操作、验证 RAG 主链路服务
 
 ---
 
-## 七、最终判断
+## 八、API 规划
 
-- 当前 `04_rag` 前七章已经足够构成一套完整学习教程
-- 第八章不需要复制前七章的重代码模式
-- 下一步最有价值的方向不是继续给第八章堆代码
-- 下一步最有价值的方向是：
-  - 修正文档定位
-  - 收紧第五、六章表达
-  - 然后做一个串联 `02_llm + 04_rag` 的综合项目
+API 以项目演示和前端对接为目标，不追求完整企业接口体系。
+
+### 1. 文档相关
+
+- 上传文档
+- 查看文档列表
+- 查看单文档详情
+- 删除文档
+- 触发索引构建 / 重建
+
+### 2. 检索与问答相关
+
+- 检索预览接口
+- RAG 问答接口
+- 可选流式问答接口
+
+### 3. 评估相关
+
+- 查看 golden set
+- 运行 retrieval eval
+- 运行 rag eval
+- 查看最近评估结果
+
+### 4. API 原则
+
+- 路由薄
+- 请求响应对象清楚
+- 统一复用 service
+- 统一复用 schema
+
+---
+
+## 九、企业级对齐的扩展预留
+
+当前版本不实现下面这些能力，但项目设计必须向这些方向对齐。
+
+### 1. 多知识库 / namespace
+
+当前可以先做单知识库。
+
+但结构上要预留：
+
+- `knowledge_base_id`
+- namespace
+- 按知识库隔离索引和文档
+
+这样未来扩展多知识库时，核心 ingestion / retrieval / generation 不需要重写。
+
+### 2. 文档版本与删除一致性
+
+当前先做最小 `replace_document / delete_document`。
+
+但结构上要对齐未来需求：
+
+- 文档版本
+- 增量更新
+- 删除一致性
+- 重新索引
+
+### 3. metadata filter 向 ACL 演进
+
+当前 `V1` 只做基础 metadata filter。
+
+但未来可以向下扩展：
+
+- 文档范围过滤
+- 部门过滤
+- 用户权限过滤
+- ACL 规则映射
+
+也就是说，当前 retrieval 设计不能把 filter 写死成只能按文件名过滤。
+
+### 4. 检索策略升级
+
+当前以固定 RAG 为主：
+
+- `similarity`
+- `threshold`
+- `mmr`
+- 可选 `hybrid`
+
+未来扩展方向：
+
+- rerank
+- query rewrite
+- 多路检索融合
+- hosted search / 混合索引
+
+所以 retrieval 层要是“策略层”，而不是单函数脚本。
+
+### 5. 同步索引向异步任务扩展
+
+当前可以同步构建索引。
+
+但未来企业级方向通常需要：
+
+- 异步 ingestion
+- 任务队列
+- 任务状态跟踪
+- 批量导入
+
+所以服务层和 API 层需要为异步化留出演进空间。
+
+### 6. 本地存储向对象存储扩展
+
+当前可以用本地文件。
+
+未来可以扩展到：
+
+- OSS / S3
+- 文档归档
+- 预处理缓存
+
+因此文档输入层应该尽量保持“文件来源抽象”，不要把路径逻辑写死到业务层。
+
+### 7. 单机配置向多环境配置扩展
+
+当前只需要最小配置管理。
+
+未来可以扩展：
+
+- dev / test / prod
+- provider 切换
+- embedding model 切换
+- store backend 切换
+
+因此配置层需要从一开始就独立。
+
+### 8. 最小评估向企业观测扩展
+
+当前只做：
+
+- golden set
+- retrieval eval
+- rag eval
+- bad cases
+
+未来才扩展：
+
+- 日志观测
+- trace
+- 线上反馈回流
+- 回归报告
+
+这意味着现在就要把评估当成独立模块，而不是散落脚本。
+
+---
+
+## 十、项目阶段规划
+
+### Phase 1：先定项目骨架
+
+- [ ] 明确项目名称
+- [ ] 明确最终目录结构
+- [ ] 设计项目级 schemas
+- [ ] 明确服务层划分
+- [ ] 明确 API 边界
+- [ ] 明确前端页面结构
+
+### Phase 2：打通知识接入链路
+
+- [ ] 支持 `.md / .txt / .pdf`
+- [ ] 完成 load / normalize / split
+- [ ] 完成 metadata
+- [ ] 完成 stable ids
+- [ ] 完成文档入库前检查
+
+### Phase 3：打通索引链路
+
+- [ ] 完成 `embed_documents`
+- [ ] 完成 store `upsert`
+- [ ] 完成文档替换与删除的最小能力
+- [ ] 完成单知识库索引构建
+
+### Phase 4：打通检索与生成链路
+
+- [ ] 完成 `embed_query`
+- [ ] 完成基础 retrieval
+- [ ] 完成 context selection
+- [ ] 完成 prompt builder
+- [ ] 接入真实 LLM
+- [ ] 返回 `answer + sources`
+- [ ] 完成 refusal
+
+### Phase 5：补 API
+
+- [ ] 文档管理接口
+- [ ] 检索预览接口
+- [ ] 问答接口
+- [ ] 可选流式问答接口
+- [ ] 评估接口
+
+### Phase 6：补前端工作台
+
+- [ ] 文档面板
+- [ ] chunk 面板
+- [ ] 检索实验面板
+- [ ] 生成结果面板
+- [ ] 评估结果面板
+
+### Phase 7：补最小评估闭环
+
+- [ ] 固定 golden set
+- [ ] retrieval eval
+- [ ] end-to-end rag eval
+- [ ] bad case review
+
+### Phase 8：补项目说明与演进路线
+
+- [ ] README
+- [ ] 运行方式
+- [ ] 评估方式
+- [ ] 当前支持什么
+- [ ] 当前不支持什么
+- [ ] 后续向企业知识库扩展的演进说明
+
+---
+
+## 十一、项目完成标准
+
+项目完成后，至少应该满足：
+
+- 能清楚展示完整 RAG 数据流
+- 能自然体现 `02_llm + 04_rag` 的衔接
+- 能通过前端图形化操作主链路
+- 能通过 API 复用同一套 RAG 内核
+- 能输出稳定的 `answer + sources`
+- 能对无答案问题拒答
+- 能运行最小评估闭环
+- 核心模块能作为未来企业知识库底座复用
+
+---
+
+## 十二、最终判断
+
+这个项目的正确方向不是：
+
+- 为了像企业产品而过早堆复杂度
+
+而是：
+
+- 用当前已经掌握的知识，把固定 RAG 做成一个架构清楚、边界清楚、可视化清楚、未来可扩展的项目
+
+当前版本的正确目标是：
+
+> 做一个轻量实现、企业级演进对齐的综合 RAG 项目。
 
