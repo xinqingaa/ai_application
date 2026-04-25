@@ -16,6 +16,11 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+try:
+    import readline
+except ImportError:
+    readline = None
+
 CURRENT_DIR = Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:
     sys.path.append(str(CURRENT_DIR))
@@ -26,12 +31,12 @@ from llm_service import ProjectLLMService, load_env_if_possible
 HELP_TEXT = """
 可用命令：
 /help                     显示帮助
-/provider <name>          切换 provider，例如 /provider deepseek
-/model <name>             切换 model
+/provider [name]          查看或切换 provider，例如 /provider deepseek
+/model [name]             查看或切换 model
 /system <text>            设置 system prompt
 /json [on|off]            开启或关闭 JSON 模式
-/stream [on|off]          开启或关闭流式输出
-/debug [on|off]           开启或关闭调试日志
+/stream [on|off]          查看或设置流式输出
+/debug [on|off]           查看或设置调试日志
 /temperature <float>      设置 temperature
 /max_tokens <int>         设置 max_tokens
 /prompt <path>            从文件读取 prompt 并立即发送
@@ -65,16 +70,59 @@ class ProjectCLI:
         print(f"- temperature: {state.temperature}")
         print(f"- max_tokens: {state.max_tokens}")
 
-    def _set_toggle(self, field_name: str, value_text: str | None) -> bool:
-        """把 on/off 命令统一映射成 session 上的布尔字段更新。"""
-        current = getattr(self.session, field_name)
-        if value_text is None:
-            new_value = not current
+    def _configure_line_editing(self) -> None:
+        """尽量启用 readline，避免方向键把转义字符写进输入内容。"""
+        if readline is None:
+            return
+        doc = getattr(readline, "__doc__", "") or ""
+        if "libedit" in doc:
+            readline.parse_and_bind("bind ^I rl_complete")
         else:
-            normalized = value_text.strip().lower()
-            new_value = normalized in {"1", "true", "on", "yes"}
-        self.session = self.service.update_session_settings(self.session.session_id, **{field_name: new_value})
-        return new_value
+            readline.parse_and_bind("tab: complete")
+        readline.parse_and_bind("set editing-mode emacs")
+        readline.set_history_length(200)
+
+    def _show_toggle_status(self, command_name: str, field_name: str, label: str) -> None:
+        """显示模式状态，而不是在缺少参数时偷偷切换。"""
+        enabled = bool(getattr(self.session, field_name))
+        print(f"{label}当前为{'开启' if enabled else '关闭'}。")
+        print(f"用法：/{command_name} on|off")
+
+    def _set_toggle(self, command_name: str, field_name: str, label: str, value_text: str | None) -> bool | None:
+        """把 on/off 命令映射成 session 上的布尔字段更新。"""
+        if value_text is None or not value_text.strip():
+            self._show_toggle_status(command_name, field_name, label)
+            return None
+
+        normalized = value_text.strip().lower()
+        truthy = {"1", "true", "on", "yes"}
+        falsy = {"0", "false", "off", "no"}
+        if normalized not in truthy | falsy:
+            print(f"{label}只支持 on 或 off。")
+            print(f"用法：/{command_name} on|off")
+            return None
+
+        enabled = normalized in truthy
+        self.session = self.service.update_session_settings(self.session.session_id, **{field_name: enabled})
+        return enabled
+
+    def _print_provider_options(self) -> None:
+        """输出 provider 的当前值和可选项。"""
+        print(f"当前 provider: {self.session.provider}")
+        print("可选 provider：")
+        for provider in self.service.supported_providers():
+            default_model = self.service.suggested_models(provider)[0]
+            print(f"- {provider} (默认 model: {default_model})")
+        print("用法：/provider <name>")
+
+    def _print_model_options(self) -> None:
+        """输出当前 provider 下推荐的模型候选。"""
+        print(f"当前 provider: {self.session.provider}")
+        print(f"当前 model: {self.session.model}")
+        print("推荐 model：")
+        for model in self.service.suggested_models(self.session.provider):
+            print(f"- {model}")
+        print("用法：/model <name>")
 
     def _send_message(self, text: str) -> None:
         """把普通输入交给服务层，并按流式或非流式两种模式打印结果。"""
@@ -96,7 +144,9 @@ class ProjectCLI:
                     result = event["result"]
                     print(
                         f"[done] total_tokens={result['usage']['total_tokens'] if result['usage'] else 'n/a'} "
-                        f"elapsed_ms={result['elapsed_ms']:.2f} mocked={result['mocked']}"
+                        f"elapsed_ms={result['elapsed_ms']:.2f} mocked={result['mocked']} "
+                        f"finish_reason={result.get('finish_reason')} "
+                        f"stopped_by_length={result.get('stopped_by_length')}"
                     )
                 elif event["type"] == "error":
                     if started:
@@ -112,7 +162,9 @@ class ProjectCLI:
                 if result.usage:
                     print(
                         f"[stats] total_tokens={result.usage.total_tokens} "
-                        f"elapsed_ms={result.elapsed_ms:.2f} from_cache={result.from_cache}"
+                        f"elapsed_ms={result.elapsed_ms:.2f} from_cache={result.from_cache} "
+                        f"finish_reason={result.finish_reason} "
+                        f"stopped_by_length={result.stopped_by_length}"
                     )
             else:
                 print(f"[error] {result.error.category}: {result.error.message}")
@@ -151,15 +203,20 @@ class ProjectCLI:
         # 这组命令只更新当前 session 配置，不直接触发模型调用。
         if command == "/provider":
             if not arg:
-                print("用法：/provider <name>")
+                self._print_provider_options()
                 return True
-            config = self.service.resolve_config(arg.strip(), model_override=None)
+            provider_name = arg.strip().lower()
+            if provider_name not in self.service.supported_providers():
+                print(f"不支持的 provider: {arg.strip()}")
+                self._print_provider_options()
+                return True
+            config = self.service.resolve_config(provider_name, model_override=None)
             self.session = self.service.update_session_settings(self.session.session_id, provider=config.provider, model=config.model)
             print(f"已切换 provider -> {config.provider}, model -> {config.model}")
             return True
         if command == "/model":
             if not arg:
-                print("用法：/model <name>")
+                self._print_model_options()
                 return True
             self.session = self.service.update_session_settings(self.session.session_id, model=arg.strip())
             print(f"已切换 model -> {self.session.model}")
@@ -172,15 +229,27 @@ class ProjectCLI:
             print("已更新 system prompt。")
             return True
         if command == "/json":
-            enabled = self._set_toggle("json_mode", arg)
+            enabled = self._set_toggle("json", "json_mode", "JSON 模式", arg)
+            if enabled is None:
+                return True
             print(f"JSON 模式已{'开启' if enabled else '关闭'}。")
             return True
         if command == "/stream":
-            enabled = self._set_toggle("stream_mode", arg)
+            if not arg or not arg.strip():
+                self._show_toggle_status("stream", "stream_mode", "流式输出")
+                return True
+            enabled = self._set_toggle("stream", "stream_mode", "流式输出", arg)
+            if enabled is None:
+                return True
             print(f"流式输出已{'开启' if enabled else '关闭'}。")
             return True
         if command == "/debug":
-            enabled = self._set_toggle("debug_mode", arg)
+            if not arg or not arg.strip():
+                self._show_toggle_status("debug", "debug_mode", "调试日志")
+                return True
+            enabled = self._set_toggle("debug", "debug_mode", "调试日志", arg)
+            if enabled is None:
+                return True
             print(f"调试日志已{'开启' if enabled else '关闭'}。")
             return True
         if command == "/temperature":
@@ -240,6 +309,7 @@ class ProjectCLI:
 
     def run_interactive(self) -> None:
         """交互式运行，适合真实使用和逐步学习。"""
+        self._configure_line_editing()
         self.print_state_summary()
         print("输入 /help 查看命令。")
         while True:
@@ -298,7 +368,7 @@ def main() -> None:
 
     cli = ProjectCLI()
     if args.debug:
-        cli.session = cli.service.update_session_settings(cli.session.session_id, debug_mode=True)
+        cli.session = cli.service.update_session_settings(cli.session.session_id, debug_mode=True, stream_mode=True)
     if args.demo:
         cli.run_scripted(build_demo_commands())
         return

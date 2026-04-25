@@ -79,8 +79,8 @@ class ProjectSession:
     model: str
     system_prompt: str
     json_mode: bool = False
-    stream_mode: bool = False
-    debug_mode: bool = True
+    stream_mode: bool = True
+    debug_mode: bool = False
     temperature: float = 0.3
     max_tokens: int = 500
     keep_last_messages: int = 12
@@ -106,9 +106,12 @@ class TurnResult:
     reply: str | None
     mocked: bool
     from_cache: bool
+    cache_scope: str
     json_mode: bool
     stream_mode: bool
     elapsed_ms: float
+    finish_reason: str | None
+    stopped_by_length: bool
     usage: UsageStats | None
     cost: CostStats | None
     retries: list[RetryLog]

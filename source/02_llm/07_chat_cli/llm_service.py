@@ -32,7 +32,16 @@ from chat_schemas import (
 BASE_DIR = Path(__file__).resolve().parent
 EXPORT_DIR = BASE_DIR / "exports"
 DEFAULT_SYSTEM_PROMPT = "你是一个严谨、简洁、对开发者友好的 AI 助手。"
-DEFAULT_DEBUG = True
+DEFAULT_STREAM = True
+DEFAULT_DEBUG = False
+DEFAULT_CACHE_SCOPE = "strict_context"
+SUPPORTED_PROVIDERS = ("bailian", "deepseek", "glm", "openai")
+PROVIDER_MODEL_SUGGESTIONS = {
+    "bailian": ["qwen3.5-flash", "qwen-plus", "qwen-turbo"],
+    "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+    "glm": ["glm-4.5-air", "glm-4.5", "glm-4-air"],
+    "openai": ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1"],
+}
 T = TypeVar("T")
 
 
@@ -63,6 +72,12 @@ def _now() -> str:
 def _new_session_id() -> str:
     """生成一个短一些的会话 id，方便 CLI 和导出文件阅读。"""
     return uuid.uuid4().hex[:12]
+
+
+def normalize_provider_name(provider: str | None) -> str:
+    """把 provider 名称收敛到项目支持的集合里。"""
+    provider_name = (provider or os.getenv("DEFAULT_PROVIDER", "bailian")).strip().lower()
+    return provider_name if provider_name in SUPPORTED_PROVIDERS else "bailian"
 
 
 class ProviderConfig:
@@ -188,6 +203,7 @@ class InMemorySessionStore:
                 provider=provider,
                 model=model,
                 system_prompt=system_prompt,
+                stream_mode=DEFAULT_STREAM,
                 debug_mode=DEFAULT_DEBUG,
             )
         return self._store[sid]
@@ -211,7 +227,7 @@ class InMemorySessionStore:
 
 def load_provider_config(provider: str | None = None, model_override: str | None = None) -> ProviderConfig:
     """从环境变量加载 provider 配置，并转成统一 `ProviderConfig`。"""
-    provider_name = (provider or os.getenv("DEFAULT_PROVIDER", "bailian")).strip().lower()
+    provider_name = normalize_provider_name(provider)
     mapping = {
         "openai": {
             "api_key": os.getenv("OPENAI_API_KEY"),
@@ -291,10 +307,12 @@ def stable_cache_key(
     temperature: float,
     max_tokens: int,
     json_mode: bool,
+    cache_scope: str = DEFAULT_CACHE_SCOPE,
 ) -> str:
     """把一次请求的关键入参稳定序列化后生成缓存键。"""
     payload = json.dumps(
         {
+            "cache_scope": cache_scope,
             "provider": provider,
             "model": model,
             "messages": messages,
@@ -456,7 +474,8 @@ def _debug_print_start(
         f"[DEBUG] {mode_name}.start "
         f"provider={config.provider} "
         f"model={config.model} "
-        f"ready={config.is_ready}"
+        f"ready={config.is_ready} "
+        f"cache_scope={DEFAULT_CACHE_SCOPE}"
     )
     print("[DEBUG] request_preview:")
     print(json.dumps(request_preview, ensure_ascii=False, indent=2))
@@ -468,7 +487,20 @@ def _debug_print_cache_hit(config: ProviderConfig, cache_key: str, stream: bool)
         f"[DEBUG] {mode_name}.cache_hit "
         f"provider={config.provider} "
         f"model={config.model} "
+        f"scope={DEFAULT_CACHE_SCOPE} "
         f"cache_key={cache_key[:12]}..."
+    )
+
+
+def _debug_print_cache_miss(config: ProviderConfig, cache_key: str, stream: bool) -> None:
+    mode_name = "stream_chat" if stream else "chat"
+    print(
+        f"[DEBUG] {mode_name}.cache_miss "
+        f"provider={config.provider} "
+        f"model={config.model} "
+        f"scope={DEFAULT_CACHE_SCOPE} "
+        f"cache_key={cache_key[:12]}... "
+        "reason=严格上下文缓存未命中，通常表示消息历史或参数发生变化"
     )
 
 
@@ -513,7 +545,13 @@ def _debug_print_result(result: TurnResult, stream: bool) -> None:
         f"model={result.model} "
         f"mocked={result.mocked} "
         f"from_cache={result.from_cache} "
+        f"cache_scope={result.cache_scope} "
         f"elapsed_ms={result.elapsed_ms:.2f}"
+    )
+    print(
+        "[DEBUG] finish "
+        f"finish_reason={result.finish_reason} "
+        f"stopped_by_length={result.stopped_by_length}"
     )
     if result.usage:
         print(
@@ -570,6 +608,20 @@ class ProjectLLMService:
     def resolve_config(self, provider: str | None = None, model_override: str | None = None) -> ProviderConfig:
         """解析当前应使用的 provider 配置。"""
         return load_provider_config(provider or self.provider_name, model_override=model_override)
+
+    def supported_providers(self) -> list[str]:
+        """返回 CLI 和 API 都可识别的 provider 列表。"""
+        return list(SUPPORTED_PROVIDERS)
+
+    def suggested_models(self, provider: str | None = None) -> list[str]:
+        """返回某个 provider 下适合展示给用户的模型候选。"""
+        provider_name = normalize_provider_name(provider or self.provider_name)
+        config = self.resolve_config(provider_name)
+        suggestions = [config.model]
+        for name in PROVIDER_MODEL_SUGGESTIONS.get(provider_name, []):
+            if name not in suggestions:
+                suggestions.append(name)
+        return suggestions
 
     def get_or_create_session(self, session_id: str | None = None) -> ProjectSession:
         """拿到一个可继续使用的会话对象。"""
@@ -629,6 +681,17 @@ class ProjectLLMService:
             "messages": messages,
             "temperature": session.temperature,
             "max_tokens": session.max_tokens,
+            "cache": {
+                "scope": DEFAULT_CACHE_SCOPE,
+                "basis": [
+                    "provider",
+                    "model",
+                    "messages",
+                    "temperature",
+                    "max_tokens",
+                    "json_mode",
+                ],
+            },
         }
         if session.json_mode:
             payload["json_mode"] = "prompt_json"
@@ -678,7 +741,7 @@ class ProjectLLMService:
             "你可以继续练习 provider 切换、导出会话、查看统计和流式输出。"
         )
 
-    def _real_chat_once(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession) -> tuple[str, UsageStats | None, float]:
+    def _real_chat_once(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession) -> tuple[str, UsageStats | None, float, str | None]:
         """执行一次真实的非流式模型调用。"""
         try:
             from openai import OpenAI
@@ -705,18 +768,25 @@ class ProjectLLMService:
                 completion_tokens=response.usage.completion_tokens,
                 total_tokens=response.usage.total_tokens,
             )
-        return response.choices[0].message.content or "", usage, elapsed_ms
+        finish_reason = response.choices[0].finish_reason if response.choices else None
+        return response.choices[0].message.content or "", usage, elapsed_ms, finish_reason
 
-    def _chat_once(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession, raw_user_text: str) -> tuple[str, UsageStats | None, float, bool]:
+    def _chat_once(
+        self,
+        config: ProviderConfig,
+        messages: list[dict[str, str]],
+        session: ProjectSession,
+        raw_user_text: str,
+    ) -> tuple[str, UsageStats | None, float, bool, str | None]:
         """统一封装“本轮到底走 mock 还是真实模型”的分支。"""
         if not config.is_ready:
             content = self._mock_response_text(raw_user_text, session, config)
             prompt_tokens = estimate_messages_tokens(messages)
             completion_tokens = estimate_tokens(content)
             usage = UsageStats(prompt_tokens, completion_tokens, prompt_tokens + completion_tokens)
-            return content, usage, 120.0, True
-        content, usage, elapsed_ms = self._real_chat_once(config, messages, session)
-        return content, usage, elapsed_ms, False
+            return content, usage, 120.0, True, "stop"
+        content, usage, elapsed_ms, finish_reason = self._real_chat_once(config, messages, session)
+        return content, usage, elapsed_ms, False, finish_reason
 
     def _append_turn(self, session: ProjectSession, user_text: str, assistant_text: str, cost: CostStats | None, usage: UsageStats | None, request_preview: dict[str, Any], billable: bool) -> None:
         """把本轮对话结果和统计写回 session，作为后续轮次的上下文基础。"""
@@ -751,6 +821,7 @@ class ProjectLLMService:
         elapsed_ms: float,
         mocked: bool,
         from_cache: bool,
+        finish_reason: str | None,
         error: ErrorInfo | None = None,
     ) -> TurnResult:
         """统一构造服务层对外返回的结果对象。"""
@@ -762,9 +833,12 @@ class ProjectLLMService:
             reply=reply,
             mocked=mocked,
             from_cache=from_cache,
+            cache_scope=DEFAULT_CACHE_SCOPE,
             json_mode=session.json_mode,
             stream_mode=session.stream_mode,
             elapsed_ms=elapsed_ms,
+            finish_reason=finish_reason,
+            stopped_by_length=finish_reason == "length",
             usage=usage,
             cost=cost,
             retries=retries,
@@ -798,13 +872,22 @@ class ProjectLLMService:
                 elapsed_ms=0.0,
                 mocked=not config.is_ready,
                 from_cache=False,
+                finish_reason=None,
                 error=ErrorInfo("quota_exceeded", False, "用户今日 Token 配额不足", "请降低上下文长度、切换更便宜模型或明日再试。"),
             )
             if session.debug_mode and result.error:
                 _debug_print_error(result.error, request_preview, stream=False)
             return result
 
-        cache_key = stable_cache_key(config.provider, config.model, messages, session.temperature, session.max_tokens, session.json_mode)
+        cache_key = stable_cache_key(
+            config.provider,
+            config.model,
+            messages,
+            session.temperature,
+            session.max_tokens,
+            session.json_mode,
+            DEFAULT_CACHE_SCOPE,
+        )
         cached = self.cache.get(cache_key)
         if cached:
             if session.debug_mode:
@@ -823,13 +906,16 @@ class ProjectLLMService:
                 elapsed_ms=0.0,
                 mocked=cached.mocked,
                 from_cache=True,
+                finish_reason=cached.finish_reason,
                 error=None,
             )
             if session.debug_mode:
                 _debug_print_result(result, stream=False)
             return result
+        if session.debug_mode:
+            _debug_print_cache_miss(config, cache_key, stream=False)
 
-        def _call() -> tuple[str, UsageStats | None, float, bool]:
+        def _call() -> tuple[str, UsageStats | None, float, bool, str | None]:
             return self._chat_once(config, messages, session, user_text)
 
         outcome, retries, error = retry_call(_call, max_retries=2)
@@ -846,6 +932,7 @@ class ProjectLLMService:
                 elapsed_ms=0.0,
                 mocked=not config.is_ready,
                 from_cache=False,
+                finish_reason=None,
                 error=error,
             )
             if session.debug_mode:
@@ -854,7 +941,7 @@ class ProjectLLMService:
                     _debug_print_error(result.error, request_preview, stream=False)
             return result
 
-        reply, usage, elapsed_ms, mocked = outcome
+        reply, usage, elapsed_ms, mocked, finish_reason = outcome
         cost = self._compute_cost(usage, config)
         # 只有真实执行成功后，才把这轮结果作为新的上下文写回。
         self._append_turn(session, user_text, reply, cost, usage, request_preview, billable=True)
@@ -872,13 +959,14 @@ class ProjectLLMService:
             elapsed_ms=elapsed_ms,
             mocked=mocked,
             from_cache=False,
+            finish_reason=finish_reason,
         )
         self.cache.set(cache_key, result)
         if session.debug_mode:
             _debug_print_result(result, stream=False)
         return result
 
-    def _real_stream(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession) -> Iterator[str]:
+    def _real_stream(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession) -> Iterator[tuple[str, str | None]]:
         """执行真实模型的流式调用，并把增量文本逐段吐出。"""
         try:
             from openai import OpenAI
@@ -899,9 +987,9 @@ class ProjectLLMService:
         for chunk in stream:
             if not chunk.choices:
                 continue
+            finish_reason = chunk.choices[0].finish_reason
             delta = chunk.choices[0].delta.content or ""
-            if delta:
-                yield delta
+            yield delta, finish_reason
 
     def stream_chat(self, session_id: str | None, user_text: str, quota_subject: str = "cli-user") -> Iterator[dict[str, Any]]:
         """执行一轮流式聊天，按事件流的形式把过程暴露给上层。"""
@@ -925,7 +1013,15 @@ class ProjectLLMService:
             }
             return
 
-        cache_key = stable_cache_key(config.provider, config.model, messages, session.temperature, session.max_tokens, session.json_mode)
+        cache_key = stable_cache_key(
+            config.provider,
+            config.model,
+            messages,
+            session.temperature,
+            session.max_tokens,
+            session.json_mode,
+            DEFAULT_CACHE_SCOPE,
+        )
         cached = self.cache.get(cache_key)
         if cached and cached.reply:
             if session.debug_mode:
@@ -953,6 +1049,7 @@ class ProjectLLMService:
                 elapsed_ms=0.0,
                 mocked=cached.mocked,
                 from_cache=True,
+                finish_reason=cached.finish_reason,
             )
             yield {
                 "type": "done",
@@ -961,6 +1058,8 @@ class ProjectLLMService:
             if session.debug_mode:
                 _debug_print_result(result, stream=True)
             return
+        if session.debug_mode:
+            _debug_print_cache_miss(config, cache_key, stream=True)
 
         started = time.perf_counter()
         # start 事件告诉调用方：本轮流式输出已经开始，可以准备消费 token。
@@ -974,6 +1073,7 @@ class ProjectLLMService:
 
         collected: list[str] = []
         mocked = not config.is_ready
+        finish_reason = "stop" if mocked else None
         try:
             if mocked:
                 reply_text = self._mock_response_text(user_text, session, config)
@@ -982,9 +1082,12 @@ class ProjectLLMService:
                     collected.append(chunk)
                     yield {"type": "token", "delta": chunk}
             else:
-                for delta in self._real_stream(config, messages, session):
+                for delta, chunk_finish_reason in self._real_stream(config, messages, session):
+                    if chunk_finish_reason is not None:
+                        finish_reason = chunk_finish_reason
                     collected.append(delta)
-                    yield {"type": "token", "delta": delta}
+                    if delta:
+                        yield {"type": "token", "delta": delta}
         except Exception as exc:
             error = classify_exception(exc)
             if session.debug_mode:
@@ -1019,6 +1122,7 @@ class ProjectLLMService:
             elapsed_ms=elapsed_ms,
             mocked=mocked,
             from_cache=False,
+            finish_reason=finish_reason,
         )
         self.cache.set(cache_key, result)
         if session.debug_mode:

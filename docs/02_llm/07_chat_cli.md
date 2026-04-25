@@ -745,8 +745,8 @@ API 层不应该重新发明一套逻辑。
 ```python
 provider = "bailian"
 json_mode = False
-stream_mode = False
-debug_mode = True
+stream_mode = True
+debug_mode = False
 messages = []
 ```
 
@@ -1741,7 +1741,7 @@ JSON 模式成为项目状态之后，会影响：
 
 1. `ensure_system_message()` 和 `trim_messages()` 是消息进入模型前的最后整理
 2. `build_user_message_content()` 会在 JSON 模式下补充输出约束
-3. `stable_cache_key()` 把 provider、model、messages、temperature、max_tokens、json_mode 一起纳入缓存键，避免错误复用
+3. `stable_cache_key()` 把 provider、model、messages、temperature、max_tokens、json_mode 一起纳入缓存键，属于严格上下文缓存，避免错误复用
 
 #### 区块 4：普通聊天主链路
 

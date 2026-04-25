@@ -14,7 +14,7 @@
 - 在 `source/02_llm/07_chat_cli/` 目录下操作
 - 这一章的重点不是“再写一个聊天 demo”，而是把前六章的能力收束成一个真实可运行的项目骨架
 - 没有 API Key 时，CLI 和 API 依然可以在 mock 模式下完整练习，包括多轮会话、流式输出、JSON 模式、统计和导出
-- `debug_mode` 默认开启，也就是 `True`；如不需要调试日志，可手动关闭
+- 默认进入 CLI 时 `stream_mode=True`、`debug_mode=False`；如果使用 `--debug` 启动，则两者都会开启
 - 有真实模型时，依然优先建议百炼 / 通义、DeepSeek、GLM；教学理解继续参考 OpenAI / Claude / Gemini
 - 第七章默认你已经完成前六章，因为它会直接复用消息管理、provider 切换、Prompt 文件、结构化输出、流式输出和可靠性控制这些能力
 
@@ -121,7 +121,7 @@ python llm_service.py
 - 改 `daily_limit_tokens`
 - 改 `cache_ttl_seconds`
 - 改默认 provider
-- 观察返回结构里 `json_mode / stream_mode / from_cache` 的作用
+- 观察返回结构里 `json_mode / stream_mode / from_cache / finish_reason` 的作用
 
 ---
 
@@ -166,17 +166,17 @@ python chat_cli.py
 python chat_cli.py --debug
 ```
 
-`debug_mode` 默认是 `True`。如果你想关闭调试日志，可以进入 CLI 后执行：
+普通启动时默认会开启流式输出、关闭调试日志。如果你想显式打开调试日志，可以进入 CLI 后执行：
 
 ```text
-/debug off
+/debug on
 ```
 
 ### 重点观察
 
 - `/json on` 后普通输出会发生什么变化
-- `/stream on` 后为什么输出会逐段打印
-- 默认开启 `debug_mode` 后为什么会多出 request preview、缓存命中、重试与结果摘要
+- 默认流式模式下为什么输出会逐段打印
+- 开启 `debug_mode` 后为什么会多出 request preview、严格上下文缓存日志、重试与结果摘要
 - `/stats` 里哪些字段能帮助你理解项目运行状态
 - `/export` 导出的 JSON 能否用来回放或排查问题
 
@@ -185,7 +185,7 @@ python chat_cli.py --debug
 - 用 `/provider deepseek` 或 `/provider glm` 切平台
 - 用 `/model xxx` 手动指定模型
 - 用 `/system ...` 改成更严格或更宽松的助手角色
-- 保持默认 debug 开启，连续发送一次相同问题，观察缓存命中日志
+- 先执行 `/debug on`，在完全相同的上下文里连续发送一次相同问题，观察严格上下文缓存命中日志
 - 反复发送几轮消息，观察 `turn_count` 和 `estimated_tokens_current_history`
 
 ---
