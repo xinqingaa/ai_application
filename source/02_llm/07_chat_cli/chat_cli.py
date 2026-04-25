@@ -31,6 +31,7 @@ HELP_TEXT = """
 /system <text>            设置 system prompt
 /json [on|off]            开启或关闭 JSON 模式
 /stream [on|off]          开启或关闭流式输出
+/debug [on|off]           开启或关闭调试日志
 /temperature <float>      设置 temperature
 /max_tokens <int>         设置 max_tokens
 /prompt <path>            从文件读取 prompt 并立即发送
@@ -60,6 +61,7 @@ class ProjectCLI:
         print(f"- model: {state.model}")
         print(f"- json_mode: {state.json_mode}")
         print(f"- stream_mode: {state.stream_mode}")
+        print(f"- debug_mode: {state.debug_mode}")
         print(f"- temperature: {state.temperature}")
         print(f"- max_tokens: {state.max_tokens}")
 
@@ -177,6 +179,10 @@ class ProjectCLI:
             enabled = self._set_toggle("stream_mode", arg)
             print(f"流式输出已{'开启' if enabled else '关闭'}。")
             return True
+        if command == "/debug":
+            enabled = self._set_toggle("debug_mode", arg)
+            print(f"调试日志已{'开启' if enabled else '关闭'}。")
+            return True
         if command == "/temperature":
             if not arg:
                 print("用法：/temperature <float>")
@@ -287,9 +293,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="第七章综合项目 CLI")
     parser.add_argument("--demo", action="store_true", help="运行内置演示命令流")
     parser.add_argument("--script", type=str, default=None, help="从文件读取命令脚本")
+    parser.add_argument("--debug", action="store_true", help="启动时开启会话级调试日志")
     args = parser.parse_args()
 
     cli = ProjectCLI()
+    if args.debug:
+        cli.session = cli.service.update_session_settings(cli.session.session_id, debug_mode=True)
     if args.demo:
         cli.run_scripted(build_demo_commands())
         return

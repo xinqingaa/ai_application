@@ -16,7 +16,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Iterator, TypeVar
 
-from schemas import (
+from chat_schemas import (
     CLIState,
     CostStats,
     ErrorInfo,
@@ -32,6 +32,7 @@ from schemas import (
 BASE_DIR = Path(__file__).resolve().parent
 EXPORT_DIR = BASE_DIR / "exports"
 DEFAULT_SYSTEM_PROMPT = "你是一个严谨、简洁、对开发者友好的 AI 助手。"
+DEFAULT_DEBUG = True
 T = TypeVar("T")
 
 
@@ -187,6 +188,7 @@ class InMemorySessionStore:
                 provider=provider,
                 model=model,
                 system_prompt=system_prompt,
+                debug_mode=DEFAULT_DEBUG,
             )
         return self._store[sid]
 
@@ -441,6 +443,101 @@ def encode_sse_event(event: str, data: Any, event_id: str | None = None) -> str:
     return "\n".join(lines) + "\n\n"
 
 
+def _debug_print_start(
+    config: ProviderConfig,
+    request_preview: dict[str, Any],
+    stream: bool,
+) -> None:
+    mode_name = "stream_chat" if stream else "chat"
+    print(f"\n{'=' * 72}")
+    print(f"[DEBUG] {mode_name} -> 请求开始")
+    print("=" * 72)
+    print(
+        f"[DEBUG] {mode_name}.start "
+        f"provider={config.provider} "
+        f"model={config.model} "
+        f"ready={config.is_ready}"
+    )
+    print("[DEBUG] request_preview:")
+    print(json.dumps(request_preview, ensure_ascii=False, indent=2))
+
+
+def _debug_print_cache_hit(config: ProviderConfig, cache_key: str, stream: bool) -> None:
+    mode_name = "stream_chat" if stream else "chat"
+    print(
+        f"[DEBUG] {mode_name}.cache_hit "
+        f"provider={config.provider} "
+        f"model={config.model} "
+        f"cache_key={cache_key[:12]}..."
+    )
+
+
+def _debug_print_retry(retries: list[RetryLog], stream: bool) -> None:
+    if not retries:
+        return
+    mode_name = "stream_chat" if stream else "chat"
+    print(f"[DEBUG] {mode_name}.retry:")
+    for item in retries:
+        print(
+            f"- attempt={item.attempt} "
+            f"wait_seconds={item.wait_seconds} "
+            f"category={item.category} "
+            f"message={item.message}"
+        )
+
+
+def _debug_print_error(error: ErrorInfo, request_preview: dict[str, Any], stream: bool) -> None:
+    mode_name = "stream_chat" if stream else "chat"
+    print(f"\n{'=' * 72}")
+    print(f"[DEBUG] {mode_name} -> 异常返回")
+    print("=" * 72)
+    print(
+        f"[DEBUG] {mode_name}.error "
+        f"category={error.category} "
+        f"retryable={error.retryable}"
+    )
+    print(f"[DEBUG] error_message: {error.message}")
+    print(f"[DEBUG] user_hint: {error.user_hint}")
+    print("[DEBUG] request_preview:")
+    print(json.dumps(request_preview, ensure_ascii=False, indent=2))
+
+
+def _debug_print_result(result: TurnResult, stream: bool) -> None:
+    mode_name = "stream_chat" if stream else "chat"
+    print(f"\n{'=' * 72}")
+    print(f"[DEBUG] {mode_name} -> 返回结果")
+    print("=" * 72)
+    print(
+        f"[DEBUG] {mode_name}.result "
+        f"provider={result.provider} "
+        f"model={result.model} "
+        f"mocked={result.mocked} "
+        f"from_cache={result.from_cache} "
+        f"elapsed_ms={result.elapsed_ms:.2f}"
+    )
+    if result.usage:
+        print(
+            "[DEBUG] usage "
+            f"prompt_tokens={result.usage.prompt_tokens} "
+            f"completion_tokens={result.usage.completion_tokens} "
+            f"total_tokens={result.usage.total_tokens}"
+        )
+    if result.cost and result.cost.estimated_cost is not None:
+        print(f"[DEBUG] estimated_cost={result.cost.estimated_cost:.6f}")
+    if result.retries:
+        _debug_print_retry(result.retries, stream=stream)
+    print(
+        "[DEBUG] safety "
+        f"blocked={result.safety.blocked} "
+        f"risk_score={result.safety.risk_score} "
+        f"reasons={result.safety.reasons}"
+    )
+    print("[DEBUG] request_preview:")
+    print(json.dumps(result.request_preview or {}, ensure_ascii=False, indent=2))
+    print("[DEBUG] raw_content:")
+    print(result.reply or "")
+
+
 def write_json_export(filename: str, data: Any) -> Path:
     """把导出数据写到 `exports/` 目录。"""
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
@@ -495,6 +592,7 @@ class ProjectLLMService:
             system_prompt=session.system_prompt,
             json_mode=session.json_mode,
             stream_mode=session.stream_mode,
+            debug_mode=session.debug_mode,
             temperature=session.temperature,
             max_tokens=session.max_tokens,
             keep_last_messages=session.keep_last_messages,
@@ -683,10 +781,12 @@ class ProjectLLMService:
         safety = detect_prompt_injection(user_text)
         messages = self._build_messages(session, user_text)
         request_preview = self._preview_request(config, messages, session, stream=False)
+        if session.debug_mode:
+            _debug_print_start(config, request_preview, stream=False)
         estimated_tokens = estimate_messages_tokens(messages) + session.max_tokens
         # 先做额度检查，避免已经超额时还继续占用上游资源。
         if not self.quota.ensure_available(quota_subject, estimated_tokens):
-            return self._build_turn_result(
+            result = self._build_turn_result(
                 session,
                 config,
                 reply=None,
@@ -700,13 +800,18 @@ class ProjectLLMService:
                 from_cache=False,
                 error=ErrorInfo("quota_exceeded", False, "用户今日 Token 配额不足", "请降低上下文长度、切换更便宜模型或明日再试。"),
             )
+            if session.debug_mode and result.error:
+                _debug_print_error(result.error, request_preview, stream=False)
+            return result
 
         cache_key = stable_cache_key(config.provider, config.model, messages, session.temperature, session.max_tokens, session.json_mode)
         cached = self.cache.get(cache_key)
         if cached:
+            if session.debug_mode:
+                _debug_print_cache_hit(config, cache_key, stream=False)
             # 命中缓存也要把 user/assistant 重新落回 session，这样当前会话历史仍然完整。
             self._append_turn(session, user_text, cached.reply or "", cached.cost, cached.usage, cached.request_preview, billable=False)
-            return self._build_turn_result(
+            result = self._build_turn_result(
                 session,
                 config,
                 reply=cached.reply,
@@ -720,13 +825,16 @@ class ProjectLLMService:
                 from_cache=True,
                 error=None,
             )
+            if session.debug_mode:
+                _debug_print_result(result, stream=False)
+            return result
 
         def _call() -> tuple[str, UsageStats | None, float, bool]:
             return self._chat_once(config, messages, session, user_text)
 
         outcome, retries, error = retry_call(_call, max_retries=2)
         if error or not outcome:
-            return self._build_turn_result(
+            result = self._build_turn_result(
                 session,
                 config,
                 reply=None,
@@ -740,6 +848,11 @@ class ProjectLLMService:
                 from_cache=False,
                 error=error,
             )
+            if session.debug_mode:
+                _debug_print_retry(retries, stream=False)
+                if result.error:
+                    _debug_print_error(result.error, request_preview, stream=False)
+            return result
 
         reply, usage, elapsed_ms, mocked = outcome
         cost = self._compute_cost(usage, config)
@@ -761,6 +874,8 @@ class ProjectLLMService:
             from_cache=False,
         )
         self.cache.set(cache_key, result)
+        if session.debug_mode:
+            _debug_print_result(result, stream=False)
         return result
 
     def _real_stream(self, config: ProviderConfig, messages: list[dict[str, str]], session: ProjectSession) -> Iterator[str]:
@@ -795,12 +910,17 @@ class ProjectLLMService:
         safety = detect_prompt_injection(user_text)
         messages = self._build_messages(session, user_text)
         request_preview = self._preview_request(config, messages, session, stream=True)
+        if session.debug_mode:
+            _debug_print_start(config, request_preview, stream=True)
         estimated_tokens = estimate_messages_tokens(messages) + session.max_tokens
 
         if not self.quota.ensure_available(quota_subject, estimated_tokens):
+            error = ErrorInfo("quota_exceeded", False, "用户今日 Token 配额不足", "请缩短上下文或稍后再试。")
+            if session.debug_mode:
+                _debug_print_error(error, request_preview, stream=True)
             yield {
                 "type": "error",
-                "error": asdict(ErrorInfo("quota_exceeded", False, "用户今日 Token 配额不足", "请缩短上下文或稍后再试。")),
+                "error": asdict(error),
                 "request_preview": request_preview,
             }
             return
@@ -808,6 +928,8 @@ class ProjectLLMService:
         cache_key = stable_cache_key(config.provider, config.model, messages, session.temperature, session.max_tokens, session.json_mode)
         cached = self.cache.get(cache_key)
         if cached and cached.reply:
+            if session.debug_mode:
+                _debug_print_cache_hit(config, cache_key, stream=True)
             # 流式模式命中缓存时，仍然用 chunk 形式重放，保持调用方体验一致。
             yield {
                 "type": "start",
@@ -819,24 +941,25 @@ class ProjectLLMService:
             for chunk in split_mock_chunks(cached.reply):
                 yield {"type": "token", "delta": chunk}
             self._append_turn(session, user_text, cached.reply, cached.cost, cached.usage, cached.request_preview, billable=False)
+            result = self._build_turn_result(
+                session,
+                config,
+                reply=cached.reply,
+                usage=cached.usage,
+                cost=cached.cost,
+                retries=[],
+                safety=safety,
+                request_preview=cached.request_preview,
+                elapsed_ms=0.0,
+                mocked=cached.mocked,
+                from_cache=True,
+            )
             yield {
                 "type": "done",
-                "result": asdict(
-                    self._build_turn_result(
-                        session,
-                        config,
-                        reply=cached.reply,
-                        usage=cached.usage,
-                        cost=cached.cost,
-                        retries=[],
-                        safety=safety,
-                        request_preview=cached.request_preview,
-                        elapsed_ms=0.0,
-                        mocked=cached.mocked,
-                        from_cache=True,
-                    )
-                ),
+                "result": asdict(result),
             }
+            if session.debug_mode:
+                _debug_print_result(result, stream=True)
             return
 
         started = time.perf_counter()
@@ -863,9 +986,12 @@ class ProjectLLMService:
                     collected.append(delta)
                     yield {"type": "token", "delta": delta}
         except Exception as exc:
+            error = classify_exception(exc)
+            if session.debug_mode:
+                _debug_print_error(error, request_preview, stream=True)
             yield {
                 "type": "error",
-                "error": asdict(classify_exception(exc)),
+                "error": asdict(error),
                 "request_preview": request_preview,
             }
             return
@@ -895,6 +1021,8 @@ class ProjectLLMService:
             from_cache=False,
         )
         self.cache.set(cache_key, result)
+        if session.debug_mode:
+            _debug_print_result(result, stream=True)
         yield {"type": "done", "result": asdict(result)}
 
     def export_session(self, session_id: str) -> Path:
@@ -925,6 +1053,7 @@ class ProjectLLMService:
             f"model={session.model}",
             f"json_mode={session.json_mode}",
             f"stream_mode={session.stream_mode}",
+            f"debug_mode={session.debug_mode}",
             f"turn_count={session.turn_count}",
             f"accumulated_prompt_tokens={session.accumulated_prompt_tokens}",
             f"accumulated_completion_tokens={session.accumulated_completion_tokens}",
@@ -938,6 +1067,9 @@ class ProjectLLMService:
 
 def _print_turn_result(result: TurnResult) -> None:
     """示例运行时，把结果按 JSON 形式打印出来。"""
+    print(f"\n{'=' * 72}")
+    print(f"运行示例，完整的返回结果")
+    print("=" * 72)
     print(json.dumps(asdict(result), ensure_ascii=False, indent=2))
 
 

@@ -155,7 +155,7 @@
 
 ```text
 第 1 层：数据结构层
-schemas.py
+chat_schemas.py
 负责定义消息、会话、统计、错误、风控、返回结果这些“项目内部通用语言”
 
 第 2 层：服务层
@@ -228,7 +228,7 @@ chat_api.py
 
 如果你想真正把代码吃透，建议按这个顺序读：
 
-1. 先读 `schemas.py`
+1. 先读 `chat_schemas.py`
    先认识项目有哪些核心对象，后面你才能看懂服务层为什么要返回 `TurnResult`，为什么 session 里要累计统计字段
 2. 再读 `llm_service.py` 顶部到 `ProjectLLMService` 初始化
    先把 provider 配置、缓存、quota、session store 这些基础设施看懂
@@ -691,7 +691,7 @@ API 层不应该重新发明一套逻辑。
 
 ```text
 07_chat_cli/
-├── schemas.py
+├── chat_schemas.py
 ├── llm_service.py
 ├── chat_cli.py
 ├── chat_api.py
@@ -700,7 +700,7 @@ API 层不应该重新发明一套逻辑。
 
 你可以这样理解：
 
-- `schemas.py`：项目内部共识的数据结构
+- `chat_schemas.py`：项目内部共识的数据结构
 - `llm_service.py`：项目内核
 - `chat_cli.py`：命令行入口
 - `chat_api.py`：HTTP 入口
@@ -728,6 +728,7 @@ API 层不应该重新发明一套逻辑。
 - `system_prompt`
 - `json_mode`
 - `stream_mode`
+- `debug_mode`
 - `temperature`
 - `max_tokens`
 - `keep_last_messages`
@@ -745,8 +746,11 @@ API 层不应该重新发明一套逻辑。
 provider = "bailian"
 json_mode = False
 stream_mode = False
+debug_mode = True
 messages = []
 ```
+
+这里的 `debug_mode` 默认也可以是 `True`，这样一进入项目就能看到请求预览、缓存命中和异常摘要；如果嫌日志太多，再手动关闭。
 
 短期能用。
 
@@ -938,7 +942,7 @@ AI: 你好
 
 它体现的是 Prompt 资产化进入项目层。
 
-### 6.4 为什么 `/json` 和 `/stream` 用“模式切换”而不是每次都手写参数
+### 6.4 为什么 `/json`、`/stream` 和 `/debug` 用“模式切换”而不是每次都手写参数
 
 因为这更贴近真实项目中的“运行时状态”。
 
@@ -946,6 +950,7 @@ AI: 你好
 
 - `json_mode=True`
 - `stream_mode=True`
+- `debug_mode=True`
 
 但在 CLI 里，更自然的方式是：
 
@@ -977,6 +982,7 @@ AI: 你好
 - model
 - json_mode
 - stream_mode
+- debug_mode
 - turn_count
 - accumulated_total_tokens
 - accumulated_estimated_cost
@@ -1568,7 +1574,7 @@ JSON 模式成为项目状态之后，会影响：
 
 ## 12. 第七章代码结构逐文件解释
 
-### 12.1 `schemas.py`
+### 12.1 `chat_schemas.py`
 
 这个文件的作用不是“为了面向对象而面向对象”。
 
@@ -1896,6 +1902,7 @@ CLI 和 API 不需要知道这些实现细节。
 - `/system`
 - `/json`
 - `/stream`
+- `/debug`
 - `/temperature`
 - `/max_tokens`
 
@@ -1975,6 +1982,7 @@ CLI 和 API 不需要知道这些实现细节。
 - `system_prompt`
 - `json_mode`
 - `stream_mode`
+- `debug_mode`
 - `temperature`
 - `max_tokens`
 
@@ -2325,12 +2333,12 @@ yield start
 | 需求 | 先看哪里 | 再看哪里 | 最后确认什么 |
 |------|---------|---------|-------------|
 | 新增一个 CLI 命令 | `chat_cli.py` 的 `handle_command()` | `llm_service.py` 是否已有对应能力 | 文档帮助文本是否同步 |
-| 新增一个 session 配置项 | `schemas.py` 的 `ProjectSession` / `CLIState` | `update_session_settings()`、API 的 `ChatRequest` | `/stats`、导出、API 是否都能看到 |
+| 新增一个 session 配置项 | `chat_schemas.py` 的 `ProjectSession` / `CLIState` | `update_session_settings()`、API 的 `ChatRequest` | `/stats`、导出、API 是否都能看到 |
 | 新增一个 provider | `.env.example` | `load_provider_config()` / `ProviderConfig` | CLI `/provider` 和真实调用是否兼容 |
 | 修改真实模型请求参数 | `_real_chat_once()` / `_real_stream()` | `_preview_request()` | request_preview 是否仍准确 |
 | 强化 JSON 模式 | `build_user_message_content()` | `_preview_request()` / `_real_chat_once()` | 普通模式是否未受影响 |
 | 增加统计字段 | `TurnResult` / `ProjectSession` | `_append_turn()` / `_build_turn_result()` | CLI、API、导出是否一致 |
-| 修改导出结构 | `export_session()` | `schemas.py` | 历史导出兼容性是否可接受 |
+| 修改导出结构 | `export_session()` | `chat_schemas.py` | 历史导出兼容性是否可接受 |
 | 增强安全检查 | `detect_prompt_injection()` | `SafetyAssessment` / `TurnResult` | CLI/API 是否还能看到风险结果 |
 | 接数据库持久化 | `InMemorySessionStore` | `get_or_create_session()` / `clear_session()` | 现有 session 行为是否保持一致 |
 | 接前端页面 | `chat_api.py` | `build_sse_stream()` / `session_snapshot()` | 普通接口和流式接口契约是否清晰 |
@@ -2351,7 +2359,7 @@ yield start
 
 - `chat_cli.py` 里的 `_send_message()`
 - `llm_service.py` 里的 `chat()`
-- `schemas.py` 里的 `TurnResult`
+- `chat_schemas.py` 里的 `TurnResult`
 
 这组最适合回答：
 

@@ -40,6 +40,7 @@ class ChatRequest(BaseModel):
     system_prompt: str | None = Field(default=None)
     json_mode: bool | None = Field(default=None)
     stream_mode: bool | None = Field(default=None)
+    debug_mode: bool | None = Field(default=None)
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_tokens: int | None = Field(default=None, ge=1, le=4096)
 
@@ -72,6 +73,8 @@ def apply_request_settings(request: ChatRequest) -> str:
         updates["json_mode"] = request.json_mode
     if request.stream_mode is not None:
         updates["stream_mode"] = request.stream_mode
+    if request.debug_mode is not None:
+        updates["debug_mode"] = request.debug_mode
     if request.temperature is not None:
         updates["temperature"] = request.temperature
     if request.max_tokens is not None:

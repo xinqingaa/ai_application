@@ -1,5 +1,5 @@
 """
-schemas.py
+chat_schemas.py  第 1 层：数据结构层
 第七章综合项目的数据结构：消息、会话、使用量、成本、风控、命令状态
 """
 
@@ -80,6 +80,7 @@ class ProjectSession:
     system_prompt: str
     json_mode: bool = False
     stream_mode: bool = False
+    debug_mode: bool = True
     temperature: float = 0.3
     max_tokens: int = 500
     keep_last_messages: int = 12
@@ -127,6 +128,7 @@ class CLIState:
     system_prompt: str
     json_mode: bool
     stream_mode: bool
+    debug_mode: bool
     temperature: float
     max_tokens: int
     keep_last_messages: int
