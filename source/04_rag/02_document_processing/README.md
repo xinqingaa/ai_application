@@ -74,6 +74,20 @@ cd source/04_rag/02_document_processing
 python -m pip install -r requirements.txt
 ```
 
+这里的 `requirements.txt` 就是在安装本章依赖。
+
+当前这个文件里声明的是：
+
+```text
+pypdf>=6,<7
+```
+
+因此：
+
+- `python -m pip install -r requirements.txt` 会把 `pypdf` 一起安装
+- 不需要再单独执行一次 `python -m pip install pypdf`
+- 如果编辑器仍然提示 `from pypdf import PdfReader` 无法解析，通常是解释器没有切到你安装依赖的那个 Python 环境
+
 ### 3. 当前命令
 
 ```bash
@@ -102,6 +116,45 @@ python 01_discover_and_load.py
 
 ---
 
+## 主链路怎么跑
+
+第二章最核心的代码流转不需要额外脚本，直接看 [document_processing.py](./document_processing.py) 里的函数链路即可：
+
+```text
+path
+-> inspect_document_candidate()
+-> discover_documents()
+-> load_document_record()
+-> split_document()
+-> prepare_chunks()
+-> SourceChunk[]
+-> run_document_pipeline()
+```
+
+你可以配合现有脚本按这个顺序看：
+
+- `01_discover_and_load.py`
+  观察 `inspect_document_candidate() -> discover_documents() -> load_document_record()`
+- `02_split_and_inspect.py`
+  观察 `load_document() -> split_text()`
+- `03_build_chunks.py`
+  观察 `load_and_prepare_chunks() -> prepare_chunks()`
+- `05_document_pipeline.py`
+  观察 `run_document_pipeline()` 如何把整条链路收束成总结果
+
+### 1. 为什么这里要区分 `ChunkDraft` 和 `SourceChunk`
+
+这里故意把切分结果和最终输出拆成两层：
+
+- `ChunkDraft`
+  只关心切分结果、字符范围和局部 metadata
+- `SourceChunk`
+  再补齐 `document_id / chunk_id / base metadata`
+
+这样更容易把“切分过程”和“标准输出接口”区分开。
+
+---
+
 ## 先怎么读代码
 
 ### 1. 第一遍只看对象
@@ -122,6 +175,7 @@ python 01_discover_and_load.py
 - 系统里有哪些最小运行时对象
 - 每个对象分别描述哪一层状态
 - 为什么第二章不是直接返回一个字符串列表
+- 为什么单文档处理和目录级 pipeline 是两个不同观察视角
 
 ### 2. 第二遍只看主流程
 

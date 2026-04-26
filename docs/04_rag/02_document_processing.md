@@ -621,6 +621,23 @@ discover -> load -> split -> enrich metadata -> assign ids -> output SourceChunk
 - 让回归测试可以直接锁定总结果
 - 让后面章节不必重新拼一遍“文档如何进入系统”
 
+如果你想看“单个文件到底按什么顺序变成 `SourceChunk[]`”，直接看 `document_processing.py` 里这条函数链路即可：
+
+```text
+inspect_document_candidate()
+-> discover_documents()
+-> load_document_record()
+-> split_document()
+-> prepare_chunks()
+-> SourceChunk[]
+-> run_document_pipeline()
+```
+
+也就是说：
+
+- 前半段更适合理解单文档的流转过程
+- `run_document_pipeline()` 更适合理解目录级批处理和总结果收束
+
 ---
 
 ## 5. 数据生命周期与知识库治理的最小落点 📌
@@ -808,6 +825,14 @@ python 05_document_pipeline.py
 python -m unittest discover -s tests
 ```
 
+这里的 `python -m pip install -r requirements.txt` 安装的是本章运行依赖；当前 `requirements.txt` 里声明的就是 `pypdf>=6,<7`。
+
+也就是说：
+
+- 文档里反复写 `python -m pip install -r requirements.txt`，本质上就是在安装 `pypdf`
+- 不需要再额外执行一遍 `python -m pip install pypdf`
+- 如果 `from pypdf import PdfReader` 仍然报“无法解析导入”，通常不是文档没写清楚，而是编辑器没切到安装依赖的 Python 解释器
+
 ### 6.5 先跑哪个
 
 建议先跑：
@@ -830,6 +855,14 @@ python 01_discover_and_load.py
 
 这个脚本会把文件发现和 loader 结果直接打印出来。
 
+它对应的主链路前半段是：
+
+```text
+inspect_document_candidate()
+-> discover_documents()
+-> load_document_record()
+```
+
 重点观察：
 
 - `faq.txt`、`product_overview.md` 和 `course_policy.pdf` 为什么会被接受
@@ -851,6 +884,13 @@ python 01_discover_and_load.py
 
 ```text
 统一文本 -> TextChunk[]
+```
+
+对应到代码里，就是：
+
+```text
+load_document()
+-> split_text()
 ```
 
 重点观察：
@@ -878,6 +918,13 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 
 ```text
 path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
+```
+
+对应到代码里，重点是：
+
+```text
+load_and_prepare_chunks()
+-> prepare_chunks()
 ```
 
 重点观察：
@@ -914,6 +961,12 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 - [05_document_pipeline.py](../../source/04_rag/02_document_processing/05_document_pipeline.py)
 
 这一节是把整个第二章从分散步骤收束成一个可观察结果。
+
+它直接对应目录级总入口：
+
+```text
+run_document_pipeline()
+```
 
 重点观察：
 
