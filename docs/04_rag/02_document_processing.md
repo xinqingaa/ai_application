@@ -927,6 +927,69 @@ load_and_prepare_chunks()
 -> prepare_chunks()
 ```
 
+如果你现在看这段代码容易晕，先不要直接扎进实现细节。
+
+这里最重要的是先建立一个判断：
+
+> `03_build_chunks.py` 不是在演示“怎么切文本”，而是在演示“怎么把切分结果收束成标准 `SourceChunk[]`”。
+
+### 6.8.1 先记住这 4 个步骤
+
+先把 `prepare_chunks()` 理解成固定 4 步：
+
+```text
+1. 先生成 document_id
+2. 再生成 base metadata
+3. 再执行 split_document() 得到 ChunkDraft[]
+4. 最后把每个 ChunkDraft 变成 SourceChunk
+```
+
+这 4 步分别解决：
+
+- “这是哪一篇文档”
+- “这篇文档有哪些公共字段”
+- “这篇文档具体怎么切”
+- “后续系统统一消费什么格式”
+
+### 6.8.2 为什么不直接 `text -> SourceChunk[]`
+
+这里故意拆成两层，不是为了把代码写复杂，而是为了把职责拆清楚：
+
+- `split_document()`
+  只管“怎么切”
+- `prepare_chunks()`
+  只管“切完以后怎么补齐标准身份和 metadata”
+
+中间多出的 `ChunkDraft`，就是这两层之间的过渡对象。
+
+这样拆开以后，你调试时会清楚很多：
+
+- 如果 chunk 边界不对，就看 `split_document()`
+- 如果 `header_path / page_count / char_start` 不对，就看 metadata
+- 如果更新、删除、upsert 对不上，就看 `document_id / chunk_id`
+
+### 6.8.3 推荐阅读顺序
+
+如果你想把这段代码真正看懂，建议按下面顺序看，而不是先看脚本打印：
+
+1. `load_and_prepare_chunks()`
+   看单文档入口
+2. `prepare_chunks()`
+   看主收束函数
+3. `split_document()`
+   看切分阶段怎样产出 `ChunkDraft[]`
+4. `03_build_chunks.py`
+   回来看它为什么要打印这些字段
+
+### 6.8.4 你真正应该带着什么问题去看
+
+这一节最值得带着 4 个问题去看：
+
+1. 为什么这里要先有 `ChunkDraft`，再有 `SourceChunk`
+2. 哪些字段属于整篇文档，哪些字段属于单个 chunk
+3. 为什么 `document_id` 和 `chunk_id` 都需要存在
+4. 为什么这里打印的不是“回答效果”，而是“输入层结构是否稳定”
+
 重点观察：
 
 - `document_id`

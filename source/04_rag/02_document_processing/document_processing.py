@@ -473,6 +473,8 @@ def split_document(path: Path, text: str, config: SplitterConfig) -> list[ChunkD
     """
 
     if detect_file_type(path) != ".md":
+        # 普通文本和 PDF 在这一层没有额外结构信息，
+        # 直接把 `split_text()` 的结果包装成 `ChunkDraft` 即可。
         return [
             ChunkDraft(
                 content=chunk.content,
@@ -483,6 +485,9 @@ def split_document(path: Path, text: str, config: SplitterConfig) -> list[ChunkD
             for chunk in split_text(text, config)
         ]
 
+    # Markdown 先按标题切成 section，再在每个 section 内继续切 chunk。
+    # 这样做的原因是：标题本身就是文档结构，应该进入 metadata，
+    # 让后续检索、引用和调试能够知道“这个 chunk 来自哪个标题层级”。
     drafts: list[ChunkDraft] = []
     for section in split_markdown_by_headers(text):
         section_chunks = split_text(section.content, config)
@@ -605,12 +610,26 @@ def prepare_chunks(
         已补齐稳定 ID 和 metadata 的标准 chunk 列表。
     """
 
+    # 第 1 步：先给整篇文档生成稳定的 document_id。
+    # 这里故意基于稳定路径生成，而不是基于 chunk 内容生成，
+    # 因为更新、删除、重建索引时，我们首先要知道“这是哪一篇文档”。
     resolved_path = path.resolve()
     document_id = stable_document_id(resolved_path.as_posix())
+
+    # 第 2 步：构建文档级 metadata。
+    # 这些字段对该文档下的所有 chunk 都成立，所以只生成一次。
     base_metadata = build_base_metadata(path, text, extra_metadata=document_metadata)
     chunks: list[SourceChunk] = []
 
-    for index, draft in enumerate(split_document(path, text, config)):
+    # 第 3 步：先切出中间态 `ChunkDraft[]`。
+    # 这里不急着生成最终 chunk，是因为切分阶段和标准化输出阶段职责不同：
+    # - `split_document()` 负责“怎么切”
+    # - `prepare_chunks()` 负责“切完以后怎么补齐身份和 metadata”
+    drafts = split_document(path, text, config)
+
+    # 第 4 步：把每个 `ChunkDraft` 收束成标准 `SourceChunk`。
+    # 到这里才统一补齐 chunk_id、document_id 和 chunk metadata。
+    for index, draft in enumerate(drafts):
         chunks.append(
             SourceChunk(
                 chunk_id=stable_chunk_id(document_id, index, draft.content),
@@ -630,7 +649,15 @@ def prepare_chunks(
 
 
 def load_and_prepare_chunks(path: Path, config: SplitterConfig) -> list[SourceChunk]:
-    """执行单文档主链路中的 `load -> prepare` 两步。"""
+    """执行单文档主链路中的 `load -> prepare` 两步。
+
+    这通常是第二章里最值得盯住的一条单文档链路：
+
+    path
+    -> load_document_record()
+    -> prepare_chunks()
+    -> SourceChunk[]
+    """
 
     document = load_document_record(path)
     return prepare_chunks(path, document.content, config, document.metadata)
@@ -645,6 +672,8 @@ def build_chunk_corpus(
     splitter_config = config or SplitterConfig()
     chunks: list[SourceChunk] = []
     for path in discover_documents(data_dir):
+        # 目录级批处理并不直接切文本，
+        # 它只是把“对单篇文档执行 load_and_prepare_chunks()”重复应用到全部文档。
         chunks.extend(load_and_prepare_chunks(path, splitter_config))
     return chunks
 

@@ -278,6 +278,90 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 ```
 
+如果你现在直接看代码会晕，最重要的是先把下面这件事想清楚：
+
+> 这一节不是“把文本切开”这么简单，而是在把“切分结果”收束成“后续章节可稳定消费的标准对象”。
+
+### 第 3 步到底在做什么
+
+先不要盯着代码细节，先记住 `03_build_chunks.py` 背后的 4 个固定步骤：
+
+```text
+1. 先读取文档全文
+2. 再切出中间结果 ChunkDraft[]
+3. 再补齐 metadata 和 stable id
+4. 最后收束成标准 SourceChunk[]
+```
+
+也可以写成：
+
+```text
+load
+-> split_document()
+-> ChunkDraft[]
+-> prepare_chunks()
+-> SourceChunk[]
+```
+
+### 为什么不直接 `text -> SourceChunk[]`
+
+这是很多人第一次看这里会困惑的点。
+
+原因是这里其实有两种不同职责：
+
+- `split_document()`
+  只负责回答“这篇文档应该怎么切”
+- `prepare_chunks()`
+  负责回答“切完以后，怎样补齐标准身份和 metadata”
+
+也就是说，第二章故意把它拆成两层：
+
+- `ChunkDraft`
+  是“切分阶段”的结果
+- `SourceChunk`
+  是“标准输出阶段”的结果
+
+这样拆开以后，你调试时就能更容易判断问题出在哪一层：
+
+- 是 chunk 边界切错了
+- 还是 metadata 没补全
+- 还是 stable id 生成方式不稳定
+
+### 你应该按什么顺序看代码
+
+建议不要一上来就看 `03_build_chunks.py` 里的打印逻辑，而是按这个顺序读：
+
+1. 先看 `load_and_prepare_chunks()`
+   这是单文档入口
+2. 再看 `prepare_chunks()`
+   这是真正把中间结果收束成标准 chunk 的核心函数
+3. 再看 `split_document()`
+   看它到底怎样产出 `ChunkDraft[]`
+4. 最后回来看 `03_build_chunks.py`
+   这时你再看打印内容，就会知道它为什么展示这些字段
+
+### 看 `prepare_chunks()` 时只抓 4 个动作
+
+你可以把 `prepare_chunks()` 简化成下面这 4 步：
+
+```text
+1. 先生成 document_id
+2. 再生成 base metadata
+3. 再执行 split_document() 得到 ChunkDraft[]
+4. 最后把每个 ChunkDraft 变成 SourceChunk
+```
+
+这 4 步分别在解决不同问题：
+
+- `document_id`
+  解决“这是谁的文档”
+- `base metadata`
+  解决“这份文档的公共信息是什么”
+- `ChunkDraft[]`
+  解决“文本具体怎么切”
+- `SourceChunk`
+  解决“后续系统统一消费什么格式”
+
 重点观察：
 
 - `document_id`
