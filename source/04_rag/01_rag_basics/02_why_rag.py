@@ -2,6 +2,9 @@ from rag_basics import answer_question, answer_without_rag
 
 
 def print_case(question: str) -> None:
+    # 把同一个问题分别走两条路径打印出来：
+    # 1. 不走 RAG 的基线回答
+    # 2. 本章带路由判断的回答链路
     result = answer_question(question)
 
     print("=" * 72)
@@ -14,6 +17,7 @@ def print_case(question: str) -> None:
 
 
 def main() -> None:
+    # 这三个问题故意覆盖第一章最核心的三条路线。
     print("示例 1：课程私有知识")
     print_case("Python 系统课可以退费吗？")
 
@@ -24,6 +28,10 @@ def main() -> None:
     print()
     print("示例 3：结构化系统查询")
     print_case("订单 1024 的状态是什么？")
+
+    print()
+    print("示例 4：缺乏上下文")
+    print_case("本项目里用了什么python库？")
 
 
 if __name__ == "__main__":

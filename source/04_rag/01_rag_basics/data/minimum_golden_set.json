@@ -45,7 +45,7 @@
         "expected_route": "固定 2-step RAG",
         "expected_sources": ["refund_policy.md"],
         "expected_used_rag": true,
-        "expected_answer_points": ["[S1]", "7 天内", "全额退款"]
+        "expected_answer_points": ["[来源1]", "7 天内", "全额退款"]
       }
     },
     "tags": ["private_knowledge", "rag", "exact_match"]

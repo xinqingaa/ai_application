@@ -56,7 +56,7 @@ class RagBasicsTests(unittest.TestCase):
         result = answer_with_rag("如何申请退款？")
         self.assertTrue(result.used_rag)
         self.assertIn("refund_policy.md", result.sources)
-        self.assertIn("[S1]", result.answer)
+        self.assertIn("[来源1]", result.answer)
 
     def test_answer_without_rag_uses_generic_refusal(self) -> None:
         answer = answer_without_rag("太阳系有几颗行星？")

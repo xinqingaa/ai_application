@@ -7,12 +7,18 @@ from rag_basics import (
 
 
 def _as_strings(value: object) -> tuple[str, ...]:
+    """把 JSON 里的可选列表字段统一转成 tuple[str, ...]，方便后续检查。"""
+
     if not isinstance(value, list):
         return ()
     return tuple(str(item) for item in value)
 
 
 def main() -> None:
+    # 评估脚本先读取课程共享 JSON，再拿第一章预期和真实运行结果做对比。
+    # 这里和 03_rag_pipeline.py 不同：
+    # - 03_rag_pipeline.py 的输入来自当前命令行问题
+    # - 01_minimum_eval.py 的输入来自 JSON 里逐条写好的 case["question"]
     cases = load_minimum_golden_set()
     passed = 0
 
@@ -21,6 +27,10 @@ def main() -> None:
 
     for case in cases:
         question = str(case["question"])
+        # 注意：这里不是“根据当前问题去匹配最像的 JSON case”。
+        # 而是评估脚本主动遍历 JSON，每次把某一条 case 的 question
+        # 直接送进 answer_question()。
+        # 同一条 JSON 样本可以服务多个章节，这里只取第一章自己的预期。
         expectation = get_chapter_expectation(case, CHAPTER_KEY)
         expected_route = str(expectation["expected_route"])
         expected_used_rag = bool(expectation["expected_used_rag"])
@@ -29,6 +39,11 @@ def main() -> None:
         known_gap = expectation.get("known_gap")
 
         result = answer_question(question)
+        # 第一章不做模糊打分，只检查几个具体信号：
+        # route 是否正确、是否真的用了 RAG、sources 是否保留、
+        # answer 是否包含本章要求出现的关键信息。
+        # 例如 [来源1] 这种文本，不是固定数据库 ID，
+        # 而是本次回答里用于指向“第 1 条检索结果”的临时来源标签。
         missing_sources = [source for source in expected_sources if source not in result.sources]
         missing_answer_points = [
             point for point in expected_answer_points if point not in result.answer
@@ -44,7 +59,7 @@ def main() -> None:
         print("=" * 72)
         print(f"case_id: {case['case_id']}")
         print(f"question: {question}")
-        print(f"route: {result.route} | expected: {expected_route}")
+        print(f"route: {result.route} | reason: {result.reason} | expected: {expected_route}")
         print(f"used_rag: {result.used_rag} | expected: {expected_used_rag}")
         print(f"sources: {list(result.sources)} | expected subset: {list(expected_sources)}")
         if expected_answer_points:
