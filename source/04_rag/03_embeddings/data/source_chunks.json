@@ -27,6 +27,12 @@
     "chunk_id": "support:0",
     "document_id": "support",
     "source": "data/support_hours.md",
-    "content": "课程助教在工作日提供答疑支持，周末只处理紧急问题。"
+    "content": "课程助教1在工作日提供答疑支持，周末只处理紧急问题。"
+  },
+   {
+    "chunk_id": "support:1",
+    "document_id": "support_1",
+    "source": "data/support_hours1.md",
+    "content": "课程助教2在周末提供答疑支持，工作日只处理紧急问题。"
   }
 ]

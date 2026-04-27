@@ -113,6 +113,61 @@ python 01_embed_chunks.py
 
 ## 先怎么读代码
 
+### 0. 关键代码流转总览
+
+本章的核心闭环可以按下面这条线理解：
+
+```text
+data/source_chunks.json
+  -> load_demo_source_chunk_specs()
+  -> demo_source_chunks()
+  -> SourceChunk
+  -> embed_chunks()
+  -> provider.embed_documents()
+  -> EmbeddedChunk
+  -> provider.embed_query(question)
+  -> score_query_against_chunks()
+  -> ensure_same_embedding_space()
+  -> cosine_similarity()
+  -> sorted ranked chunks
+```
+
+关键点：
+
+- `SourceChunk` 是第二章已经稳定下来的文档块资产，保留 `chunk_id / document_id / content / metadata`
+- `embed_chunks()` 只负责把 chunk 正文走 document path 变成向量，并把 provider 身份写入 `EmbeddedChunk`
+- `EmbeddedChunk` 不替代原始 chunk，而是在原始 chunk 外面追加 `vector / provider_name / model_name / dimensions`
+- 查询进来以后，`score_query_against_chunks()` 会先调用 `provider.embed_query(question)` 生成 query vector
+- 真正计算相似度之前，会用 `ensure_same_embedding_space()` 确认 query 和 document vectors 来自同一个 provider/model/dimensions
+- 最后才调用 `cosine_similarity()` 打分，并按分数从高到低返回排序结果
+
+五个可运行脚本的流转关系：
+
+```text
+01_embed_chunks.py
+  只看 SourceChunk -> EmbeddedChunk，确认 metadata 被继承、embedding 字段被新增
+
+02_compare_similarity.py
+  在 01 的基础上加入 query vector，观察 query 如何和 chunk vectors 排序
+
+03_query_vs_document.py
+  单独拆开 query path / document path，观察两条路径不同但仍可比较
+
+04_real_embeddings.py
+  把 toy provider 换成 OpenAI-compatible provider，观察真实或 mock endpoint 的响应形态
+
+05_semantic_search.py
+  用同一个 known_gap 问题对比 local keyword 和 semantic provider 的 top-1 差异
+```
+
+公共文件 `embedding_basics.py` 的职责拆分：
+
+- 数据层：`load_demo_source_chunk_specs()`、`load_search_cases()`、`demo_chunk_metadata()`、`demo_source_chunks()`
+- provider 契约层：`EmbeddingProvider`、`LocalKeywordEmbeddingProvider`、`OpenAICompatibleEmbeddingProvider`
+- mock 桥接层：`MockSemanticOpenAIClient`、`_MockSemanticEmbeddingsResource`、`build_mock_semantic_vector()`
+- 向量化与校验层：`embed_chunks()`、`ensure_vector_dimensions()`、`ensure_same_embedding_space()`
+- 排序层：`score_query_against_chunks()`、`cosine_similarity()`、`normalize()`
+
 ### 1. 第一遍只看对象
 
 先打开 [embedding_basics.py](./embedding_basics.py)，只看这些对象：
