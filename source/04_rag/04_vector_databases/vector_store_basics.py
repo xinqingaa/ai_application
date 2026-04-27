@@ -57,6 +57,8 @@ class VectorStoreConfig:
 
 @dataclass(frozen=True)
 class EmbeddingSpace:
+    # The store treats provider/model/dimensions as one inseparable identity.
+    # Once a store has written one space, later writes and queries must stay in it.
     provider_name: str
     model_name: str
     dimensions: int
@@ -277,6 +279,8 @@ def embed_chunks(
     if not chunks:
         return []
 
+    # The provider may be remote or wrapped by another library, so we check both
+    # vector count and dimensions here before anything enters the storage layer.
     vectors = provider.embed_documents([chunk.content for chunk in chunks])
     if len(vectors) != len(chunks):
         raise ValueError("Embedding provider returned an unexpected vector count.")
@@ -324,6 +328,7 @@ class PersistentVectorStore:
         records = self._load_records()
         stored_space = self._infer_record_embedding_space(records)
         if stored_space is not None and incoming_space is not None:
+            # A single store intentionally holds one embedding space only.
             ensure_matching_embedding_space(
                 actual=incoming_space,
                 expected=stored_space,
@@ -341,6 +346,8 @@ class PersistentVectorStore:
             return 0
 
         target_document_ids = {chunk.chunk.document_id for chunk in validated_chunks}
+        # replace_document is document-scoped, not chunk-scoped: remove every old
+        # chunk that belongs to the same document before inserting the new version.
         remaining_records = {
             chunk_id: record
             for chunk_id, record in self._load_records().items()
@@ -380,6 +387,8 @@ class PersistentVectorStore:
 
         ensure_vector_dimensions(query_vector, provider.dimensions, context="query vector")
         embedded_chunks = self.load_chunks()
+        # Query-time validation matters as much as write-time validation. Searching
+        # across mixed spaces produces plausible-looking but meaningless scores.
         for chunk in embedded_chunks:
             ensure_same_embedding_space(chunk, provider)
 
@@ -448,6 +457,8 @@ class PersistentVectorStore:
 
         store_space = self._infer_record_embedding_space(records)
         if store_space is not None:
+            # Persist the store-level space explicitly so the file itself reveals
+            # which provider/model/dimensions the records belong to.
             payload["embedding_space"] = {
                 "provider_name": store_space.provider_name,
                 "model_name": store_space.model_name,
@@ -498,6 +509,8 @@ class PersistentVectorStore:
 
     def _serialize_embedded_chunk(self, chunk: EmbeddedChunk) -> dict[str, object]:
         self._validate_embedded_chunk(chunk)
+        # We store both vector data and the original chunk identity so later
+        # retrieval can return standard chunks instead of detached scores.
         return {
             "chunk": {
                 "chunk_id": chunk.chunk.chunk_id,

@@ -111,11 +111,13 @@ class LocalKeywordEmbeddingProvider:
         normalized = " ".join(text.lower().split())
         vector = [0.0] * self.dimensions
 
+        # 先写入共享概念信号，让 query/document 至少共享一套可比较的语义基底。
         for index, (_, keywords) in enumerate(CONCEPT_GROUPS):
             hits = sum(1 for keyword in keywords if keyword in normalized)
             vector[index] = float(hits)
 
         hash_offset = len(CONCEPT_GROUPS)
+        # 概念组外的 token 不直接丢弃，而是落到 hash buckets 保留最小分布能力。
         for token in TOKEN_PATTERN.findall(normalized):
             if token in STOPWORDS:
                 continue
@@ -124,6 +126,7 @@ class LocalKeywordEmbeddingProvider:
 
         query_mode_index = self.dimensions - 2
         document_mode_index = self.dimensions - 1
+        # 尾部两个 bucket 刻意把 query/document 角色差异显式写进向量。
         if kind == "query":
             vector[query_mode_index] = 0.30
         else:
@@ -329,6 +332,7 @@ def build_openai_provider_or_mock(
     if provider.is_ready:
         return provider, "real"
 
+    # 没有真实环境变量时仍然回退到 mock，方便继续观察第三章的契约和排序闭环。
     return (
         OpenAICompatibleEmbeddingProvider(
             client=MockSemanticOpenAIClient(),
@@ -377,6 +381,7 @@ def ensure_same_embedding_space(
     chunk: EmbeddedChunk,
     provider: EmbeddingProvider,
 ) -> None:
+    # 这里校验的是 provider/model/dimensions 身份，而不只是“向量长度对不对”。
     if chunk.provider_name != provider.provider_name or chunk.model_name != provider.model_name:
         raise ValueError("Query and document vectors must come from the same provider/model.")
 
@@ -397,6 +402,7 @@ def embed_chunks(
     if not chunks:
         return []
 
+    # 先统一走 document path，把稳定 chunk 资产收束成可比较的 document vectors。
     vectors = provider.embed_documents([chunk.content for chunk in chunks])
     if len(vectors) != len(chunks):
         raise ValueError("Embedding provider returned an unexpected vector count.")
@@ -446,6 +452,7 @@ def score_query_against_chunks(
     scored: list[tuple[EmbeddedChunk, float]] = []
     for chunk in chunks:
         ensure_same_embedding_space(chunk, provider)
+        # 到这里才真正进入 query vs document 的比较阶段。
         scored.append((chunk, cosine_similarity(query_vector, chunk.vector)))
     return sorted(scored, key=lambda item: item[1], reverse=True)
 

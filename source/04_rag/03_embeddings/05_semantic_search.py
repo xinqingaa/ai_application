@@ -12,6 +12,7 @@ from embedding_basics import (
 
 def print_top_result(label: str, question: str, provider, embedded_chunks) -> None:
     ranked = score_query_against_chunks(question, embedded_chunks, provider)
+    # 这里只取 top-1，是为了把第三章的 known gap / semantic 修正现象直接暴露出来。
     top_chunk, score = ranked[0]
     print(f"{label}: top_chunk={top_chunk.chunk.chunk_id} score={score:.3f}")
     print(f"  source={top_chunk.chunk.metadata['filename']}")

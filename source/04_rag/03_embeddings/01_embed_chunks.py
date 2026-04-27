@@ -12,6 +12,7 @@ def main() -> None:
     print(f"Embedded {len(embedded_chunks)} chunk(s).")
 
     for embedded_chunk in embedded_chunks:
+        # 这里故意并排打印“继承字段”和“新增字段”，帮助对照 SourceChunk -> EmbeddedChunk。
         preview = ", ".join(f"{value:.3f}" for value in embedded_chunk.vector[:6])
         print(f"- chunk_id={embedded_chunk.chunk.chunk_id}")
         print(f"  document_id={embedded_chunk.chunk.document_id}")

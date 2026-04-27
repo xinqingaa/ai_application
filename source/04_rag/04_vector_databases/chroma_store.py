@@ -34,6 +34,8 @@ INTERNAL_METADATA_KEYS = {
     MODEL_NAME_KEY,
     DIMENSIONS_KEY,
 }
+# Chroma can persist arbitrary scalar metadata, so chapter 4 uses a few reserved
+# keys to keep chunk identity and embedding-space identity recoverable.
 SUPPORTED_DISTANCE_METRICS = {"cosine", "l2", "ip"}
 
 
@@ -96,6 +98,8 @@ class ChromaVectorStore:
 
         stored_space = self.embedding_space()
         if stored_space is not None and incoming_space is not None:
+            # Chroma itself does not enforce provider/model compatibility.
+            # The chapter store keeps that contract explicit.
             ensure_matching_embedding_space(
                 actual=incoming_space,
                 expected=stored_space,
@@ -122,6 +126,8 @@ class ChromaVectorStore:
             return 0
 
         target_document_ids = {chunk.chunk.document_id for chunk in validated_chunks}
+        # replace_document keeps document-level semantics even on top of a database
+        # that primarily exposes chunk-level writes.
         remaining_chunks = [
             chunk
             for chunk in self.load_chunks()
@@ -264,6 +270,8 @@ def _validate_embedded_chunk(chunk: EmbeddedChunk) -> None:
 
 
 def _serialize_metadata(chunk: EmbeddedChunk) -> MetadataFilter:
+    # We merge user metadata with storage-internal metadata so a single Chroma
+    # record can be used for retrieval, delete-by-document, and space validation.
     metadata: MetadataFilter = {
         CHUNK_ID_KEY: chunk.chunk.chunk_id,
         DOCUMENT_ID_KEY: chunk.chunk.document_id,
@@ -290,6 +298,8 @@ def _hydrate_get_results(response: dict[str, Any]) -> list[EmbeddedChunk]:
 
     chunks: list[EmbeddedChunk] = []
     for chunk_id, document, metadata, vector in zip(ids, documents, metadatas, embeddings):
+        # Chroma returns parallel arrays, so hydration is where we reassemble them
+        # into chapter-4 runtime objects.
         chunks.append(
             _deserialize_embedded_chunk(
                 document=document,
@@ -367,6 +377,8 @@ def _deserialize_source_chunk(
 def _distance_to_similarity(distance: float | None) -> float:
     if distance is None:
         return 0.0
+    # Chroma returns distance-like values; chapter 4 converts them into a simple
+    # higher-is-better score so every backend can expose the same result shape.
     return max(-1.0, 1.0 - float(distance))
 
 

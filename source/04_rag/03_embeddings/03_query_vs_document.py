@@ -15,6 +15,8 @@ def main() -> None:
     document_vector = provider.embed_documents([text])[0]
     related_vector = provider.embed_documents([related])[0]
     unrelated_vector = provider.embed_documents([unrelated])[0]
+    # 最后两个 bucket 刻意编码了 query/document 角色差异，
+    # 所以这里专门把尾部切出来观察。
     query_tail = ", ".join(f"{value:.3f}" for value in query_vector[-2:])
     document_tail = ", ".join(f"{value:.3f}" for value in document_vector[-2:])
 

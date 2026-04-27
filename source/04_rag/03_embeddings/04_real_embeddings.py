@@ -17,6 +17,7 @@ def main() -> None:
     chunks = demo_source_chunks()
     embedded_chunks = embed_chunks(chunks, provider)
     query = "为什么文档块要记录出处？"
+    # 第三章保留 query/document 两个入口，即使真实 provider 底层可能映射到同一个 endpoint。
     query_vector = provider.embed_query(query)
 
     print(f"embedding_mode={mode}")

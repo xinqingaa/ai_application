@@ -52,6 +52,8 @@ class ProviderEmbeddingsAdapter(Embeddings):
         self.provider = provider
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        # LangChain expects its own Embeddings interface, but the chapter keeps
+        # one provider contract and adapts it here instead of redefining semantics.
         return self.provider.embed_documents(list(texts))
 
     def embed_query(self, text: str) -> list[float]:
@@ -63,6 +65,8 @@ def build_documents(chunks: list[SourceChunk] | None = None) -> list[Document]:
     source_chunks = demo_source_chunks() if chunks is None else chunks
     documents: list[Document] = []
     for chunk in source_chunks:
+        # chunk_id/document_id are copied into metadata so LangChain results can be
+        # turned back into the chapter's SourceChunk / RetrievalResult objects.
         metadata = dict(chunk.metadata)
         metadata["chunk_id"] = chunk.chunk_id
         metadata["document_id"] = chunk.document_id
@@ -117,6 +121,8 @@ def similarity_results_from_documents(documents: list[Any]) -> list[RetrievalRes
     results: list[RetrievalResult] = []
     for document in documents:
         metadata = dict(getattr(document, "metadata", {}) or {})
+        # Reverse the SourceChunk -> Document mapping when LangChain gives us
+        # document-only results without explicit scores.
         chunk = SourceChunk(
             chunk_id=str(metadata.pop("chunk_id", "")),
             document_id=str(metadata.pop("document_id", "")),
@@ -133,6 +139,8 @@ def retrieval_results_from_scored_documents(
     results: list[RetrievalResult] = []
     for document, distance in documents:
         metadata = dict(getattr(document, "metadata", {}) or {})
+        # LangChain exposes distances, while chapter 4 wants RetrievalResult with a
+        # backend-agnostic score field.
         chunk = SourceChunk(
             chunk_id=str(metadata.pop("chunk_id", "")),
             document_id=str(metadata.pop("document_id", "")),

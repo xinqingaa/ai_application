@@ -114,11 +114,63 @@
 
 目的不是追求格式覆盖最全，而是先把文档处理主线讲清楚。
 
+### 本章学习地图
+
+建议按下面这条主线阅读本章，而不是一开始就陷入某个函数或参数：
+
+```text
+先看完整流程
+-> 再看 Loader 如何把不同文件变成统一文本
+-> 再看 Splitter 如何把统一文本切成可检索片段
+-> 再看 ChunkDraft 如何被补齐成 SourceChunk
+-> 最后看 Pipeline 如何把单文档逻辑扩展到目录级处理
+```
+
+本章后面的设问和排错内容，主要用于复习和查漏补缺。初学时更推荐先顺着流程读一遍，再回头看“为什么”类问题。
+
 ---
 
-## 2. 文档处理到底在做什么 📌
+## 2. 文档处理的完整流程 📌
 
-### 2.1 什么叫“文档进入系统”
+这一章可以先不要从“某个类是什么意思”开始，而是先建立一条完整主线。
+
+文档处理做的是把本地原始文件加工成后续 RAG 系统可以稳定消费的标准输入：
+
+```text
+原始文件
+-> 发现文件，判断是否应该进入系统
+-> 根据文件类型选择 Loader
+-> Loader 把文件读取成统一文本
+-> 对文本做最小规范化
+-> 根据文档类型选择切分策略
+-> 得到切分阶段的中间结果
+-> 补齐 metadata
+-> 生成稳定 document_id / chunk_id
+-> 输出 SourceChunk[]
+```
+
+这条链路里每一步都有明确输入和输出：
+
+| 阶段 | 输入 | 输出 | 对应代码 |
+|------|------|------|----------|
+| 文件发现 | 目录或文件路径 | `DocumentCandidate` | `inspect_document_candidate()` / `discover_documents()` |
+| 文件加载 | 已接受的路径 | `LoadedDocument` | `load_document_record()` |
+| 文本规范化 | loader 读出的文本 | 统一换行和空白后的文本 | `normalize_text()` |
+| 文本切分 | 统一文本 | `TextChunk` / `MarkdownSection` / `ChunkDraft` | `split_text()` / `split_markdown_by_headers()` / `split_document()` |
+| 字段补齐 | `ChunkDraft[]` | `SourceChunk[]` | `prepare_chunks()` |
+| 目录汇总 | 文档目录 | `DocumentPipelineResult` | `run_document_pipeline()` |
+
+初学时可以先记住一个判断标准：
+
+> Loader 解决“文件怎么读”，Splitter 解决“文本怎么切”，Metadata 和 Stable ID 解决“切完以后怎么追踪”，Pipeline 解决“如何把整条链路稳定跑完”。
+
+后面的章节会按这条主线展开：先讲 Loader，再讲 Splitter，再讲 `SourceChunk`，最后讲 Pipeline 和治理。
+
+---
+
+## 3. 主流程拆解：从文件到 SourceChunk[] 📌
+
+### 3.1 文档进入系统的含义
 
 很多人一提文档处理，就会马上把注意力放在“切分器参数怎么调”。
 
@@ -140,7 +192,7 @@
 
 > RAG 系统的知识输入层。
 
-### 2.2 第二章真正交付的是什么
+### 3.2 第二章交付的标准接口
 
 第二章真正交付的不是“能读 Markdown”或“能把文本切开”，而是：
 
@@ -163,7 +215,7 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 - `DocumentPipeline`
   把这一整套动作收束成可观察、可复跑的输入层闭环
 
-### 2.3 为什么文档处理不能被当成附属功能
+### 3.3 文档处理是 RAG 的知识输入层
 
 如果第二章没有先把文档输入层做稳，后面很快就会出现问题：
 
@@ -176,7 +228,7 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 
 > 在给后面的向量化、向量存储、检索和评估打地基。
 
-### 2.4 为什么第二章不该急着接 Embedding
+### 3.4 先稳定输入层，再进入 Embedding
 
 如果这一步还没把 `SourceChunk[]` 做稳，就急着进第三章，问题只会被推迟，不会消失。
 
@@ -190,7 +242,7 @@ path -> text -> TextChunk[] -> metadata -> stable ids -> SourceChunk[]
 
 > 先把知识输入层做成一个稳定的、可重复的标准接口。
 
-### 2.5 第二章的运行时主链路
+### 3.5 第二章的运行时主链路
 
 这一章最值得先建立手感的，不是某个具体参数，而是一条完整的运行时链路：
 
@@ -205,7 +257,7 @@ Path
 
 如果你能把这条链路讲清楚，第二章的大部分内容就已经真正掌握了。
 
-### 2.6 为什么第二章交付的是“稳定输入层”
+### 3.6 稳定输入层的工程价值
 
 很多学习资料会把第二章讲成：
 
@@ -230,9 +282,9 @@ Path
 
 ---
 
-## 3. 更真实的 Loader 认知 📌
+## 4. Loader：不同文件如何变成统一文本 📌
 
-### 3.1 为什么第二章现在要补真实 Loader
+### 4.1 真实 Loader 进入第二章的原因
 
 如果第二章永远只保留 `.md / .txt` 的 toy 输入，你会很容易误以为：
 
@@ -250,7 +302,7 @@ Path
 - Markdown loader
 - 真实 PDF 文本提取
 
-### 3.2 三种输入分别在解决什么
+### 4.2 三种输入的职责分工
 
 | 输入 | 当前做法 | 第二章想让你看到什么 |
 |------|----------|----------------------|
@@ -262,7 +314,7 @@ Path
 
 > loader 选择本身就是输入层设计的一部分。
 
-### 3.3 `inspect_document_candidate()` 在做什么
+### 4.3 文件发现阶段：`inspect_document_candidate()`
 
 这一步很多人会忽略，但它其实是输入层的第一道边界。
 
@@ -280,7 +332,7 @@ Path
 
 这个设计的教学意义非常强，因为它会迫使你从一开始就把“为什么接受 / 为什么忽略”显式化。
 
-### 3.4 `choose_loader_name()` 和 `load_document_record()` 在做什么
+### 4.4 文件加载阶段：`choose_loader_name()` 和 `load_document_record()`
 
 `choose_loader_name()` 只是最小路由器。
 
@@ -304,7 +356,7 @@ Path
 文件系统世界 -> 文本世界
 ```
 
-### 3.5 为什么 PDF 可以进入第二章，但 OCR 不应该一起拉进来
+### 4.5 PDF 文本提取与 OCR 边界
 
 真实 PDF 解析进入第二章是合理的，因为它仍然属于：
 
@@ -326,7 +378,7 @@ Path
 - 可提取文本的 PDF：进第二章
 - 扫描件/OCR：明确留给后面
 
-### 3.6 `normalize_text()` 为什么也属于输入层核心动作
+### 4.6 文本规范化：`normalize_text()`
 
 如果你忽略文本规范化，后面很多现象会莫名其妙：
 
@@ -343,7 +395,7 @@ Path
 
 这也是为什么第二章不能把 loader 简化成“读完就完了”。
 
-### 3.7 Loader 不负责什么
+### 4.7 Loader 的职责边界
 
 Loader 负责的是：
 
@@ -363,9 +415,175 @@ Loader 不负责：
 
 ---
 
-## 4. Splitter、Metadata、ID、Pipeline 各自负责什么 📌
+## 5. Splitter：统一文本如何变成可检索片段 📌
 
-### 4.1 第二章最值得先看的运行时对象
+Loader 结束后，系统已经拿到统一文本。接下来要解决的是：这段文本怎样变成后续检索更容易命中的片段。
+
+这一节先讲切片逻辑，再讲不同文档类型的切分策略，最后再进入标准 chunk 的封装。
+
+### 5.1 切片的目标：短、集中、不断裂、可追溯
+
+切片不是为了把文本变短这么简单，而是为了同时满足后续 RAG 的几个约束。
+
+第一，embedding 模型和检索系统更适合处理较短、主题相对集中的文本片段。如果一整篇文档直接向量化，用户问一个很细的问题时，相关信息会被大量无关内容稀释。
+
+第二，chunk 不能太短。太短会丢上下文，比如只剩一句“可以退款”，但不知道是在说课程、订单还是会员权益。
+
+第三，chunk 也不能太长。太长会混入多个主题，检索命中后交给 LLM 的上下文噪声会变多。
+
+第四，相邻 chunk 之间需要少量 `overlap`。这是因为有些语义会跨越切分边界，例如上一段提出概念，下一段才解释细节。如果完全无重叠，检索时可能只命中半段信息。
+
+第五，切分边界要尽量自然。代码里的 `_choose_breakpoint()` 会优先找段落、换行、句号、空格等位置，而不是永远按固定字符数硬切。这样得到的 chunk 更像“可阅读片段”，而不是“被截断的字符串”。
+
+所以可以把切片目标总结成一句话：
+
+> 尽量让每个 chunk 足够小、主题集中、上下文不断裂，并且还能追溯回原文位置。
+
+这也是为什么 `TextChunk / ChunkDraft` 都要保留 `start_index / end_index`。这些字符范围不是为了切分本身好看，而是为了后面能回答：
+
+- 这个 chunk 来自原文哪里
+- 引用时应该指向哪个位置
+- chunk 边界变化时如何调试
+- metadata 里的 `char_start / char_end` 应该怎么生成
+
+
+### 5.2 Splitter 的职责
+
+Splitter 负责的是：
+
+- 把长文本切成更小段
+- 保留字符范围
+- 控制 `chunk_size / chunk_overlap`
+- 尽量避免在很差的位置生硬截断
+
+它更像是在做：
+
+> 从文本到“可索引片段”的第一次结构化。
+
+
+### 5.3 通用文本切分：`split_text()`
+
+很多人第一次看 splitter 时，只会注意 `chunk_size`。
+
+但第二章真正想让你看见的是：
+
+1. 它不是一刀切定长截断
+2. 它会尽量找相对更自然的断点
+3. 它会保留 `start_index / end_index`
+4. 它会通过 overlap 保留跨 chunk 的最小上下文连续性
+
+也就是说，这一步不只是“切短”，而是在做：
+
+```text
+长文本 -> 更适合后续索引和引用的片段
+```
+
+
+### 5.4 切分配置：`SplitterConfig`
+
+`chunk_overlap >= chunk_size` 这种配置看起来只是参数问题，但本质上会让切分行为变得不稳定甚至无意义。
+
+所以 `SplitterConfig` 一开始就显式校验：
+
+- `chunk_size > 0`
+- `chunk_overlap >= 0`
+- `chunk_overlap < chunk_size`
+
+这一点的教学意义是：
+
+> 输入层配置错误，应该尽早失败，而不是把坏状态悄悄带到后面。
+
+
+### 5.5 Markdown 标题感知切分
+
+Markdown 文档天然带有结构信号：
+
+- `#` 标题
+- `##` 小节
+- `###` 更细分层
+
+如果忽略这些结构，只做纯定长切分，会出现两个问题：
+
+- 不同主题内容更容易被混在一个 chunk 里
+- 后续很难把 chunk 和“原来属于哪个小节”重新对应上
+
+所以第二章现在会对 Markdown 先做标题感知切分，再继续做字符级切分。
+
+这一步要建立的直觉是：
+
+> 结构化切分不是“更复杂的版本”，而是“更符合原文组织方式的版本”。
+
+
+### 5.6 Markdown 结构信息：`split_markdown_by_headers()`
+
+`split_markdown_by_headers()` 返回的不是最终 `SourceChunk`，而是 `MarkdownSection`。
+
+它补的是两个非常关键的结构信息：
+
+- `section_title`
+- `header_path`
+
+例如：
+
+```text
+Product Overview > Ingestion Policy
+```
+
+这类信息非常重要，因为后面即使 chunk 被进一步切小，你仍然知道它原来属于哪一段结构路径。
+
+
+### 5.7 不同文档类型的切分差异
+
+不同文档不会完全按照同一个逻辑切片。
+
+更准确地说，第二章采用的是：
+
+```text
+不同文档类型先走各自更合适的切分策略
+最后统一收束成同一种 SourceChunk
+```
+
+例如：
+
+| 文档类型 | 切分策略 | 原因 |
+|----------|----------|------|
+| `.txt` | 直接走 `split_text()` | 纯文本没有明显结构，只能按自然断点和窗口大小切 |
+| `.pdf` | 先由 loader 提取文本，再走 `split_text()` | 当前章节只处理 PDF 文本抽取，不处理复杂版面结构 |
+| `.md` | 先按标题切成 `MarkdownSection`，再对每个 section 走 `split_text()` | Markdown 标题本身就是强结构信号，应该尽量保留 |
+
+也就是说，差异发生在 `split_document()` 这一层；统一发生在 `prepare_chunks()` 这一层。
+
+这是一种很常见的工程模式：
+
+```text
+输入格式可以不同
+解析和切分策略可以不同
+但输出契约必须相同
+```
+
+后面的 embedding 和向量库不应该关心“这个 chunk 原来是 Markdown、TXT 还是 PDF”。它们只需要看到稳定的：
+
+```text
+SourceChunk(
+  chunk_id=...,     # 片段身份
+  document_id=...,  # 文档身份
+  content=...,      # 要向量化的文本
+  metadata=...,     # 来源、位置、结构信息
+)
+```
+
+所以第二章的设计不是“所有文档用同一把刀切”，而是：
+
+> 前面尊重不同文档的结构，后面统一成同一种标准 chunk。
+
+
+## 6. 从切分结果到标准 SourceChunk 📌
+
+切分完成后，系统还不能直接进入 embedding。因为切出来的文本片段还缺少身份、来源、位置和结构字段。
+
+这一节讲的就是：怎样把切分阶段的中间结果收束成后续章节统一消费的 `SourceChunk[]`。
+
+### 6.1 第二章的运行时对象
 
 在 [document_processing.py](../../source/04_rag/02_document_processing/document_processing.py) 里，最值得先建立手感的不是“函数很多”，而是对象已经很清楚。
 
@@ -386,87 +604,48 @@ Loader 不负责：
 
 > 先看清运行时对象，再看函数如何把它们串起来。
 
-### 4.2 Splitter 负责什么
 
-Splitter 负责的是：
+### 6.2 `TextChunk / MarkdownSection / ChunkDraft / SourceChunk` 的区别
 
-- 把长文本切成更小段
-- 保留字符范围
-- 控制 `chunk_size / chunk_overlap`
-- 尽量避免在很差的位置生硬截断
+如果你在 [03_build_chunks.py](../../source/04_rag/02_document_processing/03_build_chunks.py) 里看到 `ChunkDraft` 和 `SourceChunk` 有点混乱，可以先把它们理解成同一条加工流水线里的不同阶段。
 
-它更像是在做：
+它们不是在表达“不同种类的 chunk”，而是在表达：
 
-> 从文本到“可索引片段”的第一次结构化。
+> 一段文本从“刚被切出来”到“可以交给后续 RAG 系统消费”之间，信息逐步补齐的过程。
 
-### 4.3 `split_text()` 到底做了什么
+可以用下面这张表来区分：
 
-很多人第一次看 splitter 时，只会注意 `chunk_size`。
+| 类型 | 出现阶段 | 解决的问题 | 是否最终产物 |
+|------|----------|------------|--------------|
+| `TextChunk` | 通用纯文本切分之后 | 只有内容和字符范围，回答“这段文本从哪里切出来” | 否 |
+| `MarkdownSection` | Markdown 标题感知切分之后 | 保留标题层级，回答“这段内容属于哪个标题路径” | 否 |
+| `ChunkDraft` | 文档类型切分策略统一之后 | 把不同文档切分结果统一成“待加工 chunk” | 否 |
+| `SourceChunk` | metadata 和 stable id 补齐之后 | 后续 embedding、向量库、检索统一消费的标准对象 | 是 |
 
-但第二章真正想让你看见的是：
+所以 `ChunkDraft` 和 `SourceChunk` 的核心区别是：
 
-1. 它不是一刀切定长截断
-2. 它会尽量找相对更自然的断点
-3. 它会保留 `start_index / end_index`
-4. 它会通过 overlap 保留跨 chunk 的最小上下文连续性
+- `ChunkDraft` 是“切分阶段的草稿”，只关心内容、字符范围，以及切分时顺手得到的结构信息
+- `SourceChunk` 是“系统标准输入”，必须带上 `document_id / chunk_id / metadata`
 
-也就是说，这一步不只是“切短”，而是在做：
+如果直接从 `text -> SourceChunk[]`，短期看代码更少，但会把两件事混在一起：
 
-```text
-长文本 -> 更适合后续索引和引用的片段
-```
+1. 这份文档应该怎么切
+2. 切完以后怎样补齐身份、来源、位置和结构信息
 
-### 4.4 为什么 `SplitterConfig` 要显式校验
-
-`chunk_overlap >= chunk_size` 这种配置看起来只是参数问题，但本质上会让切分行为变得不稳定甚至无意义。
-
-所以 `SplitterConfig` 一开始就显式校验：
-
-- `chunk_size > 0`
-- `chunk_overlap >= 0`
-- `chunk_overlap < chunk_size`
-
-这一点的教学意义是：
-
-> 输入层配置错误，应该尽早失败，而不是把坏状态悄悄带到后面。
-
-### 4.5 为什么 Markdown 值得按标题切分
-
-Markdown 文档天然带有结构信号：
-
-- `#` 标题
-- `##` 小节
-- `###` 更细分层
-
-如果忽略这些结构，只做纯定长切分，会出现两个问题：
-
-- 不同主题内容更容易被混在一个 chunk 里
-- 后续很难把 chunk 和“原来属于哪个小节”重新对应上
-
-所以第二章现在会对 Markdown 先做标题感知切分，再继续做字符级切分。
-
-这一步要建立的直觉是：
-
-> 结构化切分不是“更复杂的版本”，而是“更符合原文组织方式的版本”。
-
-### 4.6 `split_markdown_by_headers()` 在补什么能力
-
-`split_markdown_by_headers()` 返回的不是最终 `SourceChunk`，而是 `MarkdownSection`。
-
-它补的是两个非常关键的结构信息：
-
-- `section_title`
-- `header_path`
-
-例如：
+第二章故意拆成 `ChunkDraft -> SourceChunk`，是为了让职责更清楚：
 
 ```text
-Product Overview > Ingestion Policy
+split_document()
+只负责：根据文档类型切出 ChunkDraft[]
+
+prepare_chunks()
+只负责：把 ChunkDraft[] 补齐成 SourceChunk[]
 ```
 
-这类信息非常重要，因为后面即使 chunk 被进一步切小，你仍然知道它原来属于哪一段结构路径。
+这也是 [03_build_chunks.py](../../source/04_rag/02_document_processing/03_build_chunks.py) 想让你观察的重点：不是“多包了一层类型”，而是把“切分策略”和“标准输出格式”分开。
 
-### 4.7 Metadata 负责什么
+
+### 6.3 Metadata 的职责
 
 Metadata 负责的是：
 
@@ -492,7 +671,8 @@ Metadata 负责的是：
 - `header_path`
 - `header_level`
 
-### 4.8 为什么要区分 `base metadata` 和 `chunk metadata`
+
+### 6.4 `base metadata` 和 `chunk metadata` 的分层
 
 这一点非常重要。
 
@@ -527,7 +707,8 @@ Metadata 负责的是：
 - 字段来源更清楚
 - 更新和调试更容易定位
 
-### 4.9 `build_base_metadata()` 和 `build_chunk_metadata()` 的意义
+
+### 6.5 Metadata schema 收束函数
 
 这两个函数看起来很朴素，但它们其实在做 schema 收束。
 
@@ -540,7 +721,8 @@ Metadata 负责的是：
 - 删除和过滤按什么字段做
 - golden set 在回归什么
 
-### 4.10 Stable ID 负责什么
+
+### 6.6 Stable ID 的职责
 
 稳定 ID 解决的是：
 
@@ -555,7 +737,8 @@ Metadata 负责的是：
 - `chunk_id`
   对应切分后片段级身份
 
-### 4.11 `stable_document_id()` 和 `stable_chunk_id()` 到底在保什么稳定
+
+### 6.7 `stable_document_id()` 和 `stable_chunk_id()` 的稳定性
 
 当前实现里：
 
@@ -568,7 +751,8 @@ Metadata 负责的是：
 - 相同 chunk 再次生成时，ID 尽量保持一致
 - 更新或 upsert 时，系统知道自己在替换什么
 
-### 4.12 `prepare_chunks()` 才是第二章真正的核心收束点
+
+### 6.8 核心收束点：`prepare_chunks()`
 
 如果只看 loader、splitter、metadata 各自都很碎。
 
@@ -590,7 +774,12 @@ path + text
 文档输入层的最小编排器
 ```
 
-### 4.13 Pipeline 负责什么
+
+## 7. DocumentPipeline：把单文档逻辑扩展到目录级处理 📌
+
+前面几节讲的是单文档如何进入系统。真实知识库通常处理的是目录或文件集合，所以还需要一个总入口把发现、加载、切分、补字段和汇总结果串起来。
+
+### 7.1 Pipeline 的职责
 
 `DocumentPipeline` 负责的是把前面的分散动作收束成一个顺序闭环：
 
@@ -604,7 +793,8 @@ discover -> load -> split -> enrich metadata -> assign ids -> output SourceChunk
 - 你能一次看到每份文档的 chunk 统计
 - 你能把“治理入口”落到 `document_id / chunk_id`
 
-### 4.14 `run_document_pipeline()` 为什么是第二章的总入口
+
+### 7.2 总入口：`run_document_pipeline()`
 
 `run_document_pipeline()` 会把：
 
@@ -640,9 +830,10 @@ inspect_document_candidate()
 
 ---
 
-## 5. 数据生命周期与知识库治理的最小落点 📌
 
-### 5.1 为什么第二章就要开始有治理视角
+## 8. 数据生命周期与知识库治理的最小落点 📌
+
+### 8.1 第二章建立治理视角的原因
 
 很多人会把治理理解成“后面做平台时再说”。
 
@@ -658,7 +849,7 @@ inspect_document_candidate()
 
 所以第二章现在不做后台平台，但必须建立最小治理落点。
 
-### 5.2 第二章里最重要的治理锚点是什么
+### 8.2 第二章最重要的治理锚点
 
 当前这一章最重要的三个锚点是：
 
@@ -672,7 +863,7 @@ inspect_document_candidate()
 - 片段级动作看 `chunk_id`
 - 调试和引用看 metadata
 
-### 5.3 如果第二章不把这些锚点立住，后面会发生什么
+### 8.3 治理锚点缺失后的连锁问题
 
 问题不会马上爆炸，但会在后面章节逐步显现：
 
@@ -685,7 +876,7 @@ inspect_document_candidate()
 
 > 给后续工程留下足够稳定的锚点。
 
-### 5.4 第二章里最小治理并不等于企业级治理
+### 8.4 最小治理与企业级治理的边界
 
 这里要区分两层：
 
@@ -708,7 +899,7 @@ inspect_document_candidate()
 
 > 第二章的任务是把治理的锚点立住，而不是把治理平台一次性做完。
 
-### 5.5 第二章为什么要有 golden set
+### 8.5 输入层 golden set 的价值
 
 第一章的 golden set 主要是系统行为边界。
 
@@ -727,9 +918,23 @@ inspect_document_candidate()
 
 ---
 
-## 6. 第二章实践：独立文档处理闭环
+## 9. 代码实践：按流程阅读第二章
+这一节建议当作复习路径使用。前面已经按概念讲完了完整流程，这里再回到代码目录，把每个脚本对应到流程中的一个阶段。
 
-### 6.1 目录结构
+推荐阅读顺序是：
+
+```text
+01_discover_and_load.py
+-> 02_split_and_inspect.py
+-> 03_build_chunks.py
+-> 04_loader_extensions.py
+-> 05_document_pipeline.py
+-> tests/test_document_processing.py
+```
+
+这样读的好处是：你不是在记脚本编号，而是在复盘“文件如何一步步变成 SourceChunk[]”。
+
+### 9.1 目录结构
 
 本章代码目录是：
 
@@ -756,7 +961,7 @@ source/04_rag/02_document_processing/
 
 第二章和第一章一样，保持平铺目录。
 
-### 6.2 第二章的输入和输出
+### 9.2 第二章的输入和输出
 
 本章代码的输入是：
 
@@ -776,7 +981,7 @@ source/04_rag/02_document_processing/
 
 > 第二章不是在做“能读几种文件”的演示，而是在做“后续章节的稳定输入接口”。
 
-### 6.3 本章最值得先看的对象和函数
+### 9.3 本章最值得先看的对象和函数
 
 在 [document_processing.py](../../source/04_rag/02_document_processing/document_processing.py) 里，你最值得先看的是：
 
@@ -810,7 +1015,7 @@ source/04_rag/02_document_processing/
 4. 再看 metadata / ID
 5. 最后看 pipeline
 
-### 6.4 运行方式
+### 9.4 运行方式
 
 ```bash
 cd source/04_rag/02_document_processing
@@ -833,7 +1038,7 @@ python -m unittest discover -s tests
 - 不需要再额外执行一遍 `python -m pip install pypdf`
 - 如果 `from pypdf import PdfReader` 仍然报“无法解析导入”，通常不是文档没写清楚，而是编辑器没切到安装依赖的 Python 解释器
 
-### 6.5 先跑哪个
+### 9.5 推荐运行顺序
 
 建议先跑：
 
@@ -847,7 +1052,7 @@ python 01_discover_and_load.py
 - 即使都是“文件”，也应该按格式选不同 loader
 - 第二章真正交付的不是“能读文件”，而是“稳定输入层”
 
-### 6.6 `01_discover_and_load.py` 在看什么
+### 9.6 第一步：`01_discover_and_load.py`
 
 对应文件：
 
@@ -874,7 +1079,7 @@ inspect_document_candidate()
 
 > 输入层一开始就应该告诉你自己为什么接受、为什么忽略。
 
-### 6.7 `02_split_and_inspect.py` 在看什么
+### 9.7 第二步：`02_split_and_inspect.py`
 
 对应文件：
 
@@ -908,7 +1113,7 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 
 你会看到脚本直接拒绝这组参数，因为 `chunk_overlap` 不能大于等于 `chunk_size`。
 
-### 6.8 `03_build_chunks.py` 在看什么
+### 9.8 第三步：`03_build_chunks.py`
 
 对应文件：
 
@@ -933,7 +1138,7 @@ load_and_prepare_chunks()
 
 > `03_build_chunks.py` 不是在演示“怎么切文本”，而是在演示“怎么把切分结果收束成标准 `SourceChunk[]`”。
 
-### 6.8.1 先记住这 4 个步骤
+### 9.8.1 先记住这 4 个步骤
 
 先把 `prepare_chunks()` 理解成固定 4 步：
 
@@ -951,7 +1156,7 @@ load_and_prepare_chunks()
 - “这篇文档具体怎么切”
 - “后续系统统一消费什么格式”
 
-### 6.8.2 为什么不直接 `text -> SourceChunk[]`
+### 9.8.2 `text -> SourceChunk[]` 中间需要分层
 
 这里故意拆成两层，不是为了把代码写复杂，而是为了把职责拆清楚：
 
@@ -968,7 +1173,7 @@ load_and_prepare_chunks()
 - 如果 `header_path / page_count / char_start` 不对，就看 metadata
 - 如果更新、删除、upsert 对不上，就看 `document_id / chunk_id`
 
-### 6.8.3 推荐阅读顺序
+### 9.8.3 推荐阅读顺序
 
 如果你想把这段代码真正看懂，建议按下面顺序看，而不是先看脚本打印：
 
@@ -981,7 +1186,7 @@ load_and_prepare_chunks()
 4. `03_build_chunks.py`
    回来看它为什么要打印这些字段
 
-### 6.8.4 你真正应该带着什么问题去看
+### 9.8.4 阅读时真正要观察的问题
 
 这一节最值得带着 4 个问题去看：
 
@@ -1002,7 +1207,7 @@ load_and_prepare_chunks()
 
 这一步最重要的是把“能切 chunk”升级成“能稳定地产出标准 chunk”。
 
-### 6.9 `04_loader_extensions.py` 在看什么
+### 9.9 第四步：`04_loader_extensions.py`
 
 对应文件：
 
@@ -1017,7 +1222,7 @@ load_and_prepare_chunks()
 - 为什么 Markdown 可以先按标题切分，再继续做 chunk 切分
 - 为什么目录批量扫描和 loader 选择本身就是输入层的一部分
 
-### 6.10 `05_document_pipeline.py` 在看什么
+### 9.10 第五步：`05_document_pipeline.py`
 
 对应文件：
 
@@ -1042,7 +1247,7 @@ run_document_pipeline()
 
 这一步不是在做后台平台，而是在把治理意识落到可运行对象上。
 
-### 6.11 `tests/test_document_processing.py` 在锁定什么
+### 9.11 测试：`tests/test_document_processing.py`
 
 对应文件：
 
@@ -1064,7 +1269,7 @@ run_document_pipeline()
 - metadata 丢失也是回归问题
 - “稳定 ID” 应该通过测试体现，而不是只写在文档里
 
-### 6.12 第二章最小回归集
+### 9.12 第二章最小回归集
 
 第二章除了继续服务课程主线，还要单独锁定自己的输入层行为。
 
@@ -1098,7 +1303,7 @@ run_document_pipeline()
 3. `source / loader / page_count / header_path` 是否还稳定
 4. 默认 pipeline 演示是否仍然成立
 
-### 6.13 本章代码刻意简化了什么
+### 9.13 本章代码刻意简化的范围
 
 这一章的实现刻意简化了五件事：
 
@@ -1114,7 +1319,7 @@ run_document_pipeline()
 
 > 文档处理的目标不是“支持最多格式”，而是“先稳定地产出可用 chunk，并把治理锚点立住”。
 
-### 6.14 第二章最值得刻意观察的失败案例
+### 9.14 第二章最值得刻意观察的失败案例
 
 第二章至少要刻意看四类失败：
 
@@ -1142,7 +1347,7 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 - 哪些是输入层不变量
 - 哪些变化会影响后续章节
 
-### 6.15 建议你主动改的地方
+### 9.15 建议你主动改的地方
 
 如果你想把第二章真正学扎实，建议主动改三类地方再跑一遍：
 
@@ -1154,7 +1359,61 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 
 ---
 
-## 7. 本章学完后你应该能回答
+## 10. 常见疑惑与复盘问题
+
+这一节把前面分散出现的“为什么”集中起来，适合在读完代码以后回头复盘。
+
+### 10.1 文档处理到底是不是文本预处理
+
+不是。文本预处理通常只关心“把文本清洗干净”。本章的文档处理更像 RAG 的知识输入层，它不仅要读取和清洗文本，还要决定哪些文件能进系统、怎样切分、怎样补 metadata、怎样生成稳定 ID，以及怎样把结果收束成后续统一消费的 `SourceChunk[]`。
+
+### 10.2 为什么不直接从 `text` 生成 `SourceChunk[]`
+
+因为“怎么切”和“切完后怎么补齐标准字段”是两件事。
+
+`split_document()` 适合专注处理文档类型差异，例如 Markdown 先按标题切，TXT 和 PDF 走通用文本切分。`prepare_chunks()` 再统一补齐 `document_id / chunk_id / metadata`。
+
+如果直接 `text -> SourceChunk[]`，代码短期看起来更直接，但后面新增 HTML、网页、表格、按页 PDF 或更复杂 Markdown 策略时，很容易把切分策略和标准输出逻辑混在一起。
+
+### 10.3 不同文档都是按照一个逻辑切片吗
+
+不是。更准确地说：
+
+```text
+前面按文档类型选择不同切分策略
+后面统一输出同一种 SourceChunk
+```
+
+`.txt` 和当前的 `.pdf` 主要走通用文本切分；`.md` 会先利用标题结构生成 `MarkdownSection`，再对 section 内文本继续切分。这样既保留不同文档的结构差异，又让后续 embedding、向量库和检索只需要面对统一对象。
+
+### 10.4 `ChunkDraft` 和 `SourceChunk` 最容易混淆在哪里
+
+最容易混淆的是：它们看起来都像 chunk，但职责不同。
+
+`ChunkDraft` 是切分阶段的临时结果，表示“这段内容已经被切出来了，并且知道它在原文中的范围”。`SourceChunk` 是后续系统的标准输入，除了内容和范围，还必须具备稳定身份和完整 metadata。
+
+可以简单记成：
+
+```text
+ChunkDraft = 切分草稿
+SourceChunk = 可进入后续 RAG 链路的标准 chunk
+```
+
+### 10.5 chunk 切得不好会影响哪里
+
+会影响后面的检索、引用和调试。
+
+chunk 太长，容易混入多个主题，检索命中后噪声变多。chunk 太短，容易丢上下文。没有 overlap，跨边界语义可能断开。没有字符范围，后面很难解释 chunk 来自原文哪里。没有稳定 ID，更新、删除和回归测试都会变困难。
+
+### 10.6 第二章为什么暂时不接 Embedding 和向量库
+
+因为在 `SourceChunk[]` 稳定之前，过早接 embedding 只会把输入层问题推迟到后面暴露。
+
+第二章先锁定的是：文件能稳定进入系统，文本能稳定切分，metadata 和 ID 能稳定生成，pipeline 能稳定复跑。第三章再处理“这些 chunk 如何变成向量”。
+
+---
+
+## 11. 本章学完后你应该能回答
 
 - 为什么文档处理是知识输入层，而不是附属功能
 - `loader / splitter / metadata / stable id / pipeline` 各自负责什么
@@ -1167,7 +1426,7 @@ python 02_split_and_inspect.py data/faq.txt --chunk-size 120 --chunk-overlap 120
 
 ---
 
-## 8. 下一章
+## 12. 下一章
 
 第三章开始，你才会进入向量化问题：
 

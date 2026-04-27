@@ -35,6 +35,8 @@ MetadataPayload = dict[str, MetadataValue]
 
 @dataclass
 class VectorStoreManager:
+    # The manager unifies responsibilities, not storage internals. Each backend
+    # still keeps its own concrete write/search/delete mechanics underneath.
     backend: BackendName
     provider: LocalKeywordEmbeddingProvider
     json_store_path: Path = DEFAULT_STORE_PATH
@@ -56,6 +58,8 @@ class VectorStoreManager:
         if self.count() > 0:
             return
 
+        # The teaching demos bootstrap each backend with the same logical corpus so
+        # later search/delete/replace comparisons stay easy to reason about.
         if self.backend == "json":
             self._json_store().replace_document(demo_embedded_chunks(self.provider))
             return
@@ -106,6 +110,8 @@ class VectorStoreManager:
                 embed_chunks([source_chunk], self.provider)
             )
 
+        # LangChain Chroma does not expose the same document-scoped replace helper,
+        # so the manager preserves chapter semantics with delete-then-add.
         self.delete_document(document_id)
         return self._add_source_chunks([source_chunk])
 
@@ -149,6 +155,8 @@ class VectorStoreManager:
                 where={"filename": filename} if filename else None,
             )
 
+        # For the LangChain backend, the vectorstore handles query embedding
+        # internally, but the manager still normalizes the returned shape.
         vectorstore = self._langchain_store()
         search_kwargs: dict[str, object] = {"k": top_k}
         if filename:
