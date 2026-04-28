@@ -23,6 +23,7 @@
 ```text
 03_embeddings/
 ├── README.md
+├── .env.example
 ├── requirements.txt
 ├── embedding_basics.py
 ├── 01_embed_chunks.py
@@ -39,6 +40,8 @@
 
 - `embedding_basics.py`
   放本章对象、toy provider、OpenAI-compatible embedding provider、相似度、契约校验和 mock semantic client
+- `.env.example`
+  真实 embeddings endpoint 的环境变量模板，兼容本章 `EMBEDDING_*` 和旧章节 `DEFAULT_PROVIDER + PROVIDER_*` 配置
 - `01_embed_chunks.py`
   看 `SourceChunk` 如何变成 `EmbeddedChunk`
 - `02_compare_similarity.py`
@@ -77,10 +80,25 @@ python -m pip install -r requirements.txt
 第三章只需要这三个 embedding-specific 变量：
 
 ```bash
+cp .env.example .env
+
 export EMBEDDING_API_KEY=...
 export EMBEDDING_BASE_URL=...
 export EMBEDDING_MODEL=...
 ```
+
+脚本会尝试自动加载本目录下的 `.env`。如果没有安装 `python-dotenv`，也可以继续用 `export` 的方式传入环境变量。
+
+如果要兼容旧章节的 provider 配置，可以使用：
+
+```bash
+DEFAULT_PROVIDER=bailian
+BAILIAN_API_KEY=...
+BAILIAN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+BAILIAN_EMBEDDING_MODEL=text-embedding-v4
+```
+
+本章不会把 `BAILIAN_MODEL=qwen-plus` 这类 chat model 当作 embedding model 使用；真实向量调用需要填写 `EMBEDDING_MODEL` 或 `PROVIDER_EMBEDDING_MODEL`。
 
 如果没配环境变量，`04_real_embeddings.py` 和 `05_semantic_search.py` 会自动回退到内置 mock semantic client，方便你先看接口形状和桥接现象。
 

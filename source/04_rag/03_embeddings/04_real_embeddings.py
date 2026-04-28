@@ -68,7 +68,7 @@ def main() -> None:
     print(f"查询向量维度：{len(query_vector)}")
     print(f"查询向量预览：{[round(value, 3) for value in query_vector[:6]]}")
 
-    for embedded_chunk in embedded_chunks[:3]:
+    for embedded_chunk in embedded_chunks:
         print(f"- 文档块 ID（chunk_id）：{embedded_chunk.chunk.chunk_id}")
         print(
             f"  向量提供者={embedded_chunk.provider_name} 模型={embedded_chunk.model_name} "

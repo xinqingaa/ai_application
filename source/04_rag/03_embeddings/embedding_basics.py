@@ -18,13 +18,13 @@ SEARCH_CASES_PATH = DATA_DIR / "search_cases.json"
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+|[\u4e00-\u9fff]", re.IGNORECASE)
 STOPWORDS = {"the", "a", "an", "is", "are", "to", "of", "and", "how", "why", "do"}
 CONCEPT_GROUPS = [
-    ("refund", ("退款", "退费", "refund")),
-    ("trial", ("试学", "预约", "trial")),
-    ("metadata", ("metadata", "source", "filename", "来源")),
-    ("stable_id", ("stable", "id", "document_id", "chunk_id", "稳定")),
-    ("embedding", ("embedding", "向量", "vector")),
-    ("similarity", ("similarity", "相似度", "检索", "retrieve")),
-    ("support", ("答疑", "support", "工作日")),
+    ("refund", ("退款", "退费", "refund")), # 第0维 退款相关
+    ("trial", ("试学", "预约", "trial")),  # 第 1 维：试学相关
+    ("metadata", ("metadata", "source", "filename", "来源")), # 第 2 维：metadata / 来源相关
+    ("stable_id", ("stable", "id", "document_id", "chunk_id", "稳定")), # 第 3 维：稳定 id 相关
+    ("embedding", ("embedding", "向量", "vector")), # 第4维：向量相关
+    ("similarity", ("similarity", "相似度", "检索", "retrieve")), # 第5维：相似度相关
+    ("support", ("答疑", "support", "工作日")), # 第6维：支持相关
 ]
 HASH_BUCKETS = 4
 MODE_BUCKETS = 2
@@ -43,6 +43,12 @@ SEMANTIC_DIMENSIONS = len(SEMANTIC_CONCEPT_GROUPS)
 EMBEDDING_API_KEY_ENV_KEYS = ("EMBEDDING_API_KEY", "OPENAI_API_KEY")
 EMBEDDING_BASE_URL_ENV_KEYS = ("EMBEDDING_BASE_URL", "OPENAI_BASE_URL")
 EMBEDDING_MODEL_ENV_KEYS = ("EMBEDDING_MODEL", "OPENAI_EMBEDDING_MODEL")
+PROVIDER_ENV_PREFIXES = {
+    "openai": "OPENAI",
+    "deepseek": "DEEPSEEK",
+    "bailian": "BAILIAN",
+    "glm": "GLM",
+}
 
 
 @dataclass(frozen=True)
@@ -169,6 +175,7 @@ class LocalKeywordEmbeddingProvider:
 
     def _embed(self, text: str, kind: str) -> list[float]:
         """执行 toy provider 的实际向量构造。
+        本质上是把一段文本压成一个固定长度的数字列表
 
         入参：
             text: 需要向量化的文本。
@@ -180,22 +187,28 @@ class LocalKeywordEmbeddingProvider:
             4. 根据 kind 写入 query/document 角色 bucket。
             5. 调用 normalize() 返回单位向量。
         """
-        normalized = " ".join(text.lower().split())
-        vector = [0.0] * self.dimensions
+        normalized = " ".join(text.lower().split()) # 统一文本格式
+        vector = [0.0] * self.dimensions # 创建固定长度向量  DEFAULT_DIMENSIONS 维度来源于 7 个概念维度 + 4 个 hash bucket + 2 个角色维度
 
         # 先写入共享概念信号，让 query/document 至少共享一套可比较的语义基底。
+        # 本质上是写入概念命中区 利用`CONCEPT_GROUPS` 把一些教学场景里的概念放到明确维度上
+        # `CONCEPT_GROUPS` 把一些教学场景里的概念放到明确维度上 0-6维度
+        # 文本命中不同维度，最后结果会不一样
         for index, (_, keywords) in enumerate(CONCEPT_GROUPS):
             hits = sum(1 for keyword in keywords if keyword in normalized)
             vector[index] = float(hits)
 
         hash_offset = len(CONCEPT_GROUPS)
+
         # 概念组外的 token 不直接丢弃，而是落到 hash buckets 保留最小分布能力。
+        # 不是所有词都在 `CONCEPT_GROUPS` 里，若丢弃那么向量过于粗糙，所以把这些 token 用哈希分到 4 个桶里。每命中一个 token，就给对应桶加 `0.25`。这不是精确语义，只是保留一点文本分布痕迹。
         for token in TOKEN_PATTERN.findall(normalized):
             if token in STOPWORDS:
                 continue
             bucket = int(hashlib.sha1(token.encode("utf-8")).hexdigest(), 16) % HASH_BUCKETS
             vector[hash_offset + bucket] += 0.25
 
+        # 写入 query/document 角色区
         query_mode_index = self.dimensions - 2
         document_mode_index = self.dimensions - 1
         # 尾部两个 bucket 刻意把 query/document 角色差异显式写进向量。
@@ -204,6 +217,7 @@ class LocalKeywordEmbeddingProvider:
         else:
             vector[document_mode_index] = 0.30
 
+        # 归一化，向量长度会变成 1。
         return normalize(vector)
 
 
@@ -254,25 +268,29 @@ class OpenAICompatibleEmbeddingProvider:
         """从环境变量构造 OpenAI-compatible provider。
 
         入参：
-            model_name: 显式模型名；为空时读取 EMBEDDING_MODEL 或 OPENAI_EMBEDDING_MODEL。
+            model_name: 显式模型名；为空时读取 embedding 专用模型环境变量。
             expected_dimensions: 显式维度；为空时尝试读取 EMBEDDING_DIMENSIONS。
             client: 可选注入 client，通常用于测试或 mock。
         流程：
-            1. 读取可选维度环境变量。
-            2. 按优先级读取 API key、base url 和模型名。
-            3. 调用构造函数返回 provider。
+            1. 尝试加载本目录或当前运行目录下的 .env。
+            2. 读取可选维度环境变量。
+            3. 按优先级读取 API key、base url 和模型名。
+            4. 兼容 DEFAULT_PROVIDER + PROVIDER_* 形式的旧章节配置。
+            5. 调用构造函数返回 provider。
         """
+        load_env_if_possible()
+
         configured_dimensions = expected_dimensions
         dimensions_text = os.getenv("EMBEDDING_DIMENSIONS")
         if configured_dimensions is None and dimensions_text:
             configured_dimensions = int(dimensions_text)
 
         return cls(
-            api_key=first_env(*EMBEDDING_API_KEY_ENV_KEYS),
-            base_url=first_env(*EMBEDDING_BASE_URL_ENV_KEYS),
+            api_key=embedding_api_key_from_env(),
+            base_url=embedding_base_url_from_env(),
             model_name=(
                 model_name
-                or first_env(*EMBEDDING_MODEL_ENV_KEYS)
+                or embedding_model_from_env()
                 or "text-embedding-3-small"
             ),
             expected_dimensions=configured_dimensions,
@@ -452,6 +470,25 @@ class _MockSemanticEmbeddingsResource:
         )
 
 
+def load_env_if_possible() -> None:
+    """尽量加载 `.env` 文件。
+
+    入参：
+        无。如果本地没有安装 python-dotenv，会直接跳过。
+    流程：
+        1. 优先读取本章目录下的 .env。
+        2. 再按 python-dotenv 默认规则读取当前运行目录附近的 .env。
+        3. 已经存在的环境变量不会被覆盖。
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+
+    load_dotenv(CHAPTER_ROOT / ".env")
+    load_dotenv()
+
+
 def first_env(*keys: str) -> str | None:
     """按顺序读取第一个有值的环境变量。
 
@@ -467,6 +504,89 @@ def first_env(*keys: str) -> str | None:
         if value:
             return value
     return None
+
+
+def default_provider_env_prefix() -> str | None:
+    """把 DEFAULT_PROVIDER 转换成环境变量前缀。
+
+    入参：
+        无。函数直接读取 DEFAULT_PROVIDER。
+    流程：
+        1. 读取 DEFAULT_PROVIDER 并转成小写。
+        2. 在 PROVIDER_ENV_PREFIXES 中查找对应前缀。
+        3. 未配置或不支持时返回 None。
+    """
+    provider_key = os.getenv("DEFAULT_PROVIDER", "").strip().lower()
+    if not provider_key:
+        return None
+    return PROVIDER_ENV_PREFIXES.get(provider_key)
+
+
+def provider_env(*suffixes: str) -> str | None:
+    """按 DEFAULT_PROVIDER 读取 provider 作用域环境变量。
+
+    入参：
+        *suffixes: 环境变量后缀，例如 EMBEDDING_MODEL、API_KEY、BASE_URL。
+    流程：
+        1. 根据 DEFAULT_PROVIDER 找到 OPENAI / BAILIAN 等前缀。
+        2. 依次拼出 PROVIDER_SUFFIX 环境变量名。
+        3. 返回第一个有值的变量。
+    """
+    prefix = default_provider_env_prefix()
+    if not prefix:
+        return None
+    return first_env(*(f"{prefix}_{suffix}" for suffix in suffixes))
+
+
+def embedding_api_key_from_env() -> str | None:
+    """读取 embeddings API key。
+
+    入参：
+        无。
+    流程：
+        1. 优先读取 EMBEDDING_API_KEY。
+        2. 再按 DEFAULT_PROVIDER 读取 PROVIDER_EMBEDDING_API_KEY 或 PROVIDER_API_KEY。
+        3. 最后兼容 OPENAI_API_KEY。
+    """
+    return (
+        first_env("EMBEDDING_API_KEY")
+        or provider_env("EMBEDDING_API_KEY", "API_KEY")
+        or first_env("OPENAI_API_KEY")
+    )
+
+
+def embedding_base_url_from_env() -> str | None:
+    """读取 embeddings base URL。
+
+    入参：
+        无。
+    流程：
+        1. 优先读取 EMBEDDING_BASE_URL。
+        2. 再按 DEFAULT_PROVIDER 读取 PROVIDER_EMBEDDING_BASE_URL 或 PROVIDER_BASE_URL。
+        3. 最后兼容 OPENAI_BASE_URL。
+    """
+    return (
+        first_env("EMBEDDING_BASE_URL")
+        or provider_env("EMBEDDING_BASE_URL", "BASE_URL")
+        or first_env("OPENAI_BASE_URL")
+    )
+
+
+def embedding_model_from_env() -> str | None:
+    """读取 embeddings 模型名。
+
+    入参：
+        无。
+    流程：
+        1. 优先读取 EMBEDDING_MODEL。
+        2. 再按 DEFAULT_PROVIDER 读取 PROVIDER_EMBEDDING_MODEL。
+        3. 最后兼容 OPENAI_EMBEDDING_MODEL。
+    """
+    return (
+        first_env("EMBEDDING_MODEL")
+        or provider_env("EMBEDDING_MODEL")
+        or first_env("OPENAI_EMBEDDING_MODEL")
+    )
 
 
 def demo_chunk_metadata(source: str, content: str, chunk_index: int = 0) -> dict[str, str | int]:
