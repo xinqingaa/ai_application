@@ -4,7 +4,51 @@
 
 ---
 
-## 核心原则
+## 本目录最终跑出什么
+
+### 先看全貌
+
+#### 这一章最终会跑出什么
+
+你最后会看到一条完整链路：
+
+第二章留下来的文档块，先变成带向量的文档块；用户问题再变成问题向量；最后系统把问题和文档块按语义相似度排出顺序。
+
+#### 这份目录里每个脚本在干什么
+
+| 阶段 | 脚本 | 观察重点 |
+|------|------|----------|
+| 第 1 步 | `01_embed_chunks.py` | 看文档块怎么变成 `EmbeddedChunk` |
+| 第 2 步 | `02_compare_similarity.py` | 看问题向量怎么参与排序 |
+| 第 3 步 | `03_query_vs_document.py` | 看 query 和 document 为什么分开但仍可比较 |
+| 第 4 步 | `04_real_embeddings.py` | 看真实或 mock embeddings endpoint 的接口形态 |
+| 第 5 步 | `05_semantic_search.py` | 看 toy provider 和语义 provider 的差异 |
+| 复盘 | `tests/test_embeddings.py` | 看第三章要守住哪些不变量 |
+
+#### 先记住一句话
+
+```text
+先把文档块变成可比较的向量，再把问题也变成同一空间里的向量，最后用相似度得到排序结果。
+```
+
+#### 阅读顺序建议
+
+1. 先看 `01_embed_chunks.py`，不要急着看真实接口
+2. 再看 `02_compare_similarity.py`，先把排序链路跑通
+3. 然后看 `03_query_vs_document.py`，理解两个入口的职责
+4. 再看 `04_real_embeddings.py`，把 toy provider 和真实 provider 对上
+5. 最后看 `05_semantic_search.py` 和测试，确认边界和坏例
+
+## 推荐运行顺序
+
+```bash
+python 01_embed_chunks.py
+python 02_compare_similarity.py
+python 03_query_vs_document.py
+python 04_real_embeddings.py
+python 05_semantic_search.py
+python -m unittest discover -s tests
+```
 
 ```text
 先看稳定 chunk 如何变成向量 -> 再看 query/document 契约 -> 再看最小排序和回归 -> 最后补真实 embeddings endpoint 的接入桥
@@ -129,7 +173,7 @@ python 01_embed_chunks.py
 
 ---
 
-## 先怎么读代码
+## 每个脚本观察重点
 
 ### 0. 关键代码流转总览
 
@@ -323,19 +367,17 @@ data/source_chunks.json
 
 ---
 
-## 建议学习顺序
+## 常见困惑：toy / mock / real 三者关系
 
-1. 先读 [03_embeddings.md](../../../docs/04_rag/03_embeddings.md)
-2. 跑 `python 01_embed_chunks.py`
-3. 再跑 `python 02_compare_similarity.py`
-4. 再跑 `python 03_query_vs_document.py`
-5. 再跑 `python 04_real_embeddings.py`
-6. 最后跑 `python 05_semantic_search.py`
-7. 最后用 `python -m unittest discover -s tests` 看回归边界
+- toy provider 指 `LocalKeywordEmbeddingProvider`，它是本地可解释的教学实现，用来让你看清 `SourceChunk -> EmbeddedChunk`、query/document 分流和相似度排序。
+- mock semantic client 指 `MockSemanticOpenAIClient`，它模拟 OpenAI-compatible embeddings endpoint 的返回形状，让你没有真实环境变量时也能观察接口契约。
+- real provider 指真实 OpenAI-compatible embeddings endpoint，它和 mock 使用同一个 `OpenAICompatibleEmbeddingProvider` 包装层。
+- toy、mock、real 不是叠加调用关系。运行某个脚本时，当前 provider 负责把文本变成向量；`05_semantic_search.py` 同时展示 toy 和 semantic provider，只是为了对比排序差异。
+- 第一次学习先用 toy 看懂机制，再用 mock/real 看懂真实接口形状，最后再回头看测试和 known gap。
 
 ---
 
-## 第三章最小回归集
+## 测试和回归
 
 第三章现在有两层回归样例：
 
