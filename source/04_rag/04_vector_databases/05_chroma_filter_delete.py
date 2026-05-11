@@ -1,3 +1,13 @@
+"""使用 metadata 过滤查询 Chroma，并可选删除某个文档。
+
+流程：
+1. 解析查询文本、metadata 过滤条件、top_k 和可选删除目标。
+2. 确保 Chroma 演示索引存在。
+3. 构造 Chroma 兼容的 where 过滤条件。
+4. 通过 ChromaVectorStore.similarity_search(...) 查询。
+5. 可选按 document_id 删除，并打印剩余状态。
+"""
+
 import argparse
 
 from chroma_store import (
@@ -16,6 +26,8 @@ def ensure_index(
     store: ChromaVectorStore,
     provider: LocalKeywordEmbeddingProvider,
 ) -> None:
+    """执行过滤/查询前，确保 Chroma 演示索引存在且兼容。"""
+
     expected_space = embedding_space_from_provider(provider)
     current_space = store.embedding_space()
     if current_space is None:
@@ -38,6 +50,12 @@ def build_where_filter(
     suffix: str | None,
     document_id: str | None,
 ) -> dict[str, object] | None:
+    """构造本章演示所需的最小 Chroma where 过滤条件。
+
+    Chroma 在多个等值条件组合时需要显式 "$and"，所以这里把这个
+    数据库特定规则集中展示出来。
+    """
+
     clauses: list[dict[str, str]] = []
     if filename:
         clauses.append({"filename": filename})
@@ -53,6 +71,9 @@ def build_where_filter(
 
 
 def main() -> None:
+    """Chroma 查询、过滤和删除演示脚本的命令行入口。"""
+
+    # 1. 解析查询文本和可选 metadata 过滤条件。
     parser = argparse.ArgumentParser(description="Search and delete against the Chroma collection.")
     parser.add_argument(
         "question",
@@ -73,15 +94,19 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    # 2. 打开 Chroma，并确保有兼容索引可供查询。
     provider = LocalKeywordEmbeddingProvider()
     store = ChromaVectorStore(ChromaVectorStoreConfig())
     ensure_index(store, provider)
 
+    # 3. 将 CLI 过滤参数转换成 Chroma 的 metadata where 语法。
     where = build_where_filter(
         filename=args.filename,
         suffix=args.suffix,
         document_id=args.document_id,
     )
+
+    # 4. 将 query 向量化，并交给 Chroma backend 执行向量查询。
     query_vector = provider.embed_query(args.question)
     results = store.similarity_search(
         query_vector=query_vector,
@@ -90,6 +115,7 @@ def main() -> None:
         where=where,
     )
 
+    # 5. 打印带 metadata 的结果，方便确认过滤是否真实生效。
     print(f"Question: {args.question}")
     print(
         "Query embedding space: "
@@ -116,6 +142,7 @@ def main() -> None:
         )
         print(f"  preview={preview}")
 
+    # 6. 可选清理路径：演示 Chroma 中的文档级删除。
     if args.delete_document_id:
         deleted = store.delete_by_document_id(args.delete_document_id)
         print(f"Deleted {deleted} chunk(s) for document_id={args.delete_document_id}.")

@@ -10,6 +10,28 @@
 先看原理层 -> 再看真实数据库 -> 再看 LangChain 映射 -> 最后看统一管理器
 ```
 
+本章所有脚本都围绕同一条主链路：
+
+```text
+EmbeddedChunk[]
+-> upsert() / replace_document()
+-> PersistentVectorStore / ChromaVectorStore / LangChain Chroma
+-> similarity_search()
+-> RetrievalResult[]
+```
+
+跑脚本时可以这样对应：
+
+| 脚本 | 对应链路 | 学习重点 |
+|------|----------|----------|
+| `01_index_store.py` | `EmbeddedChunk[] -> PersistentVectorStore.replace_document()` | 原理层写入和持久化 |
+| `02_search_store.py` | `query -> similarity_search() -> RetrievalResult[]` | 查询、过滤、结果还原 |
+| `03_delete_document.py` | `document_id -> delete_by_document_id()` | 文档级删除 |
+| `04_chroma_crud.py` | `EmbeddedChunk[] -> Chroma collection` | 真实持久化 collection |
+| `05_chroma_filter_delete.py` | `where filter -> Chroma query/delete` | metadata 过滤和复合 `$and` |
+| `06_langchain_vectorstore.py` | `SourceChunk -> Document -> VectorStore` | LangChain 映射 |
+| `07_vector_store_manager.py` | `backend -> add/search/replace/delete` | 统一管理入口 |
+
 - 在 `source/04_rag/04_vector_databases/` 目录下操作
 - 第四章只讲向量存储层，不讲 Retriever 策略和生成
 - 原有 JSON store 继续保留，作为教学原理层
@@ -72,21 +94,21 @@ cd source/04_rag/04_vector_databases
 ### 2. 安装依赖
 
 ```bash
-python -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 ### 3. 当前命令
 
 ```bash
-python 01_index_store.py --reset
-python 02_search_store.py
-python 03_delete_document.py trial
-python 04_chroma_crud.py --reset
-python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md --suffix .md --document-id metadata
-python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode from_documents --retriever-search-type similarity --reset
-python 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
-python 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
-python -m unittest discover -s tests
+python3 01_index_store.py --reset
+python3 02_search_store.py
+python3 03_delete_document.py trial
+python3 04_chroma_crud.py --reset
+python3 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md --suffix .md --document-id metadata
+python3 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode from_documents --retriever-search-type similarity --reset
+python3 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
+python3 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
+python3 -m unittest discover -s tests
 ```
 
 ---
@@ -155,9 +177,9 @@ python -m unittest discover -s tests
 ### 第 1 步：先跑原理层
 
 ```bash
-python 01_index_store.py --reset
-python 02_search_store.py
-python 03_delete_document.py trial
+python3 01_index_store.py --reset
+python3 02_search_store.py
+python3 03_delete_document.py trial
 ```
 
 重点观察：
@@ -170,10 +192,10 @@ python 03_delete_document.py trial
 ### 第 2 步：再跑真实 Chroma
 
 ```bash
-python 04_chroma_crud.py --reset
-python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
-python 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md --suffix .md --document-id metadata
-python 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id trial
+python3 04_chroma_crud.py --reset
+python3 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md
+python3 05_chroma_filter_delete.py "为什么 metadata 很重要？" --filename metadata_rules.md --suffix .md --document-id metadata
+python3 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id trial
 ```
 
 重点观察：
@@ -187,12 +209,12 @@ python 05_chroma_filter_delete.py "如何申请退费？" --delete-document-id t
 ### 第 3 步：最后跑 LangChain Chroma
 
 ```bash
-python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode add_documents --reset
-python 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode from_documents
-python 06_langchain_vectorstore.py "如何申请退费？" --retriever-search-type mmr
-python 07_vector_store_manager.py --backend json "如何申请退费？"
-python 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
-python 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
+python3 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode add_documents --reset
+python3 06_langchain_vectorstore.py "为什么 metadata 很重要？" --filename metadata_rules.md --init-mode from_documents
+python3 06_langchain_vectorstore.py "如何申请退费？" --retriever-search-type mmr
+python3 07_vector_store_manager.py --backend json "如何申请退费？"
+python3 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
+python3 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
 ```
 
 重点观察：
@@ -206,9 +228,9 @@ python 07_vector_store_manager.py --backend langchain --replace-document-id tria
 ### 第 4 步：最后跑统一管理器
 
 ```bash
-python 07_vector_store_manager.py --backend json --delete-document-id trial "如何申请退费？"
-python 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
-python 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
+python3 07_vector_store_manager.py --backend json --delete-document-id trial "如何申请退费？"
+python3 07_vector_store_manager.py --backend chroma --add-document-id faq --add-text "课程退款请联系助教。" "如何申请退费？"
+python3 07_vector_store_manager.py --backend langchain --replace-document-id trial --replace-text "试学需要提前预约并完成登记。" "如何预约试学？"
 ```
 
 重点观察：
@@ -220,7 +242,7 @@ python 07_vector_store_manager.py --backend langchain --replace-document-id tria
 ### 第 5 步：最后看测试在锁定什么
 
 ```bash
-python -m unittest discover -s tests
+python3 -m unittest discover -s tests
 ```
 
 这组测试锁定四类行为：

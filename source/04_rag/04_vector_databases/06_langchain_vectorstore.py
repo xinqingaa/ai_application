@@ -1,3 +1,13 @@
+"""通过 LangChain Chroma 跑通第四章向量存储主流程。
+
+流程：
+1. 解析查询、过滤条件、初始化模式、retriever 搜索类型和 reset 标记。
+2. 打开或初始化 LangChain Chroma。
+3. 运行 similarity_search 和 similarity_search_with_score。
+4. 仅把 as_retriever(...) 作为通往第五章的接口展示。
+5. 将 LangChain 输出转回类似 RetrievalResult 的对象。
+"""
+
 import argparse
 
 from langchain_adapter import (
@@ -13,6 +23,8 @@ from vector_store_basics import LocalKeywordEmbeddingProvider
 
 
 def ensure_index(vectorstore) -> int:
+    """当 LangChain collection 为空时写入演示文档。"""
+
     if vectorstore._collection.count() > 0:
         return 0
 
@@ -28,6 +40,8 @@ def create_or_load_vectorstore(
     config: LangChainChromaConfig,
     init_mode: str,
 ):
+    """按指定初始化路径创建或复用 LangChain Chroma store。"""
+
     if init_mode == "from_documents":
         existing = create_langchain_chroma(provider, config)
         if existing._collection.count() > 0:
@@ -43,6 +57,8 @@ def create_or_load_vectorstore(
 
 
 def print_plain_results(title: str, results) -> None:
+    """打印不带显式分数的 RetrievalResult 风格对象。"""
+
     print(title)
     for result in results:
         print(
@@ -53,6 +69,8 @@ def print_plain_results(title: str, results) -> None:
 
 
 def print_scored_results(title: str, results) -> None:
+    """打印带相似度分数的 RetrievalResult 风格对象。"""
+
     print(title)
     for result in results:
         print(
@@ -63,6 +81,9 @@ def print_scored_results(title: str, results) -> None:
 
 
 def main() -> None:
+    """LangChain VectorStore 映射演示脚本的命令行入口。"""
+
+    # 1. 解析用于展示两种初始化路径和查询 API 的参数。
     parser = argparse.ArgumentParser(description="Run the same Chapter 4 flow through LangChain Chroma.")
     parser.add_argument(
         "question",
@@ -87,22 +108,28 @@ def main() -> None:
     parser.add_argument("--reset", action="store_true", help="Delete the LangChain persist directory first.")
     args = parser.parse_args()
 
+    # 2. 构造本章 provider 和 LangChain Chroma 配置。
     provider = LocalKeywordEmbeddingProvider()
     config = LangChainChromaConfig()
+
+    # 3. 可选 reset 能让重复学习运行保持确定性。
     if args.reset:
         reset_langchain_chroma(config)
         print("Existing LangChain Chroma persist directory was reset first.")
 
+    # 4. 通过 add_documents(...) 或 from_documents(...) 初始化。
     vectorstore, init_message = create_or_load_vectorstore(
         provider=provider,
         config=config,
         init_mode=args.init_mode,
     )
 
+    # 5. 构造 LangChain 查询参数；这里仍然属于 VectorStore 过滤。
     search_kwargs: dict[str, object] = {"k": args.top_k}
     if args.filename:
         search_kwargs["filter"] = {"filename": args.filename}
 
+    # 6. 对比 LangChain 查询 API，并将输出归一成本章结果形状。
     plain_results = similarity_results_from_documents(
         vectorstore.similarity_search(args.question, **search_kwargs)
     )
@@ -115,6 +142,7 @@ def main() -> None:
     )
     retriever_results = similarity_results_from_documents(retriever.invoke(args.question))
 
+    # 7. 并排打印三种输出，方便对比接口差异。
     print(f"Persist dir: {config.persist_directory}")
     print(f"Collection: {config.collection_name}")
     print(f"Init mode: {args.init_mode}")

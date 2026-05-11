@@ -1,3 +1,13 @@
+"""查询教学版 JSON 向量库，并打印 RetrievalResult[]。
+
+流程：
+1. 解析问题、过滤条件和 top_k。
+2. 确保当前存在兼容的演示索引。
+3. 将问题向量化成 query vector。
+4. 调用 PersistentVectorStore.similarity_search(...)。
+5. 打印分数、chunk 身份和 metadata。
+"""
+
 import argparse
 
 from vector_store_basics import (
@@ -10,6 +20,8 @@ from vector_store_basics import (
 
 
 def ensure_index(store: PersistentVectorStore, provider: LocalKeywordEmbeddingProvider) -> None:
+    """当 JSON 演示索引缺失或不兼容时，创建或重建索引。"""
+
     expected_space = embedding_space_from_provider(provider)
     try:
         current_space = store.embedding_space()
@@ -34,6 +46,9 @@ def ensure_index(store: PersistentVectorStore, provider: LocalKeywordEmbeddingPr
 
 
 def main() -> None:
+    """JSON 相似度查询演示脚本的命令行入口。"""
+
+    # 1. 收集查询文本和可选 filename 过滤条件。
     parser = argparse.ArgumentParser(description="Search the local vector store.")
     parser.add_argument(
         "question",
@@ -45,11 +60,15 @@ def main() -> None:
     parser.add_argument("--top-k", type=int, default=3)
     args = parser.parse_args()
 
+    # 2. 准备 provider/store，并确保 store 里有可查询数据。
     provider = LocalKeywordEmbeddingProvider()
     store = PersistentVectorStore(VectorStoreConfig())
     ensure_index(store, provider)
 
+    # 3. query 必须使用和 store 相同身份的 provider 进行向量化。
     query_vector = provider.embed_query(args.question)
+
+    # 4. 查询返回 RetrievalResult[]，而不是脱离 chunk 的裸向量或裸分数。
     results = store.similarity_search(
         query_vector=query_vector,
         provider=provider,
@@ -57,6 +76,7 @@ def main() -> None:
         filename=args.filename,
     )
 
+    # 5. 打印足够的 metadata，方便把终端结果对应回已存储的 chunk。
     print(f"Question: {args.question}")
     print(
         "Query embedding space: "

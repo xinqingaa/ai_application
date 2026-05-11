@@ -6,6 +6,45 @@
 
 ## 1. 概述
 
+
+---
+
+### 本章主线
+
+记住下面这条链路：
+
+```text
+EmbeddedChunk[]
+-> upsert() / replace_document()
+-> PersistentVectorStore / ChromaVectorStore / LangChain Chroma
+-> similarity_search()
+-> RetrievalResult[]
+```
+
+用自然语言讲，这条链路就是：
+
+1. 第三章已经把文本切片变成了 `EmbeddedChunk[]`，每个 chunk 同时带着原文、metadata、向量、provider、model 和 dimensions。
+2. 第四章先解决“怎么把这些向量稳定写进一个 store”，写入入口是 `upsert()` 或 `replace_document()`。
+3. store 可以是教学用的 `PersistentVectorStore`，也可以是真实 `ChromaVectorStore`，也可以是 LangChain 包装后的 Chroma VectorStore。
+4. 用户提问时，query 也必须用同一个 embedding provider 变成 query vector。
+5. `similarity_search()` 负责在 store 里查相似 chunk，并把结果还原成统一的 `RetrievalResult[]`。
+
+后面的所有章节都在解释这条链路里的某一段。初学时不要先被数据库选型、SDK 名字或过滤语法带跑；先把“写入、查询、替换、删除、空间一致性、结果还原”这六件事串起来。
+
+### 主链路和代码脚本对应
+
+| 链路阶段 | 发生了什么 | 对应代码 |
+|----------|------------|----------|
+| 准备样例 chunk | 构造带 `chunk_id / document_id / metadata` 的 `SourceChunk[]` | `demo_source_chunks()` in [vector_store_basics.py](../../source/04_rag/04_vector_databases/vector_store_basics.py) |
+| 生成 `EmbeddedChunk[]` | 用 provider 批量生成向量，并记录 provider/model/dimensions | `embed_chunks()` / `demo_embedded_chunks()` in [vector_store_basics.py](../../source/04_rag/04_vector_databases/vector_store_basics.py) |
+| 写入原理层 store | 用 JSON 文件看清 `upsert()` 和 `replace_document()` 的语义 | [01_index_store.py](../../source/04_rag/04_vector_databases/01_index_store.py) |
+| 查询原理层 store | query vector 进入 `similarity_search()`，返回 `RetrievalResult[]` | [02_search_store.py](../../source/04_rag/04_vector_databases/02_search_store.py) |
+| 文档级删除 | 按 `document_id` 删除整份文档的 chunk | [03_delete_document.py](../../source/04_rag/04_vector_databases/03_delete_document.py) |
+| 写入真实 Chroma | 同一套存储契约落到 persistent collection | [04_chroma_crud.py](../../source/04_rag/04_vector_databases/04_chroma_crud.py) |
+| Chroma 过滤和删除 | metadata `where`、复合 `$and`、collection delete | [05_chroma_filter_delete.py](../../source/04_rag/04_vector_databases/05_chroma_filter_delete.py) |
+| LangChain 映射 | `SourceChunk -> Document`，provider -> `Embeddings` | [06_langchain_vectorstore.py](../../source/04_rag/04_vector_databases/06_langchain_vectorstore.py) |
+| 统一入口 | `json / chroma / langchain` 收束为 add/search/replace/delete | [07_vector_store_manager.py](../../source/04_rag/04_vector_databases/07_vector_store_manager.py) |
+
 ### 学习目标
 
 - 理解为什么第三章的 `EmbeddedChunk[]` 还不等于可用检索系统

@@ -1,3 +1,13 @@
+"""第四章向量存储行为的教学基础模块。
+
+这个模块刻意保留一个最小 JSON store，用来先看清存储层契约；
+同一套思路后面再映射到 Chroma 和 LangChain。
+主链路是：
+
+SourceChunk[] -> embed_chunks() -> EmbeddedChunk[] -> PersistentVectorStore
+-> similarity_search() -> RetrievalResult[].
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,6 +39,12 @@ DEFAULT_DIMENSIONS = len(CONCEPT_GROUPS) + HASH_BUCKETS + MODE_BUCKETS
 
 @dataclass(frozen=True)
 class SourceChunk:
+    """从文档处理阶段传下来的文本单元。
+
+    chunk_id 标识当前这个具体 chunk；document_id 标识来源文档，
+    一份文档可以包含一个或多个 chunk。
+    """
+
     chunk_id: str
     document_id: str
     content: str
@@ -37,6 +53,8 @@ class SourceChunk:
 
 @dataclass(frozen=True)
 class EmbeddedChunk:
+    """带向量和 embedding space 身份的 SourceChunk。"""
+
     chunk: SourceChunk
     vector: list[float]
     provider_name: str
@@ -46,19 +64,23 @@ class EmbeddedChunk:
 
 @dataclass(frozen=True)
 class RetrievalResult:
+    """第四章所有 backend 统一返回的标准结果形状。"""
+
     chunk: SourceChunk
     score: float
 
 
 @dataclass(frozen=True)
 class VectorStoreConfig:
+    """教学版 JSON 向量库的配置。"""
+
     store_path: Path = DEFAULT_STORE_PATH
 
 
 @dataclass(frozen=True)
 class EmbeddingSpace:
-    # The store treats provider/model/dimensions as one inseparable identity.
-    # Once a store has written one space, later writes and queries must stay in it.
+    # store 会把 provider/model/dimensions 当成不可拆分的空间身份。
+    # 一旦某个 store 写入了一个空间，后续写入和查询都必须保持一致。
     provider_name: str
     model_name: str
     dimensions: int
@@ -80,6 +102,12 @@ class EmbeddingProvider(Protocol):
 
 
 class LocalKeywordEmbeddingProvider:
+    """本章演示使用的确定性本地 embedding provider。
+
+    它不是真实语义模型，而是为了让向量库示例无需网络也能稳定复现；
+    同时它仍然具备 provider/model/dimensions 这类真实 provider 身份。
+    """
+
     def __init__(
         self,
         model_name: str = "concept-space-v1",
@@ -95,12 +123,18 @@ class LocalKeywordEmbeddingProvider:
         self.dimensions = dimensions
 
     def embed_query(self, text: str) -> list[float]:
+        """把用户 query 映射到和文档相同的向量空间。"""
+
         return self._embed(text, kind="query")
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        """在写入 store 前批量向量化文档文本。"""
+
         return [self._embed(text, kind="document") for text in texts]
 
     def _embed(self, text: str, kind: str) -> list[float]:
+        """把文本转换成确定性的概念/hash 混合向量。"""
+
         normalized = " ".join(text.lower().split())
         vector = [0.0] * self.dimensions
 
@@ -126,6 +160,8 @@ class LocalKeywordEmbeddingProvider:
 
 
 def demo_chunk_metadata(source: str, content: str, chunk_index: int = 0) -> dict[str, str | int]:
+    """构造后续过滤、引用和调试需要的最小来源 metadata。"""
+
     filename = source.rsplit("/", maxsplit=1)[-1]
     suffix = f".{filename.rsplit('.', maxsplit=1)[-1]}" if "." in filename else ""
     char_count = len(content)
@@ -144,6 +180,8 @@ def demo_chunk_metadata(source: str, content: str, chunk_index: int = 0) -> dict
 
 
 def demo_source_chunks() -> list[SourceChunk]:
+    """返回 JSON、Chroma、LangChain 演示共用的固定小语料。"""
+
     return [
         SourceChunk(
             chunk_id="refund:0",
@@ -204,6 +242,8 @@ def ensure_vector_dimensions(
     expected_dimensions: int,
     context: str,
 ) -> None:
+    """当向量维度不属于期望 embedding space 时尽早失败。"""
+
     if len(vector) != expected_dimensions:
         raise ValueError(
             f"{context} has dimensions={len(vector)}, expected {expected_dimensions}."
@@ -211,6 +251,8 @@ def ensure_vector_dimensions(
 
 
 def embedding_space_from_provider(provider: EmbeddingProvider) -> EmbeddingSpace:
+    """从 embedding provider 读取 provider/model/dimensions。"""
+
     return EmbeddingSpace(
         provider_name=provider.provider_name,
         model_name=provider.model_name,
@@ -219,6 +261,8 @@ def embedding_space_from_provider(provider: EmbeddingProvider) -> EmbeddingSpace
 
 
 def embedding_space_from_chunk(chunk: EmbeddedChunk) -> EmbeddingSpace:
+    """从一个 embedded chunk 读取 provider/model/dimensions。"""
+
     return EmbeddingSpace(
         provider_name=chunk.provider_name,
         model_name=chunk.model_name,
@@ -231,6 +275,8 @@ def ensure_matching_embedding_space(
     expected: EmbeddingSpace,
     context: str,
 ) -> None:
+    """在继续写入或查询前，确认两个向量空间可以比较。"""
+
     if actual != expected:
         raise ValueError(
             f"{context} uses embedding space {actual.label()}, expected {expected.label()}."
@@ -241,6 +287,8 @@ def ensure_same_embedding_space(
     chunk: EmbeddedChunk,
     provider: EmbeddingProvider,
 ) -> None:
+    """确认 embedded chunk 和 query provider 属于同一个空间。"""
+
     ensure_matching_embedding_space(
         actual=embedding_space_from_chunk(chunk),
         expected=embedding_space_from_provider(provider),
@@ -254,6 +302,11 @@ def ensure_same_embedding_space(
 
 
 def infer_chunks_embedding_space(chunks: list[EmbeddedChunk]) -> EmbeddingSpace | None:
+    """从一批 embedded chunks 中推断共享 embedding space。
+
+    空批次还没有空间身份；非空批次必须内部一致，才能进入 store。
+    """
+
     if not chunks:
         return None
 
@@ -276,11 +329,21 @@ def embed_chunks(
     chunks: list[SourceChunk],
     provider: EmbeddingProvider,
 ) -> list[EmbeddedChunk]:
+    """把 SourceChunk[] 转成存储层需要的 EmbeddedChunk[]。
+
+    参数：
+        chunks: 带稳定 id 和 metadata 的 SourceChunk 列表。
+        provider: 当前批次统一使用的 embedding provider。
+
+    返回：
+        带向量数据和 provider/model/dimensions 身份的 EmbeddedChunk 列表。
+    """
+
     if not chunks:
         return []
 
-    # The provider may be remote or wrapped by another library, so we check both
-    # vector count and dimensions here before anything enters the storage layer.
+    # provider 可能来自远程服务，也可能被框架包装；进入存储层前先同时校验
+    # 向量数量和维度，能把问题拦在写入之前。
     vectors = provider.embed_documents([chunk.content for chunk in chunks])
     if len(vectors) != len(chunks):
         raise ValueError("Embedding provider returned an unexpected vector count.")
@@ -307,20 +370,41 @@ def embed_chunks(
 def demo_embedded_chunks(
     provider: EmbeddingProvider | None = None,
 ) -> list[EmbeddedChunk]:
+    """使用指定 provider 构造已经向量化的演示语料。"""
+
     embedding_provider = provider or LocalKeywordEmbeddingProvider()
     return embed_chunks(demo_source_chunks(), embedding_provider)
 
 
 class PersistentVectorStore:
+    """用于讲解存储契约的最小 JSON 向量库。
+
+    这个 store 会把向量记录持久化到磁盘，并暴露后续 backend 都需要的能力：
+    upsert、文档级替换、相似度查询、文档级删除。
+    """
+
     def __init__(self, config: VectorStoreConfig) -> None:
+        """创建 store，并确保父目录存在。"""
+
         self.config = config
         self.config.store_path.parent.mkdir(parents=True, exist_ok=True)
 
     def reset(self) -> None:
+        """删除持久化 JSON 文件，让下一次运行从空 store 开始。"""
+
         if self.config.store_path.exists():
             self.config.store_path.unlink()
 
     def upsert(self, chunks: list[EmbeddedChunk]) -> int:
+        """按 chunk_id 插入或覆盖 chunks。
+
+        参数：
+            chunks: 待写入的 EmbeddedChunk 列表，必须属于同一个 embedding space。
+
+        返回：
+            实际写入的 chunk 数量。
+        """
+
         validated_chunks, incoming_space = self._validate_write_batch(chunks)
         if not validated_chunks:
             return 0
@@ -328,7 +412,7 @@ class PersistentVectorStore:
         records = self._load_records()
         stored_space = self._infer_record_embedding_space(records)
         if stored_space is not None and incoming_space is not None:
-            # A single store intentionally holds one embedding space only.
+            # 单个 store 刻意只保存一个 embedding space，避免跨空间相似度比较。
             ensure_matching_embedding_space(
                 actual=incoming_space,
                 expected=stored_space,
@@ -341,13 +425,22 @@ class PersistentVectorStore:
         return len(validated_chunks)
 
     def replace_document(self, chunks: list[EmbeddedChunk]) -> int:
+        """按 document_id 整体替换文档，再写入新的 chunks。
+
+        参数：
+            chunks: 一个或多个 document_id 对应的新 EmbeddedChunk 列表。
+
+        返回：
+            删除旧 chunk 后实际写入的新 chunk 数量。
+        """
+
         validated_chunks, incoming_space = self._validate_write_batch(chunks)
         if not validated_chunks:
             return 0
 
         target_document_ids = {chunk.chunk.document_id for chunk in validated_chunks}
-        # replace_document is document-scoped, not chunk-scoped: remove every old
-        # chunk that belongs to the same document before inserting the new version.
+        # replace_document 是文档级语义，不是 chunk 级语义：先删除同文档旧 chunk，
+        # 再插入新版本，避免 stale chunks 残留。
         remaining_records = {
             chunk_id: record
             for chunk_id, record in self._load_records().items()
@@ -367,12 +460,18 @@ class PersistentVectorStore:
         return len(validated_chunks)
 
     def count(self) -> int:
+        """返回当前持久化的向量记录数量。"""
+
         return len(self._load_records())
 
     def list_document_ids(self) -> list[str]:
+        """返回当前 store 中出现过的所有 document_id。"""
+
         return sorted({chunk.chunk.document_id for chunk in self.load_chunks()})
 
     def embedding_space(self) -> EmbeddingSpace | None:
+        """返回 store 的 embedding space；空 store 返回 None。"""
+
         return infer_chunks_embedding_space(self.load_chunks())
 
     def similarity_search(
@@ -382,13 +481,22 @@ class PersistentVectorStore:
         top_k: int = 3,
         filename: str | None = None,
     ) -> list[RetrievalResult]:
+        """查询已存向量，并返回标准 RetrievalResult 对象。
+
+        参数：
+            query_vector: 由 provider.embed_query(...) 生成的查询向量。
+            provider: 用于校验 query/store 空间一致性的 provider 身份。
+            top_k: 最多返回的结果数量。
+            filename: 教学 store 中支持的可选 metadata 等值过滤条件。
+        """
+
         if top_k <= 0:
             raise ValueError("top_k must be a positive integer.")
 
         ensure_vector_dimensions(query_vector, provider.dimensions, context="query vector")
         embedded_chunks = self.load_chunks()
-        # Query-time validation matters as much as write-time validation. Searching
-        # across mixed spaces produces plausible-looking but meaningless scores.
+        # 查询时校验和写入时校验一样重要；跨空间查询会产生看似正常、
+        # 但语义上没有意义的相似度分数。
         for chunk in embedded_chunks:
             ensure_same_embedding_space(chunk, provider)
 
@@ -410,6 +518,8 @@ class PersistentVectorStore:
         return scored[:top_k]
 
     def delete_by_document_id(self, document_id: str) -> int:
+        """删除属于同一个来源文档的全部 chunk。"""
+
         records = self._load_records()
         removable = [
             chunk_id
@@ -422,6 +532,8 @@ class PersistentVectorStore:
         return len(removable)
 
     def load_chunks(self) -> list[EmbeddedChunk]:
+        """把持久化记录重新加载成 EmbeddedChunk 对象。"""
+
         chunks = [
             self._deserialize_embedded_chunk(record)
             for _, record in sorted(self._load_records().items())
@@ -430,6 +542,8 @@ class PersistentVectorStore:
         return chunks
 
     def _load_records(self) -> dict[str, dict[str, object]]:
+        """读取并校验原始 JSON records，返回以 chunk_id 为 key 的字典。"""
+
         if not self.config.store_path.exists():
             return {}
 
@@ -451,14 +565,16 @@ class PersistentVectorStore:
         return records
 
     def _save_records(self, records: dict[str, dict[str, object]]) -> None:
+        """按确定顺序持久化 records，方便学习时直接检查文件。"""
+
         payload: dict[str, object] = {
             "records": [records[key] for key in sorted(records)],
         }
 
         store_space = self._infer_record_embedding_space(records)
         if store_space is not None:
-            # Persist the store-level space explicitly so the file itself reveals
-            # which provider/model/dimensions the records belong to.
+            # 显式持久化 store 级别的空间身份，让 JSON 文件自身就能说明
+            # 这些 records 属于哪个 provider/model/dimensions。
             payload["embedding_space"] = {
                 "provider_name": store_space.provider_name,
                 "model_name": store_space.model_name,
@@ -474,6 +590,8 @@ class PersistentVectorStore:
         self,
         chunks: list[EmbeddedChunk],
     ) -> tuple[list[EmbeddedChunk], EmbeddingSpace | None]:
+        """写入批次改变持久化状态前，先完成基本校验。"""
+
         seen_chunk_ids: set[str] = set()
         for chunk in chunks:
             self._validate_embedded_chunk(chunk)
@@ -485,6 +603,8 @@ class PersistentVectorStore:
         return chunks, infer_chunks_embedding_space(chunks)
 
     def _validate_embedded_chunk(self, chunk: EmbeddedChunk) -> None:
+        """校验后续恢复和查询 chunk 所必需的字段。"""
+
         if not chunk.chunk.chunk_id:
             raise ValueError("Embedded chunk must have a non-empty chunk_id.")
         if not chunk.chunk.document_id:
@@ -508,9 +628,11 @@ class PersistentVectorStore:
         )
 
     def _serialize_embedded_chunk(self, chunk: EmbeddedChunk) -> dict[str, object]:
+        """把 EmbeddedChunk 转成可 JSON 序列化的 record。"""
+
         self._validate_embedded_chunk(chunk)
-        # We store both vector data and the original chunk identity so later
-        # retrieval can return standard chunks instead of detached scores.
+        # 同时保存向量数据和原始 chunk 身份，后续检索才能返回标准 chunk，
+        # 而不是只返回脱离上下文的分数。
         return {
             "chunk": {
                 "chunk_id": chunk.chunk.chunk_id,
@@ -525,6 +647,8 @@ class PersistentVectorStore:
         }
 
     def _deserialize_embedded_chunk(self, record: dict[str, object]) -> EmbeddedChunk:
+        """把一条 JSON record 转回 EmbeddedChunk。"""
+
         chunk_payload = self._require_mapping(record.get("chunk"), context="record.chunk")
         metadata_payload = self._require_mapping(
             chunk_payload.get("metadata"),
@@ -568,6 +692,8 @@ class PersistentVectorStore:
         self,
         records: dict[str, dict[str, object]],
     ) -> EmbeddingSpace | None:
+        """从原始持久化 records 中推断 embedding space。"""
+
         if not records:
             return None
         return infer_chunks_embedding_space(
@@ -601,6 +727,8 @@ class PersistentVectorStore:
 
 
 def cosine_similarity(left: list[float], right: list[float]) -> float:
+    """计算余弦相似度，分数越高表示语义越接近。"""
+
     if len(left) != len(right):
         raise ValueError("Cosine similarity requires vectors with the same dimensions.")
 
@@ -614,6 +742,8 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
 
 
 def normalize(vector: list[float]) -> list[float]:
+    """归一化向量，让余弦相似度计算更稳定。"""
+
     norm = sqrt(sum(value * value for value in vector))
     if norm == 0.0:
         return vector

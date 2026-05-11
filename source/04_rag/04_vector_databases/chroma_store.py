@@ -1,3 +1,10 @@
+"""第四章向量存储契约的 Chroma backend。
+
+这个模块把 PersistentVectorStore 讲过的同一组动作映射到真实 Chroma
+持久化 collection：upsert、replace_document、similarity_search、
+load_chunks 和 delete_by_document_id。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,24 +41,36 @@ INTERNAL_METADATA_KEYS = {
     MODEL_NAME_KEY,
     DIMENSIONS_KEY,
 }
-# Chroma can persist arbitrary scalar metadata, so chapter 4 uses a few reserved
-# keys to keep chunk identity and embedding-space identity recoverable.
+# Chroma 可以持久化任意标量 metadata，所以第四章用几个保留 key
+# 保存 chunk 身份和 embedding-space 身份，保证后续可以恢复对象。
 SUPPORTED_DISTANCE_METRICS = {"cosine", "l2", "ip"}
 
 
 def chromadb_is_available() -> bool:
+    """检查可选的 Chroma 依赖是否已经安装。"""
+
     return find_spec("chromadb") is not None
 
 
 @dataclass(frozen=True)
 class ChromaVectorStoreConfig:
+    """本章 Chroma 持久化 collection 的配置。"""
+
     persist_directory: Path = DEFAULT_CHROMA_DIR
     collection_name: str = "chapter4_chunks"
     distance_metric: str = "cosine"
 
 
 class ChromaVectorStore:
+    """第四章向量存储接口的 Chroma 实现。
+
+    Chroma 负责保存向量、文档和标量 metadata。这个 wrapper 会把课程层面的
+    存储契约显式保留下来：在 metadata 中保存 chunk 身份和 embedding-space 身份。
+    """
+
     def __init__(self, config: ChromaVectorStoreConfig) -> None:
+        """打开或创建配置指定的持久化 Chroma collection。"""
+
         if config.distance_metric not in SUPPORTED_DISTANCE_METRICS:
             raise ValueError(
                 "Unsupported distance metric. Expected one of: "
@@ -71,17 +90,25 @@ class ChromaVectorStore:
         self._collection = self._get_or_create_collection()
 
     def reset(self) -> None:
+        """删除并重建 collection，让演示从干净状态开始。"""
+
         if self._collection_exists():
             self._client.delete_collection(self.collection_name)
         self._collection = self._get_or_create_collection()
 
     def count(self) -> int:
+        """返回 Chroma collection 中的记录数量。"""
+
         return self._collection.count()
 
     def list_document_ids(self) -> list[str]:
+        """返回从已存 chunks 中恢复出的全部 document_id。"""
+
         return sorted({chunk.chunk.document_id for chunk in self.load_chunks()})
 
     def embedding_space(self) -> EmbeddingSpace | None:
+        """推断当前 collection 所代表的唯一 embedding space。"""
+
         return infer_chunks_embedding_space(self.load_chunks())
 
     def upsert(
@@ -89,6 +116,16 @@ class ChromaVectorStore:
         chunks: list[EmbeddedChunk],
         batch_size: int = 32,
     ) -> int:
+        """按 chunk_id 向 Chroma 插入或覆盖 embedded chunks。
+
+        参数：
+            chunks: 待写入的 EmbeddedChunk 列表。
+            batch_size: 每次 upsert 调用发送给 Chroma 的 chunk 数量。
+
+        返回：
+            实际写入的 chunk 数量。
+        """
+
         if batch_size <= 0:
             raise ValueError("Vector store batch size must be positive.")
 
@@ -98,8 +135,8 @@ class ChromaVectorStore:
 
         stored_space = self.embedding_space()
         if stored_space is not None and incoming_space is not None:
-            # Chroma itself does not enforce provider/model compatibility.
-            # The chapter store keeps that contract explicit.
+            # Chroma 本身不会强制校验 provider/model 兼容性；
+            # 本章 wrapper 要显式守住这个契约。
             ensure_matching_embedding_space(
                 actual=incoming_space,
                 expected=stored_space,
@@ -121,13 +158,17 @@ class ChromaVectorStore:
         chunks: list[EmbeddedChunk],
         batch_size: int = 32,
     ) -> int:
+        """替换 incoming document ids 对应的全部旧 chunk。
+
+        Chroma 原生 upsert 更偏 chunk 级写入，这里额外保留文档级替换语义。
+        """
+
         validated_chunks, incoming_space = _validate_write_batch(chunks)
         if not validated_chunks:
             return 0
 
         target_document_ids = {chunk.chunk.document_id for chunk in validated_chunks}
-        # replace_document keeps document-level semantics even on top of a database
-        # that primarily exposes chunk-level writes.
+        # 即便底层数据库主要暴露 chunk 级写入，也要在这里保留文档级替换语义。
         remaining_chunks = [
             chunk
             for chunk in self.load_chunks()
@@ -150,6 +191,8 @@ class ChromaVectorStore:
         where: MetadataFilter | None = None,
         limit: int | None = None,
     ) -> list[SourceChunk]:
+        """只检查已存 SourceChunk，不暴露向量。"""
+
         return [chunk.chunk for chunk in self.load_chunks(where=where, limit=limit)]
 
     def load_chunks(
@@ -157,6 +200,8 @@ class ChromaVectorStore:
         where: MetadataFilter | None = None,
         limit: int | None = None,
     ) -> list[EmbeddedChunk]:
+        """读取 Chroma records，并水合回 EmbeddedChunk 对象。"""
+
         if limit is not None and limit <= 0:
             raise ValueError("Chunk inspection limit must be positive.")
         if self.count() == 0:
@@ -178,6 +223,15 @@ class ChromaVectorStore:
         top_k: int = 3,
         where: MetadataFilter | None = None,
     ) -> list[RetrievalResult]:
+        """在 Chroma 中执行向量查询，并返回 RetrievalResult 对象。
+
+        参数：
+            query_vector: 使用写入时同一 provider 生成的查询向量。
+            provider: 用于校验 query/store 空间一致性的 provider 身份。
+            top_k: 最多返回的匹配数量。
+            where: 可选 Chroma metadata 过滤条件。
+        """
+
         if top_k <= 0:
             raise ValueError("top_k must be a positive integer.")
 
@@ -201,6 +255,8 @@ class ChromaVectorStore:
         return _hydrate_query_results(response)
 
     def delete_by_document_id(self, document_id: str) -> int:
+        """删除内部 document_id 匹配的所有 Chroma records。"""
+
         existing = self.get_chunks(where={DOCUMENT_ID_KEY: document_id})
         if not existing:
             return 0
@@ -222,6 +278,8 @@ class ChromaVectorStore:
 
 
 def _load_chromadb() -> Any:
+    """延迟导入 chromadb，让只跑 JSON 的演示不需要安装它。"""
+
     if not chromadb_is_available():
         raise RuntimeError(
             "Real Chroma support requires the `chromadb` package. "
@@ -236,6 +294,8 @@ def _load_chromadb() -> Any:
 def _validate_write_batch(
     chunks: list[EmbeddedChunk],
 ) -> tuple[list[EmbeddedChunk], EmbeddingSpace | None]:
+    """触碰 Chroma collection 前，先校验写入批次。"""
+
     seen_chunk_ids: set[str] = set()
     for chunk in chunks:
         _validate_embedded_chunk(chunk)
@@ -246,6 +306,8 @@ def _validate_write_batch(
 
 
 def _validate_embedded_chunk(chunk: EmbeddedChunk) -> None:
+    """校验 Chroma 持久化所需的最小字段。"""
+
     if not chunk.chunk.chunk_id:
         raise ValueError("Embedded chunk must have a non-empty chunk_id.")
     if not chunk.chunk.document_id:
@@ -270,8 +332,10 @@ def _validate_embedded_chunk(chunk: EmbeddedChunk) -> None:
 
 
 def _serialize_metadata(chunk: EmbeddedChunk) -> MetadataFilter:
-    # We merge user metadata with storage-internal metadata so a single Chroma
-    # record can be used for retrieval, delete-by-document, and space validation.
+    """合并用户 metadata 和 Chroma 必须保留的内部字段。"""
+
+    # 将用户 metadata 与存储内部 metadata 合并，让单条 Chroma record
+    # 同时支持检索、按文档删除和空间校验。
     metadata: MetadataFilter = {
         CHUNK_ID_KEY: chunk.chunk.chunk_id,
         DOCUMENT_ID_KEY: chunk.chunk.document_id,
@@ -291,6 +355,8 @@ def _serialize_metadata(chunk: EmbeddedChunk) -> MetadataFilter:
 
 
 def _hydrate_get_results(response: dict[str, Any]) -> list[EmbeddedChunk]:
+    """把 collection.get(...) 的输出水合成 EmbeddedChunk 对象。"""
+
     ids = _as_list(response.get("ids"))
     documents = _as_list(response.get("documents"))
     metadatas = _as_list(response.get("metadatas"))
@@ -298,8 +364,8 @@ def _hydrate_get_results(response: dict[str, Any]) -> list[EmbeddedChunk]:
 
     chunks: list[EmbeddedChunk] = []
     for chunk_id, document, metadata, vector in zip(ids, documents, metadatas, embeddings):
-        # Chroma returns parallel arrays, so hydration is where we reassemble them
-        # into chapter-4 runtime objects.
+        # Chroma 返回的是多组平行数组，水合阶段负责把它们重新组装成
+        # 第四章自己的运行时对象。
         chunks.append(
             _deserialize_embedded_chunk(
                 document=document,
@@ -312,6 +378,8 @@ def _hydrate_get_results(response: dict[str, Any]) -> list[EmbeddedChunk]:
 
 
 def _hydrate_query_results(response: dict[str, Any]) -> list[RetrievalResult]:
+    """把 collection.query(...) 的输出水合成 RetrievalResult 对象。"""
+
     ids = _first_nested_list(response.get("ids"))
     documents = _first_nested_list(response.get("documents"))
     metadatas = _first_nested_list(response.get("metadatas"))
@@ -339,6 +407,8 @@ def _deserialize_embedded_chunk(
     vector: list[float] | None,
     fallback_chunk_id: str,
 ) -> EmbeddedChunk:
+    """根据 Chroma 的 document/metadata/vector 字段重建 EmbeddedChunk。"""
+
     if not isinstance(vector, list):
         raise ValueError("Chroma response did not include embeddings for chunk hydration.")
     embedded_chunk = EmbeddedChunk(
@@ -362,6 +432,8 @@ def _deserialize_source_chunk(
     metadata: MetadataFilter | None,
     fallback_chunk_id: str,
 ) -> SourceChunk:
+    """重建 SourceChunk，并剥离只属于 Chroma 内部使用的 metadata key。"""
+
     metadata = metadata or {}
     chunk_metadata = {
         key: value for key, value in metadata.items() if key not in INTERNAL_METADATA_KEYS
@@ -375,10 +447,12 @@ def _deserialize_source_chunk(
 
 
 def _distance_to_similarity(distance: float | None) -> float:
+    """把 Chroma distance 转成第四章统一的“越高越好”的 score。"""
+
     if distance is None:
         return 0.0
-    # Chroma returns distance-like values; chapter 4 converts them into a simple
-    # higher-is-better score so every backend can expose the same result shape.
+    # Chroma 返回的是 distance 类值；第四章统一转成简单的“越高越好”分数，
+    # 这样每个 backend 都能暴露同一种结果形状。
     return max(-1.0, 1.0 - float(distance))
 
 

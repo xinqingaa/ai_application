@@ -1,3 +1,10 @@
+"""第四章向量存储示例的 LangChain 适配层。
+
+课程保留自己的 SourceChunk、RetrievalResult 和 EmbeddingProvider 契约；
+这个模块展示这些契约如何映射到 LangChain 的 Document、Embeddings
+和 Chroma VectorStore 抽象。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,16 +29,20 @@ LANGCHAIN_CHROMA_AVAILABLE = find_spec("langchain_chroma") is not None
 if LANGCHAIN_CORE_AVAILABLE:
     from langchain_core.documents import Document
     from langchain_core.embeddings import Embeddings
-else:  # pragma: no cover - exercised only when deps are missing
+else:  # pragma: no cover - 只在依赖缺失时覆盖
     Document = object  # type: ignore[assignment]
     Embeddings = object  # type: ignore[assignment]
 
 
 def langchain_vectorstore_is_available() -> bool:
+    """检查可选的 LangChain VectorStore 依赖是否存在。"""
+
     return LANGCHAIN_CORE_AVAILABLE and LANGCHAIN_CHROMA_AVAILABLE
 
 
 def require_langchain_vectorstore() -> None:
+    """当 LangChain 依赖缺失时，用可执行的提示信息失败。"""
+
     if langchain_vectorstore_is_available():
         return
     raise RuntimeError(
@@ -42,31 +53,47 @@ def require_langchain_vectorstore() -> None:
 
 @dataclass(frozen=True)
 class LangChainChromaConfig:
+    """LangChain 管理的 Chroma collection 配置。"""
+
     persist_directory: Path = DEFAULT_LANGCHAIN_DIR
     collection_name: str = "chapter4_langchain_chunks"
 
 
 class ProviderEmbeddingsAdapter(Embeddings):
+    """把本章 EmbeddingProvider 适配到 LangChain 的 Embeddings 接口。"""
+
     def __init__(self, provider: EmbeddingProvider) -> None:
+        """保存 LangChain 后续会调用的文档/query 向量化 provider。"""
+
         require_langchain_vectorstore()
         self.provider = provider
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        # LangChain expects its own Embeddings interface, but the chapter keeps
-        # one provider contract and adapts it here instead of redefining semantics.
+        """LangChain 写入 records 时，用本章 provider 向量化文档文本。"""
+
+        # LangChain 期待自己的 Embeddings 接口；本章保留统一 provider 契约，
+        # 在这里做适配，而不是重新定义一套 embedding 语义。
         return self.provider.embed_documents(list(texts))
 
     def embed_query(self, text: str) -> list[float]:
+        """LangChain 执行相似度查询时，用本章 provider 向量化 query。"""
+
         return self.provider.embed_query(text)
 
 
-def build_documents(chunks: list[SourceChunk] | None = None) -> list[Document]:
+def build_documents(chunks: list[SourceChunk] | None = None) -> list[Any]:
+    """把 SourceChunk[] 转成 LangChain Document[]。
+
+    chunk_id 和 document_id 会复制到 metadata 中，这样搜索结果才能转回
+    本章标准的 RetrievalResult 形状。
+    """
+
     require_langchain_vectorstore()
     source_chunks = demo_source_chunks() if chunks is None else chunks
-    documents: list[Document] = []
+    documents: list[Any] = []
     for chunk in source_chunks:
-        # chunk_id/document_id are copied into metadata so LangChain results can be
-        # turned back into the chapter's SourceChunk / RetrievalResult objects.
+        # 将 chunk_id/document_id 放入 metadata，后续 LangChain 结果才能
+        # 转回本章自己的 SourceChunk / RetrievalResult 对象。
         metadata = dict(chunk.metadata)
         metadata["chunk_id"] = chunk.chunk_id
         metadata["document_id"] = chunk.document_id
@@ -78,6 +105,8 @@ def create_langchain_chroma(
     provider: EmbeddingProvider,
     config: LangChainChromaConfig | None = None,
 ) -> Any:
+    """使用本章 provider 打开或创建 LangChain Chroma VectorStore。"""
+
     require_langchain_vectorstore()
     from langchain_chroma import Chroma
 
@@ -95,6 +124,8 @@ def create_langchain_chroma_from_documents(
     config: LangChainChromaConfig | None = None,
     chunks: list[SourceChunk] | None = None,
 ) -> Any:
+    """通过 Chroma.from_documents(...) 初始化 LangChain Chroma。"""
+
     require_langchain_vectorstore()
     from langchain_chroma import Chroma
 
@@ -112,17 +143,21 @@ def create_langchain_chroma_from_documents(
 
 
 def reset_langchain_chroma(config: LangChainChromaConfig | None = None) -> None:
+    """删除 LangChain Chroma 持久化目录，让演示从干净状态开始。"""
+
     actual_config = config or LangChainChromaConfig()
     if actual_config.persist_directory.exists():
         shutil.rmtree(actual_config.persist_directory)
 
 
 def similarity_results_from_documents(documents: list[Any]) -> list[RetrievalResult]:
+    """把不带显式分数的 LangChain Document 结果转成 RetrievalResult[]。"""
+
     results: list[RetrievalResult] = []
     for document in documents:
         metadata = dict(getattr(document, "metadata", {}) or {})
-        # Reverse the SourceChunk -> Document mapping when LangChain gives us
-        # document-only results without explicit scores.
+        # 当 LangChain 返回不带显式分数的 Document 时，反向执行
+        # SourceChunk -> Document 的映射。
         chunk = SourceChunk(
             chunk_id=str(metadata.pop("chunk_id", "")),
             document_id=str(metadata.pop("document_id", "")),
@@ -136,11 +171,13 @@ def similarity_results_from_documents(documents: list[Any]) -> list[RetrievalRes
 def retrieval_results_from_scored_documents(
     documents: list[tuple[Any, float]],
 ) -> list[RetrievalResult]:
+    """把 LangChain 的 (Document, distance) 元组转成 RetrievalResult[]。"""
+
     results: list[RetrievalResult] = []
     for document, distance in documents:
         metadata = dict(getattr(document, "metadata", {}) or {})
-        # LangChain exposes distances, while chapter 4 wants RetrievalResult with a
-        # backend-agnostic score field.
+        # LangChain 暴露的是 distance；第四章希望返回带“后端无关 score 字段”的
+        # 标准检索结果。
         chunk = SourceChunk(
             chunk_id=str(metadata.pop("chunk_id", "")),
             document_id=str(metadata.pop("document_id", "")),
