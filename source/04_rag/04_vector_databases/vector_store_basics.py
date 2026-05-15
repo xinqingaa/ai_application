@@ -86,7 +86,7 @@ class EmbeddingSpace:
     dimensions: int
 
     def label(self) -> str:
-        return f"{self.provider_name}/{self.model_name}/{self.dimensions}d"
+        return f"provider_name: {self.provider_name};model_name: {self.model_name};dimensions: {self.dimensions}d"
 
 
 class EmbeddingProvider(Protocol):
@@ -493,6 +493,7 @@ class PersistentVectorStore:
         if top_k <= 0:
             raise ValueError("top_k must be a positive integer.")
 
+        # 判断向量维度是否符合 embedding space
         ensure_vector_dimensions(query_vector, provider.dimensions, context="query vector")
         embedded_chunks = self.load_chunks()
         # 查询时校验和写入时校验一样重要；跨空间查询会产生看似正常、
@@ -510,7 +511,7 @@ class PersistentVectorStore:
         scored = [
             RetrievalResult(
                 chunk=chunk.chunk,
-                score=cosine_similarity(query_vector, chunk.vector),
+                score=cosine_similarity(query_vector, chunk.vector), # 计算余弦值 分数越高 越接近
             )
             for chunk in embedded_chunks
         ]

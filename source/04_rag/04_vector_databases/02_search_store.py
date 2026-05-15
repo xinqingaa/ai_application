@@ -80,7 +80,7 @@ def main() -> None:
     print(f"Question: {args.question}")
     print(
         "Query embedding space: "
-        f"{provider.provider_name}/{provider.model_name}/{provider.dimensions}d"
+        "provider_name: " f"{provider.provider_name};model_name: {provider.model_name};dimensions: {provider.dimensions}d"
     )
     current_space = store.embedding_space()
     if current_space is not None:
