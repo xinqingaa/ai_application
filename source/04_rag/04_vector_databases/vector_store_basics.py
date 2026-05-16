@@ -389,6 +389,55 @@ class PersistentVectorStore:
         self.config = config
         self.config.store_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def __str__(self) -> str:
+        """返回适合教学观察的 store 摘要。"""
+
+        return self.describe()
+
+    def describe(self, max_chunks: int = 5, preview_chars: int = 42) -> str:
+        """用可读文本展示当前 JSON store 的持久化状态。"""
+
+        try:
+            chunks = self.load_chunks()
+            space = infer_chunks_embedding_space(chunks)
+        except ValueError as error:
+            return (
+                "PersistentVectorStore(\n"
+                f"  path={self.config.store_path}\n"
+                f"  exists={self.config.store_path.exists()}\n"
+                f"  error={error}\n"
+                ")"
+            )
+
+        lines = [
+            "PersistentVectorStore(",
+            f"  path={self.config.store_path}",
+            f"  exists={self.config.store_path.exists()}",
+            f"  count={len(chunks)}",
+            f"  embedding_space={space.label() if space is not None else '<empty>'}",
+            f"  document_ids={sorted({chunk.chunk.document_id for chunk in chunks})}",
+            "  chunks=[",
+        ]
+
+        for chunk in chunks[:max_chunks]:
+            preview = " ".join(chunk.chunk.content.split())[:preview_chars]
+            filename = chunk.chunk.metadata.get("filename")
+            lines.append(
+                "    "
+                f"- chunk_id={chunk.chunk.chunk_id} "
+                f"document_id={chunk.chunk.document_id} "
+                f"filename={filename} "
+                f"vector_dims={chunk.dimensions} "
+                f"preview={preview}"
+            )
+
+        omitted_count = len(chunks) - max_chunks
+        if omitted_count > 0:
+            lines.append(f"    ... {omitted_count} more chunk(s)")
+
+        lines.extend(["  ]", ")"])
+        return "\n".join(lines)
+
     def reset(self) -> None:
         """删除持久化 JSON 文件，让下一次运行从空 store 开始。"""
 

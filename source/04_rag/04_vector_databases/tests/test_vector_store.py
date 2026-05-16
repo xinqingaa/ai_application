@@ -51,6 +51,17 @@ class VectorStoreTests(unittest.TestCase):
         self.assertEqual(results[0].chunk.chunk_id, "refund:0")
         self.assertGreater(results[0].score, 0.5)
 
+    def test_store_string_shows_readable_persisted_state(self) -> None:
+        self.store.upsert(self.chunks)
+        summary = str(self.store)
+
+        self.assertIn("PersistentVectorStore(", summary)
+        self.assertIn(f"path={self.store_path}", summary)
+        self.assertIn(f"count={len(self.chunks)}", summary)
+        self.assertIn("embedding_space=provider_name: local_keyword", summary)
+        self.assertIn("chunk_id=refund:0", summary)
+        self.assertIn("preview=购买后 7 天内", summary)
+
     def test_filename_filter_limits_results(self) -> None:
         self.store.upsert(self.chunks)
         query_vector = self.provider.embed_query("为什么 metadata 很重要？")

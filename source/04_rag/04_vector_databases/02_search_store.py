@@ -67,7 +67,7 @@ def main() -> None:
 
     # 3. query 必须使用和 store 相同身份的 provider 进行向量化。
     query_vector = provider.embed_query(args.question)
-
+    print(store)
     # 4. 查询返回 RetrievalResult[]，而不是脱离 chunk 的裸向量或裸分数。
     results = store.similarity_search(
         query_vector=query_vector,
@@ -95,7 +95,7 @@ def main() -> None:
             f"document_id={result.chunk.document_id}"
         )
         print(
-            "  metadata="
+            "  [metadata]"
             f"filename={result.chunk.metadata.get('filename')} "
             f"suffix={result.chunk.metadata.get('suffix')} "
             f"source={result.chunk.metadata.get('source')} "

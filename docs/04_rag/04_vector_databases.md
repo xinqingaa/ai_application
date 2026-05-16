@@ -514,7 +514,185 @@ JSON store 不是只把向量数组直接 dump 掉。
 
 > 向量从来不是脱离 chunk 身份和空间身份单独存在的。
 
-### 5.4 `similarity_search()` 的查询动作
+### 5.4 `02_search_store.py` 的整体流程
+
+跑 [02_search_store.py](../../source/04_rag/04_vector_databases/02_search_store.py) 时，完整流程不是“直接拿 demo chunks 打印结果”，而是围绕本地 JSON store 做一次标准查询。
+
+先看最外层顺序：
+
+```text
+解析 question / filename / top_k
+-> 创建 LocalKeywordEmbeddingProvider
+-> 创建 PersistentVectorStore
+-> ensure_index(store, provider)
+-> provider.embed_query(question)
+-> print(store)
+-> store.similarity_search(...)
+-> 打印 Question / embedding space / RetrievalResult[]
+```
+
+对应到代码，可以这样理解。
+
+第一步，脚本先解析命令行参数：
+
+```text
+question: 默认是“如何申请退费？”
+--filename: 可选 metadata filename 过滤
+--top-k: 默认返回 3 条
+```
+
+这一步只是收集查询条件，还没有访问 store，也没有计算相似度。
+
+第二步，脚本创建两个核心对象：
+
+```text
+provider = LocalKeywordEmbeddingProvider()
+store = PersistentVectorStore(VectorStoreConfig())
+```
+
+这里的 `provider` 负责把 query 文本变成 query vector；`store` 负责读取 `store/demo_vector_store.json` 并执行查询。
+
+第三步，脚本调用：
+
+```python
+ensure_index(store, provider)
+```
+
+它的职责是保证当前 JSON store 至少处于“可查询且 embedding space 兼容”的状态：
+
+- 如果 JSON payload 损坏：reset 后用 demo 数据重建
+- 如果 store 为空：用 demo 数据创建索引
+- 如果 store 的 embedding space 和当前 provider 不一致：reset 后重建
+- 如果 store 已经存在且兼容：直接沿用当前 JSON store
+
+所以 `02_search_store.py` 并不是每次都强制重建完整 demo 数据。比如你之前跑过删除脚本删掉 `trial` 文档，只要剩余 store 仍然合法且 embedding space 匹配，搜索脚本就会继续查询当前这份 JSON store。
+
+第四步，脚本把用户问题向量化：
+
+```python
+query_vector = provider.embed_query(args.question)
+```
+
+这一步只处理 query。库存文档的 document vectors 已经在写入阶段算好，并持久化在 JSON store 里。
+
+第五步，脚本打印当前 store：
+
+```python
+print(store)
+```
+
+这段输出的意义是：在真正看检索结果前，先看清楚当前到底查的是哪份本地 store、里面有哪些 chunk。
+
+这段摘要不是 Python 默认对象地址，而是当前 JSON store 的可读快照，包含：
+
+- store 文件路径
+- 文件是否存在
+- 当前 chunk 数量
+- 当前 embedding space
+- 当前 document ids
+- 每条 chunk 的 `chunk_id / document_id / filename / vector_dims / preview`
+
+它的作用是让你在进入相似度结果前，先确认：
+
+```text
+现在到底在查哪一个本地 store？
+这个 store 里到底有哪些 chunk？
+这些 chunk 属于哪个 embedding space？
+preview 是从哪里来的？
+```
+
+第六步，脚本执行真正的相似度查询：
+
+```python
+results = store.similarity_search(
+    query_vector=query_vector,
+    provider=provider,
+    top_k=args.top_k,
+    filename=args.filename,
+)
+```
+
+进入 `similarity_search()` 以后，store 会：
+
+```text
+校验 top_k
+-> 校验 query vector 维度
+-> store.load_chunks()
+-> 从 JSON records 反序列化回 EmbeddedChunk[]
+-> 校验 query provider 和 stored chunks 属于同一个 embedding space
+-> 如果传了 filename，就做 metadata 过滤
+-> query_vector 和每个 chunk.vector 计算 cosine similarity
+-> 按 score 从高到低排序
+-> 截取 top_k
+-> 返回 RetrievalResult[]
+```
+
+注意这里返回的是 `RetrievalResult[]`，不是裸向量，也不是裸分数。每个结果里都有：
+
+```text
+chunk: SourceChunk
+score: float
+```
+
+所以后面才能继续打印 `chunk_id / document_id / metadata / preview`。
+
+第七步，脚本打印查询结果：
+
+```text
+Question: 如何申请退费？
+Query embedding space: ...
+Store embedding space: ...
+- score=... chunk_id=... document_id=...
+  [metadata]filename=... source=...
+  preview=...
+```
+
+这里的 `score` 是 query vector 和 chunk vector 的余弦相似度；`preview` 是命中的 `result.chunk.content[:70]`。
+
+### 5.5 `preview` 到底来自哪里
+
+如果你看到：
+
+```text
+preview=购买后 7 天内且学习进度不超过 20%，可以申请全额退款。
+```
+
+不要把它理解成“搜索脚本直接读了 `demo_source_chunks()`”。更准确的流转是：
+
+```text
+demo_source_chunks()
+-> demo_embedded_chunks(provider)
+-> store.replace_document(...)
+-> store/demo_vector_store.json
+-> store.load_chunks()
+-> similarity_search()
+-> RetrievalResult.chunk.content
+-> preview
+```
+
+也就是说：
+
+- **源头** 是 `demo_source_chunks()` 里手写的演示语料
+- **持久化副本** 是 `store/demo_vector_store.json`
+- **查询时读取** 的是 JSON store 反序列化后的 `EmbeddedChunk`
+- **结果 preview** 是 `RetrievalResult.chunk.content[:70]`
+
+所以你会觉得 preview “像是来自 `demo_source_chunks()`”，这是对的；但在 `02_search_store.py` 的查询阶段，它已经是从本地 JSON store 读回来的数据。
+
+这个区别很重要。真实 RAG 系统里也一样：
+
+```text
+原始文档
+-> chunk
+-> embedding
+-> vector store
+-> 查询时从 vector store 还原 chunk
+-> 放进 prompt 或展示引用
+```
+
+检索阶段通常不会再去读最开始的原始文档，而是依赖向量库里已经绑定好的 `content + metadata + vector`。
+
+### 5.6 `similarity_search()` 的查询动作
 
 这个函数看上去只是最小 cosine similarity 排序，但它其实同时在做三件事：
 
@@ -528,7 +706,7 @@ JSON store 不是只把向量数组直接 dump 掉。
 - 计算分数
 - 组装 `RetrievalResult[]`
 
-### 5.5 原理层的 `filename` 过滤
+### 5.7 原理层的 `filename` 过滤
 
 JSON store 当前只支持：
 
@@ -542,7 +720,7 @@ JSON store 当前只支持：
 - 第四章就必须有真实的过滤落点
 - 后面换到 Chroma 时，过滤只是从本地条件判断映射到数据库 `where`
 
-### 5.6 原理层刻意简化的范围
+### 5.8 原理层刻意简化的范围
 
 原理层刻意简化了：
 
@@ -553,7 +731,7 @@ JSON store 当前只支持：
 
 这不是因为这些能力不重要，而是为了先把存储层契约看清楚。
 
-### 5.7 先学原理层，再看真实数据库
+### 5.9 先学原理层，再看真实数据库
 
 如果一开始就直接进入 Chroma 或 LangChain，读者很容易把注意力放到：
 
@@ -567,7 +745,7 @@ JSON store 当前只支持：
 
 > 先把“写入 / 查询 / 替换 / 删除 / 空间一致性”这套骨架看懂，再去看真实数据库只是怎么把这些骨架落到更真实的存储接口上。
 
-### 5.8 现在应该建立的最小闭环
+### 5.10 现在应该建立的最小闭环
 
 读完这一节，你至少应该能自己讲清楚这条最小闭环：
 
