@@ -44,7 +44,7 @@ def ensure_index(
 def main() -> None:
     """原生 Chroma CRUD 检查脚本的命令行入口。"""
 
-    # 1. 允许学习者重置持久化 Chroma collection。
+    # 1. 允许学习者重置持久化 Chroma collection 。
     parser = argparse.ArgumentParser(description="Index demo embedded chunks into real Chroma.")
     parser.add_argument("--reset", action="store_true", help="Delete the Chroma collection first.")
     args = parser.parse_args()
@@ -67,7 +67,7 @@ def main() -> None:
 
     # 5. 打印 Chroma 存储细节，以及恢复后的 SourceChunk metadata。
     print(f"Persist dir: {store.persist_directory}")
-    print(f"Collection: {store.collection_name} ({store.distance_metric})")
+    print(f"[Collection] collection_name: {store.collection_name}; distance_metric: {store.distance_metric}")
     if current_space is not None:
         print(f"Embedding space: {current_space.label()}")
     print(f"Replaced {inserted} embedded chunk(s) across {len(store.list_document_ids())} document(s).")
