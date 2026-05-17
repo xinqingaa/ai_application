@@ -130,12 +130,17 @@ def main() -> None:
         search_kwargs["filter"] = {"filename": args.filename}
 
     # 6. 对比 LangChain 查询 API，并将输出归一成本章结果形状。
+    # similarity_search: 返回 Document[]，适合直接把相关文档交给后续 Prompt。
     plain_results = similarity_results_from_documents(
         vectorstore.similarity_search(args.question, **search_kwargs)
     )
+    # similarity_search_with_score: 返回 (Document, distance)[]，适合调试排序、
+    # 观察坏例和做阈值判断；这里会转成本章统一的 RetrievalResult。
     scored_results = retrieval_results_from_scored_documents(
         vectorstore.similarity_search_with_score(args.question, **search_kwargs)
     )
+    # as_retriever: 把 VectorStore 包成 LangChain Retriever，主要用于接 Chain /
+    # LCEL / RAG pipeline；第四章只展示入口，策略细节放到第五章。
     retriever = vectorstore.as_retriever(
         search_type=args.retriever_search_type,
         search_kwargs=search_kwargs,
@@ -150,7 +155,7 @@ def main() -> None:
         "Embedding adapter: "
         f"{provider.provider_name}/{provider.model_name}/{provider.dimensions}d"
     )
-    print(init_message)
+    print(f"init_message: {init_message}" )
     print(f"Question: {args.question}")
     if args.filename:
         print(f"Metadata filter: filename={args.filename}")

@@ -962,7 +962,74 @@ JSON store 可以帮助你看清契约，但现实工程仍然需要真正的向
 - 你不一定直接调数据库 SDK
 - 你可能通过 LangChain 等上层抽象接入同一个数据库
 
-### 8.2 本章里 LangChain 的关注点
+### 8.2 三个库分别负责什么
+
+第六个脚本会同时涉及 `chromadb`、`langchain-chroma` 和 `langchain-core`。它们不是同一层东西。
+
+| 库 | 角色 | 在本章里的体现 |
+|----|------|----------------|
+| `chromadb` | Chroma 原生数据库 SDK | 真正负责底层 collection、向量索引、持久化目录 |
+| `langchain-core` | LangChain 的核心抽象包 | 提供 `Document`、`Embeddings` 等标准接口 |
+| `langchain-chroma` | LangChain 对 Chroma 的 VectorStore 集成 | 提供 LangChain 风格的 `Chroma` VectorStore |
+
+可以先这样理解：
+
+```text
+chromadb
+-> 底层真实向量数据库
+
+langchain-core
+-> LangChain 的接口规范和基础对象
+
+langchain-chroma
+-> 把 Chroma 包装成 LangChain VectorStore
+```
+
+所以 `langchain-chroma` 并不是另一个独立数据库。它底层仍然使用 Chroma，只是把原生 Chroma 的 collection 操作，包装成 LangChain 统一的 VectorStore API。
+
+### 8.3 原生 Chroma 和 LangChain Chroma 的区别
+
+原生 Chroma 更接近数据库 SDK。你要显式处理：
+
+```text
+collection.upsert(...)
+collection.query(...)
+collection.delete(...)
+ids / documents / metadatas / embeddings
+query_embeddings / where
+```
+
+这就是 [chroma_store.py](../../source/04_rag/04_vector_databases/chroma_store.py) 在做的事情。
+
+LangChain Chroma 更接近框架层 VectorStore。你使用的是：
+
+```text
+Chroma(...)
+Chroma.from_documents(...)
+vectorstore.add_documents(...)
+vectorstore.similarity_search(...)
+vectorstore.similarity_search_with_score(...)
+vectorstore.as_retriever(...)
+```
+
+这就是 [langchain_adapter.py](../../source/04_rag/04_vector_databases/langchain_adapter.py) 和 [06_langchain_vectorstore.py](../../source/04_rag/04_vector_databases/06_langchain_vectorstore.py) 在展示的事情。
+
+两者的关键差别是：
+
+| 问题 | 原生 Chroma | LangChain Chroma |
+|------|-------------|------------------|
+| 写入对象 | `ids / documents / metadatas / embeddings` | `Document[]` |
+| embedding 调用 | 本章自己显式生成向量再传入 | VectorStore 通过 `Embeddings` 适配器自动调用 |
+| 查询输入 | `query_embeddings` | query 字符串 |
+| 过滤参数 | `where` | `filter` |
+| 返回结果 | Chroma 原始响应结构 | `Document[]` 或 `(Document, distance)` |
+| 更适合 | 理解数据库行为、控制底层细节 | 接 LangChain Chain / Retriever / LCEL |
+
+所以第六节不是在替代第四、五节，而是在回答：
+
+> 如果我不直接写 Chroma SDK，而是通过 LangChain 接 Chroma，同一套存储契约如何映射过去？
+
+### 8.4 本章里 LangChain 的关注点
 
 第四章不再重讲平台 embeddings 接入，而是只关注：
 
@@ -972,12 +1039,13 @@ JSON store 可以帮助你看清契约，但现实工程仍然需要真正的向
 4. `similarity_search()`、`similarity_search_with_score()` 怎样对应存储层查询
 5. `as_retriever()` 的接口长什么样
 
-### 8.3 当前映射关系
+### 8.5 当前映射关系
 
 | 第四章对象/能力 | LangChain 对应 |
 |----------------|----------------|
-| `EmbeddingProvider` | `ProviderEmbeddingsAdapter` |
-| `SourceChunk` | `Document` |
+| `EmbeddingProvider` | `ProviderEmbeddingsAdapter`，实现 LangChain `Embeddings` 接口 |
+| `SourceChunk` | `Document(page_content=..., metadata=...)` |
+| `chunk_id / document_id` | 写入 `Document.metadata`，方便结果转回本章对象 |
 | `filename` metadata | `filter={"filename": ...}` |
 | query 搜索 | `similarity_search()` / `similarity_search_with_score()` |
 | 上层检索入口 | `as_retriever()` |
@@ -987,7 +1055,7 @@ JSON store 可以帮助你看清契约，但现实工程仍然需要真正的向
 - [langchain_adapter.py](../../source/04_rag/04_vector_databases/langchain_adapter.py)
 - [06_langchain_vectorstore.py](../../source/04_rag/04_vector_databases/06_langchain_vectorstore.py)
 
-### 8.4 `ProviderEmbeddingsAdapter` 的作用
+### 8.6 `ProviderEmbeddingsAdapter` 的作用
 
 这个适配器的意义不是“又包了一层没必要的壳”，而是：
 
@@ -997,8 +1065,18 @@ JSON store 可以帮助你看清契约，但现实工程仍然需要真正的向
 
 - 课程里前面建立的 provider 设计不会被框架抽象打断
 - 你能看清“框架接入”其实是在映射现有契约，而不是重新发明一套 embedding 语义
+- LangChain 写入时会调用 `embed_documents()`
+- LangChain 查询时会调用 `embed_query()`
 
-### 8.5 `build_documents()` 和结果反序列化
+这也是为什么第六节里没有显式写：
+
+```python
+query_vector = provider.embed_query(question)
+```
+
+因为这一步已经被 LangChain VectorStore 接管了。
+
+### 8.7 `build_documents()` 和结果反序列化
 
 LangChain `Document` 不是第四章自己的对象。
 
@@ -1013,7 +1091,54 @@ LangChain `Document` 不是第四章自己的对象。
 - `similarity_results_from_documents()`
 - `retrieval_results_from_scored_documents()`
 
-### 8.6 这里暂时不进入 Retriever
+这里最关键的是：`chunk_id` 和 `document_id` 必须进入 `Document.metadata`。
+
+否则 LangChain 查询回来只有：
+
+```text
+page_content
+metadata
+```
+
+本章就无法稳定恢复：
+
+```text
+SourceChunk(chunk_id, document_id, content, metadata)
+```
+
+### 8.8 三个查询 API 的区别和使用场景
+
+[06_langchain_vectorstore.py](../../source/04_rag/04_vector_databases/06_langchain_vectorstore.py) 并排展示了三个 LangChain 查询入口。
+
+| API | 返回 | 适合场景 |
+|-----|------|----------|
+| `similarity_search(question, **search_kwargs)` | `Document[]` | 只需要拿相关文档去拼 Prompt，不关心显式分数 |
+| `similarity_search_with_score(question, **search_kwargs)` | `(Document, distance)[]` | 调试检索质量、观察排序、做评测、做阈值判断 |
+| `as_retriever(...).invoke(question)` | `Document[]` | 接 LangChain Chain / LCEL / RAG pipeline |
+
+最小判断方式：
+
+```text
+临时查一下文档
+-> similarity_search()
+
+想看分数、排序和坏例
+-> similarity_search_with_score()
+
+准备进入 LangChain 的链式编排
+-> as_retriever()
+```
+
+第六节把三者都打印出来，不是要求你背 API，而是让你看到：
+
+```text
+同一个 LangChain Chroma VectorStore
+可以暴露不同层级的查询入口
+```
+
+其中 `similarity_search_with_score()` 对学习阶段尤其有价值，因为它能让你观察“为什么这个 chunk 排在前面”。
+
+### 8.9 这里暂时不深入 Retriever 策略
 
 因为 LangChain VectorStore 仍然是：
 
@@ -1034,7 +1159,7 @@ LangChain `Document` 不是第四章自己的对象。
 
 是在第五章。
 
-### 8.7 这一节和前后章节的衔接
+### 8.10 这一节和前后章节的衔接
 
 这里最容易混淆的点是：
 

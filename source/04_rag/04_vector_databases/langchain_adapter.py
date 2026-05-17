@@ -27,6 +27,8 @@ LANGCHAIN_CORE_AVAILABLE = find_spec("langchain_core") is not None
 LANGCHAIN_CHROMA_AVAILABLE = find_spec("langchain_chroma") is not None
 
 if LANGCHAIN_CORE_AVAILABLE:
+    # langchain-core 提供框架级基础对象：Document 承载文本和 metadata，
+    # Embeddings 定义写入/查询时向量化方法的标准接口。
     from langchain_core.documents import Document
     from langchain_core.embeddings import Embeddings
 else:  # pragma: no cover - 只在依赖缺失时覆盖
@@ -108,6 +110,8 @@ def create_langchain_chroma(
     """使用本章 provider 打开或创建 LangChain Chroma VectorStore。"""
 
     require_langchain_vectorstore()
+    # langchain-chroma 提供 LangChain 风格的 Chroma VectorStore；
+    # 底层仍然是 Chroma，只是对外暴露 similarity_search/as_retriever 等接口。
     from langchain_chroma import Chroma
 
     actual_config = config or LangChainChromaConfig()
@@ -127,6 +131,8 @@ def create_langchain_chroma_from_documents(
     """通过 Chroma.from_documents(...) 初始化 LangChain Chroma。"""
 
     require_langchain_vectorstore()
+    # from_documents 是 LangChain 的便捷初始化入口：传入 Document[] 和
+    # Embeddings 适配器后，由 VectorStore 负责调用 embed_documents 并写入。
     from langchain_chroma import Chroma
 
     actual_config = config or LangChainChromaConfig()
