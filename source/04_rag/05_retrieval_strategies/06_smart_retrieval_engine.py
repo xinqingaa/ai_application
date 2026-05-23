@@ -1,6 +1,9 @@
 """06_smart_retrieval_engine.py — 统一检索引擎演示
 
 对应文档: docs/04_rag/05_retrieval_strategies.md  「6. 综合案例：智能检索引擎」
+
+这份脚本是第五章的收口：上层只传 SmartRetrievalConfig，
+底层可以切 similarity / threshold / mmr / hybrid，也可以附加 rerank 和 evaluate。
 """
 
 from __future__ import annotations
@@ -39,6 +42,7 @@ def main() -> None:
         backend=args.backend,
         reset_store=args.reset,
     )
+    # SmartRetrievalConfig 把散落在前面脚本里的策略参数统一收口。
     config = SmartRetrievalConfig(
         strategy=args.strategy,
         top_k=args.top_k,
@@ -68,6 +72,7 @@ def main() -> None:
     print()
 
     if args.evaluate:
+        # evaluate 模式不回答单个问题，而是用固定评估集检查当前策略组合的整体表现。
         cases = load_eval_cases(Path(args.eval_path))
         report = engine.evaluate(cases, config)
         print(

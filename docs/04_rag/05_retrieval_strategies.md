@@ -4,9 +4,40 @@
 
 ---
 
-## 1. 概述
+## 1. 本章主线
 
-### 学习目标
+第五章不要先从“哪个检索技巧更高级”开始，而是先抓住这条链路：
+
+```text
+question
+-> query embedding
+-> candidate pool
+-> similarity / threshold / mmr / hybrid / rerank
+-> RetrievalResult[]
+-> bad-case regression / fixed eval set
+-> SmartRetrievalEngine
+```
+
+用自然语言说：
+
+1. 第四章已经让向量进入了可持久化 store。
+2. 第五章开始把“能查”推进成“查得稳、查得可控、查得可评估”。
+3. query 进入检索层后，要先经过同一个 embedding space。
+4. 检索策略负责控制召回数量、噪声、多样性和排序。
+5. 结果不只是“查出来”，还要能回归、能评估、能收束成统一入口。
+
+第五章的核心不是背检索名词，而是看懂：
+
+```text
+候选召回
+策略选择
+坏案例回归
+混合检索
+两阶段精排
+统一引擎
+```
+
+### 1.1 学习目标
 
 - 理解为什么第五章新增的是 Retriever 策略层，而不是重写第四章存储层
 - 掌握 `similarity / threshold / mmr` 三种基础检索策略的行为差异
@@ -16,14 +47,7 @@
 - 了解 Query 变换、上下文压缩和高级 Retriever 的适用场景
 - 能跑通本章代码，并解释为什么综合案例要把多种策略统一到一个检索引擎里
 
-### 预计学习时间
-
-- 检索层主线与参数控制：40-60 分钟
-- 基础 Retriever 与坏案例回归：40-60 分钟
-- Hybrid / Rerank / 统一引擎：40-60 分钟
-- 评估、测试与回归锚点：30-40 分钟
-
-### 本章在 AI 应用中的重要性
+### 1.2 本章在 AI 应用中的重要性
 
 | 场景 | 第五章先解决什么 |
 |------|----------------|
@@ -33,7 +57,7 @@
 | 检索评估 | 怎样把“看起来不错”变成坏案例回归和固定指标 |
 | 应用接入 | 多种检索实验怎样收束成统一可复用接口 |
 
-### 学习前提
+### 1.3 学习前提
 
 - 建议先完成第四章，已经理解 Vector Store 的最小契约
 - 建议已经理解 `EmbeddedChunk / RetrievalResult / EmbeddingSpace`
@@ -49,7 +73,7 @@
 
 第五章只关注检索层特有的问题。
 
-### 本章与前后章节的关系
+### 1.4 本章与前后章节的关系
 
 第四章已经解决：
 
@@ -71,28 +95,7 @@
 2. 形成真正的 RAG Chain
 3. 让 LLM 基于检索上下文生成答案
 
-### 本章代码入口
-
-- [README.md](../../source/04_rag/05_retrieval_strategies/README.md)
-- [requirements.txt](../../source/04_rag/05_retrieval_strategies/requirements.txt)
-- [retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py)
-- [chroma_retriever.py](../../source/04_rag/05_retrieval_strategies/chroma_retriever.py)
-- [retrieval_metrics.py](../../source/04_rag/05_retrieval_strategies/retrieval_metrics.py)
-- [smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/smart_retrieval_engine.py)
-- [01_compare_retrievers.py](../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py)
-- [02_review_bad_cases.py](../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py)
-- [03_query_demo.py](../../source/04_rag/05_retrieval_strategies/03_query_demo.py)
-- [04_hybrid_retrieval.py](../../source/04_rag/05_retrieval_strategies/04_hybrid_retrieval.py)
-- [05_rerank_demo.py](../../source/04_rag/05_retrieval_strategies/05_rerank_demo.py)
-- [06_smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/06_smart_retrieval_engine.py)
-- [evals/retrieval_bad_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_bad_cases.json)
-- [evals/retrieval_eval_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_eval_cases.json)
-- [tests/test_retrievers.py](../../source/04_rag/05_retrieval_strategies/tests/test_retrievers.py)
-- [tests/test_chroma_retrievers.py](../../source/04_rag/05_retrieval_strategies/tests/test_chroma_retrievers.py)
-- [tests/test_retrieval_metrics.py](../../source/04_rag/05_retrieval_strategies/tests/test_retrieval_metrics.py)
-- [tests/test_smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/tests/test_smart_retrieval_engine.py)
-
-### 本章边界
+### 1.5 本章边界
 
 本章重点解决：
 
@@ -132,21 +135,85 @@
 
 目的不是追求“检索技巧列得最多”，而是先把第五章检索层主线讲清楚。
 
-### 本章学习地图
+### 1.6 代码入口
+
+- [README.md](../../source/04_rag/05_retrieval_strategies/README.md)
+- [requirements.txt](../../source/04_rag/05_retrieval_strategies/requirements.txt)
+- [retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py)
+- [chroma_retriever.py](../../source/04_rag/05_retrieval_strategies/chroma_retriever.py)
+- [retrieval_metrics.py](../../source/04_rag/05_retrieval_strategies/retrieval_metrics.py)
+- [smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/smart_retrieval_engine.py)
+- [01_compare_retrievers.py](../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py)
+- [02_review_bad_cases.py](../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py)
+- [03_query_demo.py](../../source/04_rag/05_retrieval_strategies/03_query_demo.py)
+- [04_hybrid_retrieval.py](../../source/04_rag/05_retrieval_strategies/04_hybrid_retrieval.py)
+- [05_rerank_demo.py](../../source/04_rag/05_retrieval_strategies/05_rerank_demo.py)
+- [06_smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/06_smart_retrieval_engine.py)
+- [evals/retrieval_bad_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_bad_cases.json)
+- [evals/retrieval_eval_cases.json](../../source/04_rag/05_retrieval_strategies/evals/retrieval_eval_cases.json)
+- [tests/test_retrievers.py](../../source/04_rag/05_retrieval_strategies/tests/test_retrievers.py)
+- [tests/test_chroma_retrievers.py](../../source/04_rag/05_retrieval_strategies/tests/test_chroma_retrievers.py)
+- [tests/test_retrieval_metrics.py](../../source/04_rag/05_retrieval_strategies/tests/test_retrieval_metrics.py)
+- [tests/test_smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/tests/test_smart_retrieval_engine.py)
+
+### 1.7 学习方式
+
+推荐的学习路径是：
+
+```text
+先粗读本章主线
+-> 逐个运行 01-06 脚本
+-> 从 main() 入口顺着调用链读代码
+-> 回头看本章后半部分的概念复盘
+```
+
+这样读的好处是：你不是先被大量“为什么这样做”淹没，而是先知道每个脚本真实做了什么，再把设计原因挂回代码上。
+
+运行前先进入本章目录：
+
+```bash
+cd source/04_rag/05_retrieval_strategies
+python -m pip install -r requirements.txt
+```
+
+如果暂时没有安装 `chromadb`，原理层 JSON store 仍然可以先读和跑；Chroma 相关脚本会明确提示缺少依赖。
+
+### 1.8 学习地图
 
 建议按下面这条主线阅读本章，而不是一开始就陷入某个参数、某个检索技巧或某个框架名：
 
 ```text
-先看 Retriever 策略层完整流程
--> 再看 Store 和 Retriever 的边界
+先看第五章完整主线
+-> 再按 01-06 跑脚本
 -> 再看运行时对象和策略契约
--> 再看 similarity / threshold / mmr 三种基础策略
--> 再看评估指标和坏案例回归
+-> 再用 bad case 理解 similarity / threshold / mmr
 -> 再看 hybrid / rerank / 高级 Retriever
--> 最后看 SmartRetrievalEngine 如何收束统一入口
+-> 再看 SmartRetrievalEngine 如何收束统一入口
+-> 最后回头复盘 FAQ 和治理锚点
 ```
 
-本章后面的失败案例、治理锚点和实践命令，更适合在你已经理解主线以后回头复盘。
+这一章后面的失败案例、治理锚点和建议运行顺序，更适合在你已经跑过代码以后回头复盘。
+
+### 1.9 01-06 脚本总览
+
+| 脚本 | 对应层次 | 学习重点 |
+|------|----------|----------|
+| [01_compare_retrievers.py](../../source/04_rag/05_retrieval_strategies/01_compare_retrievers.py) | 基础检索对比 | 同一问题下 `similarity / threshold / mmr` 的差异 |
+| [02_review_bad_cases.py](../../source/04_rag/05_retrieval_strategies/02_review_bad_cases.py) | 坏案例回归 | 用固定 case 检查检索是否退化 |
+| [03_query_demo.py](../../source/04_rag/05_retrieval_strategies/03_query_demo.py) | 单策略演示 | 一个 question 如何变成 `RetrievalResult[]` |
+| [04_hybrid_retrieval.py](../../source/04_rag/05_retrieval_strategies/04_hybrid_retrieval.py) | 混合检索 | 向量检索和 BM25 如何加权融合 |
+| [05_rerank_demo.py](../../source/04_rag/05_retrieval_strategies/05_rerank_demo.py) | 两阶段精排 | `fetch_k` 粗筛和 `top_n` 精排的关系 |
+| [06_smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/06_smart_retrieval_engine.py) | 统一检索引擎 | `similarity / threshold / mmr / hybrid` 如何收束 |
+
+### 1.10 本章文件分层
+
+| 层次 | 文件 | 职责 |
+|------|------|------|
+| 原理层 | [retrieval_basics.py](../../source/04_rag/05_retrieval_strategies/retrieval_basics.py) | 策略配置、候选召回、BM25、MMR、toy reranker |
+| 真实 backend 层 | [chroma_retriever.py](../../source/04_rag/05_retrieval_strategies/chroma_retriever.py) | 把同一套策略语义映射到真实 Chroma |
+| 评估层 | [retrieval_metrics.py](../../source/04_rag/05_retrieval_strategies/retrieval_metrics.py) | 固定评估集与检索指标 |
+| 统一管理层 | [smart_retrieval_engine.py](../../source/04_rag/05_retrieval_strategies/smart_retrieval_engine.py) | 将策略、混合检索和评估收束成统一入口 |
+| CLI 演示层 | `01-06` | 用可运行脚本串起每个学习点 |
 
 ---
 

@@ -1,3 +1,9 @@
+"""第五章检索策略的基础实现。
+
+这里集中放本章最底层、最通用的能力：
+demo 语料、策略配置、JSON 原理层 retriever、MMR、BM25、hybrid 和 toy reranker。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -85,6 +91,8 @@ class BadCaseEvaluation:
 
 
 def demo_source_chunks() -> list[SourceChunk]:
+    # 这里的语料不是从外部文件实时加载，而是故意写成脚本内固定 demo 数据。
+    # 这样做的目的，是让检索策略、打分和回归都能稳定复现。
     refund_policy = "退款规则：购买后 7 天内且学习进度不超过 20%，可以申请全额退款。"
     refund_summary = "退款政策摘要：7 天内且学习进度不超过 20%，支持全额退费。"
     refund_duplicate = "退款说明：购买后 7 天内且学习进度不超过 20%，支持全额退款。"
@@ -165,6 +173,8 @@ def index_demo_chunks(
     expected_doc_ids = {chunk.document_id for chunk in demo_source_chunks()}
     should_reset = reset_store
 
+    # reset 不是单纯“清空”，而是先检查 embedding space 和文档集合是否和当前 demo 匹配。
+    # 如果两者不一致，继续复用旧 store 只会把不同语料或不同 embedding space 混在一起。
     if not should_reset:
         try:
             current_space = store.embedding_space()
@@ -215,6 +225,7 @@ def index_demo_chroma_chunks(
     expected_doc_ids = {chunk.document_id for chunk in demo_source_chunks()}
     should_reset = reset_store
 
+    # Chroma 路径和 JSON 路径一样，也要先确认当前 collection 是否和 demo 语料一致。
     if not should_reset:
         try:
             current_space = store.embedding_space()
@@ -265,6 +276,8 @@ def build_demo_retriever(
     chroma_persist_directory: Path = DEFAULT_CHROMA_DIR,
 ):
     embedding_provider = provider or LocalKeywordEmbeddingProvider()
+    # 第五章先统一 provider，再按 backend 选择不同存储实现。
+    # 这样相同的检索策略可以同时跑在 JSON 原理层和真实 Chroma 层上。
     if backend == "json":
         store = build_demo_json_store(
             provider=embedding_provider,
@@ -290,6 +303,7 @@ def strategy_from_case(
     case: dict[str, object],
     strategy_name: str,
 ) -> RetrievalStrategyConfig:
+    # bad case JSON 里允许对不同策略单独覆盖参数，这样一组 case 可以同时验证三种策略。
     values: dict[str, object] = {
         "strategy_name": strategy_name,
         "top_k": DEFAULT_TOP_K,
@@ -329,6 +343,8 @@ def select_search_hits(
     candidates: list[SearchHit],
     strategy: RetrievalStrategyConfig,
 ) -> list[SearchHit]:
+    # 候选召回先完成，再在同一批候选上切换不同选择规则。
+    # 这样 similarity / threshold / mmr 才是真正可对比的策略，而不是三套独立实现。
     if strategy.strategy_name == "similarity":
         return candidates[: strategy.top_k]
 
@@ -385,9 +401,12 @@ class SimpleRetriever:
     ) -> list[SearchHit]:
         ensure_vector_dimensions(query_vector, self.provider.dimensions, context="query vector")
         embedded_chunks = self.store.load_chunks()
+        # 先校验 store 和 query 是否在同一个 embedding space，再继续算相似度。
+        # 这一步是检索层最重要的不变量之一。
         for chunk in embedded_chunks:
             ensure_same_embedding_space(chunk, self.provider)
 
+        # filename_filter 发生在候选打分之前，这样可以把搜索范围先收窄，再做排序。
         if filename_filter is not None:
             embedded_chunks = [
                 chunk
@@ -418,6 +437,7 @@ def maximal_marginal_relevance(
     remaining = candidates[:]
     selected: list[SearchHit] = []
 
+    # MMR 不是简单去重，而是在“和 query 相似”与“和已选结果不重复”之间做平衡。
     while remaining and len(selected) < top_k:
         if not selected:
             selected.append(remaining.pop(0))
@@ -450,6 +470,8 @@ def average_redundancy(
     if len(results) < 2:
         return 0.0
 
+    # 这是教学指标，不是标准 IR 指标。
+    # 它的作用是把“结果是否重复”这件事量化出来，方便观察 MMR 是否真的在降冗余。
     embedded = provider.embed_documents([result.chunk.content for result in results])
     pair_scores: list[float] = []
     for index, left in enumerate(embedded):
@@ -687,7 +709,8 @@ def hybrid_search(
     bm25_all = bm25_scorer.score(query)
     bm25_by_id: dict[str, float] = {chunk.chunk_id: score for chunk, score in bm25_all}
 
-    # 收集所有出现过的 chunk（两路取并集）
+    # 两路检索先取并集，再做归一化和加权。
+    # 这样可以避免 vector score 和 BM25 score 量纲不同，直接相加会失真。
     chunk_by_id: dict[str, SourceChunk] = {}
     vector_by_id: dict[str, float] = {}
     for result in vector_results:

@@ -1,3 +1,9 @@
+"""03_query_demo.py — 单策略查询入口。
+
+这一份脚本的目标很纯粹：让你只看一个 question、一个 backend、一个 strategy，
+把“问题如何变成 RetrievalResult[]”这条链路跑顺。
+"""
+
 import argparse
 
 from retrieval_basics import (
@@ -48,6 +54,7 @@ def main() -> None:
     results = retriever.retrieve(args.question, strategy)
     provider = retriever.provider
 
+    # 先打印 backend / collection / embedding space，再看结果，方便把查询和存储层对上号。
     print(f"Question: {args.question}")
     print(f"Backend: {args.backend}")
     if args.backend == "json":

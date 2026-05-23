@@ -64,6 +64,7 @@ def main() -> None:
     vector_results = retriever.retrieve(args.question, strategy)
 
     # 2. 纯 BM25
+    # BM25 在本章不走 vector store，而是直接对原始 demo_source_chunks 做关键词打分。
     corpus = demo_source_chunks()
     bm25_scorer = SimpleBM25Scorer(corpus)
     bm25_results = bm25_scorer.score(args.question)

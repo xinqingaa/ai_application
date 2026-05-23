@@ -1,3 +1,9 @@
+"""02_review_bad_cases.py — 坏案例回归入口。
+
+它的作用不是展示“查到了什么”，而是把已知脆弱点固定下来，
+让 similarity / threshold / mmr 在同一组 case 上可比较、可回归。
+"""
+
 from retrieval_basics import (
     EmbeddingProvider,
     RetrievalResult,
@@ -44,6 +50,7 @@ def main() -> None:
         filename = case.get("filename_filter")
         expected = str(case["expected_focus"])
 
+        # 每个 case 都会同时跑三种基础策略，方便观察它们在同一批语料上的分化。
         print(f"Case: {case['case_id']}")
         print(f"Question: {question}")
         print(f"Expected focus: {expected}")

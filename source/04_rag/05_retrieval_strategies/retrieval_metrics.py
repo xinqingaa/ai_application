@@ -1,3 +1,8 @@
+"""第五章固定检索评估指标。
+
+这里不评价最终答案，只评价 Retriever 有没有把期望 chunk 召回到前排。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -42,6 +47,7 @@ def recall_at_k(
     results: Sequence[RetrievalResult],
     expected_chunk_ids: Sequence[str],
 ) -> float:
+    # Recall@K 关注“期望证据有多少被召回”，不关心它排在第几位。
     expected_ids = {str(chunk_id) for chunk_id in expected_chunk_ids}
     if not expected_ids:
         return 0.0
@@ -54,6 +60,7 @@ def reciprocal_rank(
     results: Sequence[RetrievalResult],
     expected_chunk_ids: Sequence[str],
 ) -> float:
+    # MRR 关注第一个正确证据的位置，越靠前分数越高。
     expected_ids = {str(chunk_id) for chunk_id in expected_chunk_ids}
     if not expected_ids:
         return 0.0
@@ -68,6 +75,7 @@ def hit_rate(
     results: Sequence[RetrievalResult],
     expected_chunk_ids: Sequence[str],
 ) -> float:
+    # Hit Rate 只回答“有没有至少命中一个正确证据”。
     return 1.0 if reciprocal_rank(results, expected_chunk_ids) > 0.0 else 0.0
 
 

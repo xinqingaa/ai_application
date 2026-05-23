@@ -1,3 +1,9 @@
+"""第五章统一检索引擎。
+
+这一层把 similarity / threshold / mmr / hybrid / rerank 收束成一个应用入口，
+让上层不必关心底层 store 是 JSON 还是 Chroma。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -81,6 +87,7 @@ class SmartRetrievalEngine:
         question: str,
         config: SmartRetrievalConfig,
     ):
+        # rerank 模式下先留更宽的粗筛空间，避免第一阶段把候选截得过窄。
         coarse_k = config.fetch_k if config.rerank and config.fetch_k is not None else config.top_k
 
         if config.strategy == "hybrid":
@@ -99,6 +106,7 @@ class SmartRetrievalEngine:
             )
 
         if config.rerank:
+            # 第二阶段精排只负责重排，不负责重新召回。
             top_n = config.rerank_top_n or config.top_k
             return self.reranker.rerank(question, results, top_n=top_n)
 
@@ -127,6 +135,7 @@ class SmartRetrievalEngine:
         *,
         coarse_k: int,
     ):
+        # hybrid 的第一步仍然是向量召回，只是召回范围会稍微放大，给 BM25 融合留出空间。
         vector_k = max(coarse_k, config.candidate_k)
         vector_results = self.retriever.retrieve(
             question,
@@ -137,6 +146,7 @@ class SmartRetrievalEngine:
                 filename_filter=config.filename_filter,
             ),
         )
+        # BM25 评分要使用同一份语料，并按 filename_filter 先做范围收缩。
         bm25_scorer = self._build_bm25_scorer(filename_filter=config.filename_filter)
         return hybrid_search(
             query=question,
@@ -150,6 +160,7 @@ class SmartRetrievalEngine:
         if filename_filter is None:
             filtered_corpus = self.corpus
         else:
+            # 这里用 corpus 而不是 store，是因为 BM25 在本章仍然是教学型纯 Python 实现。
             filtered_corpus = [
                 chunk
                 for chunk in self.corpus
@@ -168,6 +179,7 @@ def build_demo_smart_engine(
     json_store_path: Path | None = None,
     chroma_persist_directory: Path | None = None,
 ):
+    # 统一引擎复用第五章的 demo retriever，然后把原始语料单独交给 hybrid / evaluation 逻辑。
     retriever, store = build_demo_retriever(
         backend=backend,
         provider=provider,

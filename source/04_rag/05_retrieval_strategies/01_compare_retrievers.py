@@ -1,3 +1,9 @@
+"""01_compare_retrievers.py — 基础检索策略对比入口。
+
+先用同一个 question 跑 similarity / threshold / mmr，
+再把 JSON backend 和真实 Chroma backend 的差异放到同一屏里看。
+"""
+
 import argparse
 
 from retrieval_basics import (
@@ -53,6 +59,7 @@ def main() -> None:
     )
     provider = retriever.provider
 
+    # 这里先把 store 基本信息打印出来，方便你把“数据从哪来”和“查的是哪个 backend”对应上。
     print(f"Question: {args.question}")
     print(f"Backend: {args.backend}")
     if args.backend == "json":
