@@ -52,7 +52,7 @@ python --version
 
 ```bash
 # 进入你的项目目录
-cd /Users/linruiqiang/work/ai_application
+cd .
 
 # 创建虚拟环境（命名为 .venv）
 python -m venv .venv

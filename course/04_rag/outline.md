@@ -9,7 +9,7 @@
 - 本课程聚焦 **检索系统工程**，不是系统学习 LangChain 全家桶。
 - 你会在本课程里使用 LangChain，但重点是把它当成 **RAG 组件的工程封装层**，而不是框架本身。
 - LangChain 的核心抽象与 LCEL 统一放在 [03_foundation/outline.md](../03_foundation/outline.md) 系统学习。
-- `Agentic RAG` 在本课程只做概念认知和边界判断，详细实现放到 [05_agent/outline.md](..docs/05_agent/outline.md)。
+- `Agentic RAG` 在本课程只做概念认知和边界判断，详细实现放到 [05_agent/outline.md](../05_agent/outline.md)。
 
 ## 学习前提
 
@@ -1490,7 +1490,7 @@ def evaluate_answer(answer: str, question: str, ground_truth: str) -> dict:
 
 #### 本节与前后课程的关系
 
-- 这节是本课程和 [05_agent/outline.md](/Users/lrq/work/ai_application/docs/05_agent/outline.md) 的桥梁章节。
+- 这节是本课程和 [05_agent/outline.md](../05_agent/outline.md) 的桥梁章节。
 - 前面你已经学完固定 RAG，本节的目标不是立刻实现 Agent，而是先判断：什么时候固定链路已经不够，什么时候值得引入动态决策。
 - 到 `05_agent` 中，你会真正把检索包装成工具、接入状态机和条件路由；到 `06_application` 中，它会进一步服务复杂业务流程。
 - 边界：本课程只讲价值、边界和升级条件，不把主线从“稳定 RAG”带偏到“复杂编排”。

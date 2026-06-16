@@ -35,15 +35,15 @@
 
 如果你要理解“为什么项目要这样设计”，应该先回到主文档：
 
-- [docs/03_foundation/05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md)
-- [docs/03_foundation/06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md)
-- [docs/03_foundation/07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)
+- [course/03_foundation/05_langchain_engineering.md](../../../course/03_foundation/05_langchain_engineering.md)
+- [course/03_foundation/06_foundation_lab_design.md](../../../course/03_foundation/06_foundation_lab_design.md)
+- [course/03_foundation/07_foundation_lab_tasks.md](../../../course/03_foundation/07_foundation_lab_tasks.md)
 
 如果你要知道“当前代码已经做到哪一步”，优先看这份 README。
 
 一句话说：
 
-- `docs/03_foundation/*.md` 负责约束项目应该长成什么样
+- `course/03_foundation/*.md` 负责约束项目应该长成什么样
 - 本 README 负责说明项目现在实际长成什么样
 
 ## 目录结构
@@ -87,10 +87,10 @@ foundation_lab/
 
 如果你要对照文档继续补实现，回看：
 
-- [docs/03_foundation/04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md)
-- [docs/03_foundation/05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md)
-- [docs/03_foundation/06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md)
-- [docs/03_foundation/07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)
+- [course/03_foundation/04_langchain_core_abstractions.md](../../../course/03_foundation/04_langchain_core_abstractions.md)
+- [course/03_foundation/05_langchain_engineering.md](../../../course/03_foundation/05_langchain_engineering.md)
+- [course/03_foundation/06_foundation_lab_design.md](../../../course/03_foundation/06_foundation_lab_design.md)
+- [course/03_foundation/07_foundation_lab_tasks.md](../../../course/03_foundation/07_foundation_lab_tasks.md)
 
 如果你当前准备继续推进代码，建议按这个顺序进入：
 
@@ -298,6 +298,6 @@ uvicorn app.main:app --reload --port 8000
 4. `运行方式`
 5. `当前已验证内容`
 
-不要每推进一点实现就回头大改 `docs/03_foundation/05-07`。
+不要每推进一点实现就回头大改 `course/03_foundation/05-07`。
 
 只有当代码已经证明设计有偏差时，才回头修改主文档。

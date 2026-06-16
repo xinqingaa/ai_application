@@ -54,7 +54,7 @@
 
 ### 本章与前后章节的衔接
 
-上一章 [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md) 解决的是：
+上一章 [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md) 解决的是：
 
 - 核心抽象是什么
 - 最小链怎么写
@@ -65,8 +65,8 @@
 
 再往后：
 
-- [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md) 会给出完整项目设计
-- [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md) 会给出明确实施顺序
+- [06_foundation_lab_design.md](06_foundation_lab_design.md) 会给出完整项目设计
+- [07_foundation_lab_tasks.md](07_foundation_lab_tasks.md) 会给出明确实施顺序
 
 ### 第一入口
 
@@ -638,7 +638,7 @@ payload -> API route -> service.stream() -> iterator -> StreamingResponse
 
 当前阶段的输入是：
 
-1. [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md)
+1. [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md)
 2. 本文档中的分层与职责说明
 
 当前阶段的输出是：

@@ -64,8 +64,8 @@
 
 当前仓库里：
 
-- [phase_9_project_integration/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/labs/phase_9_project_integration/README.md) 仍是占位
-- [rag_lab/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/rag_lab/README.md) 仍是占位
+- `source/04_rag/labs/phase_9_project_integration/README.md` 仍是规划占位，目录暂未落地
+- [rag_lab/README.md](../../source/04_rag/rag_lab/README.md) 仍是占位
 - 第九章代码快照尚未落地
 
 ---

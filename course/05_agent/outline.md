@@ -15,9 +15,9 @@
 
 ## 学习前提
 
-- 已完成 [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
-- 建议先完成 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
-- 建议先完成 [04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
+- 已完成 [02_llm/outline.md](../02_llm/outline.md)
+- 建议先完成 [03_foundation/outline.md](../03_foundation/outline.md)
+- 建议先完成 [04_rag/outline.md](../04_rag/outline.md)
 
 ## 与前后课程的衔接
 
@@ -41,7 +41,7 @@
 
 ### 与 06_application 的关系
 
-- 后面的 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md) 会直接把这里的能力落成业务工作流，而不会回头系统补 Agent 原理。
+- 后面的 [06_application/outline.md](../06_application/outline.md) 会直接把这里的能力落成业务工作流，而不会回头系统补 Agent 原理。
 - 本课程产出的关键能力，会在项目实战里落到：路由决策、知识源选择、人工审批、风控节点、状态持久化、多角色协作。
 - 所以后面的项目课重点是业务闭环，这门课重点是先把“动态系统能力”学清楚。
 
@@ -49,7 +49,7 @@
 
 - 本课程重点是 **动态决策、工具调用、状态编排、记忆、安全与评测**。
 - 它不是通用工作流平台开发课，也不是完整企业中台设计课。
-- 具体业务拆分、前后端整合、权限审计落地、真实商业流程设计，放到 [06_application/outline.md](/Users/lrq/work/ai_application/docs/06_application/outline.md)。
+- 具体业务拆分、前后端整合、权限审计落地、真实商业流程设计，放到 [06_application/outline.md](../06_application/outline.md)。
 
 ## 本课程回答什么问题
 
@@ -867,7 +867,7 @@ def sensitive_action(state: MessagesState):
 
 #### 本节与前后课程的关系
 
-- 这节直接承接 [04_rag/outline.md](/Users/lrq/work/ai_application/docs/04_rag/outline.md) 的传统 RAG 主线，是两门课最明确的交叉点。
+- 这节直接承接 [04_rag/outline.md](../04_rag/outline.md) 的传统 RAG 主线，是两门课最明确的交叉点。
 - 前一门课已经说明什么时候值得升级，这一节开始真正把检索纳入 Agent 决策图中。
 - 对 `06_application` 来说，它会服务那些需要“先判断、再检索、再审核”的复杂业务链路，而不是替代所有普通问答。
 - 边界：重点是理解固定 RAG 与动态 RAG 的工程差异，而不是鼓励在所有场景里默认上 Agent。

@@ -51,7 +51,7 @@
 
 ### 本章与前后章节的衔接
 
-上一章 [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md) 已经把项目定义清楚了。
+上一章 [06_foundation_lab_design.md](06_foundation_lab_design.md) 已经把项目定义清楚了。
 
 这一章继续往下做：
 
@@ -80,7 +80,7 @@
 
 建议这样使用这篇文档：
 
-1. 先对照 [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md) 确认项目边界
+1. 先对照 [06_foundation_lab_design.md](06_foundation_lab_design.md) 确认项目边界
 2. 再按本篇 `Phase 1 -> Phase 6` 顺序推进
 3. 每完成一个 Phase，就回看对应完成标准
 4. 全部结束后再用 `10. 最终验收` 做总检查

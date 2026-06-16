@@ -1,6 +1,6 @@
 # 03. Prompt Engineering - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/02_llm/03_prompt_engineering.md) 一步步完成第三章实践
+> 本文档说明如何跟着 [学习文档](../../../course/02_llm/03_prompt_engineering.md) 一步步完成第三章实践
 
 ---
 

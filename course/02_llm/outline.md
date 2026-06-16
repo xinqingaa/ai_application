@@ -10,16 +10,16 @@
 - 本课程回答的是：**怎么把 LLM 用起来、接起来、跑起来，并逐步做成可复用能力**。
 - 教学主线以 **OpenAI / Claude / Gemini** 作为主流平台代表，帮助你理解国际主流 API 设计和能力边界。
 - 实践接入上，优先建议使用 **阿里云百炼 / 通义千问、DeepSeek、GLM 等国内平台**；这些平台中不少支持 **OpenAI 兼容协议**，可以直接复用 `OpenAI SDK`。
-- 模型底层原理、开源模型、微调与私有化部署认知，统一放到后续的 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)。
+- 模型底层原理、开源模型、微调与私有化部署认知，统一放到后续的 [03_foundation/outline.md](../03_foundation/outline.md)。
 - LangChain 在本课程中不作为主线框架展开，避免在 `LLM / RAG / Agent` 三门课里重复讲解。
 
 ## 建议学习顺序
 
-1. [01_python/outline.md](/Users/linruiqiang/work/ai_application/docs/01_python/outline.md)
-2. [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
-3. [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
-4. [04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
-5. [05_agent/outline.md](/Users/linruiqiang/work/ai_application/docs/05_agent/outline.md)
+1. [01_python/outline.md](../01_python/outline.md)
+2. [02_llm/outline.md](outline.md)
+3. [03_foundation/outline.md](../03_foundation/outline.md)
+4. [04_rag/outline.md](../04_rag/outline.md)
+5. [05_agent/outline.md](../05_agent/outline.md)
 
 ## 平台学习策略
 

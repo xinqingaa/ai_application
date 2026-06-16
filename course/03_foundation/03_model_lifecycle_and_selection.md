@@ -66,7 +66,7 @@
 
 这一章之后：
 
-- [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md) 就会开始进入真正的工程抽象和代码组织
+- [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md) 就会开始进入真正的工程抽象和代码组织
 
 所以这一章本质上是：
 
@@ -95,8 +95,8 @@
 | 本章全文 | 本文档 | 第一阅读入口 | 当前阶段先建立方案判断，不要求实现训练或部署 |
 | `2-5` | 未来 `foundation_lab` 的项目边界控制 | 前置认知 | 帮助你知道当前项目应做什么、不做什么 |
 | `6-7` | 未来 `04_rag`、`05_agent`、`06_application` 的选型讨论 | 前置认知 | 避免在错误阶段投入错误成本 |
-| `8` | [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md) | 项目衔接 | 把原理判断转成项目边界 |
-| 下一步衔接 | [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md) | 后续阅读 | 开始进入真正的抽象与工程设计 |
+| `8` | [06_foundation_lab_design.md](06_foundation_lab_design.md) | 项目衔接 | 把原理判断转成项目边界 |
+| 下一步衔接 | [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md) | 后续阅读 | 开始进入真正的抽象与工程设计 |
 
 ---
 

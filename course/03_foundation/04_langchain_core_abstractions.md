@@ -64,7 +64,7 @@
 
 - 如何把这些理解组织成代码
 
-下一章 [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md) 会继续把这些抽象落成 `foundation_lab` 的工程结构。
+下一章 [05_langchain_engineering.md](05_langchain_engineering.md) 会继续把这些抽象落成 `foundation_lab` 的工程结构。
 
 所以这一章本质上是：
 
@@ -115,7 +115,7 @@
 | `3. 六个最核心的抽象` | 未来 `app/llm/`、`app/prompts/`、`app/chains/`、`app/retrievers/`、`app/tools/` | 计划模块说明 | 固定最小抽象集合 |
 | `4. 最小链路` | 未来 `qa_prompt.py`、`qa_chain.py`、`client_langchain.py` | 计划主入口 | 未来第一批要落实的最小链 |
 | `5. 原生 SDK 和 LangChain 的对照关系` | 未来 `client_native.py`、`client_langchain.py`、`compare_native_vs_lc.py` | 对照实现 | 保持双轨理解 |
-| 下一步衔接 | [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md) | 后续阅读 | 把抽象继续落成工程结构 |
+| 下一步衔接 | [05_langchain_engineering.md](05_langchain_engineering.md) | 后续阅读 | 把抽象继续落成工程结构 |
 
 ---
 

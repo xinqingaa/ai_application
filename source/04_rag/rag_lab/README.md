@@ -6,8 +6,8 @@
 
 真正学习时请从大纲、章节正文和对应代码快照开始：
 
-- [docs/04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
-- [source/04_rag/01_rag_basics/README.md](/Users/linruiqiang/work/ai_application/source/04_rag/01_rag_basics/README.md)
+- [course/04_rag/outline.md](../../../course/04_rag/outline.md)
+- [source/04_rag/01_rag_basics/README.md](../01_rag_basics/README.md)
 
 最终 `rag_lab` 应在完成第九章后，由 `labs/phase_9_project_integration/` 整理形成。
 

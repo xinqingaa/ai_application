@@ -1,6 +1,6 @@
 # 01. RAG 基础概念 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/04_rag/01_rag_basics.md) 学完第一章，并在不依赖后续章节的前提下跑通最小 RAG 闭环，同时建立后续 `01-04` 共享的最小评估集。
+> 本文档说明如何跟着 [学习文档](../../../course/04_rag/01_rag_basics.md) 学完第一章，并在不依赖后续章节的前提下跑通最小 RAG 闭环，同时建立后续 `01-04` 共享的最小评估集。
 
 ---
 
@@ -267,7 +267,7 @@ python 03_rag_pipeline.py "Python 系统课可以退钱吗？"
 
 ## 建议学习顺序
 
-1. 先读 [01_rag_basics.md](../../../docs/04_rag/01_rag_basics.md)
+1. 先读 [01_rag_basics.md](../../../course/04_rag/01_rag_basics.md)
 2. 跑 `python 01_minimum_eval.py`
 3. 再跑 `python 02_why_rag.py`
 4. 再跑 `python 03_rag_pipeline.py`

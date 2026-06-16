@@ -1,6 +1,6 @@
 # 03. 向量化 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/04_rag/03_embeddings.md) 学完第三章，并在不依赖第四章以后的前提下，看懂 `SourceChunk -> EmbeddedChunk`、最小相似度排序，以及 toy provider 和真实 embeddings endpoint 之间的桥接关系。
+> 本文档说明如何跟着 [学习文档](../../../course/04_rag/03_embeddings.md) 学完第三章，并在不依赖第四章以后的前提下，看懂 `SourceChunk -> EmbeddedChunk`、最小相似度排序，以及 toy provider 和真实 embeddings endpoint 之间的桥接关系。
 
 ---
 

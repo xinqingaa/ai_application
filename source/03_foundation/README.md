@@ -26,20 +26,20 @@ foundation_lab/
 
 如果你要继续对照设计文档补实现，再回到阶段文档：
 
-- [docs/03_foundation/README.md](../../docs/03_foundation/README.md)
+- [course/03_foundation/README.md](../../course/03_foundation/README.md)
 
 建议优先阅读：
 
-- [docs/03_foundation/04_langchain_core_abstractions.md](../../docs/03_foundation/04_langchain_core_abstractions.md)
-- [docs/03_foundation/05_langchain_engineering.md](../../docs/03_foundation/05_langchain_engineering.md)
-- [docs/03_foundation/06_foundation_lab_design.md](../../docs/03_foundation/06_foundation_lab_design.md)
-- [docs/03_foundation/07_foundation_lab_tasks.md](../../docs/03_foundation/07_foundation_lab_tasks.md)
+- [course/03_foundation/04_langchain_core_abstractions.md](../../course/03_foundation/04_langchain_core_abstractions.md)
+- [course/03_foundation/05_langchain_engineering.md](../../course/03_foundation/05_langchain_engineering.md)
+- [course/03_foundation/06_foundation_lab_design.md](../../course/03_foundation/06_foundation_lab_design.md)
+- [course/03_foundation/07_foundation_lab_tasks.md](../../course/03_foundation/07_foundation_lab_tasks.md)
 
 ## 对应关系
 
 | 文档 | 当前角色 | 未来代码关系 |
 |------|----------|--------------|
-| `docs/03_foundation/README.md` | 阶段导航 | 上位入口 |
+| `course/03_foundation/README.md` | 阶段导航 | 上位入口 |
 | `04_langchain_core_abstractions.md` | 抽象设计 | 对应 `foundation_lab/app/prompts/`、`app/chains/`、`app/llm/` |
 | `05_langchain_engineering.md` | 工程骨架设计 | 对应 `foundation_lab/app/` 分层、`main.py`、`logger.py` |
 | `06_foundation_lab_design.md` | 项目设计 | 对应 `foundation_lab/` 目录和主数据流 |

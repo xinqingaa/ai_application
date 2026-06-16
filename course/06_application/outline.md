@@ -23,10 +23,10 @@
 
 ## 学习前提
 
-- 已完成 [02_llm/outline.md](/Users/lrq/work/ai_application/docs/02_llm/outline.md)
-- 已完成 [03_foundation/outline.md](/Users/lrq/work/ai_application/docs/03_foundation/outline.md)
-- 已完成 [04_rag/outline.md](/Users/lrq/work/ai_application/docs/04_rag/outline.md)
-- 已完成 [05_agent/outline.md](/Users/lrq/work/ai_application/docs/05_agent/outline.md)
+- 已完成 [02_llm/outline.md](../02_llm/outline.md)
+- 已完成 [03_foundation/outline.md](../03_foundation/outline.md)
+- 已完成 [04_rag/outline.md](../04_rag/outline.md)
+- 已完成 [05_agent/outline.md](../05_agent/outline.md)
 
 ---
 
@@ -697,7 +697,7 @@ users / conversations / messages / knowledge_bases / documents / audit_records /
 
 #### 本节与前面课程的关系
 
-- 这一节是 [04_rag/outline.md](/Users/lrq/work/ai_application/docs/04_rag/outline.md) 在主项目中的直接落地。
+- 这一节是 [04_rag/outline.md](../04_rag/outline.md) 在主项目中的直接落地。
 - 前一门课解决了“RAG 怎么做”，这一节解决的是“RAG 在真实业务里要输出什么，怎样才算可用”。
 
 #### 本节的通用能力
@@ -1059,7 +1059,7 @@ users / conversations / messages / knowledge_bases / documents / audit_records /
 
 #### 本节与前面课程的关系
 
-- 这一节就是 [05_agent/outline.md](/Users/lrq/work/ai_application/docs/05_agent/outline.md) 在主项目中的直接落地。
+- 这一节就是 [05_agent/outline.md](../05_agent/outline.md) 在主项目中的直接落地。
 - 前一门课讲的是 Agent 原理和编排能力，这里讲的是“围绕真实业务目标怎么设计 Agent”。
 
 #### 本节的通用能力

@@ -1,6 +1,6 @@
 # 02. 文档处理 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/04_rag/02_document_processing.md) 学完第二章，并在不依赖第三章以后的前提下，把本地 `.txt / .md / .pdf` 稳定转换成标准 `SourceChunk[]`。
+> 本文档说明如何跟着 [学习文档](../../../course/04_rag/02_document_processing.md) 学完第二章，并在不依赖第三章以后的前提下，把本地 `.txt / .md / .pdf` 稳定转换成标准 `SourceChunk[]`。
 
 ---
 
@@ -453,7 +453,7 @@ load
 
 ## 建议学习顺序
 
-1. 先读 [02_document_processing.md](../../../docs/04_rag/02_document_processing.md)
+1. 先读 [02_document_processing.md](../../../course/04_rag/02_document_processing.md)
 2. 跑 `python -m pip install -r requirements.txt`
 3. 跑 `python 01_discover_and_load.py`
 4. 跑 `python 02_split_and_inspect.py`

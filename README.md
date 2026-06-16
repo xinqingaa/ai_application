@@ -2,76 +2,72 @@
 
 这是一个围绕 AI 应用开发转型搭建的学习与项目工作区。
 
-当前主线分为两部分：
+当前主线：
 
-- 学习主线：`01_python -> 02_llm -> 03_foundation -> 04_rag -> 05_agent -> 06_application`
-- 系统课程参考：`docs/llmops.md`
+- 课程主线：`01_python -> 02_llm -> 03_foundation -> 04_rag -> 05_agent -> 06_application`
+- 系统课程参考：[course/llmops.md](course/llmops.md)
+- 当前综合应用方向：[course/06_application/outline_v2.md](course/06_application/outline_v2.md)
 
-## 规范入口
-
-仓库内文档与代码规范统一以以下两份文件为准：
-
-- [文档与代码质量规范.md](/Users/linruiqiang/work/ai_application/文档与代码质量规范.md)
-- [文档与代码质量规范实施计划.md](/Users/linruiqiang/work/ai_application/文档与代码质量规范实施计划.md)
-
-说明：
-
-- `文档与代码质量规范.md` 是唯一真源，负责定义通用质量标准。
-- `文档与代码质量规范实施计划.md` 负责记录规范建设进度、试点计划与后续回修路径。
-
-## 仓库结构
+## 目录结构
 
 ```plain
 .
-├── CLAUDE.md
 ├── README.md
-├── 文档与代码质量规范.md
-├── 文档与代码质量规范实施计划.md
+├── AGENTS.md
+├── CLAUDE.md
 ├── docs/
+│   ├── README.md
+│   ├── writing.md
+│   └── course-template.md
+├── course/
 │   ├── 01_python/
 │   ├── 02_llm/
 │   ├── 03_foundation/
 │   ├── 04_rag/
 │   ├── 05_agent/
 │   ├── 06_application/
+│   ├── ai_trategy.md
 │   └── llmops.md
-├── source/
-│   ├── 01_python/
-│   ├── 02_llm/
-│   ├── 03_foundation/
-│   ├── 04_rag/
-│   ├── 05_agent/
-│   └── 06_application/
+└── source/
+    ├── 01_python/
+    ├── 02_llm/
+    ├── 03_foundation/
+    ├── 04_rag/
+    ├── 05_agent/
+    └── 06_application/
 ```
 
-## 目录约定
+## 目录职责
 
 ### docs/
 
-存放每个阶段的：
+仓库治理文档，只放“怎么写、怎么协作、怎么检查质量”。
 
-- 学习大纲
-- 实施方案
-- 学习笔记
-- 架构设计
+- [docs/README.md](docs/README.md)
+- [docs/writing.md](docs/writing.md)
+- [docs/course-template.md](docs/course-template.md)
+
+### course/
+
+课程正文与学习路线。
+
+- 阶段大纲
+- 章节文档
 - 项目规划
+- 学习方法论
 
 ### source/
 
-存放每个阶段的代码和资源。
+课程配套代码与资源。
 
-其中：
+- 示例代码
+- 练习代码
+- 测试
+- 数据集与评估集
+- prompt 和项目资源
 
-- `03_foundation` 对应独立基础实验项目
-- `04_rag` 对应独立 RAG 项目
-- `05_agent` 对应独立 Agent 项目
-- `06_application` 对应金融 AI 主项目
+## 规范入口
 
-## 规范说明
+仓库内文档与代码质量规范统一以 [docs/writing.md](docs/writing.md) 为准。
 
-根 `README.md` 只承担仓库导航和规范入口职责，不重复展开完整质量要求。
-
-具体的文档结构、代码质量、映射规则、完成定义和阶段适配要求，请直接查看：
-
-- [文档与代码质量规范.md](/Users/linruiqiang/work/ai_application/文档与代码质量规范.md)
-- [文档与代码质量规范实施计划.md](/Users/linruiqiang/work/ai_application/文档与代码质量规范实施计划.md)
+后续新增课程章节或代码 README 时，优先参考 [docs/course-template.md](docs/course-template.md)。

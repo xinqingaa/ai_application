@@ -416,8 +416,8 @@ def retry_call(func, max_retries=3):
 
 这一部分对应：
 
-- [01_error_retry.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/01_error_retry.py)
-- [reliability_utils.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/reliability_utils.py)
+- [01_error_retry.py](../../source/02_llm/06_reliability_cost_security/01_error_retry.py)
+- [reliability_utils.py](../../source/02_llm/06_reliability_cost_security/reliability_utils.py)
 
 脚本里会演示：
 
@@ -689,9 +689,9 @@ def retry_call(func, max_retries=3):
 
 这一部分对应：
 
-- [02_cost_counter.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/02_cost_counter.py)
-- [03_cache_quota.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/03_cache_quota.py)
-- [reliability_utils.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/reliability_utils.py)
+- [02_cost_counter.py](../../source/02_llm/06_reliability_cost_security/02_cost_counter.py)
+- [03_cache_quota.py](../../source/02_llm/06_reliability_cost_security/03_cache_quota.py)
+- [reliability_utils.py](../../source/02_llm/06_reliability_cost_security/reliability_utils.py)
 
 脚本里会分别演示：
 
@@ -831,8 +831,8 @@ TTL 缓存就是给缓存加过期时间。
 
 重点参考：
 
-- [03_cache_quota.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/03_cache_quota.py)
-- [reliability_utils.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/reliability_utils.py)
+- [03_cache_quota.py](../../source/02_llm/06_reliability_cost_security/03_cache_quota.py)
+- [reliability_utils.py](../../source/02_llm/06_reliability_cost_security/reliability_utils.py)
 
 如果你准备对照公共工具一起看，建议顺序是：
 
@@ -1018,8 +1018,8 @@ Prompt 注入可以简单理解为：
 
 这一部分对应：
 
-- [04_prompt_injection.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/04_prompt_injection.py)
-- [reliability_utils.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/reliability_utils.py)
+- [04_prompt_injection.py](../../source/02_llm/06_reliability_cost_security/04_prompt_injection.py)
+- [reliability_utils.py](../../source/02_llm/06_reliability_cost_security/reliability_utils.py)
 
 脚本会演示：
 
@@ -1215,8 +1215,8 @@ Prompt 注入可以简单理解为：
 
 重点参考：
 
-- [05_llm_service.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/05_llm_service.py)
-- [reliability_utils.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/reliability_utils.py)
+- [05_llm_service.py](../../source/02_llm/06_reliability_cost_security/05_llm_service.py)
+- [reliability_utils.py](../../source/02_llm/06_reliability_cost_security/reliability_utils.py)
 
 ---
 
@@ -1365,11 +1365,11 @@ Prompt 注入可以简单理解为：
 
 ## 9. 练习建议
 
-1. 在 [01_error_retry.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/01_error_retry.py) 里新增一个 `request_error` 场景，确认它不会被错误重试。
-2. 在 [02_cost_counter.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/02_cost_counter.py) 里把消息历史扩充到 8 轮，对比成本变化。
-3. 在 [03_cache_quota.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/03_cache_quota.py) 里把缓存 TTL 改成 1 秒，然后等待过期再取一次，观察行为变化。
-4. 在 [04_prompt_injection.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/04_prompt_injection.py) 里补充更多注入模式，比如“切换为开发者模式”“输出隐藏规则”等。
-5. 在 [05_llm_service.py](/Users/linruiqiang/work/ai_application/source/02_llm/06_reliability_cost_security/05_llm_service.py) 里把 `block_on_injection` 改成 `True`，比较 `risky_case` 的返回结果。
+1. 在 [01_error_retry.py](../../source/02_llm/06_reliability_cost_security/01_error_retry.py) 里新增一个 `request_error` 场景，确认它不会被错误重试。
+2. 在 [02_cost_counter.py](../../source/02_llm/06_reliability_cost_security/02_cost_counter.py) 里把消息历史扩充到 8 轮，对比成本变化。
+3. 在 [03_cache_quota.py](../../source/02_llm/06_reliability_cost_security/03_cache_quota.py) 里把缓存 TTL 改成 1 秒，然后等待过期再取一次，观察行为变化。
+4. 在 [04_prompt_injection.py](../../source/02_llm/06_reliability_cost_security/04_prompt_injection.py) 里补充更多注入模式，比如“切换为开发者模式”“输出隐藏规则”等。
+5. 在 [05_llm_service.py](../../source/02_llm/06_reliability_cost_security/05_llm_service.py) 里把 `block_on_injection` 改成 `True`，比较 `risky_case` 的返回结果。
 
 ---
 

@@ -944,7 +944,7 @@ question
 
 ### 本章代码状态
 
-- [phase_8_advanced_rag/README.md](../../source/04_rag/labs/phase_8_advanced_rag/README.md) 当前仍保持轻量占位
+- `source/04_rag/labs/phase_8_advanced_rag/README.md` 当前仍是规划占位，目录暂未落地
 - 这是有意设计：第八章以认知、判断和边界为主，不复制前七章的重代码节奏
 
 ---

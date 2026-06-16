@@ -1,6 +1,6 @@
 # 07. 模块、包与异常处理 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/01_python/07_module_exception.md) 一步步动手操作
+> 本文档说明如何跟着 [学习文档](../../../course/01_python/07_module_exception.md) 一步步动手操作
 
 ---
 

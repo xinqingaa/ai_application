@@ -24,10 +24,10 @@
 
 ## 学习前提
 
-- 已完成 [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
-- 已完成 [03_foundation/outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
-- 已完成 [04_rag/outline.md](/Users/linruiqiang/work/ai_application/docs/04_rag/outline.md)
-- 已完成 [05_agent/outline.md](/Users/linruiqiang/work/ai_application/docs/05_agent/outline.md)
+- 已完成 [02_llm/outline.md](../02_llm/outline.md)
+- 已完成 [03_foundation/outline.md](../03_foundation/outline.md)
+- 已完成 [04_rag/outline.md](../04_rag/outline.md)
+- 已完成 [05_agent/outline.md](../05_agent/outline.md)
 
 ## 主项目方向
 

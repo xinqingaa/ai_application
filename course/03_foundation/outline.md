@@ -13,8 +13,8 @@
 
 ## 学习前提
 
-- 已完成 [01_python/outline.md](/Users/linruiqiang/work/ai_application/docs/01_python/outline.md)
-- 已完成 [02_llm/outline.md](/Users/linruiqiang/work/ai_application/docs/02_llm/outline.md)
+- 已完成 [01_python/outline.md](../01_python/outline.md)
+- 已完成 [02_llm/outline.md](../02_llm/outline.md)
 - 已能独立调用至少一个 LLM API，并理解消息、结构化输出、流式输出这些基本概念
 
 ## 一、LLM 基本原理

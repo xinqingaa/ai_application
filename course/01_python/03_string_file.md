@@ -228,7 +228,7 @@ path = r"C:\Users\zhangsan\Documents"
 
 # 更推荐：使用 pathlib（后续讲解）
 from pathlib import Path
-path = Path("C:/Users/zhangsan/Documents")
+path = Path("D:/workspace/Documents")
 ```
 
 **正则表达式**
@@ -544,11 +544,11 @@ from pathlib import Path
 
 # 当前目录
 current = Path.cwd()
-print(current)  # /Users/xxx/project
+print(current)  # /tmp/project
 
 # 用户目录
 home = Path.home()
-print(home)  # /Users/xxx
+print(home)  # /home/user
 
 # 创建路径
 path = Path("folder/file.txt")
@@ -570,7 +570,7 @@ path = Path("data") / "file_" + ".txt"  # ❌ 错误！
 path = Path("data") / ("file_" + ".txt")  # ✅ 正确
 
 # 绝对路径
-base = Path("/Users/xxx/project")
+base = Path("/tmp/project")
 file = base / "data" / "file.txt"
 ```
 
@@ -579,14 +579,14 @@ file = base / "data" / "file.txt"
 ```python
 from pathlib import Path
 
-path = Path("/Users/xxx/project/data/file.txt")
+path = Path("/tmp/project/data/file.txt")
 
 # 路径各部分
 path.name       # "file.txt"（文件名）
 path.stem       # "file"（不含扩展名）
 path.suffix     # ".txt"（扩展名）
 path.suffixes   # [".txt"]（多个扩展名，如 .tar.gz）
-path.parent     # /Users/xxx/project/data（父目录）
+path.parent     # /tmp/project/data（父目录）
 path.parents    # 所有父目录的序列
 path.anchor     # "/"（根目录，Windows 是 "C:\"）
 
@@ -871,7 +871,7 @@ from pathlib import Path
 data = {
     "name": "张三",
     "created_at": datetime.now(),
-    "path": Path("/Users/test")
+    "path": Path("/tmp/test")
 }
 
 # 方法 1：预先转换

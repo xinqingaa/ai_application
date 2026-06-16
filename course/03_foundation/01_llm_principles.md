@@ -99,7 +99,7 @@
 | `3. 从输入到输出` | 未来 `foundation_lab` 中的 `client_native.py`、`client_langchain.py` | 前置认知 | 帮助理解一次调用真正发生了什么 |
 | `4. Prompt` | 未来 `app/prompts/`、`app/chains/` | 前置认知 | 解释为什么 Prompt 不能被随意内联 |
 | `5. 结构化输出 / 检索 / 工具` | 未来 `app/chains/`、`app/retrievers/`、`app/tools/` | 前置认知 | 为后续抽象边界提供判断依据 |
-| 下一步衔接 | [02_transformer_attention.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/02_transformer_attention.md) | 后续阅读 | 继续解释上下文为什么会影响效果 |
+| 下一步衔接 | [02_transformer_attention.md](02_transformer_attention.md) | 后续阅读 | 继续解释上下文为什么会影响效果 |
 
 ---
 

@@ -53,7 +53,7 @@
 
 ### 本章与前后章节的衔接
 
-上一章 [01_llm_principles.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/01_llm_principles.md) 解决的是：
+上一章 [01_llm_principles.md](01_llm_principles.md) 解决的是：
 
 - 模型本质上在做什么
 - 为什么它是概率生成系统
@@ -64,8 +64,8 @@
 
 这一章之后：
 
-- [03_model_lifecycle_and_selection.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/03_model_lifecycle_and_selection.md) 会把这种原理认知转成选型判断
-- [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md) 才开始进入真正的代码和工程抽象
+- [03_model_lifecycle_and_selection.md](03_model_lifecycle_and_selection.md) 会把这种原理认知转成选型判断
+- [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md) 才开始进入真正的代码和工程抽象
 
 所以这一章本质上是：
 
@@ -95,7 +95,7 @@
 | `3-4` | 未来 `mock_retriever`、Prompt 组织、`service` 的上下文拼接逻辑 | 前置认知 | 解释为什么材料组织会影响结果 |
 | `5` | 未来 `04_rag` 阶段的检索与上下文处理 | 前置认知 | 帮助避免把“能塞进去”误当成“会用得好” |
 | `7` | 未来 `foundation_lab` 中的 Prompt 管理和检索结果组织 | 项目衔接 | 告诉你这章会在什么地方真正落地 |
-| 下一步衔接 | [03_model_lifecycle_and_selection.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/03_model_lifecycle_and_selection.md) | 后续阅读 | 把原理判断继续转成方案选择 |
+| 下一步衔接 | [03_model_lifecycle_and_selection.md](03_model_lifecycle_and_selection.md) | 后续阅读 | 把原理判断继续转成方案选择 |
 
 ---
 

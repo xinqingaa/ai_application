@@ -37,42 +37,42 @@
 
 如果你现在要开始学习 `03_foundation`，第一阅读入口是：
 
-- [README.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/README.md)
+- [README.md](README.md)
 
 如果你现在要判断本阶段整体内容是否完整，第二入口是：
 
-- [outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
+- [outline.md](outline.md)
 
 如果你现在要为未来 `foundation_lab` 编码做准备，编码前置入口是：
 
-- [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md)
-- [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md)
-- [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md)
-- [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)
+- [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md)
+- [05_langchain_engineering.md](05_langchain_engineering.md)
+- [06_foundation_lab_design.md](06_foundation_lab_design.md)
+- [07_foundation_lab_tasks.md](07_foundation_lab_tasks.md)
 
 如果你现在要查看已经落下的项目骨架，第一代码入口是：
 
-- [source/03_foundation/README.md](/Users/linruiqiang/work/ai_application/source/03_foundation/README.md)
-- [foundation_lab/README.md](/Users/linruiqiang/work/ai_application/source/03_foundation/foundation_lab/README.md)
-- [qa_service.py](/Users/linruiqiang/work/ai_application/source/03_foundation/foundation_lab/app/services/qa_service.py)
-- [qa_chain.py](/Users/linruiqiang/work/ai_application/source/03_foundation/foundation_lab/app/chains/qa_chain.py)
+- [source/03_foundation/README.md](../../source/03_foundation/README.md)
+- [foundation_lab/README.md](../../source/03_foundation/foundation_lab/README.md)
+- [qa_service.py](../../source/03_foundation/foundation_lab/app/services/qa_service.py)
+- [qa_chain.py](../../source/03_foundation/foundation_lab/app/chains/qa_chain.py)
 
 ## 文档定位
 
 本目录下文档当前分为三类：
 
 - 总体规划与导航：
-  - [outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
-  - [README.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/README.md)
+  - [outline.md](outline.md)
+  - [README.md](README.md)
 - 原理理解文档：
-  - [01_llm_principles.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/01_llm_principles.md)
-  - [02_transformer_attention.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/02_transformer_attention.md)
-  - [03_model_lifecycle_and_selection.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/03_model_lifecycle_and_selection.md)
+  - [01_llm_principles.md](01_llm_principles.md)
+  - [02_transformer_attention.md](02_transformer_attention.md)
+  - [03_model_lifecycle_and_selection.md](03_model_lifecycle_and_selection.md)
 - 编码前置与项目落地文档：
-  - [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md)
-  - [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md)
-  - [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md)
-  - [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)
+  - [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md)
+  - [05_langchain_engineering.md](05_langchain_engineering.md)
+  - [06_foundation_lab_design.md](06_foundation_lab_design.md)
+  - [07_foundation_lab_tasks.md](07_foundation_lab_tasks.md)
 
 ## 文档优先级
 
@@ -89,14 +89,14 @@
 
 正常情况下不应因为某个小实现细节就频繁改写：
 
-- [README.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/README.md)
-- [01_llm_principles.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/01_llm_principles.md)
-- [02_transformer_attention.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/02_transformer_attention.md)
-- [03_model_lifecycle_and_selection.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/03_model_lifecycle_and_selection.md)
-- [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md)
-- [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md)
-- [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md)
-- [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)
+- [README.md](README.md)
+- [01_llm_principles.md](01_llm_principles.md)
+- [02_transformer_attention.md](02_transformer_attention.md)
+- [03_model_lifecycle_and_selection.md](03_model_lifecycle_and_selection.md)
+- [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md)
+- [05_langchain_engineering.md](05_langchain_engineering.md)
+- [06_foundation_lab_design.md](06_foundation_lab_design.md)
+- [07_foundation_lab_tasks.md](07_foundation_lab_tasks.md)
 
 只有在以下情况出现时，才需要回头修改这些文档：
 
@@ -114,12 +114,12 @@
 
 它们应随着 `Phase 2-6` 持续补充：
 
-- [source/03_foundation/README.md](/Users/linruiqiang/work/ai_application/source/03_foundation/README.md)
-- [foundation_lab/README.md](/Users/linruiqiang/work/ai_application/source/03_foundation/foundation_lab/README.md)
+- [source/03_foundation/README.md](../../source/03_foundation/README.md)
+- [foundation_lab/README.md](../../source/03_foundation/foundation_lab/README.md)
 
 一句话说：
 
-- `docs/03_foundation/*.md` 负责“约束代码应该长成什么样”
+- `course/03_foundation/*.md` 负责“约束代码应该长成什么样”
 - `source/03_foundation/**/*.md` 负责“说明当前代码已经长成什么样”
 
 ## 当前阶段映射
@@ -157,15 +157,15 @@
 
 建议按这个顺序读：
 
-1. [README.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/README.md)
-2. [outline.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/outline.md)
-3. [01_llm_principles.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/01_llm_principles.md)
-4. [02_transformer_attention.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/02_transformer_attention.md)
-5. [03_model_lifecycle_and_selection.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/03_model_lifecycle_and_selection.md)
-6. [04_langchain_core_abstractions.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/04_langchain_core_abstractions.md)
-7. [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md)
-8. [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md)
-9. [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)
+1. [README.md](README.md)
+2. [outline.md](outline.md)
+3. [01_llm_principles.md](01_llm_principles.md)
+4. [02_transformer_attention.md](02_transformer_attention.md)
+5. [03_model_lifecycle_and_selection.md](03_model_lifecycle_and_selection.md)
+6. [04_langchain_core_abstractions.md](04_langchain_core_abstractions.md)
+7. [05_langchain_engineering.md](05_langchain_engineering.md)
+8. [06_foundation_lab_design.md](06_foundation_lab_design.md)
+9. [07_foundation_lab_tasks.md](07_foundation_lab_tasks.md)
 
 如果你现在不准备写代码，最低阅读通过线是：
 
@@ -201,8 +201,8 @@
 
 ### 必须持续补的
 
-- [source/03_foundation/README.md](/Users/linruiqiang/work/ai_application/source/03_foundation/README.md)
-- [foundation_lab/README.md](/Users/linruiqiang/work/ai_application/source/03_foundation/foundation_lab/README.md)
+- [source/03_foundation/README.md](../../source/03_foundation/README.md)
+- [foundation_lab/README.md](../../source/03_foundation/foundation_lab/README.md)
 
 这两份要持续反映：
 
@@ -213,9 +213,9 @@
 
 ### 不应频繁重写的
 
-- [05_langchain_engineering.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/05_langchain_engineering.md)
-- [06_foundation_lab_design.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/06_foundation_lab_design.md)
-- [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)
+- [05_langchain_engineering.md](05_langchain_engineering.md)
+- [06_foundation_lab_design.md](06_foundation_lab_design.md)
+- [07_foundation_lab_tasks.md](07_foundation_lab_tasks.md)
 
 这三份后续只在以下情况下修改：
 

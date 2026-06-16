@@ -50,15 +50,15 @@ source/04_rag/
 | 5 | [05_retrieval_strategies](./05_retrieval_strategies/README.md) | 新版独立章节 | `python 01_compare_retrievers.py` |
 | 6 | [06_rag_generation](./06_rag_generation/README.md) | 新版独立章节 | `python 01_inspect_prompt.py` |
 | 7 | [07_rag_optimization](./07_rag_optimization/README.md) | 新版独立章节 | `python 01_inspect_golden_set.py` |
-| 8 | [phase_8_advanced_rag](./labs/phase_8_advanced_rag/README.md) | 占位 | 暂无 |
-| 9 | [phase_9_project_integration](./labs/phase_9_project_integration/README.md) | 占位 | 暂无 |
+| 8 | `labs/phase_8_advanced_rag/README.md` | 占位，目录暂未落地 | 暂无 |
+| 9 | `labs/phase_9_project_integration/README.md` | 占位，目录暂未落地 | 暂无 |
 
 ## 当前正确入口
 
 如果你现在开始 `04_rag`，按这个顺序：
 
-1. [docs/04_rag/outline.md](../../docs/04_rag/outline.md)
-2. [docs/04_rag/01_rag_basics.md](../../docs/04_rag/01_rag_basics.md)
+1. [course/04_rag/outline.md](../../course/04_rag/outline.md)
+2. [course/04_rag/01_rag_basics.md](../../course/04_rag/01_rag_basics.md)
 3. [source/04_rag/01_rag_basics/README.md](./01_rag_basics/README.md)
 
 ## 当前可运行命令
@@ -163,7 +163,7 @@ python -m unittest discover -s tests
 
 ## 文档和代码如何分工
 
-- `docs/04_rag/0N_*.md`
+- `course/04_rag/0N_*.md`
   负责讲清本章概念、边界、输入输出和观察重点。
 - `source/04_rag/01_rag_basics/`
   是第一章新的独立学习入口。

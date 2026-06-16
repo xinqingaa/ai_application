@@ -1,6 +1,6 @@
 """06_smart_retrieval_engine.py — 统一检索引擎演示
 
-对应文档: docs/04_rag/05_retrieval_strategies.md  「6. 综合案例：智能检索引擎」
+对应文档: course/04_rag/05_retrieval_strategies.md  「6. 综合案例：智能检索引擎」
 
 这份脚本是第五章的收口：上层只传 SmartRetrievalConfig，
 底层可以切 similarity / threshold / mmr / hybrid，也可以附加 rerank 和 evaluate。

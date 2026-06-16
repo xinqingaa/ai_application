@@ -1,6 +1,6 @@
 # 03. 字符串与文件基础 - 实践指南
 
-> 本文档说明如何跟着 [学习文档](../../../docs/01_python/03_string_file.md) 一步步动手操作
+> 本文档说明如何跟着 [学习文档](../../../course/01_python/03_string_file.md) 一步步动手操作
 
 ---
 
@@ -10,7 +10,7 @@
 读文档 → 新建文件 → 照着文档敲代码 → 运行看结果
 ```
 
-- 所有操作在项目根目录 `/Users/linruiqiang/work/ai_application` 下进行
+- 所有操作在项目根目录 `.` 下进行
 - 本目录下的代码文件用来**练习文档中的每个示例**，不是写 exercises
 - 每个文档章节对应一个 `.py` 文件，跟着文档内容逐步填充
 
@@ -458,12 +458,12 @@ print("多层拼接:", path)
 # 4.2 路径属性
 # ========================================
 
-path = Path("/Users/xxx/project/data/file.txt")
+path = Path("/tmp/project/data/file.txt")
 
 print("文件名:", path.name)       # file.txt
 print("不含扩展名:", path.stem)   # file
 print("扩展名:", path.suffix)     # .txt
-print("父目录:", path.parent)     # /Users/xxx/project/data
+print("父目录:", path.parent)     # /tmp/project/data
 print("根目录:", path.anchor)     # /
 
 # 多扩展名示例
@@ -632,7 +632,7 @@ print(json.dumps(data, separators=(",", ":")))  # 紧凑
 data = {
     "name": "张三",
     "created_at": datetime.now(),
-    "path": Path("/Users/test")
+    "path": Path("/tmp/test")
 }
 
 # 方法 1：预先转换
@@ -652,7 +652,7 @@ class CustomEncoder(json.JSONEncoder):
 data2 = {
     "name": "李四",
     "created_at": datetime.now(),
-    "path": Path("/Users/demo")
+    "path": Path("/tmp/demo")
 }
 print(json.dumps(data2, cls=CustomEncoder, ensure_ascii=False, indent=2))
 ```

@@ -47,7 +47,7 @@
 - 每天怎么排期
 - 测试逐条怎么写
 
-这些属于下一章 [07_foundation_lab_tasks.md](/Users/linruiqiang/work/ai_application/docs/03_foundation/07_foundation_lab_tasks.md)。
+这些属于下一章 [07_foundation_lab_tasks.md](07_foundation_lab_tasks.md)。
 
 ### 本章与前后章节的衔接
 
