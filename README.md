@@ -1,73 +1,48 @@
 # AI Application Learning Workspace
 
-这是一个围绕 AI 应用开发转型搭建的学习与项目工作区。
+这是一个面向前端 / Flutter 开发者的 AI 应用开发学习与项目实践仓库。
 
-当前主线：
+本仓库的核心目标不是转向纯算法、纯 AI Infra 或纯后端平台方向，而是基于已有前端、跨端客户端和复杂业务交付经验，补齐 LLM、RAG、Agent、FastAPI、评估、观测和前端可视化能力，形成 AI Native 前端与 AI 应用闭环能力。
 
-- 课程主线：`01_python -> 02_llm -> 03_foundation -> 04_rag -> 05_agent -> 06_application`
-- 系统课程参考：[course/llmops.md](course/llmops.md)
-- 当前综合应用方向：[course/06_application/outline_v2.md](course/06_application/outline_v2.md)
+## 学习方式
+
+当前学习以真实问题和项目闭环为中心：
+
+```text
+真实问题
+-> 基础原理
+-> 最小实现
+-> 主流框架实现
+-> 失败分析与能力边界
+-> 小项目实战
+```
+
+学习重点不是机械完成每个章节，而是能解释一个 AI 应用为什么这样设计、如何运行、在哪里失败、怎样被评估，以及如何被做成可交付的产品体验。
 
 ## 目录结构
 
-```plain
+```text
 .
 ├── README.md
 ├── AGENTS.md
-├── CLAUDE.md
 ├── docs/
-│   ├── README.md
-│   ├── writing.md
-│   └── course-template.md
 ├── course/
-│   ├── 01_python/
-│   ├── 02_llm/
-│   ├── 03_foundation/
-│   ├── 04_rag/
-│   ├── 05_agent/
-│   ├── 06_application/
-│   ├── ai_trategy.md
-│   └── llmops.md
 └── source/
-    ├── 01_python/
-    ├── 02_llm/
-    ├── 03_foundation/
-    ├── 04_rag/
-    ├── 05_agent/
-    └── 06_application/
 ```
 
 ## 目录职责
 
-### docs/
+- `docs/`：长期有效的战略、学习设计和 AI Agent 协作规范。
+- `course/`：课程正文、专题文档、项目规划和阶段性学习内容。
+- `source/`：课程配套代码、项目代码、示例、数据集和评估资源。
 
-仓库治理文档，只放“怎么写、怎么协作、怎么检查质量”。
+## 核心文档
 
-- [docs/README.md](docs/README.md)
-- [docs/writing.md](docs/writing.md)
-- [docs/course-template.md](docs/course-template.md)
+- [AGENTS.md](AGENTS.md)：AI Agent 协作规则。
+- [docs/strategy.md](docs/strategy.md)：长期定位、背景、目标和方向。
+- [docs/learning-guide.md](docs/learning-guide.md)：学习方式、课程设计、项目设计、写作与代码规范。
+- [docs/agent-skill.md](docs/agent-skill.md)：AI Agent / Skill 协作指南。
 
-### course/
+## 说明
 
-课程正文与学习路线。
-
-- 阶段大纲
-- 章节文档
-- 项目规划
-- 学习方法论
-
-### source/
-
-课程配套代码与资源。
-
-- 示例代码
-- 练习代码
-- 测试
-- 数据集与评估集
-- prompt 和项目资源
-
-## 规范入口
-
-仓库内文档与代码质量规范统一以 [docs/writing.md](docs/writing.md) 为准。
-
-后续新增课程章节或代码 README 时，优先参考 [docs/course-template.md](docs/course-template.md)。
+`01_python`、`02_llm`、`03_foundation`、`04_rag` 中部分已有文档和代码属于早期课程式结构产物，后续新内容以 `docs/` 下当前规范为准。

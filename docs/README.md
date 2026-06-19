@@ -1,35 +1,21 @@
 # Docs
 
-`docs/` 只存放仓库治理类文档，不再存放课程正文。
+`docs/` 存放仓库长期有效的战略、学习设计和 AI Agent 协作规范。
 
-课程正文统一放在 `course/`，课程配套代码和资源统一放在 `source/`。
+## 文档列表
 
-## 文档入口
+- [strategy.md](strategy.md)：长期定位、背景、目标和方向。
+- [learning-guide.md](learning-guide.md)：学习方式、课程设计、项目设计、写作与代码规范。
+- [agent-skill.md](agent-skill.md)：AI Agent / Skill 协作指南。
 
-- [writing.md](./writing.md)：文档与代码质量规范，当前唯一真源
-- [course-template.md](./course-template.md)：课程、章节、代码 README 写作模板
+## 不放什么
 
-## 放置规则
+`docs/` 不存放：
 
-应该放在 `docs/`：
+- 课程正文
+- 实时学习进度
+- 阶段性草稿
+- 代码实现细节
+- 临时迁移说明
 
-- 如何写课程文档
-- 如何写章节文档
-- 如何写代码 README
-- 文档与代码质量规范
-- 协作约定、模板和检查清单
-- 后续如果整理 skill，也放在这里
-
-不应该放在 `docs/`：
-
-- Python、LLM、RAG、Agent 等课程正文
-- 某一章的学习笔记正文
-- 某一章的配套代码
-
-对应关系：
-
-```plain
-course/   # 课程正文
-source/   # 课程配套代码和资源
-docs/     # 写作规范、协作规范、模板和检查清单
-```
+课程正文放在 `course/`，课程配套代码和项目代码放在 `source/`。
