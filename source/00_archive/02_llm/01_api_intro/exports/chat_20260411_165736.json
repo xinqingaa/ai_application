@@ -1,0 +1,31 @@
+{
+  "provider": "demo",
+  "model": "demo-model",
+  "exported_at": "2026-04-11T16:57:36.405646",
+  "messages": [
+    {
+      "role": "system",
+      "content": "你是一个 AI 学习助手。回答要简洁，优先用应用开发视角解释问题。"
+    },
+    {
+      "role": "assistant",
+      "content": "很好，你已经有工程经验，下一步重点是把模型接起来。"
+    },
+    {
+      "role": "user",
+      "content": "我为什么需要关心 messages？"
+    },
+    {
+      "role": "assistant",
+      "content": "因为多轮对话的历史消息要由应用侧自己管理。"
+    },
+    {
+      "role": "user",
+      "content": "那 history 越来越长怎么办？"
+    }
+  ],
+  "metadata": {
+    "demo": "messages_chat",
+    "note": "示例导出"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "summary": {
+    "template": "requirement_summary_v2.txt",
+    "check": {
+      "variables": [
+        "max_length",
+        "role",
+        "source_text",
+        "task"
+      ],
+      "missing_variables": [],
+      "unused_variables": []
+    },
+    "rendered_prompt": "你是一名前端需求整理助手。\n\n任务：\n根据原始需求输出面向前端开发的功能说明\n\n原始材料：\n我们要做一个带历史会话、流式输出和 token 统计的 AI 聊天页面，当前阶段先支持单用户使用。\n\n约束：\n1. 只整理和当前任务直接相关的信息。\n2. 如果原始材料没有提到，就明确写“待确认”，不要自行补充。\n3. 用简洁中文输出。\n4. 控制在 280 字以内。\n\n输出格式：\n## 目标\n- ...\n\n## 核心点\n- ...\n\n## 待确认\n- ...\n"
+  },
+  "sentiment": {
+    "template": "sentiment_few_shot.txt",
+    "check": {
+      "variables": [
+        "input_text"
+      ],
+      "missing_variables": [],
+      "unused_variables": []
+    },
+    "rendered_prompt": "你是一名评论情感分类助手。\n\n任务：\n判断评论属于 正面 / 负面 / 中性 中的哪一类，只能输出其中一个标签。\n\n规则：\n1. 明显表达满意、推荐、称赞，输出 正面。\n2. 明显表达抱怨、不满、故障、差评，输出 负面。\n3. 同时存在优点和缺点，或整体评价平淡，输出 中性。\n4. 不要输出解释，不要输出额外文字。\n\n示例：\n输入：客服响应很快，处理也很及时。\n输出：正面\n\n输入：页面连续报错三次，根本没法继续使用。\n输出：负面\n\n输入：包装不错，不过物流速度一般。\n输出：中性\n\n现在请判断：\n输入：登录经常失败，重试很多次还是报错，太影响使用了。\n输出：\n"
+  },
+  "reply": {
+    "template": "support_reply.txt",
+    "check": {
+      "variables": [
+        "analysis_result",
+        "customer_tier",
+        "max_length",
+        "ticket_content",
+        "ticket_title"
+      ],
+      "missing_variables": [],
+      "unused_variables": [
+        "unused_demo_var"
+      ]
+    },
+    "rendered_prompt": "你是一名面向用户的一线客服助手。\n\n原始工单：\n标题：支付成功但订单状态未更新\n内容：用户已完成付款，银行卡侧也有扣款记录，但订单页一直显示待支付，不敢重复下单，希望尽快核实。\n用户等级：pro\n\n分析结果：\n问题类型：支付\n影响范围：单个用户\n紧急程度：中\n已知事实：用户付款后页面卡住，订单状态未更新。\n\n任务：\n请写一段发给用户的回复。\n\n约束：\n1. 先确认用户问题，再说明下一步跟进动作。\n2. 不要编造已经修复、已经退款等结论。\n3. 语气专业、克制、简洁。\n4. 控制在 120 字以内。\n"
+  }
+}

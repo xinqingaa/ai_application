@@ -1,0 +1,65 @@
+{
+  "provider": "bailian",
+  "model": "qwen-plus",
+  "total": 4,
+  "success": 4,
+  "failed": 0,
+  "rows": [
+    {
+      "id": "lead_001",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "王敏",
+        "company": "华星零售",
+        "city": "杭州",
+        "intent_level": "high",
+        "budget": 50000,
+        "next_action": "安排线上演示并确认采购周期"
+      },
+      "raw_output": "{\n  \"name\": \"王敏\",\n  \"company\": \"华星零售\",\n  \"city\": \"杭州\",\n  \"intent_level\": \"high\",\n  \"budget\": 50000,\n  \"next_action\": \"安排线上演示并确认采购周期\"\n}"
+    },
+    {
+      "id": "lead_002",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "李涛",
+        "company": "云展科技",
+        "city": "深圳",
+        "intent_level": "medium",
+        "budget": null,
+        "next_action": "发送试用资料并确认试用时间"
+      },
+      "raw_output": "{\n  \"name\": \"李涛\",\n  \"company\": \"云展科技\",\n  \"city\": \"深圳\",\n  \"intent_level\": \"medium\",\n  \"budget\": null,\n  \"next_action\": \"发送试用资料并确认试用时间\"\n}"
+    },
+    {
+      "id": "lead_003",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "陈雪",
+        "company": "远山教育",
+        "city": "成都",
+        "intent_level": "high",
+        "budget": 80000,
+        "next_action": "安排产品评估并跟进季度采购计划"
+      },
+      "raw_output": "{\n  \"name\": \"陈雪\",\n  \"company\": \"远山教育\",\n  \"city\": \"成都\",\n  \"intent_level\": \"high\",\n  \"budget\": 80000,\n  \"next_action\": \"安排产品评估并跟进季度采购计划\"\n}"
+    },
+    {
+      "id": "lead_004",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "周凯",
+        "company": "连锁餐饮系统项目",
+        "city": "北京",
+        "intent_level": "medium",
+        "budget": null,
+        "next_action": "发送产品资料并确认后续需求细节"
+      },
+      "raw_output": "{\n  \"name\": \"周凯\",\n  \"company\": \"连锁餐饮系统项目\",\n  \"city\": \"北京\",\n  \"intent_level\": \"medium\",\n  \"budget\": null,\n  \"next_action\": \"发送产品资料并确认后续需求细节\"\n}"
+    }
+  ]
+}

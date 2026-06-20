@@ -1,0 +1,96 @@
+{
+  "session": {
+    "session_id": "263d912704f8",
+    "provider": "bailian",
+    "model": "qwen-plus",
+    "system_prompt": "你是一个严谨、简洁、对开发者友好的 AI 助手。",
+    "json_mode": true,
+    "stream_mode": true,
+    "temperature": 0.3,
+    "max_tokens": 500,
+    "keep_last_messages": 12,
+    "created_at": "2026-04-06T15:32:39.980389",
+    "updated_at": "2026-04-06T15:32:42.355745",
+    "messages": [
+      {
+        "role": "user",
+        "content": "请介绍一下这个 CLI 项目能帮助我练习哪些能力？",
+        "created_at": "2026-04-06T15:32:39.983340"
+      },
+      {
+        "role": "assistant",
+        "content": "[MOCK:bailian] 这是第七章综合项目的模拟回复。\n本轮问题预览：请介绍一下这个 CLI 项目能帮助我练习哪些能力？\n当前模式：json_mode=False, stream_mode=False\n你可以继续练习 provider 切换、导出会话、查看统计和流式输出。",
+        "created_at": "2026-04-06T15:32:39.983435"
+      },
+      {
+        "role": "user",
+        "content": "请把本章学习重点整理成 JSON",
+        "created_at": "2026-04-06T15:32:39.984245"
+      },
+      {
+        "role": "assistant",
+        "content": "{\n  \"summary\": \"这是第七章综合项目的 mock JSON 返回。\",\n  \"provider\": \"bailian\",\n  \"model\": \"qwen-plus\",\n  \"question_preview\": \"请把本章学习重点整理成 JSON\",\n  \"tips\": [\n    \"当前未配置真实 API Key\",\n    \"你仍可练习命令流、导出、统计和状态管理\"\n  ]\n}",
+        "created_at": "2026-04-06T15:32:39.984322"
+      },
+      {
+        "role": "user",
+        "content": "请用流式方式给我一个简短总结",
+        "created_at": "2026-04-06T15:32:42.355360"
+      },
+      {
+        "role": "assistant",
+        "content": "{\n  \"summary\": \"这是第七章综合项目的 mock JSON 返回。\",\n  \"provider\": \"bailian\",\n  \"model\": \"qwen-plus\",\n  \"question_preview\": \"请用流式方式给我一个简短总结\",\n  \"tips\": [\n    \"当前未配置真实 API Key\",\n    \"你仍可练习命令流、导出、统计和状态管理\"\n  ]\n}",
+        "created_at": "2026-04-06T15:32:42.355606"
+      }
+    ],
+    "accumulated_prompt_tokens": 446,
+    "accumulated_completion_tokens": 205,
+    "accumulated_total_tokens": 651,
+    "accumulated_estimated_cost": 0.0,
+    "turn_count": 3,
+    "latest_request_preview": {
+      "model": "qwen-plus",
+      "messages": [
+        {
+          "role": "system",
+          "content": "你是一个严谨、简洁、对开发者友好的 AI 助手。"
+        },
+        {
+          "role": "user",
+          "content": "请介绍一下这个 CLI 项目能帮助我练习哪些能力？"
+        },
+        {
+          "role": "assistant",
+          "content": "[MOCK:bailian] 这是第七章综合项目的模拟回复。\n本轮问题预览：请介绍一下这个 CLI 项目能帮助我练习哪些能力？\n当前模式：json_mode=False, stream_mode=False\n你可以继续练习 provider 切换、导出会话、查看统计和流式输出。"
+        },
+        {
+          "role": "user",
+          "content": "请把本章学习重点整理成 JSON"
+        },
+        {
+          "role": "assistant",
+          "content": "{\n  \"summary\": \"这是第七章综合项目的 mock JSON 返回。\",\n  \"provider\": \"bailian\",\n  \"model\": \"qwen-plus\",\n  \"question_preview\": \"请把本章学习重点整理成 JSON\",\n  \"tips\": [\n    \"当前未配置真实 API Key\",\n    \"你仍可练习命令流、导出、统计和状态管理\"\n  ]\n}"
+        },
+        {
+          "role": "user",
+          "content": "请用流式方式给我一个简短总结\n\n输出要求：\n1. 只返回一个 JSON 对象。\n2. 不要输出 Markdown 代码块。\n3. 如果缺少信息，用 null 或空数组，不要编造。"
+        }
+      ],
+      "temperature": 0.3,
+      "max_tokens": 500,
+      "json_mode": "prompt_json",
+      "stream": true
+    }
+  },
+  "state": {
+    "session_id": "263d912704f8",
+    "provider": "bailian",
+    "model": "qwen-plus",
+    "system_prompt": "你是一个严谨、简洁、对开发者友好的 AI 助手。",
+    "json_mode": true,
+    "stream_mode": true,
+    "temperature": 0.3,
+    "max_tokens": 500,
+    "keep_last_messages": 12
+  }
+}

@@ -56,58 +56,269 @@
 
 ## 学习目标
 
-长期目标是建立完整 AI 应用闭环能力：
+长期目标是建立完整 AI 应用闭环能力，并把 RAG、Agent、评估观测和产品体验作为核心主线。
+
+基础目标：
 
 - 能使用 Python / FastAPI 构建 AI 应用后端。
-- 能稳定调用多平台 LLM API。
-- 能设计 Prompt、结构化输出和错误兜底。
-- 能理解并实现 RAG 主链路。
-- 能理解并使用 Tool Calling、Agent 和 Workflow。
-- 能设计 sources、refusal、evaluation、observability 等工程机制。
-- 能把 AI 执行过程、证据链、风险提示和人工协作状态做成前端 / 客户端体验。
+- 能稳定调用多平台 LLM API，并理解供应商差异、成本、延迟和能力边界。
+- 能设计 Prompt、结构化输出、上下文管理和模型调用 harness。
+- 能通过最小实现、框架实现、评估观测和项目收敛验证一个能力是否真正掌握。
+
+RAG 与知识系统目标：
+
+- 能实现 RAG 主链路，并能处理文档、索引、检索、引用、拒答和评估问题。
+- 能理解 chunk、metadata、embedding、retrieval、rerank、context construction、context compression 对效果的影响。
+- 能设计短期记忆、长期记忆、记忆写入、记忆检索、遗忘机制和反馈回流。
+- 能把 RAG 从“能回答”推进到“有依据、可评估、可治理、可迭代”。
+
+Agent 核心目标：
+
+- 能判断 Chain、Workflow、单 Agent、Multi-Agent 的适用边界。
+- 能设计 Tool Schema、Tool Runtime、权限确认、失败兜底和人工接管。
+- 能实现 Agent Loop、任务分解、工具调用、状态流转和可干预工作流。
+- 能理解 Agentic RAG、Deep Research、Memory、Multi-Agent、Agent Skills、MCP / A2A 等能力之间的关系。
+- 能用 LangGraph 构建可观测、可回归、可调试的 Agent 工作流。
+- 能评估 Agent 的工具轨迹、任务完成率、成本、延迟和安全边界。
+
+产品化目标：
+
+- 能建立 evaluation、observability、trace、回归测试和失败案例回流机制。
+- 能把 AI 执行过程、证据链、风险提示、工具调用和人工协作状态做成前端 / 客户端体验。
+- 能围绕真实业务问题完成可运行、可展示、可评估、可迭代的 AI 应用项目。
 
 ## 能力路线
 
-### 基础能力层
+当前能力路线按七层组织。七层不是彼此割裂的课程边界，而是从基础能力、知识系统、Agent 系统、评估观测到项目作品的递进关系。
+
+### 1. 应用工程基础层
+
+这一层解决 AI 应用开发的基础工程能力。
 
 - Python
-- LLM API
-- Prompt Engineering
-- Structured Output
 - FastAPI
 - HTTP / JSON / SSE
+- 异步任务基础
+- 配置与密钥管理
+- 日志与异常处理
+- 基础测试
+- 本地开发、Docker 与部署认知
 
-### AI 应用主链路
+这一层的目标不是成为纯后端专家，而是能独立写出 AI 应用后端的最小服务。
 
-- 文档处理
-- Chunk 与 metadata
+### 2. 模型交互与上下文工程层
+
+这一层解决如何稳定、可控、低成本地使用模型。
+
+- 多平台 LLM API
+- OpenAI SDK 风格封装
+- Provider 抽象与模型切换
+- Prompt Engineering
+- Structured Outputs
+- 流式输出
+- 多轮对话
+- Context Engineering
+- 上下文裁剪、摘要与压缩
+- Token、成本、延迟控制
+- Prompt Caching
+- Harness Engineering
+- 输出校验、重试、降级
+- 最小评估样例与调用回归
+- Function Calling 的 API 形态与边界认知
+
+Function Calling 在这一层只学习 API 形态和基本概念；工具系统、运行时、权限、Agent loop 放到 Agent 层系统学习。
+
+### 3. RAG 与知识系统层
+
+这一层解决外部知识如何进入模型上下文，并形成可追溯、可评估、可治理的知识系统。
+
+- 文档加载与清洗
+- 文档结构保留
+- Chunk 策略
+- Metadata 设计
 - Embedding
 - Vector Store
-- Retrieval
+- Hybrid Search
+- Rerank
+- Query Rewrite
 - Context Construction
-- RAG Generation
-- Sources
+- Context Compression
+- Sources / Citation
 - Refusal
-- Evaluation
-- Observability
-- Frontend Workbench
+- RAG Evaluation
+- Knowledge Governance
+- 增量更新、删除一致性、版本管理
+- 短期记忆
+- 长期记忆
+- 记忆写入策略
+- 记忆检索策略
+- 遗忘机制
+- 用户反馈回流
 
-### 工作流增强层
+RAG 不只是一条“文档切分 -> 向量化 -> 检索 -> 生成”的链路，而是 AI 应用中知识、证据、上下文和记忆的基础系统。
 
-- Function Calling
+### 4. Agent 与工具系统层
+
+这一层解决模型如何连接外部能力、动态决策和执行多步骤任务。
+
+- Function Calling 深入
 - Tool Calling
-- Agent
+- Tool Schema 设计
+- Tool Runtime
+- 工具权限、确认与审计
+- Agent Loop
+- ReAct
+- Planning
+- Reflection
+- Task Decomposition
 - Agentic RAG
-- LangGraph
+- Deep Research
+- Deep Agent
+- Multi-Agent
+- Agent Skills
 - MCP
+- A2A / 开放 Agent 协议
+- 多模态 Agent
+- Browser / Code / File / Search 等工具型 Agent
 - Human-in-the-loop
+- Agent 安全边界
 
-### 项目收敛层
+这一层的核心不是一上来追求复杂 Agent，而是能判断什么时候用 Chain、Workflow、单 Agent、多 Agent，以及如何控制失败边界。
 
-- 需求评审 RAG 助手
-- Agent 增强的需求评审工作流
+### 5. 工作流、评估与可观测层
+
+这一层解决 AI 应用如何持续迭代、调试、评估和上线。
+
+- LangChain 核心抽象
+- LCEL / Runnable
+- LangGraph State / Node / Edge
+- Checkpoint
+- Interrupt
+- Workflow 编排
+- Evaluation Dataset
+- Golden Set
+- RAG Evaluation
+- Agent Trajectory Evaluation
+- Observability
+- Trace
+- 成本、延迟、命中率、失败率
+- 回归测试
+- Prompt / Retriever / Graph 版本对比
+- 线上反馈闭环
+
+LangChain 是 AI 应用组件化能力，LangGraph 是复杂状态流转和工作流编排能力。它们不作为孤立框架学习，而是在 RAG、Agent 和项目中按问题使用。
+
+### 6. AI Native 前端与产品体验层
+
+这一层解决 AI 能力如何变成可理解、可协作、可交付的产品体验。
+
+它不是重新学习传统前端，而是围绕 RAG、Agent 和评估观测沉淀 AI Native 产品交互模式。
+
+- 流式响应体验
+- Sources / Citation 展示
+- Agent 过程可视化
+- 工具调用状态展示
+- 风险提示与拒答体验
+- 人工接管
+- 审核工作台
+- 知识库管理界面
+- 评估与观测面板
+- 多轮对话状态设计
+- AI 不确定性下的交互设计
+- Web / Flutter / 跨端 AI 产品体验
+
+这一层是当前职业定位的差异化优势：不只是调用 AI 接口，而是把 AI 能力做成用户能理解、业务能协作、工程能交付的体验。
+
+`06_ai_native_frontend` 独立成路线，是为了沉淀 AI 产品工作台、证据链展示、Agent 轨迹展示、人工协作和观测面板等复用模式，而不是把重点从 RAG、Agent 和评估观测移回普通前端。
+
+### 7. 项目收敛与作品化层
+
+这一层解决如何把前面能力收敛为作品，而不是停留在零散 demo。
+
+- 需求评审 RAG 助手 / 智能客服
 - 金融 Copilot
-- AI Native 前端工作台
+- 可复用 package
+- 阶段 demo
+- 前后端工作台
+- 项目评估集
+- 部署、演示与作品化表达
+
+项目层不承担所有知识点的第一次学习，而是负责把 LLM、RAG、Agent、评估、观测和前端体验组合成完整闭环。
+
+## 课程主线
+
+后续课程按新的能力路线组织：
+
+```text
+course/
+├── 00_archive/
+├── 01_python/
+├── 02_llm/
+├── 03_rag/
+├── 04_agent/
+├── 05_eval_observability/
+├── 06_ai_native_frontend/
+├── 07_projects/
+└── 99_foundation/
+```
+
+`source/` 目录可以与课程主线保持同构：
+
+```text
+source/
+├── 00_archive/
+├── 01_python/
+├── 02_llm/
+├── 03_rag/
+├── 04_agent/
+├── 05_eval_observability/
+├── 06_ai_native_frontend/
+├── 07_projects/
+└── 99_foundation/
+```
+
+`01_python` 和 `02_llm` 代表已经完成或需要补强的基础层。`02_llm` 后续应覆盖模型交互与上下文工程，不只是 API 调用入门。
+
+`03_rag` 是新的 RAG 与知识系统主线。旧 RAG 文档和代码可以保留到归档目录，不作为当前学习规范。
+
+`04_agent` 是 Agent 与工具系统主线，系统学习 Function Calling 深入、Tool Calling、Agent Loop、Agentic RAG、Deep Research、Multi-Agent、Agent Skills、MCP 和开放 Agent 协议。
+
+`05_eval_observability` 是评估、观测、trace、回归和反馈闭环主线。它既服务 RAG，也服务 Agent 和项目。
+
+`06_ai_native_frontend` 是 AI 产品体验主线，承接前端 / Flutter / 跨端优势，重点沉淀 AI 应用特有的交互和工作台模式。
+
+`07_projects` 只围绕长期主项目收敛，不再无限扩展零散项目。项目代码和文档可以逐步吸收 `03_rag`、`04_agent`、`05_eval_observability`、`06_ai_native_frontend` 的阶段成果。
+
+`99_foundation` 是非主线知识补充区。LLM 原理、微调、私有化部署、LangChain 底层抽象等内容只在 RAG / Agent / 项目学习中遇到具体理解障碍时回看，不作为前置课程。
+
+`00_archive/` 中保留的早期课程式文档和代码不作为当前主线，后续新内容以 `docs/` 下当前规范为准。
+
+## 文档与代码关系
+
+文档建设优先于代码堆叠，但代码仍然是学习闭环不可缺少的部分。
+
+后续不再要求每个章节都对应多个脚本。学习链路保留为：
+
+```text
+真实问题
+-> 基础原理
+-> 最小实现
+-> 主流框架实现
+-> 失败分析与能力边界
+-> 评估观测
+-> 小项目实战
+-> 项目收敛
+```
+
+更合适的代码组织方式是：
+
+- 专题文档负责讲清真实问题、基础原理、实现路径、失败边界和项目入口。
+- 示例代码负责验证关键机制，不追求覆盖每一个知识点。
+- Package 负责沉淀可复用能力，例如 `llm_client`、`rag_core`、`rag_eval`、`agent_core`。
+- Demo 负责验证单个能力组合，例如最小 RAG、检索对比、单 Agent 查询改写。
+- App 负责收敛为完整项目，例如需求评审 RAG 助手和金融 Copilot。
+
+代码可以少而精，但必须能运行、能解释、能观察关键输出。
 
 ## RAG / Agent 的学习定位
 
@@ -116,37 +327,67 @@
 它们的作用是补齐 AI 应用主链路，让前端能力不只停留在“接接口和做页面”，而是能理解：
 
 - 模型为什么会输出不稳定。
-- Prompt 和结构化输出如何影响前端体验。
+- Prompt、结构化输出和上下文工程如何影响前端体验。
 - SSE 流式响应如何设计交互。
 - RAG 的 sources、metadata、score 如何展示为证据链。
+- 记忆写入、记忆检索和上下文压缩如何影响多轮体验。
 - Agent 工具调用过程如何可视化。
+- Deep Research、多模态 Agent、Agent Skills 和开放协议适合解决什么问题。
 - 什么时候需要人工确认、拒答、降级和重试。
 - 如何通过评估集判断 AI 应用效果有没有变好。
 
 ## 项目方向
 
-近期适合优先推进的是需求评审 RAG 助手。
+长期项目围绕两个主项目展开。
 
-它服务于企业内部需求评审场景，围绕 PRD、业务规则、接口文档、会议纪要和历史评审记录，输出带依据的问答和结构化评审结果。
+### 项目一：需求评审 RAG 助手 / 智能客服
 
-这个项目能自然承接：
+这个项目服务于企业内部需求评审、业务问答和知识辅助场景，围绕 PRD、业务规则、接口文档、会议纪要和历史评审记录，输出带依据的问答、结构化评审结果和风险提示。
+
+它主要用于打牢 RAG 与知识系统能力，可以逐步演进：
+
+- V0：固定 RAG 问答。
+- V1：Sources / Refusal / 结构化输出。
+- V2：检索评估与失败案例回流。
+- V3：单 Agent 增强，包括查询改写、知识源选择、追问补全。
+- V4：前端工作台，包括证据链、风险提示、人工反馈和知识运营入口。
+
+这个项目自然承接：
 
 - LLM API
+- Context Engineering
 - RAG
 - FastAPI
-- Structured Output
-- Sources
+- Structured Outputs
+- Sources / Citation
 - Refusal
-- Evaluation
+- RAG Evaluation
 - Frontend Workbench
+- 单 Agent 增强
 
-中长期可以继续扩展到：
+### 项目二：金融 Copilot
 
-- Tool Calling
+这个项目面向金融客服、运营、审核、合规和知识运营场景，提供一个能理解问题、引用依据、识别风险、辅助决策和支持人机协作的 AI 工作台。
+
+它可以在项目一基础上扩展，逐步加入多 Agent 协同和完整产品化能力：
+
+- V0：金融知识问答 Copilot。
+- V1：合规审核 Copilot。
+- V2：公告 / 财报 / 资讯解读。
+- V3：多 Agent 协同，包括客服、检索、审核、总结、人工审批。
+- V4：观测、评估、权限、审计、部署和作品化演示。
+
+这个项目自然承接：
+
+- RAG 与知识治理
 - Agentic RAG
-- Workflow
-- 金融客服与合规 Copilot
-- AI Native 前端产品化体验
+- Tool Calling
+- LangGraph Workflow
+- Multi-Agent
+- Human-in-the-loop
+- Evaluation / Observability
+- AI Native Frontend
+- 金融业务理解
 
 ## 长期方向
 
@@ -157,5 +398,5 @@
 核心竞争力来自三件事的结合：
 
 1. 复杂前端 / 客户端 / 跨端工程能力。
-2. LLM / RAG / Agent / Workflow 的应用链路理解。
+2. LLM / RAG / Agent / Workflow / Evaluation / Observability 的应用链路理解。
 3. 能把 AI 能力产品化、可视化、可评估、可交付。

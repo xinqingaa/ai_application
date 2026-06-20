@@ -1,0 +1,65 @@
+{
+  "provider": "bailian",
+  "model": "qwen-plus",
+  "total": 4,
+  "success": 4,
+  "failed": 0,
+  "rows": [
+    {
+      "id": "lead_001",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "王敏",
+        "company": "华星零售",
+        "city": "杭州",
+        "intent_level": "high",
+        "budget": 50000,
+        "next_action": "安排产品演示并确认采购周期"
+      },
+      "raw_output": "{\n  \"name\": \"王敏\",\n  \"company\": \"华星零售\",\n  \"city\": \"杭州\",\n  \"intent_level\": \"high\",\n  \"budget\": 50000,\n  \"next_action\": \"安排产品演示并确认采购周期\"\n}"
+    },
+    {
+      "id": "lead_002",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "王敏",
+        "company": "华星零售",
+        "city": "杭州",
+        "intent_level": "high",
+        "budget": 50000,
+        "next_action": "安排产品演示并确认采购周期"
+      },
+      "raw_output": "{\n  \"name\": \"王敏\",\n  \"company\": \"华星零售\",\n  \"city\": \"杭州\",\n  \"intent_level\": \"high\",\n  \"budget\": 50000,\n  \"next_action\": \"安排产品演示并确认采购周期\"\n}"
+    },
+    {
+      "id": "lead_003",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "王敏",
+        "company": "华星零售",
+        "city": "杭州",
+        "intent_level": "high",
+        "budget": 50000,
+        "next_action": "安排产品演示并确认采购周期"
+      },
+      "raw_output": "{\n  \"name\": \"王敏\",\n  \"company\": \"华星零售\",\n  \"city\": \"杭州\",\n  \"intent_level\": \"high\",\n  \"budget\": 50000,\n  \"next_action\": \"安排产品演示并确认采购周期\"\n}"
+    },
+    {
+      "id": "lead_004",
+      "ok": true,
+      "stage": "success",
+      "validated_data": {
+        "name": "王敏",
+        "company": "华星零售",
+        "city": "杭州",
+        "intent_level": "high",
+        "budget": 50000,
+        "next_action": "安排产品演示并确认采购周期"
+      },
+      "raw_output": "{\n  \"name\": \"王敏\",\n  \"company\": \"华星零售\",\n  \"city\": \"杭州\",\n  \"intent_level\": \"high\",\n  \"budget\": 50000,\n  \"next_action\": \"安排产品演示并确认采购周期\"\n}"
+    }
+  ]
+}
