@@ -22,7 +22,8 @@ AI Agent 应帮助用户：
 1. [README.md](../README.md)
 2. [AGENTS.md](../AGENTS.md)
 3. [strategy.md](strategy.md)
-4. [learning-guide.md](learning-guide.md)
+4. [ai-application-platform.md](ai-application-platform.md)
+5. [learning-guide.md](learning-guide.md)
 
 ## 工作前确认
 
@@ -77,6 +78,23 @@ AI Agent 应帮助用户：
 - 最后写 V2 产品化完善。
 - 不提前做大而全平台。
 - 不把 RAG、Agent、Workflow、前端工作台割裂成互不相关的孤岛。
+- 必须参考 [ai-application-platform.md](ai-application-platform.md)，判断项目能力属于知识库、智能体、工作流、工具生态、评测、安全运营还是平台前端。
+- 不把 AI 应用简化成聊天 UI、文件问答、工具调用 Demo 或普通后台管理页面。
+
+## 企业级 AI 应用平台视角
+
+AI Agent 在本仓库中设计课程、项目和代码时，必须记住：
+
+- 企业级 AI 应用不是聊天机器人，而是围绕模型、知识库、工作流、智能体、工具生态、评测、安全和运营的应用平台。
+- 前端不是普通展示层，而是 AI 应用平台的操作界面和控制台。
+- RAG 不只是文件上传和问答，还包括知识库创建、文档分类、解析进度、切片管理、权限隔离、检索测试、引用溯源、版本治理和知识回流。
+- Agent 不只是工具调用 Demo，还包括智能体创建、模型配置、Prompt 管理、知识库绑定、工具授权、参数设置、版本发布和运行记录。
+- Workflow 不只是画节点，还包括节点校验、连线规则、版本管理、流程发布、运行调试、执行日志、失败节点重试和人工介入。
+- MCP 和工具生态不只是后端连接，还需要前端配置、连接测试、权限控制、调用记录、异常状态、高风险确认和操作审计。
+- Agent 运行过程可视化不是装饰，而是企业用户理解任务状态、工具调用、失败原因、耗时、成本和重试机制的核心入口。
+- 数据标注、模型评测、bad case 回流、安全、审计、Token 成本和运营监控是企业级 AI 应用的一部分，不是后期可有可无的附加项。
+
+详细能力地图以 [ai-application-platform.md](ai-application-platform.md) 为唯一真源。不要在多个文档中重复维护完整模块清单。
 
 ## 编写代码
 
@@ -88,6 +106,35 @@ AI Agent 应帮助用户：
 - 对真实 API、模型、密钥和外部服务提供清晰配置边界。
 - 对 RAG 和 Agent 相关代码保留必要的调试信息，例如 sources、scores、tool calls、state transitions。
 
+## Python 与依赖管理规范
+
+全仓库默认使用一个 Python 虚拟环境和一个根依赖清单。
+
+要求：
+
+- 虚拟环境建议放在根目录 `.venv/`。
+- Python 依赖统一维护在根目录 `requirements.txt`。
+- 不在每个 package / demo / app 下维护独立 `requirements.txt`。
+- 新增依赖时必须更新根目录 `requirements.txt`。
+- `requirements.txt` 必须用注释分组，说明依赖用途。
+- 每个 package / demo 的 README 只说明运行入口、配置方式和验证方式，不重复维护依赖清单。
+- 如果某个依赖只是可选能力，先在 `requirements.txt` 中用注释标注 optional 或说明用途。
+- 涉及 API key、模型配置、数据库连接等，使用 `.env` / `.env.example`，不要写入代码。
+
+根依赖清单的推荐分组：
+
+```text
+# Core API
+# HTTP / Async
+# LLM Clients
+# LangChain / Agent
+# RAG / Vector Store
+# Database / Cache
+# Document Processing
+# Evaluation / Testing
+# Dev Tools
+```
+
 ## 禁止行为
 
 - 把旧版章节脚本模式扩散到新内容。
@@ -96,6 +143,7 @@ AI Agent 应帮助用户：
 - 过早引入复杂 Agent 平台。
 - 为了显得完整而堆砌框架和目录。
 - 把个人项目包装成公司真实项目。
+- 为每个小 package 单独维护依赖文件，导致依赖分散不可查。
 
 ## 输出偏好
 

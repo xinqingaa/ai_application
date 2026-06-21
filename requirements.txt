@@ -1,0 +1,47 @@
+# Core API
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+python-dotenv
+python-multipart
+
+# HTTP / Async
+httpx
+aiofiles
+
+# LLM Clients
+openai
+tiktoken
+
+# LangChain / Agent
+langchain
+langchain-core
+langchain-openai
+langchain-community
+langgraph
+
+# RAG / Vector Store
+chromadb
+faiss-cpu
+
+# Database / Cache
+sqlalchemy
+psycopg[binary]
+pgvector
+redis
+
+# Document Processing
+pypdf
+python-docx
+python-pptx
+pandas
+openpyxl
+pillow
+
+# Evaluation / Testing
+pytest
+pytest-asyncio
+
+# Dev Tools
+ruff

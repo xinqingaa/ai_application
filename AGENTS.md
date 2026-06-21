@@ -12,8 +12,9 @@ AI Agent 在处理本仓库任务前，优先阅读：
 
 1. [README.md](README.md)
 2. [docs/strategy.md](docs/strategy.md)
-3. [docs/learning-guide.md](docs/learning-guide.md)
-4. [docs/agent-skill.md](docs/agent-skill.md)
+3. [docs/ai-application-platform.md](docs/ai-application-platform.md)
+4. [docs/learning-guide.md](docs/learning-guide.md)
+5. [docs/agent-skill.md](docs/agent-skill.md)
 
 ## 学习内容组织原则
 
@@ -22,11 +23,13 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 代码服务理解和项目交付，而不是服务章节数量。
 - RAG、Tool Calling、Agent、Workflow 可以围绕项目需要交叉出现。
 - 学习顺序服务项目闭环，而不是服务目录编号。
+- 设计 RAG、Agent、Workflow、AI Native 前端和项目时，必须参考 `docs/ai-application-platform.md` 的企业级 AI 应用平台能力地图。
 
 ## 新内容规则
 
 - 已有 `01_python`、`02_llm`、`03_foundation`、`04_rag` 内容不主动重构，除非用户明确要求。
 - 后续新课程、新项目和新代码必须遵循 `docs/learning-guide.md`。
+- 后续新课程、新项目和新代码必须符合 `docs/ai-application-platform.md` 中的平台能力地图，不把 AI 应用简化成聊天 UI 或单点 Demo。
 - 课程编排可以继续讨论和演进，不要在未确认前创建过重目录结构。
 - 新内容优先围绕 AI 应用主链路、RAG 项目、Agent 项目、Workflow 项目和前端工作台展开。
 
@@ -46,6 +49,9 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 可以有多个 package，但每个 package 必须有清晰职责。
 - 必须明确入口、运行方式、完成标准和能力边界。
 - 不为了章节完整性硬造脚本。
+- 全仓库默认使用根目录一个 Python 虚拟环境，例如 `.venv/`。
+- Python 依赖统一维护在根目录 `requirements.txt`，不在每个 package / demo / app 下维护独立 requirements。
+- 新增依赖时必须更新根 `requirements.txt`，并按类别注释说明用途。
 
 ## 协作风格
 
