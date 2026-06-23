@@ -123,6 +123,7 @@ ai_application/other/<project_name>/
 | 项目 | 源码路径 | 归档目录 | 文档 |
 | --- | --- | --- | --- |
 | RAGFlow | `/ragflow` | `ai_application/other/ragflow` | [架构与领域模型](./ragflow/01_ragflow_architecture_and_domain_model.md), [RAG 主链路](./ragflow/02_ragflow_core_rag_pipeline.md), [Workflow / Agent / 业务迁移](./ragflow/03_ragflow_workflow_agent_and_business_playbook.md) |
+| MaxKB | `/MaxKB` | `ai_application/other/MaxKB` | [架构与领域模型](./MaxKB/01_MaxKB_architecture_and_domain_model.md), [核心链路](./MaxKB/02_MaxKB_core_pipeline.md), [Workflow / Agent / 业务迁移](./MaxKB/03_MaxKB_workflow_agent_and_business_playbook.md) |
 
 ## 维护原则
 
