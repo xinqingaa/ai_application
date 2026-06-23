@@ -125,6 +125,14 @@ ai_application/other/<project_name>/
 | RAGFlow | `/ragflow` | `ai_application/other/ragflow` | [架构与领域模型](./ragflow/01_ragflow_architecture_and_domain_model.md), [RAG 主链路](./ragflow/02_ragflow_core_rag_pipeline.md), [Workflow / Agent / 业务迁移](./ragflow/03_ragflow_workflow_agent_and_business_playbook.md) |
 | MaxKB | `/MaxKB` | `ai_application/other/MaxKB` | [架构与领域模型](./MaxKB/01_MaxKB_architecture_and_domain_model.md), [核心链路](./MaxKB/02_MaxKB_core_pipeline.md), [Workflow / Agent / 业务迁移](./MaxKB/03_MaxKB_workflow_agent_and_business_playbook.md) |
 
+## 横向对比
+
+详细横向对比统一沉淀到 [comparisons.md](./comparisons.md)，README 只保留索引。
+
+| 对比主题 | 覆盖项目 | 文档 | 核心结论 |
+| --- | --- | --- | --- |
+| RAG 平台与 Agent 应用平台的侧重点 | RAGFlow、MaxKB | [comparisons.md](./comparisons.md#ragflow-与-maxkb-横向对比) | RAGFlow 更重知识生产与检索上下文，MaxKB 更重应用产品化与业务流程编排 |
+
 ## 维护原则
 
 - 文档优先服务学习，不追求复述全部代码。
