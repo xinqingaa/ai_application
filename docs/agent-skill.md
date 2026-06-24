@@ -24,6 +24,7 @@ AI Agent 应帮助用户：
 3. [strategy.md](strategy.md)
 4. [ai-application-platform.md](ai-application-platform.md)
 5. [learning-guide.md](learning-guide.md)
+6. [ai-coding-mastery.md](ai-coding-mastery.md)
 
 ## 工作前确认
 
@@ -103,6 +104,8 @@ AI Agent 在本仓库中设计课程、项目和代码时，必须记住：
 - 优先围绕项目入口组织。
 - 不为了章节完整性造脚本。
 - 保证可运行、可验证、可解释。
+- 帮助用户理解代码为什么这样设计，而不是只交付 AI 生成结果。
+- 说明关键代码的修改点、调试路径和验证方式。
 - 对真实 API、模型、密钥和外部服务提供清晰配置边界。
 - 对 RAG 和 Agent 相关代码保留必要的调试信息，例如 sources、scores、tool calls、state transitions。
 

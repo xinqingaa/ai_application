@@ -6,6 +6,7 @@
 
 - [strategy.md](strategy.md)：长期定位、背景、目标和方向。
 - [learning-guide.md](learning-guide.md)：学习方式、课程设计、项目设计、写作与代码规范。
+- [ai-coding-mastery.md](ai-coding-mastery.md)：AI Coding 学习方式、真实掌握标准和代码所有权。
 - [ai-application-platform.md](ai-application-platform.md)：企业级 AI 应用平台能力地图。
 - [agent-skill.md](agent-skill.md)：AI Agent / Skill 协作指南。
 
