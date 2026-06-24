@@ -23,15 +23,18 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 代码服务理解和项目交付，而不是服务章节数量。
 - RAG、Tool Calling、Agent、Workflow 可以围绕项目需要交叉出现。
 - 学习顺序服务项目闭环，而不是服务目录编号。
-- 设计 RAG、Agent、Workflow、AI Native 前端和项目时，必须参考 `docs/ai-application-platform.md` 的企业级 AI 应用平台能力地图。
+- 设计 RAG、Agent、Workflow、AI Native 前端和项目时，可以参考 `docs/ai-application-platform.md` 的远期能力地图，但当前阶段以 `docs/strategy.md` 和需求评审 RAG 助手闭环为准。
 
-## 新内容规则
+## 内容规则
 
-- 已有 `01_python`、`02_llm`、`03_foundation`、`04_rag` 内容不主动重构，除非用户明确要求。
-- 后续新课程、新项目和新代码必须遵循 `docs/learning-guide.md`。
-- 后续新课程、新项目和新代码必须符合 `docs/ai-application-platform.md` 中的平台能力地图，不把 AI 应用简化成聊天 UI 或单点 Demo。
+- `00_archive` 是之前的学习资料，规则是从`llm`开始都归档进去，全部重写。其中旧`llm`已经学习完毕，`rag`是卡点，资料完整，但是没有学习完成。
+- `01_python` 作为已完成的 Python 基础，不主动重构，除非用户明确要求。
+- `99_foundation` 作为非主线知识补充区，不前置、不扩展为新的主线课程。
+- `02_llm`、`03_rag`、`04_agent`、`05_eval_observability`、`06_ai_native_frontend` 和 `07_projects` 可以围绕当前项目目标继续评估和收敛。
+- 后续的课程、项目和代码必须遵循 `docs/learning-guide.md`。
+- 后续的课程、项目和代码不应把 AI 应用简化成聊天 UI 或单点 Demo；`docs/ai-application-platform.md` 作为远期平台化方向参考，不作为当前阶段的完整验收标准。
 - 课程编排可以继续讨论和演进，不要在未确认前创建过重目录结构。
-- 新内容优先围绕 AI 应用主链路、RAG 项目、Agent 项目、Workflow 项目和前端工作台展开。
+- 新内容优先围绕需求评审 RAG 助手、AI 应用主链路、RAG、Agent、Workflow、评估观测和 AI Native 工作台展开。
 
 ## 文档规则
 
