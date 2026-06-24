@@ -87,6 +87,17 @@ Agent 核心目标：
 - 能把 AI 执行过程、证据链、风险提示、工具调用和人工协作状态做成前端 / 客户端体验。
 - 能围绕真实业务问题完成可运行、可展示、可评估、可迭代的 AI 应用项目。
 
+## 知识分层
+
+- 主线必学：
+    - LLM / RAG / Single Agent / Multi-Agent / Workflow / Eval / AI Native / 基础工程
+
+- 项目内掌握：
+    - 知识库治理 / 文档入库 / pgvector / trace / feedback / quality dashboard
+
+- 未来认知：
+    - MCP 工具生态平台 / Agent 管理平台 / Realtime Voice / 多租户 / K8s / 完整企业平台
+
 ## 能力路线
 
 当前能力路线按七层组织。七层不是彼此割裂的课程边界，而是从基础能力、知识系统、Agent 系统、评估观测到项目作品的递进关系。

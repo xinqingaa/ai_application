@@ -1,17 +1,26 @@
-# 07 项目平台化与作品化大纲
+# 07 需求评审多 Agent 助手项目化大纲
 
 ## 课程定位
 
-`07_projects` 是两个长期项目的收敛层，也是企业级 AI 应用平台雏形的作品化主线。
+`07_projects` 是需求评审多 Agent 助手的项目收敛层，也是整个仓库的作品化主线。
 
-本课程不重新学习 02-06 的知识点，而是把它们组合成可运行、可展示、可讲述、可迭代的项目。
+本课程不重新学习 02-06 的知识点，而是把它们组合成一个可运行、可展示、可讲述、可迭代的项目。
 
-长期维持两个项目更适合学习推进和简历表达：
+当前只维护一个长期主项目：
 
-- 项目一：需求评审 RAG 助手 / 智能客服。
-- 项目二：金融 Copilot。
-
-这两个项目不是割裂关系。项目一是可独立展示的 RAG + 单 Agent 知识助手项目，也可以作为项目二中的知识型子 Agent / 子模块复用。项目二在项目一基础上扩展为金融场景的多 Agent Copilot 与企业级 AI 应用平台雏形。
+```text
+需求评审多 Agent 助手
+= LLM 应用底座
++ 企业知识库与 RAG
++ Sources / Refusal / Structured Review
++ RAG Eval / Bad Case
++ Single Agent RAG
++ Multi-Agent Review
++ Workflow / Human-in-the-loop
++ Trace / Observability
++ AI Native Workbench
++ PostgreSQL / pgvector / Redis / Docker Compose
+```
 
 ## 学习链路
 
@@ -28,33 +37,27 @@
 -> 项目收敛
 ```
 
-## 项目关系
+## 项目版本路线
 
 ```text
-项目一：需求评审 RAG 助手 / 智能客服
-= RAG + LangChain + 单 Agent + Sources / Refusal + Eval + 最小 AI Native UI
-
-项目二：金融 Copilot
-= 项目一的知识助手能力
-+ Tool Runtime
-+ LangGraph Workflow
-+ Multi-Agent
-+ MCP / Tool Ecosystem
-+ Human-in-the-loop
-+ Eval / Observability
-+ AI Native Frontend
-+ Enterprise AI Platform
+V0 固定 RAG
+-> V1 引用 / 拒答 / 结构化评审
+-> V2 评估 / bad case / feedback
+-> V3 单 Agent RAG
+-> V4 多 Agent 评审
+-> V5 Workflow / Human Review
+-> V6 工作台 / 质量面板 / Demo
 ```
 
 ## 完成标准
 
 完成本课程后，应能做到：
 
-- 讲清两个项目的业务价值、技术路线、阶段边界和复用关系。
-- 将 `llm_core`、`rag_core`、`rag_eval`、`rag_memory`、`agent_core`、`workflow_core`、`eval_core`、`trace_core` 和 AI UI 组件组合成项目。
+- 讲清需求评审助手的业务价值、技术路线、阶段边界和能力演进。
+- 将 `llm_core`、`rag_core`、`agent_core`、`workflow_core`、`eval_core`、`trace_core` 和 AI UI 组件组合成项目。
 - 用 Docker Compose + PostgreSQL / pgvector + Redis 体现真实工程能力。
-- 为两个项目提供可运行 demo、质量面板、部署方案和作品集表达。
-- 说明 K8s、CI/CD、多租户、灰度发布等能力的认知边界，而不是过早深挖。
+- 提供可运行 demo、质量面板、部署方案和作品集表达。
+- 说明 Agent Management Console、MCP Tool Ecosystem UI、Realtime Voice、多租户、K8s、CI/CD 等能力的未来边界，而不是过早深挖。
 
 ## 代码组织建议
 
@@ -66,10 +69,10 @@ source/07_projects/
 │   ├── agent_core/
 │   ├── workflow_core/
 │   ├── eval_core/
+│   ├── trace_core/
 │   └── ai_ui/
 ├── apps/
-│   ├── review_assistant/
-│   └── financial_copilot/
+│   └── review_assistant/
 ├── infra/
 │   ├── docker-compose.yml
 │   ├── postgres/
@@ -82,43 +85,42 @@ source/07_projects/
 
 ```text
 course/07_projects/
-├── 00_project_portfolio_and_platform_strategy.md
-├── 01_enterprise_ai_application_architecture.md
+├── 00_project_positioning_and_portfolio.md
+├── 01_project_architecture_and_module_boundary.md
 ├── 02_shared_packages_and_infrastructure.md
-├── 03_requirement_review_assistant_product.md
-├── 04_requirement_review_assistant_delivery.md
-├── 05_customer_service_rag_agent_extension.md
-├── 06_financial_copilot_product.md
-├── 07_financial_copilot_agent_workflows.md
-├── 08_visual_workflow_builder.md
-├── 09_enterprise_knowledge_base_platform.md
-├── 10_agent_management_platform.md
-├── 11_mcp_tool_ecosystem_platform.md
-├── 12_agent_runtime_observability_center.md
-├── 13_data_labeling_evaluation_platform.md
-├── 14_security_ops_cost_governance.md
-├── 15_deployment_demo_portfolio.md
+├── 03_product_definition_and_review_scenarios.md
+├── 04_knowledge_base_and_document_ingestion.md
+├── 05_fixed_rag_v0.md
+├── 06_sources_refusal_structured_review_v1.md
+├── 07_rag_eval_bad_case_feedback_v2.md
+├── 08_single_agent_rag_v3.md
+├── 09_multi_agent_review_v4.md
+├── 10_workflow_human_review_v5.md
+├── 11_ai_native_workbench.md
+├── 12_trace_quality_dashboard.md
+├── 13_local_deployment_and_demo.md
+├── 14_portfolio_resume_and_review.md
 └── outline.md
 ```
 
-## 00. Project Portfolio 与 Platform Strategy
+## 00. Project Positioning 与 Portfolio
 
 ### 真实问题
 
-如果只做一个大项目，学习战线会过长，迟迟难以展示。如果完全做两个割裂项目，又会浪费复用能力，简历叙事也不够集中。
+如果项目目标过泛，会变成平台空谈；如果目标太窄，又无法承载 RAG、Agent、Workflow、Eval 和 AI Native 的完整能力。
 
 ### 基础原理
 
-- 两项目递进。
-- 项目一快速闭环。
-- 项目二体现上限。
-- 项目一作为项目二的知识型子 Agent / 子模块复用。
-- 共享底座沉淀能力，而不是每个项目重新造轮子。
+- 单项目主线。
+- 业务价值。
+- 技术路线。
+- 阶段边界。
+- 作品集叙事。
+- 平台能力从项目自然长出来。
 
 ### 最小实现
 
-- 画出两个项目关系图。
-- 标注能力复用：LLM、RAG、Agent、Eval、AI UI、Infra。
+- 写出一句话定位、目标用户、核心场景和不做什么。
 
 ### 主流框架实现
 
@@ -128,32 +130,31 @@ course/07_projects/
 
 ### 失败分析与能力边界
 
-- 做成一个巨型项目导致无法闭环。
-- 两个项目完全重复实现。
-- 平台化过早导致业务价值不清。
+- 把项目写成泛化平台。
+- 没有业务场景，只堆技术名词。
+- 过早承诺多租户、工具市场、完整运营后台。
 
 ### 评估观测
 
-- 项目一是否可独立演示。
-- 项目二是否复用项目一能力。
+- 项目是否可独立演示。
+- 阶段目标是否清楚。
 - 每阶段是否有可运行产物。
 
 ### 小项目实战
 
-定义作品集叙事：
+写出定位：
 
-- 项目一展示 RAG + 单 Agent 知识助手闭环。
-- 项目二展示金融场景多 Agent Copilot 和企业平台能力。
+> 面向研发团队的需求评审多 Agent 助手，通过企业知识库、RAG、多 Agent 协作和人工确认，帮助团队发现需求风险、追溯依据并生成结构化评审报告。
 
 ### 项目收敛
 
-本章输出项目组合战略。
+输出项目定位、目标用户和作品集叙事。
 
-## 01. Enterprise AI Application Architecture
+## 01. Project Architecture 与 Module Boundary
 
 ### 真实问题
 
-企业级 AI 应用不是聊天机器人，而是由模型调用、知识库、工具系统、工作流、评估观测、前端工作台、权限审计和部署基础设施组成的系统。
+需求评审助手不是一个聊天页面，而是由模型调用、知识库、工具系统、工作流、评估观测、前端工作台和基础设施组成的系统。
 
 ### 基础原理
 
@@ -162,20 +163,19 @@ course/07_projects/
 - RAG layer。
 - Agent / Workflow layer。
 - Eval / Observability layer。
-- AI Native Frontend layer。
+- AI Native Workbench。
 - Infra layer。
 
 ### 最小实现
 
-- 画出项目一和项目二的分层架构。
-- 标注请求数据流和事件流。
+- 画出总体架构图。
+- 标注请求流、事件流和数据流。
 
 ### 主流框架实现
 
 - FastAPI。
 - PostgreSQL / pgvector。
 - Redis。
-- Docker Compose。
 - LangChain / LangGraph。
 - Web / Flutter 前端。
 
@@ -194,24 +194,24 @@ course/07_projects/
 
 ### 小项目实战
 
-定义两个项目共同架构：
+定义项目共同架构：
 
-- chat API。
-- rag API。
+- document API。
+- knowledge API。
+- review API。
 - agent API。
 - workflow API。
 - eval API。
-- admin API。
 
 ### 项目收敛
 
-本章输出总体架构图和模块边界。
+输出项目架构图、模块边界和请求数据流。
 
 ## 02. Shared Packages 与 Infrastructure
 
 ### 真实问题
 
-两个项目需要共享能力，但不能过早做成通用平台。基础设施也要真实体现，但不能把学习方向带偏成后端运维。
+项目需要共享能力，但不能过早做成通用平台。基础设施也要真实体现，但不能把学习方向带偏成后端运维。
 
 ### 基础原理
 
@@ -240,7 +240,7 @@ course/07_projects/
 
 ### 失败分析与能力边界
 
-- 每个项目重复封装 LLM / RAG / Agent。
+- 每个模块重复封装 LLM / RAG / Agent。
 - Redis 和后台任务过早复杂化。
 - K8s 过早引入。
 - 基础设施成为主线，掩盖 AI 应用能力。
@@ -258,8 +258,6 @@ course/07_projects/
 
 - `llm_core`
 - `rag_core`
-- `rag_eval`
-- `rag_memory`
 - `agent_core`
 - `workflow_core`
 - `eval_core`
@@ -268,9 +266,9 @@ course/07_projects/
 
 ### 项目收敛
 
-本章输出项目基础设施和共享底座方案。
+输出项目基础设施和共享底座方案。
 
-## 03. 需求评审 RAG 助手产品定义
+## 03. Product Definition 与 Review Scenarios
 
 ### 真实问题
 
@@ -283,6 +281,7 @@ course/07_projects/
 - 业务主链路。
 - 输入输出。
 - 不解决什么问题。
+- MVP 范围。
 
 ### 最小实现
 
@@ -299,640 +298,644 @@ course/07_projects/
 
 ### 失败分析与能力边界
 
-- 不替代最终评审责任。
-- 不保证文档缺失时能回答。
-- 高风险结论需要人工确认。
+- 试图替代人工评审结论。
+- 没有明确知识范围。
+- 把项目做成泛用聊天助手。
 
 ### 评估观测
 
-- 用户是否能定位依据。
-- 风险项是否可用。
-- 无依据问题是否拒答。
+- 场景是否有真实输入输出。
+- 用户是否能理解 AI 结论依据。
+- 需求评审报告是否可复用。
 
 ### 小项目实战
 
-定义项目一 PRD。
+定义核心场景：
+
+- 需求问答。
+- 风险识别。
+- 缺失信息追问。
+- 接口影响分析。
+- 测试验收点生成。
+- 评审报告生成。
 
 ### 项目收敛
 
-本章输出项目一产品定义。
+输出项目 PRD。
 
-## 04. 需求评审 RAG 助手交付路线
+## 04. Knowledge Base 与 Document Ingestion
 
 ### 真实问题
 
-项目一需要快速闭环，又要为项目二复用能力。阶段划分必须清楚，避免一开始就做完整平台。
+需求评审助手的质量首先取决于知识库。没有可靠的文档入库、状态管理、metadata 和检索测试，后面 Agent 再复杂也不可靠。
 
 ### 基础原理
 
-- V0 固定 RAG。
-- V1 Sources / Refusal / Structured Output。
-- V2 Eval / Bad Case。
-- V3 Single Agent RAG。
-- V4 Workflow / Human-in-the-loop。
-- V5 Workbench。
+- Knowledgebase。
+- File / Document / Chunk / Embedding。
+- Ingestion job。
+- Parsing status。
+- Metadata。
+- Re-index。
+- Retrieval test。
 
 ### 最小实现
 
-- V0：上传文档、构建索引、问答、sources。
+- 上传一份 PRD。
+- 解析、切分、向量化。
+- 查看文档状态和 chunk。
 
 ### 主流框架实现
 
-- LangChain RAG。
+- FastAPI upload。
+- PostgreSQL metadata。
+- pgvector。
+- Redis / worker。
+- knowledge workbench。
+
+### 失败分析与能力边界
+
+- 上传成功但入库失败。
+- 文档状态不可见。
+- chunk 无法预览。
+- metadata 缺失导致检索和引用失败。
+
+### 评估观测
+
+- 文档入库成功率。
+- chunk 数量。
+- 向量化耗时。
+- 检索测试命中率。
+
+### 小项目实战
+
+实现知识库和文档入库：
+
+- 上传 PRD。
+- 上传接口文档。
+- 上传业务规则。
+- 上传历史评审。
+- 查看状态。
+- 预览 chunk。
+- 测试检索。
+
+### 项目收敛
+
+完成知识库工作台和入库链路。
+
+## 05. Fixed RAG V0
+
+### 真实问题
+
+项目第一阶段必须先跑通最小 RAG 闭环，而不是一开始就做多 Agent。
+
+### 基础原理
+
+- Question。
+- Retrieval。
+- Context construction。
+- Generation。
+- Answer。
+- Source id。
+
+### 最小实现
+
+- 用户提问。
+- 检索知识库。
+- 构造上下文。
+- 生成回答。
+
+### 主流框架实现
+
+- LangChain Retriever。
+- LCEL RAG chain。
+- FastAPI endpoint。
+
+### 失败分析与能力边界
+
+- 固定 RAG 无法处理模糊问题。
+- 没有引用就无法信任。
+- 没有评估就无法优化。
+
+### 评估观测
+
+- retrieval latency。
+- top-k source。
+- answer latency。
+- token usage。
+
+### 小项目实战
+
+实现固定 RAG 问答：
+
+- 用户提问。
+- 检索知识库。
+- 构造上下文。
+- 生成回答。
+- 记录 ChatRecord。
+
+### 项目收敛
+
+完成 V0 可运行版本。
+
+## 06. Sources / Refusal / Structured Review V1
+
+### 真实问题
+
+没有引用、拒答和结构化输出，需求评审助手就无法可信地用于真实场景。
+
+### 基础原理
+
+- Citation。
+- Source panel。
+- Refusal。
+- Clarification。
+- Structured risk output。
+- Review report schema。
+
+### 最小实现
+
+- 每条回答带来源。
+- 无依据时拒答。
+- 输出结构化风险项。
+
+### 主流框架实现
+
+- Structured Outputs。
+- Pydantic schema。
+- citation checker。
+- 前端 source panel。
+
+### 失败分析与能力边界
+
+- 引用不存在。
+- 有依据却拒答。
+- 无依据却强答。
+- 结构化字段不稳定。
+
+### 评估观测
+
+- citation correctness。
+- refusal accuracy。
+- schema success rate。
+- user feedback。
+
+### 小项目实战
+
+升级 V1：
+
+- 每条回答带来源。
+- 无依据时拒答。
+- 证据不足时追问。
+- 输出结构化风险项。
+- 生成评审报告草稿。
+
+### 项目收敛
+
+完成可信回答和结构化评审输出。
+
+## 07. RAG Eval / Bad Case / Feedback V2
+
+### 真实问题
+
+项目不能靠感觉迭代。V2 要建立最小质量闭环。
+
+### 基础原理
+
+- Golden set。
+- Retrieval eval。
+- Citation eval。
+- Refusal eval。
+- Bad case board。
+- Feedback loop。
+
+### 最小实现
+
+- 创建 30 条样本。
+- 跑一次 eval。
+- 标记 5 个 bad case。
+
+### 主流框架实现
+
+- pytest eval。
+- 自定义 metrics。
+- dashboard。
+
+### 失败分析与能力边界
+
+- 样本过少。
+- bad case 没有归因。
+- 反馈没有进入回归集。
+
+### 评估观测
+
+- source hit。
+- citation correctness。
+- refusal accuracy。
+- bad case 修复率。
+
+### 小项目实战
+
+实现质量闭环：
+
+- 创建样本集。
+- 跑 eval。
+- 查看指标。
+- 标记 bad case。
+- 根据 bad case 修复知识库或 Prompt。
+
+### 项目收敛
+
+完成 V2 质量基线。
+
+## 08. Single Agent RAG V3
+
+### 真实问题
+
+固定 RAG 对模糊问题和跨知识源问题能力有限，需要单 Agent 做查询改写、知识源选择和追问。
+
+### 基础原理
+
+- Query rewrite。
+- Source routing。
+- Retrieval quality check。
+- Clarification。
+- Retriever as tool。
+
+### 最小实现
+
+- Agent 判断问题类型。
+- 选择知识库。
+- 检索并判断证据是否足够。
+
+### 主流框架实现
+
+- LangChain Agent。
+- LangGraph state。
 - Retriever as Tool。
-- LangGraph workflow。
-- Eval dashboard。
-- AI Native UI。
 
 ### 失败分析与能力边界
 
-- 阶段目标过大。
-- V0 没有评估。
-- V3 单 Agent 没有工具轨迹。
-- V5 工作台过早平台化。
+- Agent 过度检索。
+- 查询改写偏离意图。
+- 证据不足时强答。
 
 ### 评估观测
 
-- 每个版本都有 golden set。
-- 每个版本都有可演示入口。
-- 每个版本记录新增能力和失败边界。
+- source routing accuracy。
+- query rewrite lift。
+- clarification accuracy。
+- step count。
 
 ### 小项目实战
 
-输出项目一交付 roadmap。
+实现单 Agent RAG：
+
+- 判断问题类型。
+- 选择知识库。
+- 改写查询。
+- 检查证据是否足够。
+- 必要时追问。
 
 ### 项目收敛
 
-项目一最终作为项目二的 knowledge agent / review agent 复用。
+完成 V3 智能检索助手。
 
-## 05. 智能客服 RAG Agent 扩展
-
-### 真实问题
-
-智能客服和需求评审助手共享知识问答、来源引用、拒答、追问和反馈能力，但客服更强调多轮意图、话术生成和人工接管。
-
-### 基础原理
-
-- Intent recognition。
-- Knowledge retrieval。
-- Reply draft。
-- Risk hint。
-- Handoff。
-- Feedback。
-
-### 最小实现
-
-- 基于同一套 RAG + 单 Agent，支持客服问答。
-- 生成客服回复草稿和依据。
-
-### 主流框架实现
-
-- Single Agent RAG assistant。
-- Human handoff。
-- Conversation state。
-
-### 失败分析与能力边界
-
-- 用户意图识别错误。
-- 客服回复过度承诺。
-- 人工接管不及时。
-
-### 评估观测
-
-- 问答准确率。
-- 追问合理性。
-- 人工接管率。
-- 客服采纳率。
-
-### 小项目实战
-
-将项目一扩展为智能客服模块。
-
-### 项目收敛
-
-智能客服能力成为金融 Copilot 的客服子 Agent。
-
-## 06. 金融 Copilot 产品定义
+## 09. Multi-Agent Review V4
 
 ### 真实问题
 
-金融客服、运营、审核、合规和知识运营需要一个能理解问题、引用依据、识别风险、辅助决策和支持人机协作的 Copilot。
+需求评审天然是多角色任务。一个 Agent 负责所有事情会职责混乱、难以评估。
 
 ### 基础原理
 
-- 核心角色。
-- 金融知识类型。
-- 合规风险。
-- 人工协作。
-- 审计要求。
-
-### 最小实现
-
-- 定义角色：客服、运营、合规审核、知识运营、管理员。
-- 定义场景：知识问答、合规审核、公告解读、人工审批。
-
-### 主流框架实现
-
-- Multi-Agent。
-- LangGraph Workflow。
-- MCP / Tool ecosystem。
-- AI Native Frontend。
-
-### 失败分析与能力边界
-
-- 不提供投资建议。
-- 不替代合规最终责任。
-- 高风险内容必须人工确认。
-
-### 评估观测
-
-- 合规审核准确性。
-- 工具轨迹合理性。
-- 人工采纳率。
-- 审计完整性。
-
-### 小项目实战
-
-定义项目二 PRD。
-
-### 项目收敛
-
-本章输出金融 Copilot 产品定义。
-
-## 07. 金融 Copilot Agent Workflows
-
-### 真实问题
-
-金融 Copilot 需要多个 Agent 和 Workflow 协作，而不是一个大而全的聊天助手。
-
-### 基础原理
-
-- Customer service agent。
-- Compliance agent。
-- Research agent。
+- Agent role。
+- Input / output contract。
 - Supervisor。
-- Human approval。
-- Shared state。
+- Conflict detection。
+- Aggregation。
+- Role-level eval。
 
 ### 最小实现
 
-- 构建客服回答 + 合规审核两节点 workflow。
-- 高风险答复进入人工确认。
+- 实现需求理解、风险审查、汇总评审 3 个 Agent。
+- 使用 shared state 传递结构化输出。
+
+### 主流框架实现
+
+- LangGraph 多节点。
+- Supervisor pattern。
+- 多 Agent 框架认知。
+
+### 失败分析与能力边界
+
+- 多 Agent 只是重复调用模型。
+- 角色职责重叠。
+- 汇总时丢失引用。
+
+### 评估观测
+
+- 角色输出完整率。
+- 冲突发现率。
+- 最终报告 groundedness。
+- 成本和耗时。
+
+### 小项目实战
+
+实现多 Agent 评审：
+
+- 需求理解 Agent。
+- 知识检索 Agent。
+- 风险审查 Agent。
+- 技术影响 Agent。
+- 测试验收 Agent。
+- 追问 Agent。
+- 汇总评审 Agent。
+
+### 项目收敛
+
+完成 V4 多 Agent 需求评审。
+
+## 10. Workflow / Human Review V5
+
+### 真实问题
+
+多 Agent 输出仍需要流程控制。证据不足、高风险结论、Agent 冲突和报告发布前都需要人工确认。
+
+### 基础原理
+
+- Workflow state。
+- Node。
+- Conditional edge。
+- Interrupt。
+- Human approval。
+- Resume。
+- Audit。
+
+### 最小实现
+
+- 在多 Agent 流程后增加人工确认节点。
+- 用户确认后生成最终报告。
 
 ### 主流框架实现
 
 - LangGraph。
-- Multi-Agent supervisor。
-- Tool Runtime。
-- Agentic RAG。
+- FastAPI event stream。
+- 前端 workflow runtime。
 
 ### 失败分析与能力边界
 
-- 多 Agent 角色拆分过度。
-- Supervisor 决策不透明。
-- Workflow 状态不可恢复。
+- 人工确认状态未持久化。
+- 高风险未中断。
+- resume 后上下文丢失。
 
 ### 评估观测
 
-- Agent 轨迹。
-- Workflow path。
-- Human review trigger。
-- 节点耗时和失败率。
+- workflow path。
+- interrupt rate。
+- resume success。
+- human edit record。
 
 ### 小项目实战
 
-金融 Copilot V1-V3：
+实现 Workflow：
 
-- V1 合规审核。
-- V2 公告 / 财报解读。
-- V3 多 Agent 协同。
+```text
+submit_requirement
+-> understand
+-> retrieve
+-> multi_agent_review
+-> conflict_check
+-> human_confirm
+-> generate_report
+-> feedback
+```
 
 ### 项目收敛
 
-本章输出项目二 Agent 工作流设计。
+完成 V5 可控工作流。
 
-## 08. Visual Workflow Builder
+## 11. AI Native Workbench
 
 ### 真实问题
 
-企业 AI 平台需要让用户配置模型调用、条件判断、知识检索、工具执行和结果输出。前端不只是画节点，还要处理校验、版本、发布、调试、日志和失败重试。
+项目需要一个能承载 RAG、Agent、Workflow 和 Eval 的工作台，而不是只有聊天框。
 
 ### 基础原理
 
-- Node definition。
-- Edge rule。
-- Schema validation。
-- Version publish。
-- Run debug。
-- Failed node retry。
+- Document workbench。
+- Review run page。
+- Source panel。
+- Multi-agent timeline。
+- Workflow runtime。
+- Report editor。
+- Feedback entry。
 
 ### 最小实现
 
-- 支持一个固定节点库。
-- 拖拽配置一个审核流程。
-- 校验节点参数和连线规则。
+- 实现文档列表、评审运行页和报告页。
 
 ### 主流框架实现
 
-- React Flow / 图编辑器。
-- JSON workflow schema。
-- LangGraph backend mapping。
+- React / Vue / Flutter。
+- SSE。
+- 前端状态机。
+- schema-driven UI。
 
 ### 失败分析与能力边界
 
-- 只做画布，不做运行时。
-- 节点配置无法校验。
-- 发布版本不可追踪。
+- 页面只展示最终答案。
+- 运行态和后端状态不同步。
+- 反馈入口缺失。
 
 ### 评估观测
 
-- 配置校验错误率。
-- 发布成功率。
-- 运行失败节点统计。
+- 用户是否能完成评审流程。
+- sources 是否可访问。
+- workflow 状态是否清晰。
 
 ### 小项目实战
 
-金融 Copilot 工作流设计器：
+实现工作台页面：
 
-- 检索节点。
-- 模型节点。
-- 工具节点。
-- 条件节点。
-- 人工审核节点。
-
-### 项目收敛
-
-工作流编排作为项目二的平台化能力。
-
-## 09. Enterprise Knowledge Base Platform
-
-### 真实问题
-
-企业级知识库需要管理创建、文档分类、解析进度、切片管理、权限隔离、检索测试、引用溯源和知识回流。
-
-### 基础原理
-
-- Knowledge base management。
-- Document lifecycle。
-- Chunk management。
-- ACL。
-- Retrieval test。
-- Source tracing。
-
-### 最小实现
-
-- 创建知识库。
-- 上传文档。
-- 查看解析和 chunk。
-- 测试检索。
-
-### 主流框架实现
-
-- pgvector / vector store。
-- Metadata filter。
-- Knowledge workbench UI。
-
-### 失败分析与能力边界
-
-- 无权限隔离。
-- 文档删除不一致。
-- 检索测试不可复现。
-
-### 评估观测
-
-- 文档解析成功率。
-- 检索命中率。
-- 知识更新延迟。
-
-### 小项目实战
-
-项目一和项目二共享企业知识库平台。
+- 知识库。
+- 提交评审。
+- 运行详情。
+- 评审报告。
+- bad case。
+- 质量面板。
 
 ### 项目收敛
 
-知识库平台成为两个项目的通用底座。
+完成 V6 工作台体验。
 
-## 10. Agent Management Platform
-
-### 真实问题
-
-企业智能体需要统一创建、配置、发布和管理，而不是散落在代码里的 prompt 和工具绑定。
-
-### 基础原理
-
-- Agent profile。
-- Model config。
-- Prompt version。
-- Knowledge binding。
-- Tool authorization。
-- Release version。
-- Run record。
-
-### 最小实现
-
-- 创建一个客服 Agent。
-- 绑定知识库和工具。
-- 发布版本。
-- 查看运行记录。
-
-### 主流框架实现
-
-- Agent console。
-- Schema driven config。
-- Tool authorization UI。
-
-### 失败分析与能力边界
-
-- 配置项过多。
-- 工具授权不透明。
-- 发布无法回滚。
-
-### 评估观测
-
-- agent run success rate。
-- config validation errors。
-- version rollback count。
-
-### 小项目实战
-
-金融 Copilot 支持：
-
-- 客服 Agent。
-- 合规 Agent。
-- Research Agent。
-- Supervisor。
-
-### 项目收敛
-
-智能体管理平台成为项目二核心能力。
-
-## 11. MCP Tool Ecosystem Platform
+## 12. Trace 与 Quality Dashboard
 
 ### 真实问题
 
-智能体需要连接数据库、搜索、文件系统、企业接口和第三方服务。平台需要管理工具接入、参数配置、权限、连接测试、调用记录和异常状态。
+作品化项目需要能展示系统如何判断、哪里失败、如何改进。
 
 ### 基础原理
 
-- Tool catalog。
-- MCP server config。
-- Tool schema。
-- Permission scope。
-- Connection test。
-- Audit log。
-- Human confirmation。
-
-### 最小实现
-
-- 接入一个 mock MCP tool。
-- 配置参数。
-- 测试连接。
-- 记录调用。
-
-### 主流框架实现
-
-- MCP server / client 认知。
-- Tool registry。
-- Schema driven config。
-
-### 失败分析与能力边界
-
-- 工具越权。
-- 高风险工具缺少人工确认。
-- 工具异常不可见。
-
-### 评估观测
-
-- tool call success rate。
-- permission denial。
-- audit completeness。
-
-### 小项目实战
-
-金融 Copilot 工具生态：
-
-- 知识检索。
-- 文件解析。
-- 合规检查。
-- 审批任务。
-
-### 项目收敛
-
-工具生态平台支撑多 Agent 工作流。
-
-## 12. Agent Runtime Observability Center
-
-### 真实问题
-
-企业用户关心任务执行到了哪一步、调用了什么工具、耗时多少、失败原因是什么，以及能否重试。
-
-### 基础原理
-
-- Run center。
 - Trace viewer。
-- Tool call log。
-- Workflow path。
-- Error node。
-- Retry。
+- RAG metrics。
+- Agent metrics。
+- Workflow metrics。
 - Cost / latency。
+- Bad case status。
 
 ### 最小实现
 
-- 展示一次 Agent run。
-- 查看工具调用、节点状态、耗时和错误。
-- 支持失败节点重试。
+- 展示一次评审 run 的完整 trace。
+- 展示核心质量指标。
 
 ### 主流框架实现
 
-- Trace UI。
-- Workflow runtime UI。
-- Eval dashboard。
+- 自定义 trace_core。
+- OpenTelemetry 认知。
+- dashboard。
 
 ### 失败分析与能力边界
 
-- 只能看最终结果。
-- 不能定位失败节点。
-- trace 和业务任务无法关联。
+- 只有指标没有样本。
+- trace 太细无法阅读。
+- 面板不支持修复闭环。
 
 ### 评估观测
 
-- run success rate。
-- node failure rate。
-- retry success rate。
-- cost per run。
+- trace 完整率。
+- bad case 修复率。
+- 指标趋势。
 
 ### 小项目实战
 
-金融 Copilot 运行中心：
+实现质量面板：
 
-- 客服 run。
-- 合规 run。
-- Research run。
-- Multi-Agent run。
-
-### 项目收敛
-
-运行观测中心成为项目二作品化亮点。
-
-## 13. Data Labeling 与 Evaluation Platform
-
-### 真实问题
-
-企业上线 AI 产品后，需要持续判断模型回答是否准确、引用是否正确、工具调用是否合理，并通过人工标注和问题回流持续优化。
-
-### 基础原理
-
-- QA data management。
-- Human labeling。
-- Model comparison。
-- Score statistics。
-- Bad case feedback。
-- Regression suite。
-
-### 最小实现
-
-- 展示问答样本。
-- 人工标注准确性、引用、风险。
-- 加入回归集。
-
-### 主流框架实现
-
-- Labeling queue。
-- Eval dashboard。
-- Human review workflow。
-
-### 失败分析与能力边界
-
-- 标注标准不一致。
-- 反馈不能转化为修复动作。
-- 只统计分数不看 bad case。
-
-### 评估观测
-
-- labeling throughput。
-- agreement rate。
-- regression pass rate。
-- bad case fix rate。
-
-### 小项目实战
-
-两个项目共享评测平台。
+- 检索命中率。
+- 引用正确率。
+- 拒答准确率。
+- 风险覆盖率。
+- 工具调用成功率。
+- 人工确认触发率。
+- token 和耗时。
 
 ### 项目收敛
 
-数据标注与评测平台支撑持续迭代。
+完成可观测作品化能力。
 
-## 14. Security、Ops 与 Cost Governance
-
-### 真实问题
-
-企业级 AI 应用不只要能运行，还要安全、稳定、可控制、可追踪、可预算。
-
-### 基础原理
-
-- User permission。
-- Data isolation。
-- Sensitive data masking。
-- Audit log。
-- Rate limit。
-- Token cost。
-- Alert。
-- Deployment environment。
-
-### 最小实现
-
-- 基础用户权限。
-- API key 环境变量。
-- 调用成本统计。
-- 操作审计日志。
-
-### 主流框架实现
-
-- FastAPI middleware。
-- PostgreSQL audit table。
-- Redis rate limit。
-- Docker Compose。
-- K8s 认知。
-
-### 失败分析与能力边界
-
-- 密钥泄露。
-- 工具越权。
-- 成本失控。
-- 日志泄露敏感信息。
-- 过早投入 K8s。
-
-### 评估观测
-
-- rate limit hits。
-- cost per user。
-- audit completeness。
-- sensitive data exposure。
-
-### 小项目实战
-
-项目基础治理：
-
-- 权限。
-- 审计。
-- 成本。
-- 限流。
-- 告警认知。
-
-### 项目收敛
-
-本章让项目具备企业工程可信度。
-
-## 15. Deployment、Demo 与 Portfolio
+## 13. Local Deployment 与 Demo
 
 ### 真实问题
 
-项目最终需要可运行、可演示、可讲述。只有代码没有演示路径，简历和面试价值都会下降。
+项目必须能稳定运行和演示。
 
 ### 基础原理
 
-- Local demo。
-- Docker Compose demo。
-- Cloud deployment strategy。
-- Demo script。
-- Project README。
-- Portfolio story。
+- Local setup。
+- env。
+- docker-compose。
+- seed data。
+- demo script。
+- reset script。
+- troubleshooting。
 
 ### 最小实现
 
-- 本地一键启动。
-- 准备演示数据。
-- 跑通核心链路。
-- 输出项目 README。
+- 用 docker-compose 启动 API、数据库、Redis 和前端。
+- 导入一批示例文档。
 
 ### 主流框架实现
 
 - Docker Compose。
-- Vercel / Cloudflare Pages。
-- FastAPI 本地或低成本托管。
-- Supabase / PostgreSQL。
+- Makefile / scripts。
+- README demo guide。
 
 ### 失败分析与能力边界
 
-- 演示依赖手工步骤太多。
-- 数据准备不稳定。
-- 缺少失败案例和质量面板。
-- 作品集只讲功能，不讲架构和取舍。
+- 本地启动步骤过多。
+- 示例数据不可复现。
+- 演示链路依赖人工操作记忆。
 
 ### 评估观测
 
-- demo setup time。
-- demo success rate。
-- 核心链路可复现。
-- README 是否讲清价值和边界。
+- 一键启动成功率。
+- demo 完成耗时。
+- reset 是否可靠。
 
 ### 小项目实战
 
-两个项目演示路径：
+准备演示链路：
 
-- 需求评审助手：上传文档 -> 问答 -> sources -> 单 Agent 追问 -> eval。
-- 金融 Copilot：客服问题 -> 合规审核 -> 人工确认 -> trace -> 质量面板。
+- 导入示例文档。
+- 提交需求评审。
+- 展示检索引用。
+- 展示多 Agent 轨迹。
+- 人工确认。
+- 生成报告。
+- 查看质量面板。
 
 ### 项目收敛
 
-本课程最终输出两个可展示项目和一套清晰的作品集叙事。
+完成可运行 demo。
+
+## 14. Portfolio、Resume 与 Review
+
+### 真实问题
+
+项目最终需要能讲清楚，而不是只堆功能。
+
+### 基础原理
+
+- 项目 README。
+- Architecture doc。
+- Demo guide。
+- Technical highlights。
+- Trade-offs。
+- Future roadmap。
+- 简历表达。
+
+### 最小实现
+
+- 写出项目 README。
+- 准备一条 demo 脚本。
+- 总结 5 个技术亮点。
+
+### 主流框架实现
+
+- README。
+- ADR。
+- demo video script。
+- portfolio case study。
+
+### 失败分析与能力边界
+
+- 只列技术栈，不讲业务价值。
+- 只讲结果，不讲取舍。
+- 未来规划过大，显得不落地。
+
+### 评估观测
+
+- 是否能 3 分钟讲清项目。
+- 是否能演示完整链路。
+- 是否能说明技术取舍。
+
+### 小项目实战
+
+整理作品集材料：
+
+- 项目背景。
+- 架构图。
+- 核心链路。
+- 多 Agent 分工。
+- 质量工程。
+- 工程部署。
+- 未来方向。
+
+### 项目收敛
+
+完成需求评审多 Agent 助手的作品化表达。
+
+## 参考设计映射
+
+- 参考 MaxKB 的应用产品模型、知识库管理、Workflow、工具记录、反馈统计和本地部署组合。
+- 参考 RAGFlow 的企业知识库、复杂文档处理、Agent / Workflow 编排、检索评估和运行态工作台设计。
