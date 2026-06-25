@@ -37,7 +37,7 @@
 │   ├── 03_rag/
 │   ├── 04_agent/
 │   ├── 05_eval_observability/
-│   ├── 06_ai_native_frontend/
+│   ├── 06_ai_native/
 │   ├── 07_projects/
 │   └── 99_foundation/
 └── source/
@@ -47,7 +47,7 @@
     ├── 03_rag/
     ├── 04_agent/
     ├── 05_eval_observability/
-    ├── 06_ai_native_frontend/
+    ├── 06_ai_native/
     ├── 07_projects/
     └── 99_foundation/
 ```

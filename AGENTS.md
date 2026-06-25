@@ -6,6 +6,8 @@
 
 核心目标是建立 AI Native 前端与 AI 应用闭环能力，而不是转向纯 AI 后端、大模型算法或 AI Infra 方向。
 
+学习方式：通过唯一主项目「**需求评审助手**」（从 RAG 知识助手演进为多 Agent + Workflow 评审系统），以文档 + 代码边学边做，完成完整业务逻辑闭环。详见 [docs/learning-guide.md](docs/learning-guide.md)。
+
 ## 必读文档
 
 AI Agent 在处理本仓库任务前，优先阅读：
@@ -15,26 +17,37 @@ AI Agent 在处理本仓库任务前，优先阅读：
 3. [docs/ai-application-platform.md](docs/ai-application-platform.md)
 4. [docs/learning-guide.md](docs/learning-guide.md)
 5. [docs/agent-skill.md](docs/agent-skill.md)
+6. [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md)（涉及代码编写或审查时）
 
 ## 学习内容组织原则
 
-- 以真实问题和项目闭环组织学习。
-- 不要求每个知识点都配一组脚本。
-- 代码服务理解和项目交付，而不是服务章节数量。
-- RAG、Tool Calling、Agent、Workflow 可以围绕项目需要交叉出现。
-- 学习顺序服务项目闭环，而不是服务目录编号。
-- 设计 RAG、Agent、Workflow、AI Native 前端和项目时，可以参考 `docs/ai-application-platform.md` 的远期能力地图，但当前阶段以 `docs/strategy.md` 和需求评审 RAG 助手闭环为准。
+- 以唯一主项目和真实问题闭环组织学习，不按章节堆脚本。
+- 文档先于代码：文档定义问题、原理、边界、完成标准；代码验证机制并收敛到项目。
+- 不要求每个知识点都配一组脚本；代码服务理解和项目交付，而不是服务章节数量。
+- RAG、Tool Calling、Agent、Workflow、Eval、AI Native 可以围绕项目需要交叉出现。
+- 学习顺序服务项目闭环（V0–V6），而不是服务目录编号。
+- `02_llm` / `03_rag` / `04_agent` 等是教学分层，不是能力割裂。
+- 设计 RAG、Agent、Workflow、AI Native 和项目时，可参考 `docs/ai-application-platform.md` 的远期能力地图，以及 `other/` 下 MaxKB、RAGFlow 的设计思路；当前阶段以 `docs/strategy.md` 和需求评审助手闭环为准。
+- AI Coding 是预期开发方式；掌握标准以 [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md) 的代码所有权为准，不以谁敲键盘判断学会。
+
+## 与 00_archive 的关系
+
+- `00_archive` 是**过渡保留**，与新课程 `02_llm`–`07_projects` **无学习路径关系**，不是新版大纲的改写基础。
+- 新文档和新代码**默认不依赖** archive；编写时最多偶发参考某个机制或设计思路。
+- 旧学习模式（一篇文档 ↔ 一个目录 ↔ 大量脚本）已废弃；新内容围绕 `packages / demos / apps` 与项目版本（V0–V6）组织。
+- AI Agent 处理新课程或新项目任务时，**不应主动读取、映射或对照** `00_archive/`，除非用户明确要求。
+- 旧资料可能因 demo 化、无主目标而对新设计产生干扰，默认以当前 `course/` 大纲和 `docs/` 规范为准。
 
 ## 内容规则
 
-- `00_archive` 是之前的学习资料，规则是从`llm`开始都归档进去，全部重写。其中旧`llm`已经学习完毕，`rag`是卡点，资料完整，但是没有学习完成。
+- `00_archive` 仅作过渡保留，见上一节；不主动扩展或重构。
 - `01_python` 作为已完成的 Python 基础，不主动重构，除非用户明确要求。
 - `99_foundation` 作为非主线知识补充区，不前置、不扩展为新的主线课程。
-- `02_llm`、`03_rag`、`04_agent`、`05_eval_observability`、`06_ai_native_frontend` 和 `07_projects` 可以围绕当前项目目标继续评估和收敛。
-- 后续的课程、项目和代码必须遵循 `docs/learning-guide.md`。
+- `02_llm`、`03_rag`、`04_agent`、`05_eval_observability`、`06_ai_native` 和 `07_projects` 围绕需求评审助手继续评估和收敛。
+- 后续的课程、项目和代码必须遵循 [docs/learning-guide.md](docs/learning-guide.md)。
 - 后续的课程、项目和代码不应把 AI 应用简化成聊天 UI 或单点 Demo；`docs/ai-application-platform.md` 作为远期平台化方向参考，不作为当前阶段的完整验收标准。
 - 课程编排可以继续讨论和演进，不要在未确认前创建过重目录结构。
-- 新内容优先围绕需求评审 RAG 助手、AI 应用主链路、RAG、Agent、Workflow、评估观测和 AI Native 工作台展开。
+- 新内容优先围绕需求评审助手、AI 应用主链路、RAG、Agent、Workflow、评估观测和 AI Native 工作台展开。
 
 ## 文档规则
 
@@ -48,7 +61,7 @@ AI Agent 在处理本仓库任务前，优先阅读：
 ## 代码规则
 
 - 新代码优先围绕项目闭环组织。
-- 可以按 `V0 / V1 / V2` 逐步完善。
+- 可以按 `V0 / V1 / V2` … `V6` 逐步完善。
 - 可以有多个 package，但每个 package 必须有清晰职责。
 - 必须明确入口、运行方式、完成标准和能力边界。
 - 不为了章节完整性硬造脚本。

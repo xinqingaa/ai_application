@@ -1,15 +1,15 @@
-# 07 需求评审多 Agent 助手项目化大纲
+# 07 需求评审助手项目化大纲
 
 ## 课程定位
 
-`07_projects` 是需求评审多 Agent 助手的项目收敛层，也是整个仓库的作品化主线。
+`07_projects` 是需求评审助手的项目收敛层，也是整个仓库的作品化主线。
 
 本课程不重新学习 02-06 的知识点，而是把它们组合成一个可运行、可展示、可讲述、可迭代的项目。
 
 当前只维护一个长期主项目：
 
 ```text
-需求评审多 Agent 助手
+需求评审助手
 = LLM 应用底座
 + 企业知识库与 RAG
 + Sources / Refusal / Structured Review
@@ -53,7 +53,7 @@ V0 固定 RAG
 
 完成本课程后，应能做到：
 
-- 讲清需求评审助手的业务价值、技术路线、阶段边界和能力演进。
+- 讲清需求评审助手的业务价值、技术路线、阶段边界和能力演进（V0–V6）。
 - 将 `llm_core`、`rag_core`、`agent_core`、`workflow_core`、`eval_core`、`trace_core` 和 AI UI 组件组合成项目。
 - 用 Docker Compose + PostgreSQL / pgvector + Redis 体现真实工程能力。
 - 提供可运行 demo、质量面板、部署方案和作品集表达。
@@ -144,7 +144,7 @@ course/07_projects/
 
 写出定位：
 
-> 面向研发团队的需求评审多 Agent 助手，通过企业知识库、RAG、多 Agent 协作和人工确认，帮助团队发现需求风险、追溯依据并生成结构化评审报告。
+> 面向研发团队的需求评审助手，通过企业知识库、RAG、多 Agent 协作和人工确认，帮助团队发现需求风险、追溯依据并生成结构化评审报告。
 
 ### 项目收敛
 
@@ -165,6 +165,20 @@ course/07_projects/
 - Eval / Observability layer。
 - AI Native Workbench。
 - Infra layer。
+- **运营对象层**：ReviewApplication、ReviewConfig、ReviewRun、ReviewRunVersion、ChatRecord、ToolRecord。
+
+### 运营对象（架构层）
+
+| 对象 | 职责 |
+| --- | --- |
+| `ReviewApplication` | 应用配置容器 |
+| `ReviewConfig` | 当前生效配置（model / prompt / retriever / workflow） |
+| `ReviewRun` | 一次评审运行 |
+| `ReviewRunVersion` | 本次 run 绑定的配置版本快照，用于复现与 eval |
+| `ChatRecord` | 会话消息、token、引用、反馈 |
+| `ToolRecord` | 工具调用审计 |
+
+目的不是做 MaxKB 式平台，而是保证一次评审可复现、可评估。
 
 ### 最小实现
 
@@ -223,6 +237,18 @@ course/07_projects/
 - Background jobs。
 - File storage。
 - Environment config。
+- **应用运营对象**：ReviewApplication / ReviewConfig / ReviewRun / ReviewRunVersion。
+- **会话与审计**：ChatRecord（V0 起最小实现）、ToolRecord。
+- **配置版本快照**：一次评审可复现 model、prompt、retriever、workflow 版本。
+
+### 应用产品对象建模
+
+对标 MaxKB 的 Application / Version / ChatRecord 思路，收敛为项目必需的最小集：
+
+- `ReviewConfig` 变更产生新版本哈希。
+- `ReviewRun` 绑定 `ReviewRunVersion`。
+- eval 对比必须能关联配置版本。
+- 不做应用发布市场、API Key 平台或嵌入页。
 
 ### 最小实现
 
@@ -282,6 +308,19 @@ course/07_projects/
 - 输入输出。
 - 不解决什么问题。
 - MVP 范围。
+- **评审维度矩阵**（前端 / Flutter 差异化，贯穿 Prompt、Agent、Golden Set 标签）：
+
+| 维度 | 典型关注点 |
+| --- | --- |
+| 页面交互风险 | 空态、加载态、状态可回退 |
+| 状态流转风险 | 多步骤、草稿、并发编辑 |
+| 接口兼容风险 | 字段变更、版本兼容 |
+| 埋点与监控风险 | 关键链路可观测 |
+| 权限与敏感信息 | 脱敏、越权、审计 |
+| 多端一致性 | Flutter / H5 / Native 差异 |
+| 异常 / 弱网 / 长连接 | 超时、重连、幂等 |
+| 测试验收点 | 可执行 case |
+| 发布灰度与回滚 | 开关、回滚路径 |
 
 ### 最小实现
 
@@ -318,10 +357,11 @@ course/07_projects/
 - 接口影响分析。
 - 测试验收点生成。
 - 评审报告生成。
+- 按评审维度为 golden set 和 Prompt 打标签。
 
 ### 项目收敛
 
-输出项目 PRD。
+输出项目 PRD 与评审维度矩阵。
 
 ## 04. Knowledge Base 与 Document Ingestion
 
@@ -432,7 +472,7 @@ course/07_projects/
 - 检索知识库。
 - 构造上下文。
 - 生成回答。
-- 记录 ChatRecord。
+- 记录 ChatRecord（V0 最简：问题、回答、来源、token）。
 
 ### 项目收敛
 
@@ -933,9 +973,14 @@ submit_requirement
 
 ### 项目收敛
 
-完成需求评审多 Agent 助手的作品化表达。
+完成需求评审助手的作品化表达。
 
 ## 参考设计映射
 
-- 参考 MaxKB 的应用产品模型、知识库管理、Workflow、工具记录、反馈统计和本地部署组合。
-- 参考 RAGFlow 的企业知识库、复杂文档处理、Agent / Workflow 编排、检索评估和运行态工作台设计。
+### MaxKB（应用产品层）
+
+- Application / Version、ChatRecord、ToolRecord、配置版本、运行记录与反馈统计；本项目收敛为 ReviewApplication / ReviewRun / ReviewConfig 等运营对象。
+
+### RAGFlow（知识生产 + 评测）
+
+- 企业知识库、复杂文档处理、检索评估、运行态与质量治理。

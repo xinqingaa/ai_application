@@ -79,7 +79,7 @@ AI Agent 应帮助用户：
 - 最后写 V2 产品化完善。
 - 不提前做大而全平台。
 - 不把 RAG、Agent、Workflow、前端工作台割裂成互不相关的孤岛。
-- 可以参考 [ai-application-platform.md](ai-application-platform.md) 判断项目能力未来可能属于知识库、智能体、工作流、工具生态、评测、安全运营还是平台前端；当前阶段以 [strategy.md](strategy.md) 中的需求评审 RAG 助手闭环为准。
+- 可以参考 [ai-application-platform.md](ai-application-platform.md) 判断项目能力未来可能属于知识库、智能体、工作流、工具生态、评测、安全运营还是平台前端；当前阶段以 [strategy.md](strategy.md) 中的需求评审助手闭环为准。
 - 不把 AI 应用简化成聊天 UI、文件问答、工具调用 Demo 或普通后台管理页面。
 
 ## 企业级 AI 应用平台视角
