@@ -45,6 +45,18 @@
 - 理解 Function Calling 的 API 形态，并知道它为什么是 Agent 的入口。
 - 为 `03_rag`、`04_agent` 和 `05_eval_observability` 提供可复用的 `llm_core` 能力。
 
+## 代码里程碑（草案）
+
+> 本节为**粗粒度闸门**，实施时可修订；细排期见 [learning-guide.md §6.4](../../docs/learning-guide.md#64-文档与代码节奏)。不以「第几篇专题」绑定代码，以**可运行验收**为准。
+
+| 里程碑 | 支撑项目版本 | 最小验收（完成定义） |
+| --- | --- | --- |
+| **M1** 调用 + 结构化 | V0–V1 底座 | `llm_core`：`LLMClient` + provider 配置可跑；`schemas` + `parse_structured`；`demos/structured_review_output` 可跑；00–03 文档设计草图已回链 `source/` |
+| **M2** 流式 + 可靠性 | V1 体验与稳定 | streaming 事件格式 + demo；错误分类与有限重试/降级可观测 |
+| **M3** package 收敛 | 供 `03_rag` 引用 | `llm_core` 模块齐全（client / prompts / schemas / context / streaming / reliability / harness）；README 说明入口与依赖 |
+
+专题正文中的设计草图可标注 `[CODE-GATE: M1]` 等，对应 milestone 完成后替换为真实代码链接。
+
 ## 代码组织建议
 
 ```text
