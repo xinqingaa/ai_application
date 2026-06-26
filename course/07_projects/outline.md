@@ -133,13 +133,12 @@ course/07_projects/
 
 ### 最小实现
 
-- 写出一句话定位、目标用户、核心场景和不做什么。
+- 在根目录 `review_assistant/` 确认产品脚手架（README + `app/` / `workbench/` / `infra/` 占位，见代码组织）。
+- 写出一句话定位、目标用户、核心场景和不做什么（文档）。
 
 ### 主流框架实现
 
-- Portfolio README。
-- Architecture decision record。
-- Project roadmap。
+- Portfolio README、Architecture decision record、Project roadmap（本课逐节填充）。
 
 ### 失败分析与能力边界
 
@@ -147,15 +146,18 @@ course/07_projects/
 - 没有业务场景，只堆技术名词。
 - 过早承诺多租户、工具市场、完整运营后台。
 
+### 本节不做（推迟到后续节）
+
+- 可独立部署的完整产品（**07 各 V 节递进**；V0 可演示在 **07/05** 等节验收，非 00）。
+
 ### 完成标准（运行与观察）
 
-- 项目是否可独立演示。
-- 阶段目标是否清楚。
-- 每阶段是否有可运行产物。
+- **代码**：`review_assistant/` 脚手架存在；理解能力在 `source/packages/`、产品在根目录 import 的约定。
+- **文档**：定位、目标用户、V0–V6 路线图清晰；能说出「本阶段不做什么」。
 
 ### 本节实战
 
-写出定位：
+写出定位（文档）：
 
 > 面向研发团队的需求评审助手，通过企业知识库、RAG、多 Agent 协作和人工确认，帮助团队发现需求风险、追溯依据并生成结构化评审报告。
 

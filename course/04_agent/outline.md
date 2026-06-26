@@ -122,13 +122,12 @@ course/04_agent/
 
 ### 最小实现
 
-- 对需求摘要、风险识别、接口影响分析、测试验收点生成等任务判断使用 Chain、Workflow、单 Agent 还是 Multi-Agent。
+- 建立 `source/packages/agent_core`、`workflow_core` package 壳 + 首个 demo 占位（见上方代码组织）。
+- 在文档中对各任务判断适合 Chain、Workflow、单 Agent 还是 Multi-Agent（表格/清单即可，00 不要求可运行 Agent）。
 
 ### 主流框架实现
 
-- Function Calling。
-- LangChain Tool / Agent。
-- LangGraph Workflow。
+- Function Calling、LangChain Tool / Agent、LangGraph Workflow（01 起在 demo 中落地）。
 
 ### 失败分析与能力边界
 
@@ -137,14 +136,19 @@ course/04_agent/
 - 没有评估和观测就增加工具数量。
 - 多 Agent 不是多个聊天机器人，而是受控角色协作。
 
+### 本节不做（推迟到后续节）
+
+- Tool 运行时、Agent Loop 可运行 demo（**01+**）。
+- 多 Agent 评审完整链路（**04 后半 / 07 V4**）。
+
 ### 完成标准（运行与观察）
 
-- 记录架构选型理由。
-- 记录任务是否需要工具、状态、人工确认和多角色协作。
+- **代码**：`agent_core` / `workflow_core` 壳存在；知晓本课 demo 命名约定（`04_*` 前缀）。
+- **文档**：能解释 Chain / Workflow / Agent / Multi-Agent 差异；为需求评审任务写出架构选型理由（笔记或正文沉淀）。
 
 ### 本节实战
 
-为需求评审助手拆分任务：
+为需求评审助手拆分任务（文档 + 选型表）：
 
 - 知识问答。
 - 风险识别。

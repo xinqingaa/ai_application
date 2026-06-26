@@ -135,7 +135,8 @@ course/06_ai_native/
 
 ### 最小实现
 
-- 展示一次 AI 请求的状态变化：idle -> retrieving -> analyzing -> waiting_review -> completed / failed。
+- 在 `source/packages/` 创建本课 UI 相关 package 壳（如 `ai_ui_protocol` 等，见代码组织）+ 首个 Vue demo 占位（`06_*` 前缀）。
+- 在文档或线框中描述一次请求的状态流：`idle` → `retrieving` → `analyzing` → `waiting_review` → `completed` / `failed`（00 不要求可运行前端）。
 
 ### 主流框架实现
 
@@ -149,15 +150,19 @@ course/06_ai_native/
 - 只展示最终答案，不展示依据和状态。
 - 暴露过多内部过程，反而干扰用户。
 
+### 本节不做（推迟到后续节）
+
+- 可运行的流式 UI、SSE 同步（**06 后续 demo**）。
+- Flutter 工作台完整实现（**07/11**）。
+
 ### 完成标准（运行与观察）
 
-- 用户是否能理解 AI 正在做什么。
-- 用户是否能找到依据和风险。
-- 用户是否能在关键节点干预。
+- **代码**：本课 package / demo 目录壳就绪（见代码组织）。
+- **文档**：能说明 AI Native 与普通聊天 UI 的差异；列出需求评审助手最小 UI 要素（sources、状态、风险展示等）。
 
 ### 本节实战
 
-为需求评审助手定义最小 AI Native UI：
+为需求评审助手定义最小 AI Native UI（文档/线框）：
 
 - 文档上传。
 - 流式状态。

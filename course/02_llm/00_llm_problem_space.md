@@ -270,32 +270,24 @@ python first_chat.py --sample S4
 
 ## 评估观测
 
-从**第一次**调用开始就记录，避免「感觉变好了」却无法证明。
+从**第一次**调用开始就养成记录习惯；**00 的 demo 在终端打印** `usage` 与 `latency_ms`，完整字段表与结构化落盘在 **01**（`LLMResponse`）与 **07**（harness）实现。
 
-### 最小日志字段
+### 最小日志字段（全课目标；00 仅部分在终端可见）
 
-| 字段 | 用途 |
-| --- | --- |
-| `timestamp` | 对比不同天的实验 |
-| `model` / `provider` | 选型 |
-| `temperature` 等 | 复现 |
-| `usage.prompt_tokens` / `completion_tokens` | 成本 |
-| `latency_ms` | 体验 |
-| `input_summary` | 样例标识（如「售后 PRD 片段」） |
-| `output_preview` | 人工回看 |
-| `notes` | 是否编造、是否可用 |
-
-### 最小调用样例集（建议先收 5 条）
-
-| id | 类型 | 输入概要 |
+| 字段 | 用途 | 00 demo |
 | --- | --- | --- |
-| S1 | 需求摘要 | 短 PRD 提炼模块与目标 |
-| S2 | 风险识别 | 售后按钮 + 接口 v2 |
-| S3 | 无材料 | 只有一句「这个需求有什么问题」—— 观察是否胡编 |
-| S4 | 约束输出 | 要求 JSON 列表—— 观察格式遵守度 |
-| S5 | 长文本 | 较长 PRD 片段—— 观察 token 与遗漏 |
+| `timestamp` | 对比不同天的实验 | 手工记笔记 |
+| `model` / `provider` | 选型 | 终端打印 `model` |
+| `temperature` 等 | 复现 | 终端打印 / CLI 参数 |
+| `usage.prompt_tokens` / `completion_tokens` | 成本 | 终端打印 `usage` |
+| `latency_ms` | 体验 | 终端打印 |
+| `input_summary` | 样例标识 | `sample` id（如 S2） |
+| `output_preview` | 人工回看 | `content preview`（前 300 字） |
+| `notes` | 是否编造、是否可用 | 建议手写对比实验笔记 |
 
-不必等 RAG 完成再建样例；后续 RAG / Schema 改动都应用同一批样例对比。
+### 最小调用样例集（S1–S5 种子；批量回归在 07）
+
+样例数据在 [`samples.json`](../../source/demos/02_first_chat/samples.json)；默认跑 S2。完整 harness 对比在专题 **07** 落地，不必在 00 实现 JSONL 或自动跑批。
 
 ---
 
