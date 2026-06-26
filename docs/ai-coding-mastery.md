@@ -255,6 +255,7 @@ AI 是执行加速器，不是责任替代者。
 - 关键路径要可读、可调试、可替换。
 - 保留必要日志、sources、scores、tool calls、state transitions。
 - 不为了章节完整性造无意义脚本。
+- 扩展已有 `*_core` package，不 copy 平行实现；全仓库 import 同一实例（见 [learning-guide.md](learning-guide.md) §10）。
 
 ### 代码之后
 

@@ -2,6 +2,8 @@
 
 `docs/` 存放仓库长期有效的战略、学习设计和 AI Agent 协作规范。
 
+**唯一真源**：学习设计、课程规范、项目规范与代码组织以 [learning-guide.md](learning-guide.md) 为准；战略与定位为 [strategy.md](strategy.md)。各课 `course/*/outline.md` 为已定稿的备课清单（**暂定**，实施时可微调单节边界）。
+
 ## 文档列表
 
 - [strategy.md](strategy.md)：长期定位、背景、目标和方向。

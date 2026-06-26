@@ -1,14 +1,8 @@
 # 模型原理与 LangChain 基础 学习大纲
 
-> **归档说明（2025+ 主链路）**
+> **定稿说明（非主线）**：本目录为**知识补充区**，已与 [learning-guide.md](../../docs/learning-guide.md) 对齐——默认不阅读、不扩展、不维护；仅主链路遇到具体理解障碍时按需查阅。
 >
-> 本目录为**旧版补充资料**，与当前主课程 **`02_llm` → `03_rag` → `04_agent` → `05_eval_observability` → `06_ai_native` → `07_projects`** 无学习路径依赖。
->
-> - **默认不阅读、不扩展、不维护**；主要精力应放在主链路 outline 与需求评审助手项目闭环。
 > - LangChain RAG 抽象以 [`03_rag/02`](../03_rag/outline.md) 为准，不以本文为准。
-> - 仅当主链路学习中遇到具体理解障碍（如 Transformer 直觉、模型选型、LangChain 底层细节）时，**按需查阅**对应小节，无需通读。
->
-> 详见 [docs/learning-guide.md](../../docs/learning-guide.md) 与 [AGENTS.md](../../AGENTS.md)。
 
 ---
 

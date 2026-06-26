@@ -25,7 +25,7 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 文档先于代码：文档定义问题、原理、边界、完成标准；代码验证机制并收敛到项目。
 - 不要求每个知识点都配一组脚本；代码服务理解和项目交付，而不是服务章节数量。
 - RAG、Tool Calling、Agent、Workflow、Eval、AI Native 可以围绕项目需要交叉出现。
-- 学习顺序服务项目闭环（V0–V6），而不是服务目录编号。
+- 学习顺序服务主项目闭环，可按项目需要交叉选课节；**能力路线**（`02_llm`–`07_projects`）与**项目版本**（V0–V6）是两条轴，不混为一谈。
 - `02_llm` / `03_rag` / `04_agent` 等是教学分层，不是能力割裂。
 - 设计 RAG、Agent、Workflow、AI Native 和项目时，可参考 `docs/ai-application-platform.md` 的远期能力地图，以及 `other/` 下 MaxKB、RAGFlow 的设计思路；当前阶段以 `docs/strategy.md` 和需求评审助手闭环为准。
 - AI Coding 是预期开发方式；掌握标准以 [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md) 的代码所有权为准，不以谁敲键盘判断学会。
@@ -60,9 +60,10 @@ AI Agent 在处理本仓库任务前，优先阅读：
 
 ## 代码规则
 
-- 新代码优先围绕项目闭环组织。
-- 可以按 `V0 / V1 / V2` … `V6` 逐步完善。
-- 可以有多个 package，但每个 package 必须有清晰职责。
+- 新代码优先围绕主项目闭环组织。
+- 项目按 V0 / V1 / V2 … V6 逐步完善（**项目版本轴**，与课程目录编号无关）。
+- 每个能力域只维护**一个** package（如 `llm_core`），全仓库 **import 复用**，禁止 copy 平行实现；`07_projects` 阶段物理归拢到统一目录。
+- 可以有多个 package，但每个 package 必须有清晰职责、单一实例。
 - 必须明确入口、运行方式、完成标准和能力边界。
 - 不为了章节完整性硬造脚本。
 - 全仓库默认使用根目录一个 Python 虚拟环境，例如 `.venv/`。
