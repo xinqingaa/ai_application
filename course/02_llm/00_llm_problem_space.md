@@ -149,15 +149,17 @@ Prompt（任务协议：你是谁、要做什么、不能做什么）
 ## 最小实现
 
 目标：**亲手看清一次调用里有什么**，建立「模型返回的不是魔法，是一串可记录的响应」的直觉。  
-本篇允许用**设计草图**；M1 代码完成后回链到 `source/demos/02_*`（见 [outline 代码里程碑](outline.md)）。
+实现见 [`source/demos/02_first_chat/`](../../source/demos/02_first_chat/)（见 [outline 代码里程碑](outline.md)）。
 
 ### 前置
 
-- 根目录 `.venv` 已创建，`pip install -r requirements.txt` 含 OpenAI SDK。
-- 根目录 `.env` 配置（示例）：
+- 根目录 `.venv` 已创建，`pip install -r requirements.txt` 与 `pip install -e .`。
+- 复制 [`.env.example`](../../.env.example) 为 `.env` 并填写 `OPENAI_API_KEY`（本 demo **必须**有真实 Key，不做 mock）。
   ```bash
-  OPENAI_API_KEY=sk-...
-  # 若用国内 OpenAI 兼容平台，还可设 OPENAI_BASE_URL=https://...
+  cp .env.example .env
+  # OPENAI_API_KEY=sk-...
+  # OPENAI_BASE_URL=https://...   # OpenAI 兼容平台时可选
+  # OPENAI_MODEL=gpt-4o-mini
   ```
 
 ### 一次 Chat 调用里有什么
@@ -177,41 +179,36 @@ HTTP 层面：你的 Python 程序 `POST` 到 `/v1/chat/completions`（或兼容
 - `usage.prompt_tokens` / `usage.completion_tokens` —— 计费用
 - `model` —— 实际使用的模型 id
 
-### 设计草图：第一次调用 `[CODE-GATE: M1]`
+### 第一次调用（`02_first_chat`）
 
-> 以下为设计草图；M1 实现后见 `source/demos/02_provider_switching/`。
+入口：[`source/demos/02_first_chat/first_chat.py`](../../source/demos/02_first_chat/first_chat.py)。  
+Provider 抽象与切换对比见专题 01（[`02_provider_switching`](../../source/demos/02_provider_switching/)）。
+
+核心调用逻辑（节选）：
 
 ```python
-import os
-import time
-from openai import OpenAI
-
-client = OpenAI(
-    api_key=os.environ["OPENAI_API_KEY"],
-    # base_url=os.environ.get("OPENAI_BASE_URL"),  # 兼容平台时打开
-)
-
-messages = [
-    {"role": "system", "content": "你是需求评审助手。只根据用户材料分析，不要编造未出现的功能。"},
-    {"role": "user", "content": (
-        "【PRD 片段】订单详情页增加「申请售后」按钮，点击跳转售后申请页，对接售后接口 v2。\n"
-        "请列出 3 条研发侧潜在风险（交互、状态、接口各至少考虑一点）。"
-    )},
-]
-
 t0 = time.perf_counter()
 resp = client.chat.completions.create(
-    model="gpt-4o-mini",  # 开发阶段可用便宜模型
+    model=model,
     messages=messages,
-    temperature=0,        # 先固定为 0，便于对比
+    temperature=args.temperature,
 )
 latency_ms = (time.perf_counter() - t0) * 1000
-
-print("model:", resp.model)
-print("usage:", resp.usage)
-print("latency_ms:", round(latency_ms, 1))
-print("content preview:", resp.choices[0].message.content[:300])
+# 打印 resp.model、resp.usage、latency_ms、content 前 300 字
 ```
+
+样例 S1–S5 定义在 [`samples.json`](../../source/demos/02_first_chat/samples.json)，默认跑 S2（售后 PRD 风险识别）。
+
+### 运行与观察
+
+```bash
+cd source/demos/02_first_chat
+python first_chat.py
+python first_chat.py --temperature 0.7
+python first_chat.py --sample S4
+```
+
+应看到：`sample`、`model`、`usage`（prompt/completion tokens）、`latency_ms`、`content preview`。详见 [demo README](../../source/demos/02_first_chat/README.md)。
 
 ### 建议做的两个对比实验
 
@@ -358,7 +355,7 @@ source/packages/llm_core/
 2. `models.yaml`：Chat / Embedding / Rerank 分角色  
 3. 命名 Prompt：`requirement_summary`、`risk_review` 等  
 4. 核心 Schema：`ReviewRisk`、`ReviewReport`、`Citation`、`RefusalResponse`  
-5. 上文 5 条样例集 + 日志字段约定  
+5. 上文 5 条样例集（[`samples.json`](../../source/demos/02_first_chat/samples.json)）+ 日志字段约定  
 
 ---
 
@@ -368,7 +365,7 @@ source/packages/llm_core/
 - **能解释**：为什么需求评审助手不能只做「复制 PRD 到 ChatGPT」。  
 - **能讲述**：小周提交售后 PRD 时，只做一次 API 调用会在产品/工程上出哪些问题（至少 3 点）。  
 - **能画出**：用户 → API → `llm_core` →（RAG / Agent）→ 报告 的数据流。  
-- **能运行**：一次最小 chat 调用，并解读 `usage` 与 `latency_ms`。  
+- **能运行**：[`02_first_chat`](../../source/demos/02_first_chat/README.md) 最小 chat，并解读 `usage` 与 `latency_ms`。  
 - **能列举**：5 类 LLM 层无法单独解决的事及对应课程/模块。  
 
 ### 自检题（不看正文能否答）
