@@ -149,7 +149,7 @@ Prompt（任务协议：你是谁、要做什么、不能做什么）
 ## 最小实现
 
 目标：**亲手看清一次调用里有什么**，建立「模型返回的不是魔法，是一串可记录的响应」的直觉。  
-本篇允许用**设计草图**；M1 代码完成后回链到 `source/02_llm/demos/`（见 [outline 代码里程碑](outline.md)）。
+本篇允许用**设计草图**；M1 代码完成后回链到 `source/demos/02_*`（见 [outline 代码里程碑](outline.md)）。
 
 ### 前置
 
@@ -179,7 +179,7 @@ HTTP 层面：你的 Python 程序 `POST` 到 `/v1/chat/completions`（或兼容
 
 ### 设计草图：第一次调用 `[CODE-GATE: M1]`
 
-> 以下为设计草图；M1 实现后见 `source/02_llm/demos/provider_switching/`。
+> 以下为设计草图；M1 实现后见 `source/demos/02_provider_switching/`。
 
 ```python
 import os
@@ -341,7 +341,7 @@ print("content preview:", resp.choices[0].message.content[:300])
 ### `llm_core` 目标结构（设计输入）
 
 ```text
-source/02_llm/packages/llm_core/
+source/packages/llm_core/
 ├── client.py           # LLMClient（01）
 ├── providers/          # 多供应商（01）
 ├── prompts/            # 模板 registry（02）

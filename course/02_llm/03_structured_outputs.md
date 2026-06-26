@@ -195,7 +195,7 @@ for risk in risks:
 5. citation checker → 通过则返回 API / 否则拒答或降级
 ```
 
-Demo 路径：`source/02_llm/demos/structured_review_output/`。
+Demo 路径：`source/demos/02_structured_review_output/`。
 
 ### 解析失败类型
 

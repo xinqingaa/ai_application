@@ -50,19 +50,26 @@ B. 单节交付约定（正文后半）
 ## 代码组织建议
 
 ```text
-source/05_eval_observability/
+source/
 ├── packages/
 │   ├── eval_core/
 │   └── trace_core/
 ├── demos/
-│   ├── rag_eval_dashboard/
-│   ├── agent_trajectory_eval/
-│   ├── workflow_trace_demo/
-│   └── bad_case_review/
-└── README.md
+│   ├── 05_rag_eval_dashboard/
+│   ├── 05_agent_trajectory_eval/
+│   ├── 05_workflow_trace_demo/
+│   └── 05_bad_case_review/
+├── apps/
+│   └── review_assistant/
+└── python_base/
+
+review_assistant/                # 07_projects 起：完整产品（import source/packages）
+├── app/
+├── workbench/
+└── infra/
 ```
 
-`05/00` 创建 `eval_core`、`trace_core`；扩展 `03_rag/12` 已有 `rag_eval` 能力时 **import** 而非复制。与 `03_rag/12` 分工见上文。
+`05/00` 在 `source/packages/` 创建 `eval_core`、`trace_core`；扩展 `03_rag/12` 已有 `rag_eval` 能力时 **import** 而非复制。与 `03_rag/12` 分工见上文。
 
 ## 专题目录
 

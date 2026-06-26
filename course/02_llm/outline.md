@@ -59,7 +59,7 @@ B. 单节交付约定（正文后半）
 
 | 对照项 | 全课完成后的最小验收 |
 | --- | --- |
-| 调用 + 结构化 | `LLMClient` 可切换 provider；`structured_review_output` demo 可跑 |
+| 调用 + 结构化 | `LLMClient` 可切换 provider；`02_structured_review_output` demo 可跑 |
 | 流式 + 可靠性 | streaming demo 可跑；错误分类与有限重试可观测 |
 | package 收敛 | `llm_core` 模块齐全；供 `03_rag` import 的 README 与入口清晰 |
 
@@ -68,22 +68,28 @@ B. 单节交付约定（正文后半）
 ## 代码组织建议
 
 ```text
-source/02_llm/
+source/
 ├── packages/
 │   └── llm_core/
 ├── demos/
-│   ├── provider_switching/
-│   ├── structured_review_output/
-│   ├── streaming_chat/
-│   ├── context_budgeting/
-│   ├── reliability_demo/
-│   └── llm_harness_eval/
-└── README.md
+│   ├── 02_first_chat/
+│   ├── 02_provider_switching/
+│   ├── 02_structured_review_output/
+│   ├── 02_streaming_chat/
+│   ├── 02_context_budgeting/
+│   ├── 02_reliability_demo/
+│   └── 02_llm_harness_eval/
+├── apps/
+│   └── review_assistant/
+└── python_base/
+
+review_assistant/                # 07_projects 起：完整产品（import source/packages）
+├── app/
+├── workbench/
+└── infra/
 ```
 
-`llm_core` 是后续 RAG、Agent 和 Workflow 复用的模型调用底座。Demo 只验证关键机制，不要求每篇文档都配套脚本。
-
-**Package 约定**：`02_llm/00` 创建 `llm_core`（全仓库唯一实例）；后续课程与 `07_projects` 仅 `import` 并扩展，禁止 copy。
+`02_llm/00` 在 `source/packages/llm_core` 创建全仓库唯一实例；demo 使用 `02_` 前缀。后续课与根 `review_assistant/` 仅 `import` 扩展，禁止 copy。
 
 ## 专题目录
 

@@ -1,3 +1,6 @@
+# AI Application Learning Workspace — Python dependencies
+# Shared packages under source/packages/: pip install -e . (see pyproject.toml)
+
 # Core API
 fastapi
 uvicorn[standard]

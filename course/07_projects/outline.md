@@ -69,26 +69,32 @@ V0 固定 RAG
 ## 代码组织建议
 
 ```text
-source/07_projects/
-├── shared/
-│   ├── llm_core/
-│   ├── rag_core/
-│   ├── agent_core/
-│   ├── workflow_core/
-│   ├── eval_core/
-│   ├── trace_core/
-│   └── ai_ui/
-├── apps/
-│   └── review_assistant/
+review_assistant/                # 07 起唯一产品真源
+├── app/
+├── workbench/
 ├── infra/
 │   ├── docker-compose.yml
 │   ├── postgres/
 │   ├── redis/
 │   └── scripts/
 └── README.md
+
+# 共享包在 source/packages/（import，不 copy）
+source/
+├── packages/
+│   ├── llm_core/
+│   ├── rag_core/
+│   ├── agent_core/
+│   ├── workflow_core/
+│   ├── eval_core/
+│   ├── trace_core/
+│   └── ai_ui_protocol/
+├── demos/
+├── apps/review_assistant/       # 学习期壳（V0–V6 前）
+└── python_base/
 ```
 
-`shared/` 是各课 `*_core` 的**归拢目标目录**（`07/02` 起逐步 move，import 路径统一调整），不是第二套实现。`apps/review_assistant` import `shared` 中的包，按 **V0–V6** 递进交付可演示版本。
+根 `review_assistant/` **import** `source/packages/` 中的共享包，按 **V0–V6** 递进交付可演示版本。`02_shared_packages` 专题侧重产品如何依赖 `source/packages` 与 infra。
 
 ```text
 course/07_projects/

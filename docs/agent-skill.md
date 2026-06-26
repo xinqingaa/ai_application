@@ -82,9 +82,9 @@ AI Agent 应帮助用户：
 
 **默认任务粒度**：一次只完成**一个专题** = 一篇 `course/.../*.md` + 对应 `source/` 变更 + 完成标准可勾选。不要批量写多节文档而不写代码。
 
-**00 节**：创建本课 `packages/*_core/` 骨架 + 第一个 demo（如 `first_chat`）；见 learning-guide §6.4「00 代码上限」。
+**00 节**：在 `source/packages/` 创建或扩展 `*_core` + `source/demos/{课号}_*` demo；见 learning-guide §6.4「00 代码上限」。
 
-**01 起**：「本节实战」必须写真实文件路径、命令与预期输出；正文示例默认引用当节 `source/` 代码。
+**01 起**：「本节实战」必须写真实文件路径（`source/packages/`、`source/demos/` 或 `review_assistant/`）、命令与预期输出。
 
 不要从工具名或框架名直接开始。课程正文不是 outline 的扩写，也不是项目架构设计笔记。AI Agent 编写专题时必须先完成下面的判断。
 
@@ -186,7 +186,8 @@ AI Agent 在本仓库中设计课程、项目和代码时，必须记住：
 
 - **与当节文档同步**：一次只实现当前专题对应的 `source/` 变更；写完代码后正文引用真实入口，不用伪代码占位。
 - 每门课 **00** 仅建 package 壳 + 第一个 demo（见 learning-guide §6.4「00 代码上限」）；**01 起**在同一包上增量实现。
-- **单包 import**：每个 `*_core` 全仓库只有一个实例，后续一律 import 复用；禁止 copy 平行包。`07_projects` 阶段物理归拢路径，不重写。
+- **单包 import**：每个 `*_core` 位于 `source/packages/`，全仓库唯一实例；禁止 copy 平行包。
+- `source/apps/review_assistant/` 为学习期 app；根 `review_assistant/` 为 `07_projects` 产品真源。
 - `03_rag` 等以最小实现跑通；`06_ai_native` 在同一包上加深工程整合。
 - 优先围绕主项目能力组织，不为了章节完整性造脚本。
 - 保证可运行、可验证、可解释；README 写清命令与预期输出。
@@ -235,6 +236,7 @@ AI Agent 在本仓库中设计课程、项目和代码时，必须记住：
 - 只写系统设计问题，不解释学习者真实问题。
 - 用伪代码或设计草图替代当节真实 `source/` 入口（概念示意例外见上文）。
 - 在 00 预建后续节模块或完整基础设施（见 learning-guide §6.4）。
+- 在 `source/0x_*` 按课程编号镜像建 package（应使用 `source/packages/`）。
 - 在长期文档里记录实时学习进度。
 - 编写大量历史迁移说明。
 - 过早引入复杂 Agent 平台。

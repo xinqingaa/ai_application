@@ -10,7 +10,7 @@
 
 这门课不是只学习“文档切分、向量化、检索、生成”这条固定流程，而是系统理解企业知识如何进入模型上下文，并进一步把固定 RAG 做成可引用、可拒答、可评估、可治理、可迭代、可追问的知识助手。
 
-本课程与 `00_archive/03_rag` **无继承关系**；新 `source/03_rag` 从零设计，围绕需求评审助手**能力**组织，不为章节堆脚本。
+本课程与 [archive/](../../archive/) **无继承关系**；新 `source/packages/` 从零设计，围绕需求评审助手**能力**组织，不为章节堆脚本。
 
 ### 实现深度（与 `06_ai_native` 分工）
 
@@ -75,28 +75,33 @@ B. 单节交付约定（正文后半）
 ## 代码组织建议
 
 ```text
-source/03_rag/
+source/
 ├── packages/
 │   ├── rag_core/
 │   ├── rag_eval/
 │   └── rag_memory/
 ├── demos/
-│   ├── minimal_rag/
-│   ├── document_ingestion_pipeline/
-│   ├── complex_document_demo/
-│   ├── chunking_comparison/
-│   ├── retrieval_comparison/
-│   ├── sources_refusal_demo/
-│   ├── rag_eval_demo/
-│   └── single_agent_rag_demo/
+│   ├── 03_minimal_rag/
+│   ├── 03_document_ingestion_pipeline/
+│   ├── 03_complex_document_demo/
+│   ├── 03_chunking_comparison/
+│   ├── 03_retrieval_comparison/
+│   ├── 03_sources_refusal_demo/
+│   ├── 03_rag_eval_demo/
+│   └── 03_single_agent_rag_demo/
 ├── apps/
-│   └── review_assistant_v0/
-└── README.md
+│   └── review_assistant/
+└── python_base/
+
+review_assistant/                # 07_projects 起：完整产品（import source/packages）
+├── app/
+├── workbench/
+└── infra/
 ```
 
-`rag_core` 是主链路底座，`rag_eval` 是评估与回归底座，`rag_memory` 先保持轻量，`single_agent_rag_demo` 验证单 Agent 知识助手，`review_assistant_v0` 为课程内可运行 demo（**项目版本 V0–V3 的正式收敛**在 `07_projects`）。
+`rag_core` 是主链路底座，`rag_eval` 是评估与回归底座，`rag_memory` 先保持轻量。V0–V3 学习期在 `source/apps/review_assistant/` 串联；作品化在根 `review_assistant/`。
 
-各 package 全仓库**单实例**：后续课与 `07_projects` 仅 `import` 并扩展，归拢时移动路径而非复制。
+各 package 全仓库**单实例**：后续课与根 `review_assistant/` 仅 `import` 并扩展，禁止 copy。
 
 ## 专题目录
 

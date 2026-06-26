@@ -30,19 +30,17 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 设计 RAG、Agent、Workflow、AI Native 和项目时，可参考 `docs/ai-application-platform.md` 的远期能力地图，以及 `other/` 下 MaxKB、RAGFlow 的设计思路；当前阶段以 `docs/strategy.md` 和需求评审助手闭环为准。
 - AI Coding 是预期开发方式；掌握标准以 [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md) 的代码所有权为准，不以谁敲键盘判断学会。
 
-## 与 00_archive 的关系
+## 与 archive 的关系
 
-- `00_archive` 是**过渡保留**，与新课程 `02_llm`–`07_projects` **无学习路径关系**，不是新版大纲的改写基础。
+- [archive/](archive/) 存放历史课程式代码与文档，与新课程 `02_llm`–`07_projects` **无学习路径关系**。
 - 新文档和新代码**默认不依赖** archive；编写时最多偶发参考某个机制或设计思路。
-- 旧学习模式（一篇文档 ↔ 一个目录 ↔ 大量脚本）已废弃；新内容围绕 `packages / demos / apps` 与项目版本（V0–V6）组织。
-- AI Agent 处理新课程或新项目任务时，**不应主动读取、映射或对照** `00_archive/`，除非用户明确要求。
-- 旧资料可能因 demo 化、无主目标而对新设计产生干扰，默认以当前 `course/` 大纲和 `docs/` 规范为准。
+- 旧学习模式（一篇文档 ↔ 一个目录 ↔ 大量脚本）已废弃；新内容围绕 `source/packages`、`source/demos`、`source/apps` 与根 `review_assistant/` 组织。
+- AI Agent 处理新课程或新项目任务时，**不应主动读取、映射或对照** `archive/`，除非用户明确要求。
 
 ## 内容规则
 
-- `00_archive` 仅作过渡保留，见上一节；不主动扩展或重构。
-- `01_python` 作为已完成的 Python 基础，不主动重构，除非用户明确要求。
-- `99_foundation` 作为非主线知识补充区，不前置、不扩展为新的主线课程。
+- `archive/` 仅作过渡保留，见上一节；不主动扩展或重构。
+- `python_base` 作为已完成的 Python 基础，不主动重构，除非用户明确要求。
 - `02_llm`、`03_rag`、`04_agent`、`05_eval_observability`、`06_ai_native` 和 `07_projects` 围绕需求评审助手继续评估和收敛。
 - 后续的课程、项目和代码必须遵循 [docs/learning-guide.md](docs/learning-guide.md)。
 - 后续的课程、项目和代码不应把 AI 应用简化成聊天 UI 或单点 Demo；`docs/ai-application-platform.md` 作为远期平台化方向参考，不作为当前阶段的完整验收标准。
@@ -62,7 +60,8 @@ AI Agent 在处理本仓库任务前，优先阅读：
 
 - 新代码优先围绕主项目闭环组织。
 - 项目按 V0 / V1 / V2 … V6 逐步完善（**项目版本轴**，与课程目录编号无关）。
-- 每个能力域只维护**一个** package（如 `llm_core`），全仓库 **import 复用**，禁止 copy 平行实现；`07_projects` 阶段物理归拢到统一目录。
+- 每个能力域只维护**一个** package（位于 `source/packages/`），全仓库 **import 复用**，禁止 copy 平行实现。
+- 学习期 app：`source/apps/review_assistant/`；`07_projects` 起可部署产品在根 `review_assistant/`。
 - 可以有多个 package，但每个 package 必须有清晰职责、单一实例。
 - 必须明确入口、运行方式、完成标准和能力边界。
 - 不为了章节完整性硬造脚本。

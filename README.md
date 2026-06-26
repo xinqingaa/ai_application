@@ -26,7 +26,7 @@ B. 单节交付约定
 
 学习重点不是机械完成每个章节，而是能解释一个 AI 应用为什么这样设计、如何运行、在哪里失败、怎样被评估，以及如何被做成可交付的产品体验。
 
-文档负责沉淀问题、原理、边界和完成标准；代码通过 **import 复用同一套 package**、逐节增量完善，最终在 `07_projects` 归拢为完整项目。
+文档负责沉淀问题、原理、边界和完成标准；代码通过 **import 复用 `source/packages/`**、逐节增量完善；`07_projects` 在根目录 [review_assistant/](review_assistant/) 作品化。
 
 ## 目录结构
 
@@ -34,36 +34,32 @@ B. 单节交付约定
 .
 ├── README.md
 ├── AGENTS.md
+├── archive/              # 历史课程代码与文档（主线不依赖）
 ├── docs/
 ├── course/
-│   ├── 00_archive/
-│   ├── 01_python/
+│   ├── python_base/
 │   ├── 02_llm/
 │   ├── 03_rag/
 │   ├── 04_agent/
 │   ├── 05_eval_observability/
 │   ├── 06_ai_native/
-│   ├── 07_projects/
-│   └── 99_foundation/
-└── source/
-    ├── 00_archive/
-    ├── 01_python/
-    ├── 02_llm/
-    ├── 03_rag/
-    ├── 04_agent/
-    ├── 05_eval_observability/
-    ├── 06_ai_native/
-    ├── 07_projects/
-    └── 99_foundation/
+│   └── 07_projects/
+├── review_assistant/       # 07 起完整可部署产品
+├── source/
+│   ├── packages/           # llm_core, rag_core, …
+│   ├── demos/
+│   ├── apps/review_assistant/
+│   └── python_base/
+└── requirements.txt
 ```
 
 ## 目录职责
 
 - `docs/`：长期有效的战略、学习设计和 AI Agent 协作规范。
 - `course/`：课程正文、专题文档、项目规划和阶段性学习内容。
-- `source/`：课程配套代码、项目代码、示例、数据集和评估资源。
-- `00_archive/`：早期课程式结构归档，不作为当前主线。
-- `99_foundation/`：非主线知识补充区，按问题回看。
+- `source/`：扁平化的共享 package、demo、学习期 app 与 Python 基础练习。
+- `review_assistant/`：`07_projects` 起的可部署产品与作品化入口。
+- `archive/`：历史课程式资料归档，不作为当前主线。
 
 ## 核心文档
 
@@ -74,4 +70,4 @@ B. 单节交付约定
 
 ## 说明
 
-`00_archive/` 中保留的早期课程式文档和代码不作为当前主线，后续新内容以 `docs/` 下当前规范为准。
+历史课程式文档和代码在 `archive/`，不作为当前主线；新内容以 `docs/` 下当前规范为准。

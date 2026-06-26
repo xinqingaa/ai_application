@@ -60,21 +60,28 @@ B. 单节交付约定（正文后半）
 ## 代码组织建议
 
 ```text
-source/04_agent/
+source/
 ├── packages/
 │   ├── agent_core/
 │   └── workflow_core/
 ├── demos/
-│   ├── tool_calling_runtime/
-│   ├── agent_loop_minimal/
-│   ├── langchain_agent_patterns/
-│   ├── langgraph_workflow/
-│   ├── human_in_the_loop/
-│   └── multi_agent_review_demo/
-└── README.md
+│   ├── 04_tool_calling_runtime/
+│   ├── 04_agent_loop_minimal/
+│   ├── 04_langchain_agent_patterns/
+│   ├── 04_langgraph_workflow/
+│   ├── 04_human_in_the_loop/
+│   └── 04_multi_agent_review_demo/
+├── apps/
+│   └── review_assistant/
+└── python_base/
+
+review_assistant/                # 07_projects 起：完整产品（import source/packages）
+├── app/
+├── workbench/
+└── infra/
 ```
 
-`04/00` 创建 `agent_core`、`workflow_core`（若尚不存在）；`import` `llm_core`、`rag_core` 等上游包，单实例扩展，禁止 copy。
+`04/00` 在 `source/packages/` 创建 `agent_core`、`workflow_core`（若尚不存在）；`import` `llm_core`、`rag_core` 等上游包，单实例扩展，禁止 copy。
 
 ## 专题目录
 

@@ -22,4 +22,4 @@
 - 代码实现细节
 - 临时迁移说明
 
-课程正文放在 `course/`，课程配套代码和项目代码放在 `source/`。
+课程正文放在 `course/`；共享 package 与 demo 在 `source/packages/`、`source/demos/`；`07_projects` 可部署产品在根 `review_assistant/`。
