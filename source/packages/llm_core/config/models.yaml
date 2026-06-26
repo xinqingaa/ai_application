@@ -1,0 +1,54 @@
+# llm_core model registry — keys via environment variables only.
+# ${OPENAI_MODEL:-gpt-4o-mini} uses env value or default after :-
+
+chat:
+  dev_chat:
+    role: chat
+    provider: openai_compat
+    model: ${OPENAI_MODEL:-gpt-4o-mini}
+    base_url: ${OPENAI_BASE_URL}
+    api_key_env: OPENAI_API_KEY
+    default_params:
+      temperature: 0.2
+      max_tokens: 2048
+    capabilities:
+      context_length: 128000
+      streaming: true
+      tool_calling: true
+      structured_output: true
+      cost_tier: low
+
+  structured_chat:
+    role: chat
+    provider: openai_compat
+    model: ${OPENAI_STRUCTURED_MODEL:-gpt-4o}
+    base_url: ${OPENAI_BASE_URL}
+    api_key_env: OPENAI_API_KEY
+    default_params:
+      temperature: 0
+      max_tokens: 4096
+    capabilities:
+      structured_output: true
+      cost_tier: medium
+
+  fallback_chat:
+    role: chat
+    provider: openai_compat
+    model: ${OPENAI_FALLBACK_MODEL:-gpt-4o-mini}
+    base_url: ${OPENAI_BASE_URL}
+    api_key_env: OPENAI_API_KEY
+    default_params:
+      temperature: 0
+      max_tokens: 2048
+    capabilities:
+      cost_tier: low
+
+embedding:
+  default_embed:
+    role: embedding
+    provider: openai_compat
+    model: text-embedding-3-small
+    api_key_env: OPENAI_API_KEY
+    base_url: ${OPENAI_BASE_URL}
+    capabilities:
+      cost_tier: low

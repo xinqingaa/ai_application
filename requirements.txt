@@ -48,3 +48,4 @@ pytest-asyncio
 
 # Dev Tools
 ruff
+pyyaml

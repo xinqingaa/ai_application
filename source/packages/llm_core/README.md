@@ -2,40 +2,43 @@
 
 需求评审助手的 **LLM 模型交互底座**，供 RAG、Agent、Workflow 与评估观测复用。
 
-## 职责边界
+## 当前进度（02_llm/01）
 
-| 负责 | 不负责 |
-| --- | --- |
-| 统一模型调用、Prompt、Schema、usage 记录 | 文档入库与向量检索（`rag_core`） |
-| Provider 切换与错误分类（01 起） | Tool 执行与多 Agent 编排（`agent_core`） |
-| 流式事件、上下文预算、harness（04–07） | 完整评审业务与人工审批流程 |
+```text
+llm_core/
+├── client.py              # LLMClient.chat(config_ref)
+├── config.py              # ModelConfig, LLMResponse, TokenUsage
+├── errors.py              # LLMError, LLMErrorCode
+├── observability.py       # format_call_log / print_call_log
+├── config/models.yaml     # 配置真源
+└── providers/
+    ├── openai_compat.py
+    └── registry.py
+```
 
-## 当前进度（02_llm/00）
+- 00 demo（直调 SDK）：[../../demos/02_first_chat/](../../demos/02_first_chat/)
+- 01 demo（`LLMClient`）：[../../demos/02_provider_switching/](../../demos/02_provider_switching/)
 
-- 本目录为 **package 壳**（`__version__` 可 import）。
-- 第一个可运行 demo：[../../demos/02_first_chat/](../../demos/02_first_chat/) — 直接用 OpenAI SDK 完成最小 chat，观察 `usage` 与 `latency_ms`。
-- `LLMClient`、`providers/`、`models.yaml` 等从 **01** 起在本包内实现。
+## 快速使用
+
+```python
+from llm_core import LLMClient
+
+client = LLMClient.from_default_config()
+messages = [
+    {"role": "system", "content": "你是需求评审助手。"},
+    {"role": "user", "content": "请列出 2 条风险。"},
+]
+resp = client.chat(messages, "chat.dev_chat", debug=True)
+print(resp.content, resp.usage, resp.latency_ms)
+```
 
 ## 安装
 
 ```bash
-# 仓库根目录
-pip install -e .
-python -c "import llm_core; print(llm_core.__version__)"
+pip install -e .   # 仓库根目录
 ```
 
-## 目标结构（全课收敛对照，非 00 预建）
+密钥通过环境变量配置，见根目录 `.env.example`。
 
-```text
-llm_core/
-├── client.py           # 01
-├── providers/          # 01
-├── prompts/            # 02
-├── schemas/            # 03
-├── context/            # 05
-├── streaming/          # 04
-├── reliability/        # 06
-└── harness/            # 07
-```
-
-详见 [course/02_llm/00_llm_problem_space.md](../../../course/02_llm/00_llm_problem_space.md)。
+详见 [course/02_llm/01_model_api_and_provider_abstraction.md](../../../course/02_llm/01_model_api_and_provider_abstraction.md)。
