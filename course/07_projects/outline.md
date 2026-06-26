@@ -250,9 +250,28 @@ course/07_projects/
 - eval 对比必须能关联配置版本。
 - 不做应用发布市场、API Key 平台或嵌入页。
 
+### 基础设施优先级（对齐 strategy P0 / P1）
+
+| 优先级 | 能力 | 本项目落点 | V 阶段 |
+| --- | --- | --- | --- |
+| **P0 必做** | FastAPI 服务与 API 分层 | chat / rag / review / agent / eval | V0+ |
+| **P0** | PostgreSQL 业务表 + pgvector | Document、Chunk、Embedding、ReviewRun | V0+ |
+| **P0** | 环境变量与密钥管理 | `.env` + 配置 schema | V0 |
+| **P0** | 文件上传与本地存储目录 | upload API + storage path | V0 |
+| **P0** | 基础日志与统一错误响应 | request_id、结构化 log | V0 |
+| **P0** | 后台任务：解析、索引、批量 eval | IngestionJob + worker（见 `03_rag/06`） | V0–V2 |
+| **P0** | Docker Compose 本地一键启动 | API + Postgres + Redis（+ 前端） | V6 demo |
+| **P1 逐步** | Redis：任务状态、缓存、限流 | job status、可选 session | V1+ |
+| **P1** | 任务队列方案择一 | Celery / RQ / arq | V1+ |
+| **P1** | 对象存储认知 | 本地目录先行；MinIO/S3 作 P1 扩展 | V4+ |
+| **P1** | 基础监控：耗时、成本、失败率 | 接入 `trace_core` / 质量面板 | V2+ |
+| **P2 仅认知** | K8s、CI/CD、灰度、多租户、完整告警 | 不在当前交付范围 | — |
+
+**检查清单（§02 完成标准）**：Docker Compose 一键启动成功；upload → IngestionJob → completed 可观测；ReviewRun 可关联 Config 版本；不在 P0 阶段引入 K8s / 多租户。
+
 ### 最小实现
 
-- 用 Docker Compose 启动 API + PostgreSQL + Redis。
+- 用 Docker Compose 启动 API + PostgreSQL（pgvector）+ Redis + worker。
 - 建立环境变量配置。
 - 跑通一次文档索引后台任务。
 

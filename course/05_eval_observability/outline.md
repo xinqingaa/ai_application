@@ -8,6 +8,12 @@
 
 这一门课不重新学习 LangChain 或 LangGraph 的主功能，而是围绕 RAG、Agent、Workflow 和项目建立评估集、trace、指标、bad case、回归测试和反馈闭环。
 
+### 与 `03_rag/12` 的分工
+
+- `03_rag/12` 已建立 RAG golden set、`rag_eval` 与 citation/refusal 最小指标（V2）。
+- 本课程**不重复** RAG eval 入门，而是从已有 `rag_eval` 出发，扩展 Agent trajectory、Workflow path、trace、版本回归、工程契约测试与质量面板（V4–V6）。
+- 若尚未完成 V2，可先只做 `03_rag/12`，再进入本课程专题 01–04。
+
 ## 学习链路
 
 每个专题都遵循统一链路：
