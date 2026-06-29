@@ -34,7 +34,7 @@ AI Agent 在处理本仓库任务前，优先阅读：
 
 - [archive/](archive/) 存放历史课程式代码与文档，与新课程 `02_llm`–`07_projects` **无学习路径关系**。
 - 新文档和新代码**默认不依赖** archive；编写时最多偶发参考某个机制或设计思路。
-- 旧学习模式（一篇文档 ↔ 一个目录 ↔ 大量脚本）已废弃；新内容围绕 `source/packages`、`source/demos`、`source/apps` 与根 `review_assistant/` 组织。
+- 旧学习模式（一篇文档 ↔ 一个目录 ↔ 大量脚本）已废弃；新内容围绕 `source/packages`、`source/demos` 与根 `review_assistant/` 组织（详见 learning-guide §6.4）。
 - AI Agent 处理新课程或新项目任务时，**不应主动读取、映射或对照** `archive/`，除非用户明确要求。
 
 ## 内容规则
@@ -45,6 +45,8 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 后续的课程、项目和代码必须遵循 [docs/learning-guide.md](docs/learning-guide.md)。
 - 后续的课程、项目和代码不应把 AI 应用简化成聊天 UI 或单点 Demo；`docs/ai-application-platform.md` 作为远期平台化方向参考，不作为当前阶段的完整验收标准。
 - 课程编排可以继续讨论和演进，不要在未确认前创建过重目录结构。
+- **禁止预建占位**：无用户明确指令，不得创建 `.gitkeep`、空 package、空 demo、空 app；目录仅在当节文档 + 代码落地时创建（learning-guide §6.4）。
+- **不为一节一 demo**；主战场是 `source/packages/` 增量。`outline.md` 与 `docs/` 规范文档不为对齐目录而频繁改动。
 - 新内容优先围绕需求评审助手、AI 应用主链路、RAG、Agent、Workflow、评估观测和 AI Native 工作台展开。
 
 ## 文档规则
@@ -61,7 +63,7 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 新代码优先围绕主项目闭环组织。
 - 项目按 V0 / V1 / V2 … V6 逐步完善（**项目版本轴**，与课程目录编号无关）。
 - 每个能力域只维护**一个** package（位于 `source/packages/`），全仓库 **import 复用**，禁止 copy 平行实现。
-- 学习期 app：`source/apps/review_assistant/`；`07_projects` 起可部署产品在根 `review_assistant/`。
+- 学习期 app 在 `source/apps/`（当节正文落地时创建）；`07_projects` 起可部署产品在根 `review_assistant/`。
 - 可以有多个 package，但每个 package 必须有清晰职责、单一实例。
 - 必须明确入口、运行方式、完成标准和能力边界。
 - 不为了章节完整性硬造脚本。

@@ -67,27 +67,7 @@ B. 单节交付约定（正文后半）
 
 ## 代码组织建议
 
-```text
-source/
-├── packages/
-│   └── llm_core/
-├── demos/
-│   ├── 02_first_chat/
-│   ├── 02_provider_switching/
-│   ├── 02_structured_review_output/
-│   ├── 02_streaming_chat/
-│   ├── 02_context_budgeting/
-│   ├── 02_reliability_demo/
-│   └── 02_llm_harness_eval/
-├── apps/
-│   └── review_assistant/
-└── python_base/
-
-review_assistant/                # 07_projects 起：完整产品（import source/packages）
-├── app/
-├── workbench/
-└── infra/
-```
+`source/` 目录规范与 demo 策略见 [learning-guide.md](../../docs/learning-guide.md) §6.4、§10；**当前实物清单**见 [source/README.md](../../source/README.md)。本节 outline **不维护**与代码一一对应的文件树，避免频繁同步。
 
 `02_llm/00` 在 `source/packages/llm_core` 创建全仓库唯一实例；demo 使用 `02_` 前缀。后续课与根 `review_assistant/` 仅 `import` 扩展，禁止 copy。
 

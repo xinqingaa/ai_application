@@ -340,14 +340,15 @@ course/
 
 ```text
 source/
-├── packages/              # llm_core, rag_core, … 全仓库单实例
-├── demos/                 # {课号}_{名称}
-├── apps/
-│   └── review_assistant/  # 学习期应用壳
+├── packages/              # *_core 全仓库单实例，按课增量创建
+├── demos/                 # 关键 demo；非每节必建
+├── apps/                  # 学习期应用壳，当节落地时创建
 └── python_base/           # 已完成 Python 练习
 
 review_assistant/          # 07 起可部署产品（import source/packages）
 ```
+
+目录真源与禁止占位见 [learning-guide.md](learning-guide.md) §6.4；当前实物见 [source/README.md](../source/README.md)。
 
 历史资料见根目录 [archive/](../archive/)，主线不依赖。
 

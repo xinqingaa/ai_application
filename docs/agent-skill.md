@@ -187,7 +187,8 @@ AI Agent 在本仓库中设计课程、项目和代码时，必须记住：
 - **与当节文档同步**：一次只实现当前专题对应的 `source/` 变更；写完代码后正文引用真实入口，不用伪代码占位。
 - 每门课 **00** 仅建 package 壳 + 第一个 demo（见 learning-guide §6.4「00 代码上限」）；**01 起**在同一包上增量实现。
 - **单包 import**：每个 `*_core` 位于 `source/packages/`，全仓库唯一实例；禁止 copy 平行包。
-- `source/apps/review_assistant/` 为学习期 app；根 `review_assistant/` 为 `07_projects` 产品真源。
+- 学习期 app 在 `source/apps/`（当节正文落地时创建）；根 `review_assistant/` 为 `07_projects` 产品真源。
+- **禁止预建占位**（`.gitkeep`、空目录）：见 learning-guide §6.4；无用户明确指令不得创建。
 - `03_rag` 等以最小实现跑通；`06_ai_native` 在同一包上加深工程整合。
 - 优先围绕主项目能力组织，不为了章节完整性造脚本。
 - 保证可运行、可验证、可解释；README 写清命令与预期输出。

@@ -45,10 +45,9 @@ B. 单节交付约定
 │   ├── 06_ai_native/
 │   └── 07_projects/
 ├── review_assistant/       # 07 起完整可部署产品
-├── source/
-│   ├── packages/           # llm_core, rag_core, …
+├── source/                 # 见 source/README.md（当前实物清单）
+│   ├── packages/
 │   ├── demos/
-│   ├── apps/review_assistant/
 │   └── python_base/
 └── requirements.txt
 ```
@@ -57,7 +56,7 @@ B. 单节交付约定
 
 - `docs/`：长期有效的战略、学习设计和 AI Agent 协作规范。
 - `course/`：课程正文、专题文档、项目规划和阶段性学习内容。
-- `source/`：扁平化的共享 package、demo、学习期 app 与 Python 基础练习。
+- `source/`：扁平化的共享 package、demo 与 Python 基础练习（规范见 learning-guide §6.4）。
 - `review_assistant/`：`07_projects` 起的可部署产品与作品化入口。
 - `archive/`：历史课程式资料归档，不作为当前主线。
 
