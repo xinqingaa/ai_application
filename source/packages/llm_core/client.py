@@ -4,10 +4,20 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from pydantic import BaseModel
+
 from llm_core.config import LLMResponse, ModelConfig
 from llm_core.errors import LLMError, LLMErrorCode
-from llm_core.observability import print_call_log
+from llm_core.observability import demo_log, render_call_log
 from llm_core.providers.registry import ConfigRegistry
+from llm_core.schemas.review import ReviewRiskList
+from llm_core.structured import (
+    StructuredLLMResponse,
+    StructuredMode,
+    build_response_format,
+    merge_chat_request_params,
+    parse_structured_content,
+)
 
 
 class LLMClient:
@@ -51,6 +61,50 @@ class LLMClient:
 
         if debug:
             merged = {**config.default_params, **params, "model": config.model}
-            print_call_log(messages, merged, response)
+            render_call_log(demo_log, messages, merged, response)
 
         return response
+
+    def chat_structured(
+        self,
+        messages: list[dict[str, str]],
+        config_ref: str,
+        *,
+        response_model: type[BaseModel] = ReviewRiskList,
+        structured_mode: StructuredMode = "json_schema",
+        schema_name: str = "review_risk_list",
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        debug: bool = False,
+        **kwargs: Any,
+    ) -> StructuredLLMResponse:
+        """Chat with optional response_format, then parse content into ReviewRisk list."""
+        config = self._registry.get_config(config_ref)
+        call_params: dict[str, Any] = dict(kwargs)
+        response_format = build_response_format(
+            response_model,
+            structured_mode,
+            schema_name=schema_name,
+        )
+        if response_format is not None:
+            call_params["response_format"] = response_format
+        if temperature is not None:
+            call_params["temperature"] = temperature
+        if max_tokens is not None:
+            call_params["max_tokens"] = max_tokens
+
+        request_params = merge_chat_request_params(config, call_params)
+
+        llm = self.chat(
+            messages,
+            config_ref,
+            debug=debug,
+            **call_params,
+        )
+        parse = parse_structured_content(llm.content)
+        return StructuredLLMResponse(
+            llm=llm,
+            parse=parse,
+            structured_mode=structured_mode,
+            request_params=request_params,
+        )

@@ -7,10 +7,10 @@
 ```text
 source/
 ├── packages/
-│   └── llm_core/          # 02_llm/00–01
+│   └── llm_core/          # 02_llm/00–03
 ├── demos/
 │   ├── 02_first_chat/     # 02_llm/00
-│   └── 02_provider_switching/   # 02_llm/01
+│   └── 02_provider_switching/   # 02_llm/01–03（含 structured_risk.py）
 └── python_base/           # 已完成 Python 基础练习
 ```
 

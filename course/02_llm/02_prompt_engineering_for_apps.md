@@ -456,7 +456,7 @@ python prompt_compare.py
 
 - 新增 `llm_core.prompts`（`get_prompt`、`render_prompt`、三份 `review.risk_review` YAML）与 demo `prompt_compare.py`。  
 - 需求评审助手具备：**按任务版本渲染 messages、与 01 的 `LLMClient` 衔接**；风险审查可在固定样例上受控对比。  
-- 下一节 [03_structured_outputs.md](03_structured_outputs.md) 将在 v3 的「JSON 意图」之上，落地 Schema、校验与 `structured_chat`。
+- 下一节 [03_structured_outputs.md](03_structured_outputs.md) 将在 v3 的「JSON 意图」之上，落地 Pydantic Schema、`response_format` 与 `parse_risk_list` 校验闭环。
 
 ---
 

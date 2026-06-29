@@ -10,17 +10,16 @@
 from __future__ import annotations
 
 import argparse
-import sys
 
 from llm_core import LLMClient
-from llm_core.config import LLMResponse
 from llm_core.errors import LLMError
-from llm_core.observability import format_call_log
+from llm_core.observability import demo_log
 
 from _shared import (
     find_and_load_env,
     load_sample,
-    print_results_table,
+    log_chat_result,
+    log_experiment_header,
     require_api_key,
 )
 
@@ -49,7 +48,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="表后打印完整 messages / 参数 / 响应",
+        help="输出完整 messages / 参数 / 响应",
     )
     parser.add_argument(
         "--temperature",
@@ -63,46 +62,44 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     find_and_load_env()
-    require_api_key()
+    require_api_key(demo_log)
 
-    sample = load_sample(args.sample)
+    sample = load_sample(args.sample, demo_log)
     messages = build_messages(sample["user_content"])
     config_refs = [c.strip() for c in args.configs.split(",") if c.strip()]
 
     client = LLMClient.from_default_config()
 
-    print(f"sample: {sample['id']} ({sample['type']}) — {sample['summary']}")
-    print(f"configs: {', '.join(config_refs)}")
-    if args.temperature is not None:
-        print(f"temperature override: {args.temperature}")
+    log_experiment_header(
+        demo_log,
+        sample=sample,
+        configs=", ".join(config_refs),
+        temperature=args.temperature,
+    )
 
     chat_kwargs: dict = {}
     if args.temperature is not None:
         chat_kwargs["temperature"] = args.temperature
 
-    results: list[tuple[str, LLMResponse | LLMError]] = []
     for config_ref in config_refs:
         try:
             response = client.chat(messages, config_ref, debug=False, **chat_kwargs)
-        except LLMError as exc:
-            results.append((config_ref, exc))
-            continue
-        results.append((config_ref, response))
-
-    print_results_table(results, header_label="config_ref")
-
-    if args.verbose:
-        print("\n【详细日志】")
-        for config_ref, item in results:
-            if isinstance(item, LLMError):
-                print(f"\n>>> verbose: {config_ref} (ERROR)\n{item}")
-                continue
             config = client.get_config(config_ref)
             merged = {**config.default_params, **chat_kwargs, "model": config.model}
-            print(f"\n>>> verbose: {config_ref}")
-            print(format_call_log(messages, merged, item))
+            log_chat_result(
+                demo_log,
+                config_ref,
+                response,
+                verbose=args.verbose,
+                messages=messages if args.verbose else None,
+                params=merged if args.verbose else None,
+            )
+        except LLMError as exc:
+            log_chat_result(demo_log, config_ref, exc)
 
-    print("对比实验建议：固定 sample=S2，只换 config_ref 或 temperature，在笔记中记录 notes。")
+    demo_log.hint(
+        "固定 sample，只换 config_ref 或 temperature，在笔记中记录差异。"
+    )
 
 
 if __name__ == "__main__":

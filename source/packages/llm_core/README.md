@@ -2,54 +2,64 @@
 
 需求评审助手的 **LLM 模型交互底座**，供 RAG、Agent、Workflow 与评估观测复用。
 
-## 当前进度（02_llm/02）
+## 当前进度（02_llm/03）
 
 ```text
 llm_core/
-├── client.py
-├── config.py / config/models.yaml
-├── errors.py
-├── observability.py
-├── prompts/                 # 02：YAML 模板 + render
-│   └── review/
-│       ├── risk_review_v1.yaml
-│       ├── risk_review_v2.yaml
-│       └── risk_review_v3.yaml
+├── client.py              # chat + chat_structured
+├── structured.py            # build_response_format, StructuredLLMResponse
+├── schemas/
+│   ├── review.py          # ReviewRisk, ReviewRiskList — Schema 真源
+│   └── parse.py           # parse_risk_list, StructuredParseResult
+├── prompts/review/        # v1–v4 risk_review
 └── providers/
 ```
 
-每个 yaml 含 `prompt_id` 与 `version` 字段；`get_prompt(id, version)` **按字段匹配**，文件名 `risk_review_v1.yaml` 等仅为可读性。与 demo 配置对照见 02 正文。
+- 00：[../../demos/02_first_chat/](../../demos/02_first_chat/)
+- 01：[provider_switching.py](../../demos/02_provider_switching/provider_switching.py)
+- 02：[prompt_compare.py](../../demos/02_provider_switching/prompt_compare.py)
+- 03：[structured_risk.py](../../demos/02_provider_switching/structured_risk.py)
 
-- 00 demo：[../../demos/02_first_chat/](../../demos/02_first_chat/)
-- 01 demo：[../../demos/02_provider_switching/provider_switching.py](../../demos/02_provider_switching/provider_switching.py)
-- 02 demo：[../../demos/02_provider_switching/prompt_compare.py](../../demos/02_provider_switching/prompt_compare.py)
+## 03 结构化输出：三层模型
 
-## 快速使用（01 调用）
-
-```python
-from llm_core import LLMClient
-
-client = LLMClient.from_default_config()
-messages = [
-    {"role": "system", "content": "你是需求评审助手。"},
-    {"role": "user", "content": "请列出 2 条风险。"},
-]
-resp = client.chat(messages, "chat.dev_chat", debug=True)
+```text
+Prompt（软描述）→ response_format（API 约束）→ Pydantic（应用契约，始终执行）
 ```
 
-## 快速使用（02 Prompt）
+日志与 demo 输出统一经 `llm_core.observability.DemoLog`（`[tag]` 块）。
+
+| 层 | 模块 | 作用 |
+| --- | --- | --- |
+| Schema 真源 | `schemas/review.py` | `ReviewRisk`, `ReviewRiskList`, 枚举 |
+| Pydantic → API | `structured.build_response_format` | `none` / `json_object` / `json_schema` |
+| 统一调用 | `client.chat_structured` | 调 API + `parse_risk_list` |
+| 解析 | `schemas/parse.py` | `error_stage`: `empty` / `json` / `schema` |
+
+## 快速使用
 
 ```python
-from llm_core import LLMClient
+from llm_core import LLMClient, demo_log, parse_risk_list, ReviewRiskList
 from llm_core.prompts import get_prompt, render_prompt
 
-tpl = get_prompt("review.risk_review", version="2.0.0")
-messages = render_prompt(tpl, {
-    "requirement_text": "【PRD 片段】…",
-    "evidence_block": "（检索证据或静态 fixture）",
-})
-resp = client.chat(messages, tpl.model_config_ref, temperature=0)
+# 本地解析（不调用 API）
+result = parse_risk_list('{"risks":[{"title":"…","category":"api","level":"high","rationale":"…"}]}')
+assert result.ok
+
+# 端到端
+client = LLMClient.from_default_config()
+tpl = get_prompt("review.risk_review", version="4.0.0")
+messages = render_prompt(tpl, {"requirement_text": "…", "evidence_block": "…"})
+out = client.chat_structured(
+    messages,
+    "chat.dev_chat",
+    structured_mode="json_object",  # none | json_object | json_schema
+)
+if out.parse.ok:
+    for risk in out.parse.risks:  # list[ReviewRisk]
+        print(risk.category, risk.level, risk.title)
 ```
+
+`json_schema` 模式使用 `ReviewRiskList.model_json_schema()` 构造 API 的 `response_format`。
 
 ## 安装
 
@@ -57,4 +67,4 @@ resp = client.chat(messages, tpl.model_config_ref, temperature=0)
 pip install -e .   # 仓库根目录
 ```
 
-详见 [course/02_llm/02_prompt_engineering_for_apps.md](../../../course/02_llm/02_prompt_engineering_for_apps.md)。
+详见 [course/02_llm/03_structured_outputs.md](../../../course/02_llm/03_structured_outputs.md)。

@@ -13,6 +13,7 @@ class LLMErrorCode(str, Enum):
     AUTH = "auth"
     CAPABILITY_MISMATCH = "capability_mismatch"
     PROVIDER_ERROR = "provider_error"
+    SCHEMA_PARSE = "schema_parse"
     UNKNOWN = "unknown"
 
 
