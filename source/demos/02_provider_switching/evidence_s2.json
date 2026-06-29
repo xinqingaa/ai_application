@@ -1,0 +1,5 @@
+{
+  "sample_id": "S2",
+  "note": "02 静态 evidence，模拟 RAG 检索片段；03_rag 课将改为真实检索。",
+  "evidence_block": "【Evidence · 内部接口说明摘录】\n- 售后接口 v2 路径：POST /api/after-sale/v2/cases；v1 将于下季度下线，需确认订单详情页跳转参数是否与 v2 一致。\n- 订单状态机：仅 status=paid 且 sub_status!=closed 的订单允许发起售后；已发起待审核的订单需拦截重复申请。\n- 客户端：H5 与 Native 共用同一详情 API，按钮展示由服务端字段 after_sale_eligible 控制。"
+}

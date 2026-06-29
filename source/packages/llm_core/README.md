@@ -2,24 +2,29 @@
 
 需求评审助手的 **LLM 模型交互底座**，供 RAG、Agent、Workflow 与评估观测复用。
 
-## 当前进度（02_llm/01）
+## 当前进度（02_llm/02）
 
 ```text
 llm_core/
-├── client.py              # LLMClient.chat(config_ref)
-├── config.py              # ModelConfig, LLMResponse, TokenUsage
-├── errors.py              # LLMError, LLMErrorCode
-├── observability.py       # format_call_log / print_call_log
-├── config/models.yaml     # 配置真源
+├── client.py
+├── config.py / config/models.yaml
+├── errors.py
+├── observability.py
+├── prompts/                 # 02：YAML 模板 + render
+│   └── review/
+│       ├── risk_review_v1.yaml
+│       ├── risk_review_v2.yaml
+│       └── risk_review_v3.yaml
 └── providers/
-    ├── openai_compat.py
-    └── registry.py
 ```
 
-- 00 demo（直调 SDK）：[../../demos/02_first_chat/](../../demos/02_first_chat/)
-- 01 demo（`LLMClient`）：[../../demos/02_provider_switching/](../../demos/02_provider_switching/)
+每个 yaml 含 `prompt_id` 与 `version` 字段；`get_prompt(id, version)` **按字段匹配**，文件名 `risk_review_v1.yaml` 等仅为可读性。与 demo 配置对照见 02 正文。
 
-## 快速使用
+- 00 demo：[../../demos/02_first_chat/](../../demos/02_first_chat/)
+- 01 demo：[../../demos/02_provider_switching/provider_switching.py](../../demos/02_provider_switching/provider_switching.py)
+- 02 demo：[../../demos/02_provider_switching/prompt_compare.py](../../demos/02_provider_switching/prompt_compare.py)
+
+## 快速使用（01 调用）
 
 ```python
 from llm_core import LLMClient
@@ -30,7 +35,20 @@ messages = [
     {"role": "user", "content": "请列出 2 条风险。"},
 ]
 resp = client.chat(messages, "chat.dev_chat", debug=True)
-print(resp.content, resp.usage, resp.latency_ms)
+```
+
+## 快速使用（02 Prompt）
+
+```python
+from llm_core import LLMClient
+from llm_core.prompts import get_prompt, render_prompt
+
+tpl = get_prompt("review.risk_review", version="2.0.0")
+messages = render_prompt(tpl, {
+    "requirement_text": "【PRD 片段】…",
+    "evidence_block": "（检索证据或静态 fixture）",
+})
+resp = client.chat(messages, tpl.model_config_ref, temperature=0)
 ```
 
 ## 安装
@@ -39,6 +57,4 @@ print(resp.content, resp.usage, resp.latency_ms)
 pip install -e .   # 仓库根目录
 ```
 
-密钥通过环境变量配置，见根目录 `.env.example`。
-
-详见 [course/02_llm/01_model_api_and_provider_abstraction.md](../../../course/02_llm/01_model_api_and_provider_abstraction.md)。
+详见 [course/02_llm/02_prompt_engineering_for_apps.md](../../../course/02_llm/02_prompt_engineering_for_apps.md)。
