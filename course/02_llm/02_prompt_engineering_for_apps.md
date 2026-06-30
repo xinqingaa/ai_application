@@ -56,6 +56,20 @@
 
 ## 基础原理
 
+### 本节方案性质
+
+Prompt Engineering 没有一套放之四海而皆准的“标准答案”。本节给出的做法，是在需求评审助手场景下比较适合学习和工程演进的一套实践。
+
+需要区分三层：
+
+| 层级 | 本节怎么理解 |
+| --- | --- |
+| **通用原则** | Prompt 应该有清晰任务边界、变量来源、版本记录和可回归对比；不能把所有失败都靠“多写几句提示”解决 |
+| **工程实践** | 用 YAML 保存 Prompt，用 `prompt_id@version` 定位，用固定样例 + 固定 temperature 对比版本 |
+| **项目取舍** | 本节只落地 `review.risk_review`，用静态 `evidence_block` 模拟后续 RAG，不代表所有业务都要先这样组织 |
+
+因此，六段式任务协议、三版 Prompt、YAML 模板和 `prompt_compare.py` 都不是行业八股答案。它们的价值在于帮助你形成判断：一个 Prompt 是否可解释、可修改、可对比、可进入项目闭环。换到客服、合同审查或测试用例生成场景，原则仍然适用，但任务段落、变量、示例和版本策略都应重新设计。
+
 ### Prompt 是什么：任务协议，不是咒语
 
 ```text
@@ -557,7 +571,7 @@ cd source/demos/02_provider_switching
 python prompt_compare.py
 ```
 
-详见 [demo README](../../source/demos/02_provider_switching/README.md#02prompt_comparepy-实验配置)。
+详见 [demo README](../../source/demos/02_provider_switching/README.md)。
 
 ### 自检题（不看正文能否答）
 
