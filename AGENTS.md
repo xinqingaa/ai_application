@@ -19,6 +19,8 @@ AI Agent 在处理本仓库任务前，优先阅读：
 5. [docs/agent-skill.md](docs/agent-skill.md)
 6. [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md)（涉及代码编写或审查时）
 
+编写或重写 `course/**/*.md` 专题正文时，另读 [skills/course-writing/SKILL.md](skills/course-writing/SKILL.md)。
+
 ## 学习内容组织原则
 
 - 以唯一主项目和真实问题闭环组织学习，不按章节堆脚本。
