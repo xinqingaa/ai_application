@@ -25,6 +25,13 @@ messages + response_model + structured_mode
 → response_format
 → parse_risk_list
 → StructuredLLMResponse
+
+04 Streaming + Conversation
+messages + config_ref
+→ LLMClient.stream_chat
+→ LLMStreamEvent
+→ FastAPI SSE
+→ 前端按事件更新状态
 ```
 
 ## 模块职责
@@ -41,6 +48,8 @@ messages + response_model + structured_mode
 | `schemas/review.py` | 结构化风险列表 Schema 真源 | `ReviewRisk` / `ReviewRiskList` |
 | `schemas/parse.py` | JSON 提取、Pydantic 校验、`error_stage` 判层 | `parse_risk_list` |
 | `structured.py` | 构造 `response_format`，封装结构化响应 | `build_response_format` |
+| `streaming.py` | 流式事件模型与 SSE 编码 | `LLMStreamEvent` / `encode_sse` |
+| `conversation.py` | 最小会话历史缓存，区分最终消息与中间 token | `ConversationBuffer` |
 | `observability.py` | demo 日志格式与调用详情输出 | `render_call_log` |
 
 ## 读代码顺序
@@ -70,6 +79,16 @@ messages + response_model + structured_mode
 4. 最后看 [`client.py`](client.py) 的 `chat_structured`：调用后立刻 parse，返回 `StructuredLLMResponse`。
 
 核心判断：Pydantic 本地校验是通用原则；`ReviewRiskList` 字段是需求评审助手当前阶段的项目取舍。
+
+### 04：Streaming 与 Conversation
+
+1. 先看 [`streaming.py`](streaming.py)：事件必须有 `type`、`run_id`、`sequence`，token 增量放在 `delta`，最终消息放在 `content`。
+2. 再看 [`providers/openai_compat.py`](providers/openai_compat.py) 的 `stream_chat`：供应商 chunk 被翻译成统一 `LLMStreamEvent`。
+3. 再看 [`client.py`](client.py) 的 `LLMClient.stream_chat`：业务层仍通过 `config_ref` 调用，不直接依赖 SDK stream 对象。
+4. 再看 [`conversation.py`](conversation.py)：只有用户输入和最终 assistant 消息进入 history，中间 token 不进入 history。
+5. 最后看 FastAPI app [`../../apps/02_llm_streaming_api/`](../../apps/02_llm_streaming_api/)：`encode_sse` 如何变成 `text/event-stream`。
+
+核心判断：token stream 是模型供应商返回的增量；SSE 是应用给前端的传输协议；conversation history 只保存稳定消息，不保存中间过程。
 
 ## 快速使用
 
@@ -132,6 +151,34 @@ else:
     print(out.parse.error_stage, out.parse.message)
 ```
 
+流式输出：
+
+```python
+from llm_core import LLMClient
+
+client = LLMClient.from_default_config()
+events = client.stream_chat(
+    [{"role": "user", "content": "列出这个需求的研发风险"}],
+    "chat.dev_chat",
+    temperature=0,
+)
+for event in events:
+    if event.type == "token":
+        print(event.delta, end="", flush=True)
+    elif event.type == "message_done":
+        final_text = event.content
+```
+
+FastAPI SSE：
+
+```bash
+uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+open http://127.0.0.1:8004/
+curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
+```
+
+浏览器页面用于观察打字机效果；`curl -N` 用于观察原始 SSE 协议，所以会看到 `id:`、`event:`、`data:`。
+
 ## 常见定位
 
 | 现象 | 先看哪里 |
@@ -143,6 +190,8 @@ else:
 | `json_schema` 直接 API 失败 | 供应商是否支持该 `response_format` |
 | `error_stage=json` | assistant 原文是否为合法 JSON、是否有围栏或截断 |
 | `error_stage=schema` | 字段名、枚举、根形态是否符合 `ReviewRiskList` |
+| SSE 没有逐 token 刷新 | 当前供应商、代理或终端是否缓冲；先看 `event: token` 是否逐条到达 |
+| 会话越来越长 | `ConversationBuffer.max_messages` 与后续 05 的 context budget |
 
 ## 对应 demo
 
@@ -150,9 +199,11 @@ else:
 - 01 Provider：[../../demos/02_provider_switching/provider_switching.py](../../demos/02_provider_switching/provider_switching.py)
 - 02 Prompt：[../../demos/02_provider_switching/prompt_compare.py](../../demos/02_provider_switching/prompt_compare.py)
 - 03 Structured Outputs：[../../demos/02_provider_switching/structured_risk.py](../../demos/02_provider_switching/structured_risk.py)
+- 04 Streaming SSE：[../../apps/02_llm_streaming_api/](../../apps/02_llm_streaming_api/)
 
 对应课程正文：
 
 - [01 Model API 与 Provider 抽象](../../../course/02_llm/01_model_api_and_provider_abstraction.md)
 - [02 面向应用的 Prompt Engineering](../../../course/02_llm/02_prompt_engineering_for_apps.md)
 - [03 Structured Outputs](../../../course/02_llm/03_structured_outputs.md)
+- [04 Streaming 与 Conversation](../../../course/02_llm/04_streaming_and_conversation.md)

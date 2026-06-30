@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Any, Optional
 
 from pydantic import BaseModel
@@ -11,6 +12,7 @@ from llm_core.errors import LLMError, LLMErrorCode
 from llm_core.observability import demo_log, render_call_log
 from llm_core.providers.registry import ConfigRegistry
 from llm_core.schemas.review import ReviewRiskList
+from llm_core.streaming import LLMStreamEvent, StreamEventBuilder
 from llm_core.structured import (
     StructuredLLMResponse,
     StructuredMode,
@@ -64,6 +66,49 @@ class LLMClient:
             render_call_log(demo_log, messages, merged, response)
 
         return response
+
+    def stream_chat(
+        self,
+        messages: list[dict[str, str]],
+        config_ref: str,
+        *,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        **kwargs: Any,
+    ) -> Iterator[LLMStreamEvent]:
+        config = self._registry.get_config(config_ref)
+        run_id = kwargs.pop("run_id", None)
+        if config.role != "chat":
+            builder = StreamEventBuilder(run_id=run_id)
+            yield builder.event(
+                "error",
+                code=LLMErrorCode.CAPABILITY_MISMATCH.value,
+                message=f"{config_ref} 的 role 是 {config.role}，不能用于 stream_chat",
+                config_ref=config_ref,
+            )
+            yield builder.event("done", config_ref=config_ref)
+            return
+        if config.capabilities.streaming is False:
+            builder = StreamEventBuilder(run_id=run_id)
+            yield builder.event(
+                "error",
+                code=LLMErrorCode.CAPABILITY_MISMATCH.value,
+                message=f"{config_ref} 未声明支持 streaming",
+                config_ref=config_ref,
+            )
+            yield builder.event("done", config_ref=config_ref)
+            return
+
+        params: dict[str, Any] = {}
+        if temperature is not None:
+            params["temperature"] = temperature
+        if max_tokens is not None:
+            params["max_tokens"] = max_tokens
+        params.update(kwargs)
+        params["_run_id"] = run_id
+
+        provider = self._registry.get_provider(config.provider)
+        yield from provider.stream_chat(messages, config, **params)
 
     def chat_structured(
         self,

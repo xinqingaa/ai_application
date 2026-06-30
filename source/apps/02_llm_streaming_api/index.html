@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>需求评审助手 · Streaming</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #1f2933;
+      --muted: #667085;
+      --line: #d9dee7;
+      --accent: #0f766e;
+      --accent-strong: #0b5f59;
+      --danger: #b42318;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 28px 20px 36px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 26px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status {
+      min-width: 168px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 320px) 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    label:first-child {
+      margin-top: 0;
+    }
+
+    select,
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 9px 10px;
+      color: var(--text);
+      background: #fff;
+      font-size: 14px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 7px;
+      padding: 10px 12px;
+      font-weight: 750;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button.primary:hover {
+      background: var(--accent-strong);
+    }
+
+    button.secondary {
+      background: #eef1f5;
+      color: var(--text);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .output {
+      min-height: 360px;
+      white-space: pre-wrap;
+      line-height: 1.72;
+      font-size: 15px;
+    }
+
+    .cursor::after {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 1.1em;
+      margin-left: 2px;
+      vertical-align: -0.18em;
+      background: var(--accent);
+      animation: blink 0.9s steps(1) infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .event-log {
+      margin-top: 12px;
+      max-height: 220px;
+      overflow: auto;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .event-log .error {
+      color: var(--danger);
+    }
+
+    @media (max-width: 800px) {
+      header,
+      .grid {
+        display: block;
+      }
+
+      .status {
+        margin-top: 12px;
+      }
+
+      .panel + .panel {
+        margin-top: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <h1>需求评审助手 Streaming</h1>
+        <p class="subtitle">FastAPI SSE · LLMStreamEvent · ConversationBuffer</p>
+      </div>
+      <div id="status" class="status">idle</div>
+    </header>
+
+    <section class="grid">
+      <aside class="panel">
+        <label for="sampleId">样例</label>
+        <select id="sampleId">
+          <option value="S1">S1 · 需求摘要</option>
+          <option value="S2" selected>S2 · 风险识别</option>
+          <option value="S3">S3 · 无材料</option>
+          <option value="S4">S4 · 约束输出</option>
+          <option value="S5">S5 · 长文本</option>
+        </select>
+
+        <label for="sessionId">Session</label>
+        <input id="sessionId" value="demo">
+
+        <label for="configRef">Config Ref</label>
+        <input id="configRef" value="chat.dev_chat">
+
+        <label for="temperature">Temperature</label>
+        <input id="temperature" type="number" min="0" max="2" step="0.1" value="0">
+
+        <div class="actions">
+          <button id="startBtn" class="primary">Start</button>
+          <button id="stopBtn" class="secondary" disabled>Stop</button>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div id="output" class="output"></div>
+        <div id="eventLog" class="event-log"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      source: null,
+      text: "",
+      running: false,
+    };
+
+    const els = {
+      sampleId: document.querySelector("#sampleId"),
+      sessionId: document.querySelector("#sessionId"),
+      configRef: document.querySelector("#configRef"),
+      temperature: document.querySelector("#temperature"),
+      startBtn: document.querySelector("#startBtn"),
+      stopBtn: document.querySelector("#stopBtn"),
+      status: document.querySelector("#status"),
+      output: document.querySelector("#output"),
+      eventLog: document.querySelector("#eventLog"),
+    };
+
+    function setStatus(value) {
+      els.status.textContent = value;
+    }
+
+    function setRunning(value) {
+      state.running = value;
+      els.startBtn.disabled = value;
+      els.stopBtn.disabled = !value;
+      els.output.classList.toggle("cursor", value);
+    }
+
+    function appendLog(text, className = "") {
+      const line = document.createElement("div");
+      line.textContent = text;
+      if (className) line.className = className;
+      els.eventLog.appendChild(line);
+      els.eventLog.scrollTop = els.eventLog.scrollHeight;
+    }
+
+    function stopStream(status = "stopped") {
+      if (state.source) {
+        state.source.close();
+        state.source = null;
+      }
+      setRunning(false);
+      setStatus(status);
+    }
+
+    function parseEvent(event) {
+      if (!event.data) return null;
+      try {
+        return JSON.parse(event.data);
+      } catch (error) {
+        appendLog(`parse error: ${error}`, "error");
+        return null;
+      }
+    }
+
+    function streamUrl() {
+      const params = new URLSearchParams({
+        sample_id: els.sampleId.value,
+        session_id: els.sessionId.value || "demo",
+        config_ref: els.configRef.value || "chat.dev_chat",
+        temperature: els.temperature.value || "0",
+      });
+      return `/api/review/stream?${params.toString()}`;
+    }
+
+    function startStream() {
+      stopStream("starting");
+      state.text = "";
+      els.output.textContent = "";
+      els.eventLog.textContent = "";
+      setRunning(true);
+      setStatus("connecting");
+
+      const source = new EventSource(streamUrl());
+      state.source = source;
+
+      source.addEventListener("message_start", (event) => {
+        const data = parseEvent(event);
+        if (!data) return;
+        setStatus(`running · ${data.run_id}`);
+        appendLog(`${data.sequence} message_start ${data.model || ""}`);
+      });
+
+      source.addEventListener("token", (event) => {
+        const data = parseEvent(event);
+        if (!data) return;
+        state.text += data.delta || "";
+        els.output.textContent = state.text;
+        appendLog(`${data.sequence} token ${JSON.stringify(data.delta || "")}`);
+      });
+
+      source.addEventListener("message_done", (event) => {
+        const data = parseEvent(event);
+        if (!data) return;
+        state.text = data.content || state.text;
+        els.output.textContent = state.text;
+        setStatus("message_done");
+        appendLog(`${data.sequence} message_done ${Math.round(data.latency_ms || 0)}ms`);
+      });
+
+      source.addEventListener("done", (event) => {
+        const data = parseEvent(event);
+        if (data) appendLog(`${data.sequence} done`);
+        stopStream("done");
+      });
+
+      source.addEventListener("error", (event) => {
+        const data = parseEvent(event);
+        if (data && data.type === "error") {
+          appendLog(`${data.sequence} error ${data.code}: ${data.message}`, "error");
+          stopStream(`error · ${data.code}`);
+          return;
+        }
+        if (state.running) {
+          appendLog("connection error", "error");
+          stopStream("connection error");
+        }
+      });
+    }
+
+    els.startBtn.addEventListener("click", startStream);
+    els.stopBtn.addEventListener("click", () => stopStream("stopped"));
+  </script>
+</body>
+</html>
