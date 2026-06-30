@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 
 from llm_core import ConversationBuffer, LLMClient, encode_sse
@@ -25,6 +26,17 @@ DEFAULT_SYSTEM_PROMPT = (
 )
 
 app = FastAPI(title="02 LLM Streaming API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+        "http://127.0.0.1:5501",
+        "http://localhost:5501",
+    ],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 _conversations: dict[str, ConversationBuffer] = {}
 
 

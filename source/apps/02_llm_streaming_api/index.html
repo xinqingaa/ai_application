@@ -233,6 +233,19 @@
   </main>
 
   <script>
+    const DEFAULT_API_BASE = "http://127.0.0.1:8004";
+
+    function apiBase() {
+      if (window.__API_BASE__ !== undefined) {
+        return window.__API_BASE__;
+      }
+      const onApiPort = location.port === "8004";
+      if (onApiPort && (location.hostname === "127.0.0.1" || location.hostname === "localhost")) {
+        return "";
+      }
+      return DEFAULT_API_BASE;
+    }
+
     const state = {
       source: null,
       text: "",
@@ -296,7 +309,8 @@
         config_ref: els.configRef.value || "chat.dev_chat",
         temperature: els.temperature.value || "0",
       });
-      return `/api/review/stream?${params.toString()}`;
+      const base = apiBase();
+      return `${base}/api/review/stream?${params.toString()}`;
     }
 
     function startStream() {

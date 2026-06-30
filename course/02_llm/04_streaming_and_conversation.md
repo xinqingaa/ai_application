@@ -437,13 +437,15 @@ cp .env.example .env
 uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
 ```
 
-然后打开浏览器：
+然后打开浏览器（推荐，页面与 API 同源）：
 
 ```text
 http://127.0.0.1:8004/
 ```
 
-点击 `Start`，页面会展示打字机效果。建议同时打开浏览器开发者工具，在 Network 面板查看 `/api/review/stream?...` 请求，观察响应头 `content-type: text/event-stream` 和持续到达的 `event/data`。
+若用 Live Server 打开 `source/apps/02_llm_streaming_api/index.html`，页面通常在 `127.0.0.1:5500`，API 仍在 `8004`，属于跨域。本节 demo 已在 FastAPI 侧为常见 Live Server 端口配置 CORS，前端在非 `8004` 端口时会自动请求 `http://127.0.0.1:8004/api/review/stream`。无论哪种方式，都必须先启动 uvicorn。
+
+点击 `Start`，页面会展示打字机效果。建议同时打开浏览器开发者工具，在 Network 面板查看 `/api/review/stream?...` 请求，观察响应头 `content-type: text/event-stream` 和持续到达的 `event/data`。Live Server 场景下，该请求的目标主机应是 `8004`，而不是 Live Server 端口。
 
 如果想看 SSE 协议原文，另开一个终端：
 

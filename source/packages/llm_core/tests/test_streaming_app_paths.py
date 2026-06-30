@@ -1,6 +1,8 @@
 import importlib.util
 from pathlib import Path
 
+from fastapi.testclient import TestClient
+
 
 def _load_streaming_app_module():
     repo_root = Path(__file__).resolve().parents[4]
@@ -20,3 +22,16 @@ def test_streaming_app_resolves_repo_root_and_samples():
     assert module.SAMPLES_PATH.is_file()
     assert module.INDEX_PATH.is_file()
     assert module._load_sample("S2")["id"] == "S2"
+
+
+def test_streaming_app_allows_live_server_cors():
+    module = _load_streaming_app_module()
+    client = TestClient(module.app)
+
+    response = client.get(
+        "/health",
+        headers={"Origin": "http://127.0.0.1:5500"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://127.0.0.1:5500"

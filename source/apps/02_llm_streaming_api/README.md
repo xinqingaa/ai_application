@@ -51,11 +51,15 @@ curl http://127.0.0.1:8004/health
 
 ## 浏览器观察
 
-打开：
+推荐（页面与 API 同源，无需跨域）：
 
 ```text
 http://127.0.0.1:8004/
 ```
+
+可选：用 VS Code Live Server 打开 `index.html` 做静态页热更新。此时页面在 `127.0.0.1:5500`（或 `5501`），API 仍在 `8004`，属于跨域请求。本 app 已在 `main.py` 为常见 Live Server 端口开启 CORS；`index.html` 在非 `8004` 端口时会自动把 `EventSource` 指向 `http://127.0.0.1:8004`。使用前仍需先启动上面的 uvicorn 命令。
+
+自定义 API 地址时，可在控制台设置 `window.__API_BASE__ = "http://127.0.0.1:8004"`（同源访问可设为 `""`）。
 
 点击 `Start` 后，页面会按 `token.delta` 展示打字机效果。点击 `Stop` 会关闭当前 `EventSource`，前端停止接收后续事件；生产级服务端取消、断点恢复和重试治理放到后续可靠性专题。
 
@@ -119,7 +123,8 @@ data: {"type": "done", ...}
 本 demo 使用浏览器原生 `EventSource`：
 
 ```js
-const source = new EventSource("/api/review/stream?sample_id=S2&session_id=demo");
+const apiBase = location.port === "8004" ? "" : "http://127.0.0.1:8004";
+const source = new EventSource(`${apiBase}/api/review/stream?sample_id=S2&session_id=demo`);
 
 source.addEventListener("token", (event) => {
   const data = JSON.parse(event.data);
@@ -143,3 +148,5 @@ source.addEventListener("done", () => {
 | 第二次请求带上历史 | `session_id` 相同会复用内存里的 `ConversationBuffer` |
 | 想清空会话 | 换一个新的 `session_id` |
 | 页面没有反应 | 先看浏览器 Network 中 `/api/review/stream` 的状态码和响应内容 |
+| Live Server 下 `connection error` | 是否已启动 uvicorn；Network 请求应指向 `8004` 而非 `5500` |
+| 控制台 CORS 报错 | 确认 `main.py` 的 `CORSMiddleware` 包含当前 Live Server 端口 |
