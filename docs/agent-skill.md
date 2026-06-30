@@ -70,6 +70,7 @@ AI Agent 应帮助用户：
 | 新概念首篇（`00`） | learning-guide §6.1：是什么、输入输出、与相近概念区别、在项目中的位置 |
 | 真实问题三层 | learning-guide §6.2：学习者 / 产品 / 工程 |
 | 厚度与双层验收 | learning-guide §6.3：认知链路 + 交付链路；场景叙事、自检题、机制 prose |
+| 机制递进 | learning-guide §6.3：多层约束时写从弱到强理解链，不只写最终项目路径 |
 | 一节一交付与 Demo | learning-guide §6.4：packages 主线；Demo 按决策树，非每节必建 |
 | 正文链接 | learning-guide §6.5：仅同课上下节、当节 `source/`；少链未学课程 |
 | 代码片段与概念示意 | learning-guide §6.6：默认内嵌真实片段；例外须标注「概念示意，不进入项目」 |
