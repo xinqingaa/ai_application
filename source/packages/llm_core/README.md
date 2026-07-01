@@ -32,6 +32,12 @@ messages + config_ref
 → LLMStreamEvent
 → FastAPI SSE
 → 前端按事件更新状态
+
+05 Context Engineering
+requirement + traceable sources + token_budget
+→ build_review_context
+→ prompt variables
+→ chat_structured / stream_chat
 ```
 
 ## 模块职责
@@ -50,6 +56,7 @@ messages + config_ref
 | `structured.py` | 构造 `response_format`，封装结构化响应 | `build_response_format` |
 | `streaming.py` | 流式事件模型与 SSE 编码 | `LLMStreamEvent` / `encode_sse` |
 | `conversation.py` | 最小会话历史缓存，区分最终消息与中间 token | `ConversationBuffer` |
+| `context.py` | 上下文构造、证据编号、预算诊断 | `build_review_context` |
 | `observability.py` | demo 日志格式与调用详情输出 | `render_call_log` |
 
 ## 读代码顺序
@@ -89,6 +96,15 @@ messages + config_ref
 5. 最后看 FastAPI app [`../../apps/02_llm_streaming_api/`](../../apps/02_llm_streaming_api/)：`encode_sse` 如何变成 `text/event-stream`。
 
 核心判断：token stream 是模型供应商返回的增量；SSE 是应用给前端的传输协议；conversation history 只保存稳定消息，不保存中间过程。
+
+### 05：Context Engineering
+
+1. 先看 [`context.py`](context.py)：`ContextSource` 如何保存 `source_id`、类型、优先级和内容。
+2. 再看 `build_review_context`：当前需求文本始终保留，证据片段按优先级进入预算，超出预算的 source 会记录到 `dropped_sources`。
+3. 再看 [`structured_risk.py`](../../demos/02_provider_switching/structured_risk.py)：静态 `evidence_s2.json` 如何先变成 `ContextSource`，再渲染成 Prompt 变量。
+4. 最后回到 [`prompts/review/risk_review_v4.yaml`](prompts/review/risk_review_v4.yaml)：Prompt 只接收 `requirement_text` 与 `evidence_block`，不直接关心证据来源是静态文件还是后续 RAG。
+
+核心判断：Context Engineering 不是把所有材料塞进 Prompt，而是在预算内保留当前任务和可追溯证据；被裁剪的片段要可见，不能静默丢失。
 
 ## 快速使用
 
@@ -169,6 +185,27 @@ for event in events:
         final_text = event.content
 ```
 
+上下文构造：
+
+```python
+from llm_core import ContextSource, build_review_context
+
+context = build_review_context(
+    requirement_text="订单详情页新增申请售后按钮，对接售后接口 v2。",
+    sources=[
+        ContextSource(
+            source_id="S2.evidence.after_sale_api_v2",
+            title="内部接口说明摘录",
+            content="售后接口 v2 路径：POST /api/after-sale/v2/cases。",
+            priority=80,
+        )
+    ],
+    token_budget=900,
+)
+variables = context.to_prompt_variables()
+print(context.included_source_ids, context.dropped_source_ids)
+```
+
 FastAPI SSE：
 
 ```bash
@@ -192,6 +229,8 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 | `error_stage=schema` | 字段名、枚举、根形态是否符合 `ReviewRiskList` |
 | SSE 没有逐 token 刷新 | 当前供应商、代理或终端是否缓冲；先看 `event: token` 是否逐条到达 |
 | 会话越来越长 | `ConversationBuffer.max_messages` 与后续 05 的 context budget |
+| 模型没有引用证据 | `context.included_source_ids` 是否为空；`evidence_block` 是否含 source id |
+| 关键证据没进 Prompt | `dropped_source_ids` 与 `token_budget`；不要只看最终回答 |
 
 ## 对应 demo
 
@@ -200,6 +239,7 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 - 02 Prompt：[../../demos/02_provider_switching/prompt_compare.py](../../demos/02_provider_switching/prompt_compare.py)
 - 03 Structured Outputs：[../../demos/02_provider_switching/structured_risk.py](../../demos/02_provider_switching/structured_risk.py)
 - 04 Streaming SSE：[../../apps/02_llm_streaming_api/](../../apps/02_llm_streaming_api/)
+- 05 Context Engineering：[../../demos/02_provider_switching/structured_risk.py](../../demos/02_provider_switching/structured_risk.py)（复用结构化风险入口，先打印 context 诊断）
 
 对应课程正文：
 
@@ -207,3 +247,4 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 - [02 面向应用的 Prompt Engineering](../../../course/02_llm/02_prompt_engineering_for_apps.md)
 - [03 Structured Outputs](../../../course/02_llm/03_structured_outputs.md)
 - [04 Streaming 与 Conversation](../../../course/02_llm/04_streaming_and_conversation.md)
+- [05 Context Engineering](../../../course/02_llm/05_context_engineering.md)
