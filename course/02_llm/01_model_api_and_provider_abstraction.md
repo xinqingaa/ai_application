@@ -270,7 +270,7 @@ return response
 
 ### 2. `LLMResponse`：统一业务可读的输出
 
-Provider 发回来的 SDK 原始对象不应该直接扩散到业务层。业务层需要的是稳定字段：文本、token、耗时、模型、配置引用。[`config.py`](../../source/packages/llm_core/config.py) 中的 `LLMResponse` 就是这层统一形状：
+Provider 发回来的 SDK 原始对象不应该直接扩散到业务层。业务层需要的是稳定字段：文本、token、耗时、模型、配置引用。[`config/types.py`](../../source/packages/llm_core/config/types.py) 中的 `LLMResponse` 就是这层统一形状：
 
 ```python
 @dataclass(frozen=True)
@@ -385,7 +385,7 @@ class LLMResponse:
 关键路径：
 
 - [`source/packages/llm_core/client.py`](../../source/packages/llm_core/client.py)：统一调用入口。
-- [`source/packages/llm_core/config.py`](../../source/packages/llm_core/config.py)：`ModelConfig`、`LLMResponse` 等数据结构。
+- [`source/packages/llm_core/config/types.py`](../../source/packages/llm_core/config/types.py)：`ModelConfig`、`LLMResponse` 等数据结构。
 - [`source/packages/llm_core/config/models.yaml`](../../source/packages/llm_core/config/models.yaml)：模型配置真源。
 - [`source/demos/02_provider_switching/provider_switching.py`](../../source/demos/02_provider_switching/provider_switching.py)：本节观察入口。
 

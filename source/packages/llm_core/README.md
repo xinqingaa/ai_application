@@ -34,9 +34,10 @@ messages + config_ref
 → 前端按事件更新状态
 
 05 Context Engineering
-requirement + traceable sources + token_budget
+requirement + candidate sources + context policy
 → build_review_context
-→ prompt variables
+→ sections + citation candidates + diagnostics
+→ prompt variables / context report
 → chat_structured / stream_chat
 ```
 
@@ -45,7 +46,7 @@ requirement + traceable sources + token_budget
 | 模块 | 职责 | 先读什么 |
 | --- | --- | --- |
 | `client.py` | 统一调用入口：`chat` / `chat_structured` | `LLMClient.chat` |
-| `config.py` | 调用层数据结构：`ModelConfig`、`LLMResponse`、`TokenUsage` | `LLMResponse` |
+| `config/types.py` | 调用层数据结构：`ModelConfig`、`LLMResponse`、`TokenUsage` | `LLMResponse` |
 | `config/models.yaml` | 模型配置真源：`config_ref`、model、base_url、默认参数、能力标签 | `chat.dev_chat` |
 | `providers/registry.py` | 读取 YAML，注册 provider，按 `config_ref` 找配置 | `ConfigRegistry.default` |
 | `providers/openai_compat.py` | OpenAI-compatible 请求适配与错误映射 | `OpenAICompatProvider.chat` |
@@ -56,7 +57,11 @@ requirement + traceable sources + token_budget
 | `structured.py` | 构造 `response_format`，封装结构化响应 | `build_response_format` |
 | `streaming.py` | 流式事件模型与 SSE 编码 | `LLMStreamEvent` / `encode_sse` |
 | `conversation.py` | 最小会话历史缓存，区分最终消息与中间 token | `ConversationBuffer` |
-| `context.py` | 上下文构造、证据编号、预算诊断 | `build_review_context` |
+| `context/types.py` | 上下文候选、分区、报告和诊断数据结构 | `ContextSource` / `ContextBuildReport` |
+| `context/policies.py` | 上下文策略预设：预算、分区和压缩开关 | `get_context_policy` |
+| `context/builder.py` | 上下文装配主流程：去重、排序、预算、压缩、引用候选 | `build_review_context` |
+| `context/compression.py` | 确定性 extractive compression | `fit_source` |
+| `context/formatting.py` | source 与 evidence block 格式化 | `format_context_source` |
 | `observability.py` | demo 日志格式与调用详情输出 | `render_call_log` |
 
 ## 读代码顺序
@@ -64,7 +69,7 @@ requirement + traceable sources + token_budget
 ### 01：Provider 抽象
 
 1. 先看 [`config/models.yaml`](config/models.yaml)，理解 `chat.dev_chat`、`chat.structured_chat`、`chat.fallback_chat` 的用途。
-2. 再看 [`config.py`](config.py) 里的 `ModelConfig` 和 `LLMResponse`。
+2. 再看 [`config/types.py`](config/types.py) 里的 `ModelConfig` 和 `LLMResponse`。
 3. 再看 [`client.py`](client.py) 的 `LLMClient.chat`：查配置、校验 role、找 provider、返回统一响应。
 4. 最后看 [`providers/openai_compat.py`](providers/openai_compat.py)：真实 SDK 调用和错误分类。
 
@@ -99,12 +104,14 @@ requirement + traceable sources + token_budget
 
 ### 05：Context Engineering
 
-1. 先看 [`context.py`](context.py)：`ContextSource` 如何保存 `source_id`、类型、优先级和内容。
-2. 再看 `build_review_context`：当前需求文本始终保留，证据片段按优先级进入预算，超出预算的 source 会记录到 `dropped_sources`。
-3. 再看 [`structured_risk.py`](../../demos/02_provider_switching/structured_risk.py)：静态 `evidence_s2.json` 如何先变成 `ContextSource`，再渲染成 Prompt 变量。
-4. 最后回到 [`prompts/review/risk_review_v4.yaml`](prompts/review/risk_review_v4.yaml)：Prompt 只接收 `requirement_text` 与 `evidence_block`，不直接关心证据来源是静态文件还是后续 RAG。
+1. 先看 [`context/types.py`](context/types.py)：`ContextSource`、`ContextBuildPolicy`、`ContextSection`、`ContextBuildReport` 的职责。
+2. 再看 [`context/policies.py`](context/policies.py)：`minimal` / `full_context` / `balanced` / `evidence_first` / `tight_budget` / `agent_summary_only` 如何改变预算与 source 类型。
+3. 再看 [`context/builder.py`](context/builder.py)：候选 source 如何被编排成 sections、citation candidates 和 warnings。
+4. 再看 [`context/ranking.py`](context/ranking.py) 与 [`context/compression.py`](context/compression.py)：去重、排序、source 压缩这些细节如何从主流程里拆开。
+5. 再看 demo [`02_context_engineering/context_compare.py`](../../demos/02_context_engineering/context_compare.py)：脚本只加载样例和调用 package API，不实现核心算法。
+6. 最后回到 [`prompts/review/risk_review_v4.yaml`](prompts/review/risk_review_v4.yaml)：Prompt 仍只接收 `requirement_text` 与 `evidence_block`，不直接关心证据来源是静态文件还是后续 RAG。
 
-核心判断：Context Engineering 不是把所有材料塞进 Prompt，而是在预算内保留当前任务和可追溯证据；被裁剪的片段要可见，不能静默丢失。
+核心判断：Context Engineering 不是把所有材料塞进 Prompt，而是把候选材料池装配成可追溯、可预算、可诊断的模型输入；被压缩或丢弃的 source 要可见，引用候选要清楚。
 
 ## 快速使用
 
@@ -188,7 +195,7 @@ for event in events:
 上下文构造：
 
 ```python
-from llm_core import ContextSource, build_review_context
+from llm_core import ContextSource, build_review_context, get_context_policy
 
 context = build_review_context(
     requirement_text="订单详情页新增申请售后按钮，对接售后接口 v2。",
@@ -200,10 +207,11 @@ context = build_review_context(
             priority=80,
         )
     ],
-    token_budget=900,
+    policy=get_context_policy("evidence_first"),
 )
 variables = context.to_prompt_variables()
 print(context.included_source_ids, context.dropped_source_ids)
+print(context.report.citation_source_ids)
 ```
 
 FastAPI SSE：
@@ -231,6 +239,8 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 | 会话越来越长 | `ConversationBuffer.max_messages` 与后续 05 的 context budget |
 | 模型没有引用证据 | `context.included_source_ids` 是否为空；`evidence_block` 是否含 source id |
 | 关键证据没进 Prompt | `dropped_source_ids` 与 `token_budget`；不要只看最终回答 |
+| 引用了 history 或 agent summary | `context.report.citation_source_ids` 是否只含 evidence 类 source |
+| 不同策略结果差异大 | 先跑 `02_context_engineering/context_compare.py` 看 section budget 和 dropped reason |
 
 ## 对应 demo
 
@@ -239,7 +249,7 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 - 02 Prompt：[../../demos/02_provider_switching/prompt_compare.py](../../demos/02_provider_switching/prompt_compare.py)
 - 03 Structured Outputs：[../../demos/02_provider_switching/structured_risk.py](../../demos/02_provider_switching/structured_risk.py)
 - 04 Streaming SSE：[../../apps/02_llm_streaming_api/](../../apps/02_llm_streaming_api/)
-- 05 Context Engineering：[../../demos/02_provider_switching/structured_risk.py](../../demos/02_provider_switching/structured_risk.py)（复用结构化风险入口，先打印 context 诊断）
+- 05 Context Engineering：[../../demos/02_context_engineering/](../../demos/02_context_engineering/)
 
 对应课程正文：
 

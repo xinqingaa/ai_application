@@ -1,0 +1,90 @@
+{
+  "case_id": "after_sale_entry_v2",
+  "title": "订单详情页新增申请售后入口",
+  "requirement_text": "【PRD 片段】订单详情页在右上角操作区新增「申请售后」入口。入口仅对已支付且未关闭订单展示；点击后进入售后申请页，需要携带 order_id、sku_list、支付时间、订单来源渠道。售后申请页提交时调用售后接口 v2，成功返回 case_id；失败时需要区分网络错误、业务拒绝、重复申请和接口不可用。H5、iOS、Android 三端共用订单详情 API，按钮展示由服务端字段 after_sale_eligible 控制。请从研发视角识别风险，并说明依据。",
+  "sources": [
+    {
+      "source_id": "BR-ORDER-STATE",
+      "source_type": "business_rule",
+      "title": "订单状态机规则",
+      "priority": 95,
+      "score": 0.97,
+      "metadata": {
+        "doc_type": "business_rule",
+        "version": "2026-Q2"
+      },
+      "content": "仅 status=paid 且 sub_status!=closed 的订单允许发起售后。已发起售后且处于 pending_review 的订单，需要拦截重复申请并提示用户等待审核。虚拟商品、赠品和已退款订单不允许发起售后。"
+    },
+    {
+      "source_id": "API-AFTER-SALE-V2",
+      "source_type": "api_doc",
+      "title": "售后接口 v2 摘录",
+      "priority": 90,
+      "score": 0.95,
+      "metadata": {
+        "doc_type": "api_doc",
+        "owner": "after-sale-platform"
+      },
+      "content": "POST /api/after-sale/v2/cases。必填参数：order_id、sku_list、apply_reason、source_channel、paid_at。成功返回 case_id。错误码：AFTER_SALE_DUPLICATED 表示重复申请，ORDER_NOT_ELIGIBLE 表示订单状态不允许，AFTER_SALE_SERVICE_UNAVAILABLE 表示售后服务不可用，CLIENT_PARAM_INVALID 表示客户端入参缺失或格式错误。v1 接口将于下季度下线，新入口不得继续依赖 v1 的 apply_type 字段。"
+    },
+    {
+      "source_id": "CLIENT-DETAIL-API",
+      "source_type": "client_note",
+      "title": "订单详情客户端接入说明",
+      "priority": 75,
+      "score": 0.88,
+      "metadata": {
+        "doc_type": "client_note",
+        "clients": "H5,iOS,Android"
+      },
+      "content": "H5、iOS、Android 共用订单详情 API。按钮展示由 after_sale_eligible 控制，按钮文案由 after_sale_button_text 下发；客户端不应自行用订单状态拼装展示条件。弱网下点击跳转售后申请页时，应保留当前订单详情上下文，避免用户返回后入口状态闪烁。"
+    },
+    {
+      "source_id": "HISTORY-2026-0412",
+      "source_type": "history_review",
+      "title": "历史售后入口评审摘要",
+      "priority": 45,
+      "score": 0.61,
+      "metadata": {
+        "doc_type": "history_review",
+        "date": "2026-04-12"
+      },
+      "content": "上一次售后入口改版曾遗漏重复申请拦截，导致用户在售后审核中重复提交。评审建议：前端必须区分业务拒绝与网络失败；后端必须返回可展示错误码；埋点要记录入口展示、点击、提交成功和失败原因。"
+    },
+    {
+      "source_id": "AGENT-RISK-SUMMARY",
+      "source_type": "agent_summary",
+      "title": "上游风险分析摘要",
+      "priority": 70,
+      "score": 0.73,
+      "metadata": {
+        "producer": "risk_agent_v0"
+      },
+      "content": "上游 Agent 初步判断：主要风险集中在状态机一致性、接口 v2 参数兼容、三端展示一致性、重复申请拦截、错误码到 UI 提示的映射。该摘要只是中间结论，不能替代证据引用。"
+    },
+    {
+      "source_id": "NOISE-OLD-V1",
+      "source_type": "other",
+      "title": "过期 v1 接入笔记",
+      "priority": 5,
+      "score": 0.15,
+      "metadata": {
+        "doc_type": "old_note",
+        "status": "deprecated"
+      },
+      "content": "旧版 v1 售后接口使用 apply_type 和 legacy_order_no，适用于 2024 年老订单详情页。该方案已废弃，不应用于当前 v2 入口。"
+    },
+    {
+      "source_id": "API-AFTER-SALE-V2-DUP",
+      "source_type": "api_doc",
+      "title": "重复接口摘录",
+      "priority": 30,
+      "score": 0.3,
+      "metadata": {
+        "doc_type": "api_doc",
+        "note": "duplicate"
+      },
+      "content": "POST /api/after-sale/v2/cases。必填参数：order_id、sku_list、apply_reason、source_channel、paid_at。成功返回 case_id。错误码：AFTER_SALE_DUPLICATED 表示重复申请，ORDER_NOT_ELIGIBLE 表示订单状态不允许，AFTER_SALE_SERVICE_UNAVAILABLE 表示售后服务不可用，CLIENT_PARAM_INVALID 表示客户端入参缺失或格式错误。v1 接口将于下季度下线，新入口不得继续依赖 v1 的 apply_type 字段。"
+    }
+  ]
+}

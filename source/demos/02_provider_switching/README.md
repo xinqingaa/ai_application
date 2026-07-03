@@ -6,7 +6,6 @@
 01 Provider      config_ref → LLMClient.chat → LLMResponse
 02 Prompt        prompt_id@version → render_prompt → LLMClient.chat
 03 Structured    structured_mode → response_format → parse_risk_list
-05 Context       requirement + sources + token_budget → prompt variables
 ```
 
 课程正文负责讲原理；本 README 负责告诉你怎么读脚本、怎么运行、输出怎么看。
@@ -15,7 +14,7 @@
 | --- | --- | --- |
 | `provider_switching.py` | 01 Provider / `config_ref` | `python provider_switching.py` |
 | `prompt_compare.py` | 02 Prompt 三版对比 | `python prompt_compare.py` |
-| `structured_risk.py` | 03 Structured Outputs / 05 Context Engineering | `python structured_risk.py` |
+| `structured_risk.py` | 03 Structured Outputs（同时消费 05 context builder） | `python structured_risk.py` |
 
 00 的 [`02_first_chat`](../02_first_chat/) 保留直调 OpenAI SDK，用于对照「抽象前后」的差异。
 
@@ -68,7 +67,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 
 ### 03：`structured_risk.py`
 
-这个脚本用于观察结构化输出的约束层级，也在 05 复用为上下文构造观察入口。它不用于证明某个 mode 永远最好。
+这个脚本用于观察结构化输出的约束层级。它会消费 05 的 context builder，把静态 evidence 变成带 source id 的 `evidence_block`，但 05 的主观察入口是 [`../02_context_engineering/`](../02_context_engineering/)。
 
 读代码时关注：
 
@@ -80,7 +79,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 
 观察重点：
 
-- `[context]` 中的 `token_budget`、`estimated_tokens`、`included_sources`、`dropped_sources`。
+- `[context]` 中的 `token_budget`、`estimated_tokens`、`included_sources`、`dropped_sources` 是否符合预期。
 - `prompt_only` 是否出现围栏、裸数组或字段漂移。
 - `json_mode` 是否减少 JSON 格式层失败。
 - `json_schema` 是成功、parse 失败，还是供应商 `API_ERROR`。
@@ -124,7 +123,6 @@ python structured_risk.py
 | `VERBOSE` | 是否输出完整日志 | `False` |
 | `TEMPERATURE` | 采样温度 | `0` |
 | `EVIDENCE_FILE` | 静态 evidence 文件 | `evidence_s2.json` |
-| `CONTEXT_TOKEN_BUDGET` | 05 上下文材料预算 | `900` |
 
 `PROMPT_ID` 和 `PROMPT_VERSIONS` 对应 YAML 内部字段，不依赖文件名。当前三版位于 [`llm_core/prompts/review/`](../../packages/llm_core/prompts/review/)。
 
@@ -141,6 +139,7 @@ python structured_risk.py
 | `VERBOSE` | 是否输出完整日志 | `False` |
 | `TEMPERATURE` | 采样温度 | `0` |
 | `EVIDENCE_FILE` | 静态 evidence 文件 | `evidence_s2.json` |
+| `CONTEXT_TOKEN_BUDGET` | 传给 `build_review_context` 的材料预算 | `900` |
 
 对照原则：固定 Prompt、`config_ref`、temperature，**只换** `structured_mode`。
 
@@ -151,7 +150,7 @@ python structured_risk.py
 | tag / 字段 | 含义 |
 | --- | --- |
 | `[experiment]` | 当前样例、配置、版本或 mode |
-| `[context]` | 05 context builder 诊断：预算、估算 token、进入/丢弃的 source |
+| `[context]` | 结构化调用前的最小 context 诊断；完整策略对比见 `02_context_engineering` |
 | `[content]` | 模型正文输出 |
 | `[call_detail]` | verbose 下的 messages、params、assistant、usage |
 | `model` | 实际命中的模型 |
@@ -171,6 +170,7 @@ python structured_risk.py
 | v2/v3 没有 evidence | `EVIDENCE_FILE` 是否存在，`evidence_block` 字段是否存在 |
 | `[context] included_sources` 为空 | evidence 文件是否存在；`CONTEXT_TOKEN_BUDGET` 是否太小 |
 | citation 没有对应 source id | 先看 `[context] evidence_block` 是否含 source id；真实 citation 校验在 03_rag |
+| 想比较不同 context 策略 | 运行 `source/demos/02_context_engineering/context_compare.py` |
 | `json_schema` API 失败 | 当前供应商是否支持该 `response_format` |
 | `error_stage=json` | assistant 是否为合法 JSON、是否被截断或带多余说明 |
 | `error_stage=schema` | 字段名、枚举值、根形态是否符合 `ReviewRiskList` |
