@@ -404,7 +404,7 @@ class LLMResponse:
 cd <仓库根>
 cp .env.example .env
 # 编辑 .env，填写 OPENAI_API_KEY
-pip install -e .
+uv sync
 ```
 
 DeepSeek 等 OpenAI-compatible 平台可通过 `.env` 切换 `OPENAI_BASE_URL` / `OPENAI_MODEL`，具体配置细节见 demo README。
@@ -413,7 +413,7 @@ DeepSeek 等 OpenAI-compatible 平台可通过 `.env` 切换 `OPENAI_BASE_URL` /
 
 ```bash
 cd source/demos/02_provider_switching
-python provider_switching.py
+uv run python provider_switching.py
 ```
 
 ### 建议观察清单
@@ -440,8 +440,8 @@ python provider_switching.py
 
 ```bash
 cd source/demos/02_provider_switching
-python provider_switching.py
-python provider_switching.py --verbose
+uv run python provider_switching.py
+uv run python provider_switching.py --verbose
 ```
 
 应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../source/demos/02_provider_switching/README.md)。

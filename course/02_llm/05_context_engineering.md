@@ -408,26 +408,26 @@ Document / Memory / State / Tool Result
 离线测试：
 
 ```bash
-.venv/bin/pytest source/packages/llm_core/tests/test_context.py
+uv run pytest source/packages/llm_core/tests/test_context.py
 ```
 
 策略对比：
 
 ```bash
 cd source/demos/02_context_engineering
-../../../.venv/bin/python context_compare.py
+uv run python source/demos/02_context_engineering/context_compare.py
 ```
 
 只看紧预算策略：
 
 ```bash
-../../../.venv/bin/python context_compare.py --strategy tight_budget
+uv run python source/demos/02_context_engineering/context_compare.py --strategy tight_budget
 ```
 
 可选真实模型调用：
 
 ```bash
-../../../.venv/bin/python context_compare.py --strategy evidence_first --call-llm
+uv run python source/demos/02_context_engineering/context_compare.py --strategy evidence_first --call-llm
 ```
 
 ### 预期结果
@@ -467,9 +467,9 @@ cd source/demos/02_context_engineering
 ### 运行与观察
 
 ```bash
-.venv/bin/pytest source/packages/llm_core/tests/test_context.py
+uv run pytest source/packages/llm_core/tests/test_context.py
 cd source/demos/02_context_engineering
-../../../.venv/bin/python context_compare.py --strategy tight_budget
+uv run python source/demos/02_context_engineering/context_compare.py --strategy tight_budget
 ```
 
 观察点：

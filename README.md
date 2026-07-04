@@ -49,7 +49,8 @@ B. 单节交付约定
 │   ├── packages/
 │   ├── demos/
 │   └── python_base/
-└── requirements.txt
+├── pyproject.toml          # uv 依赖真源与 editable package 配置
+└── uv.lock                 # uv 锁文件
 ```
 
 ## 目录职责

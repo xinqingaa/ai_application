@@ -521,9 +521,9 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 ### 运行方式
 
 ```bash
-pip install -e .
+uv sync
 cd source/demos/02_provider_switching
-python prompt_compare.py
+uv run python prompt_compare.py
 ```
 
 ### 预期结果
@@ -568,7 +568,7 @@ python prompt_compare.py
 
 ```bash
 cd source/demos/02_provider_switching
-python prompt_compare.py
+uv run python prompt_compare.py
 ```
 
 详见 [demo README](../../source/demos/02_provider_switching/README.md)。

@@ -6,11 +6,10 @@ Provider 抽象与 `LLMClient` 见专题 01（`source/demos/02_provider_switchin
 
 ## 前置
 
-1. 仓库根目录已创建虚拟环境并安装依赖：
+1. 仓库根目录已同步 uv 环境：
 
    ```bash
-   pip install -r requirements.txt
-   pip install -e .
+   uv sync
    ```
 
 2. 配置 API Key（**必须**，本 demo 不做 mock）：
@@ -27,13 +26,13 @@ Provider 抽象与 `LLMClient` 见专题 01（`source/demos/02_provider_switchin
 cd source/demos/02_first_chat
 
 # 默认：样例 S2（售后 PRD 风险识别），temperature=0
-python first_chat.py
+uv run python first_chat.py
 
 # 对比实验：同一输入，不同 temperature
-python first_chat.py --temperature 0.7
+uv run python first_chat.py --temperature 0.7
 
 # 换模型或样例（S1–S5 见 samples.json）
-python first_chat.py --model gpt-4o-mini --sample S3
+uv run python first_chat.py --model gpt-4o-mini --sample S3
 ```
 
 ## 应看到什么
@@ -55,8 +54,8 @@ python first_chat.py --model gpt-4o-mini --sample S3
 用**同一条样例**（默认 S2）记录表格：`model`, `temperature`, `prompt_tokens`, `completion_tokens`, `latency_ms`, `notes`。
 
 ```bash
-python first_chat.py --temperature 0
-python first_chat.py --temperature 0.7
+uv run python first_chat.py --temperature 0
+uv run python first_chat.py --temperature 0.7
 ```
 
 观察风险表述是否更发散、是否出现材料中未写的模块名。

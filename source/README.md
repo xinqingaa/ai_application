@@ -24,6 +24,6 @@ source/
 - 目录规范与禁止占位：见 [docs/learning-guide.md](../docs/learning-guide.md) §6.4、§10。
 - 每门课 **00**：在 `packages/` 创建或扩展本课 `*_core` + 第一个 demo（若当节正文要求）。
 - 每节 **01+**：优先在同一 package 上增量修改；demo 仅在需要新观测方式时新增或扩展。
-- 安装：根目录 `pip install -e .`（见 `pyproject.toml`）。
+- 安装 / 同步：根目录 `uv sync`（见 `pyproject.toml` 与 `uv.lock`）。
 
 **本文件**仅在 `source/` 顶层增删目录时更新一行；各课 `outline.md` 不维护文件树。

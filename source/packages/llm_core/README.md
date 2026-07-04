@@ -118,7 +118,7 @@ requirement + candidate sources + context policy
 安装：
 
 ```bash
-pip install -e .   # 仓库根目录
+uv sync   # 仓库根目录
 ```
 
 普通 chat：
@@ -217,7 +217,7 @@ print(context.report.citation_source_ids)
 FastAPI SSE：
 
 ```bash
-uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
 open http://127.0.0.1:8004/
 curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 ```

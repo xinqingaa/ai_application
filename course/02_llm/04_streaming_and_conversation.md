@@ -171,7 +171,7 @@ SSE，即 Server-Sent Events，是服务端向客户端持续推送文本事件�
 2. 调用 `LLMClient.stream_chat`，把模型生成过程转成 `LLMStreamEvent`。
 3. 通过 SSE 返回给前端，让前端能按事件更新 UI。
 
-启动 `uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004` 后，本机就多了一个临时服务：
+启动 `uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004` 后，本机就多了一个临时服务：
 
 | 地址 | 作用 |
 | --- | --- |
@@ -431,10 +431,9 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 仓库根目录：
 
 ```bash
-pip install -r requirements.txt
-pip install -e .
+uv sync
 cp .env.example .env
-uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
 ```
 
 然后打开浏览器（推荐，页面与 API 同源）：
@@ -479,7 +478,7 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 ### 运行与观察
 
 ```bash
-uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
 ```
 
 观察点：

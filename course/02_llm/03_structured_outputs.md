@@ -440,9 +440,9 @@ demo 默认固定 S2、Prompt v4、`chat.dev_chat` 和 `temperature=0`，只改�
 ### 运行方式
 
 ```bash
-pip install -e .
+uv sync
 cd source/demos/02_provider_switching
-python structured_risk.py
+uv run python structured_risk.py
 ```
 
 ### 预期结果
@@ -478,7 +478,7 @@ python structured_risk.py
 
 ```bash
 cd source/demos/02_provider_switching
-python structured_risk.py
+uv run python structured_risk.py
 ```
 
 ### 自检题

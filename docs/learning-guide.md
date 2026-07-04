@@ -373,7 +373,7 @@ RAG、Agent 等长链路课程中，可在若干专题完成后设一节「串�
 - **目标**：本节结束后项目多了什么能力（一句话）。
 - **涉及文件**：`source/` 下本节新增或修改的关键路径；不贴完整文件树，完整清单放 README。
 - **实现步骤**：关键步骤与原理、最小实现对照；避免展开成源码走读。
-- **运行方式**：一条主命令（根目录 `.venv`、`.env`）；命令变体和完整配置放 README。
+- **运行方式**：一条主命令（根目录 `uv run ...`、`.env`）；命令变体和完整配置放 README。
 - **预期结果**：终端输出或行为描述（可贴示例）。
 
 00 可以是「package 骨架 + first demo」；01 起应对应当节全部核心代码。
@@ -500,9 +500,104 @@ RAG、Agent 等长链路课程中，可在若干专题完成后设一节「串�
 
 ### Python workspace
 
-- 根目录 `pyproject.toml` 以 editable 方式安装 `source/packages/*` 下各包，避免手写 PYTHONPATH。
+- 根目录 `pyproject.toml` 是 uv 依赖真源，并以 editable 方式安装 `source/packages/*` 下各包，避免手写 PYTHONPATH。
+- 根目录 `uv.lock` 锁定精确版本；本地 `.venv/` 由 `uv sync` 生成，可删除重建，不提交。
 - 根 `review_assistant/`（及届时存在的学习期 app）通过 path dependency 依赖上述包。
-- 依赖清单仍维护在根 `requirements.txt`。
+- 新增依赖使用 `uv add`；删除依赖使用 `uv remove`；运行命令优先使用 `uv run ...`。
+
+#### uv 管理环境的本质
+
+uv 在本仓库里负责两件事：**维护依赖真源**，以及**根据真源生成本地可运行环境**。
+
+- `pyproject.toml` 回答「这个项目直接需要哪些包」。
+- `uv.lock` 回答「这些包最终解析成哪些精确版本」。
+- `.venv/` 回答「当前机器实际运行时从哪里 import 包和命令」。
+
+因此 `.venv/` 不是依赖真源，而是 uv 根据 `pyproject.toml` 和 `uv.lock` 生成的本地结果。目录搬迁、Python 版本变化或环境损坏时，可以删除 `.venv/` 后重新执行 `uv sync`。只要 `pyproject.toml` 与 `uv.lock` 还在，环境就能恢复。
+
+```bash
+rm -rf .venv
+uv sync
+```
+
+不要手动维护 `.venv/` 里的包，也不要把 `.venv/` 提交到 Git。
+
+#### 日常命令
+
+首次拉取或切换分支后同步环境：
+
+```bash
+uv sync
+```
+
+运行脚本：
+
+```bash
+uv run python source/demos/02_first_chat/first_chat.py
+```
+
+启动 FastAPI / uvicorn：
+
+```bash
+uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+```
+
+运行测试与 lint：
+
+```bash
+uv run pytest source/packages/llm_core/tests
+uv run ruff check source/packages/llm_core source/demos source/apps
+```
+
+查看当前环境安装了什么：
+
+```bash
+uv tree --depth 1
+uv pip list
+```
+
+查看 Python 与 uv 缓存位置：
+
+```bash
+uv run python --version
+uv cache dir
+```
+
+新增运行依赖：
+
+```bash
+uv add requests
+uv add "pypdf>=6,<7"
+```
+
+新增开发依赖：
+
+```bash
+uv add --dev pytest
+```
+
+新增只给某个可选能力使用的依赖组：
+
+```bash
+uv add --group archive chromadb langchain-core langchain-chroma
+uv sync --group archive
+```
+
+删除依赖：
+
+```bash
+uv remove package-name
+```
+
+升级依赖：
+
+```bash
+uv add -U openai
+uv lock --upgrade
+uv sync
+```
+
+本仓库不再推荐用 `pip install ...` 直接改环境。若只是临时排查某个包是否能安装，可以用 `uv pip install ...`，但排查结束后仍要用 `uv add ...` 写回 `pyproject.toml`，否则别人或未来的自己执行 `uv sync` 时不会得到同样环境。
 
 示例代码可以简单，但必须能运行、能解释。
 

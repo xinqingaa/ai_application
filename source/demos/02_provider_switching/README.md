@@ -12,9 +12,9 @@
 
 | 脚本 | 课程节 | 运行 |
 | --- | --- | --- |
-| `provider_switching.py` | 01 Provider / `config_ref` | `python provider_switching.py` |
-| `prompt_compare.py` | 02 Prompt 三版对比 | `python prompt_compare.py` |
-| `structured_risk.py` | 03 Structured Outputs（同时消费 05 context builder） | `python structured_risk.py` |
+| `provider_switching.py` | 01 Provider / `config_ref` | `uv run python provider_switching.py` |
+| `prompt_compare.py` | 02 Prompt 三版对比 | `uv run python prompt_compare.py` |
+| `structured_risk.py` | 03 Structured Outputs（同时消费 05 context builder） | `uv run python structured_risk.py` |
 
 00 的 [`02_first_chat`](../02_first_chat/) 保留直调 OpenAI SDK，用于对照「抽象前后」的差异。
 
@@ -22,8 +22,7 @@
 
 ```bash
 # 仓库根目录
-pip install -r requirements.txt
-pip install -e .
+uv sync
 cp .env.example .env   # 填写 OPENAI_API_KEY
 ```
 
@@ -90,13 +89,13 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 ```bash
 cd source/demos/02_provider_switching
 
-python provider_switching.py
-python provider_switching.py --verbose
-python provider_switching.py --configs chat.dev_chat,chat.structured_chat
+uv run python provider_switching.py
+uv run python provider_switching.py --verbose
+uv run python provider_switching.py --configs chat.dev_chat,chat.structured_chat
 
-python prompt_compare.py
+uv run python prompt_compare.py
 
-python structured_risk.py
+uv run python structured_risk.py
 ```
 
 ## 实验配置

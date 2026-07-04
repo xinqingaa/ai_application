@@ -41,7 +41,7 @@ def require_api_key() -> str:
     if api_key:
         return api_key
     print("错误：未配置 OPENAI_API_KEY。", file=sys.stderr)
-    print(f"请在仓库根目录复制 .env.example 为 .env 并填写 Key：", file=sys.stderr)
+    print("请在仓库根目录复制 .env.example 为 .env 并填写 Key：", file=sys.stderr)
     print(f"  cp {REPO_ROOT / '.env.example'} {REPO_ROOT / '.env'}", file=sys.stderr)
     sys.exit(1)
 

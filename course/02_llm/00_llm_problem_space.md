@@ -153,7 +153,7 @@ Prompt（任务协议：你是谁、要做什么、不能做什么）
 
 ### 前置
 
-- 根目录 `.venv` 已创建，`pip install -r requirements.txt` 与 `pip install -e .`。
+- 根目录 uv 环境已同步：`uv sync`。
 - 复制 [`.env.example`](../../.env.example) 为 `.env` 并填写 `OPENAI_API_KEY`（本 demo **必须**有真实 Key，不做 mock）。
   ```bash
   cp .env.example .env
@@ -203,9 +203,9 @@ latency_ms = (time.perf_counter() - t0) * 1000
 
 ```bash
 cd source/demos/02_first_chat
-python first_chat.py
-python first_chat.py --temperature 0.7
-python first_chat.py --sample S4
+uv run python first_chat.py
+uv run python first_chat.py --temperature 0.7
+uv run python first_chat.py --sample S4
 ```
 
 应看到：`sample`、`model`、`usage`（prompt/completion tokens）、`latency_ms`、`content preview`。详见 [demo README](../../source/demos/02_first_chat/README.md)。

@@ -15,7 +15,6 @@ from llm_core.errors import LLMError
 from llm_core.observability import (
     DemoLog,
     demo_log,
-    render_experiment_messages_once,
     render_structured_mode_verbose,
 )
 from llm_core.schemas.review import ReviewRisk
@@ -38,7 +37,7 @@ def require_api_key(log: DemoLog = demo_log) -> None:
     if os.environ.get("OPENAI_API_KEY", "").strip():
         return
     log.error("error", "未配置 OPENAI_API_KEY。")
-    log.error("error", f"请在仓库根目录复制 .env.example 为 .env 并填写 Key：")
+    log.error("error", "请在仓库根目录复制 .env.example 为 .env 并填写 Key：")
     log.error("error", f"  cp {REPO_ROOT / '.env.example'} {REPO_ROOT / '.env'}")
     sys.exit(1)
 

@@ -29,27 +29,26 @@
 仓库根目录先安装：
 
 ```bash
-pip install -e .
+uv sync
 ```
 
 默认离线运行，不需要 API key：
 
 ```bash
-cd source/demos/02_context_engineering
-../../../.venv/bin/python context_compare.py
+uv run python source/demos/02_context_engineering/context_compare.py
 ```
 
 只看某个策略：
 
 ```bash
-../../../.venv/bin/python context_compare.py --strategy evidence_first
-../../../.venv/bin/python context_compare.py --strategy tight_budget
+uv run python source/demos/02_context_engineering/context_compare.py --strategy evidence_first
+uv run python source/demos/02_context_engineering/context_compare.py --strategy tight_budget
 ```
 
 可选真实模型调用：
 
 ```bash
-../../../.venv/bin/python context_compare.py --strategy evidence_first --call-llm
+uv run python source/demos/02_context_engineering/context_compare.py --strategy evidence_first --call-llm
 ```
 
 `--call-llm` 会读取根目录 `.env`，用 `review.risk_review@4.0.0` + `chat_structured(..., json_object)` 做一次结构化风险识别。默认不调用模型，是为了让 context 诊断本身可离线观察、可测试。

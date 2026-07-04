@@ -148,30 +148,27 @@ AI Agent 在本仓库中设计课程、项目和代码时，必须记住：
 
 ## Python 与依赖管理规范
 
-全仓库默认使用一个 Python 虚拟环境和一个根依赖清单。
+全仓库默认使用 uv 管理一个项目虚拟环境和一个根依赖真源。
 
 要求：
 
-- 虚拟环境建议放在根目录 `.venv/`。
-- Python 依赖统一维护在根目录 `requirements.txt`。
-- 不在每个 package / demo / app 下维护独立 `requirements.txt`。
-- 新增依赖时必须更新根目录 `requirements.txt`。
-- `requirements.txt` 必须用注释分组，说明依赖用途。
+- 本地虚拟环境由 `uv sync` 生成在根目录 `.venv/`；`.venv/` 可删除重建，不提交。
+- Python 依赖统一维护在根目录 `pyproject.toml`。
+- 精确锁定版本维护在根目录 `uv.lock`。
+- 不在每个 package / demo / app 下维护独立依赖文件。
+- 新增依赖使用 `uv add package-name`；开发依赖使用 `uv add --dev package-name`。
+- 删除依赖使用 `uv remove package-name`；同步环境使用 `uv sync`。
+- 运行命令优先使用 `uv run ...`，避免依赖 shell 是否激活虚拟环境。
 - 每个 package / demo 的 README 只说明运行入口、配置方式和验证方式，不重复维护依赖清单。
-- 如果某个依赖只是可选能力，先在 `requirements.txt` 中用注释标注 optional 或说明用途。
+- 如果某个依赖只是可选能力，等对应课程或项目真实落地时再加入 `pyproject.toml`。
 - 涉及 API key、模型配置、数据库连接等，使用 `.env` / `.env.example`，不要写入代码。
 
-根依赖清单的推荐分组：
+根依赖真源的推荐分组：
 
 ```text
-# Core API
-# HTTP / Async
-# LLM Clients
-# LangChain / Agent
-# RAG / Vector Store
-# Database / Cache
-# Document Processing
-# Evaluation / Testing
+# Core API / Streaming App
+# LLM Client / Context Budgeting
+# Prompt / Model Config
 # Dev Tools
 ```
 

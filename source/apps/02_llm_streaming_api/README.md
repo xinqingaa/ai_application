@@ -24,15 +24,14 @@
 
 ```bash
 # 仓库根目录
-pip install -r requirements.txt
-pip install -e .
+uv sync
 cp .env.example .env   # 填写 OPENAI_API_KEY
 ```
 
 ## 启动
 
 ```bash
-uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
 ```
 
 这条命令会在本机启动一个 FastAPI 服务：

@@ -69,9 +69,9 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 可以有多个 package，但每个 package 必须有清晰职责、单一实例。
 - 必须明确入口、运行方式、完成标准和能力边界。
 - 不为了章节完整性硬造脚本。
-- 全仓库默认使用根目录一个 Python 虚拟环境，例如 `.venv/`。
-- Python 依赖统一维护在根目录 `requirements.txt`，不在每个 package / demo / app 下维护独立 requirements。
-- 新增依赖时必须更新根 `requirements.txt`，并按类别注释说明用途。
+- 全仓库默认使用 uv 管理根目录一个 Python 虚拟环境；`.venv/` 由 `uv sync` 生成，可删除重建，不提交。
+- Python 依赖统一维护在根目录 `pyproject.toml`，精确版本锁定在根目录 `uv.lock`，不在每个 package / demo / app 下维护独立依赖文件。
+- 新增依赖使用 `uv add package-name`；开发依赖使用 `uv add --dev package-name`；删除依赖使用 `uv remove package-name`；运行命令优先使用 `uv run ...`。
 
 ## 协作风格
 
