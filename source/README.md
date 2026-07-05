@@ -7,11 +7,12 @@
 ```text
 source/
 ├── packages/
-│   └── llm_core/          # 02_llm/00–05
+│   └── llm_core/          # 02_llm/00–06
 ├── demos/
 │   ├── 02_first_chat/     # 02_llm/00
 │   ├── 02_provider_switching/   # 02_llm/01–03（含 structured_risk.py）
-│   └── 02_context_engineering/  # 02_llm/05
+│   ├── 02_context_engineering/  # 02_llm/05
+│   └── 02_reliability_errors/   # 02_llm/06
 ├── apps/
 │   └── 02_llm_streaming_api/  # 02_llm/04 FastAPI SSE
 └── python_base/           # 已完成 Python 基础练习

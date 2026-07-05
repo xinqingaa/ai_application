@@ -45,16 +45,16 @@ DEFAULT_STRATEGY = "evidence_first"
 # 是否调用真实 LLM。
 # False：只打印 context build 诊断，不消耗 token，也不会得到模型评审结果。
 # True：把构建好的上下文放进 Prompt，调用真实模型，输出 [llm_result]。
-CALL_LLM = True
+CALL_LLM = False
 
 # 是否额外跑 minimal 策略做对照。
 # True 时会先跑 minimal，再跑 DEFAULT_STRATEGY；通常和 CALL_LLM=True 一起使用，
 # 用来观察“不带证据”和“带证据”时模型输出有什么差异。
-COMPARE_WITH_MINIMAL = True
+COMPARE_WITH_MINIMAL = False
 
 # 是否打印完整 system/user messages。
 # True 时可以看到最终发给模型的完整输入；适合学习 Prompt + Context 如何合并。
-PRINT_MESSAGES = True
+PRINT_MESSAGES = False
 
 # 是否打印完整 context block。
 # False 时只打印预览，避免终端太长；True 时适合排查某条 source 是否真的进了 Prompt。

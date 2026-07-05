@@ -12,6 +12,8 @@ class LLMErrorCode(str, Enum):
     TIMEOUT = "timeout"
     AUTH = "auth"
     CAPABILITY_MISMATCH = "capability_mismatch"
+    CONTENT_SAFETY = "content_safety"
+    EMPTY_RESPONSE = "empty_response"
     PROVIDER_ERROR = "provider_error"
     SCHEMA_PARSE = "schema_parse"
     UNKNOWN = "unknown"

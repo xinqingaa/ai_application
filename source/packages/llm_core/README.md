@@ -39,6 +39,12 @@ requirement + candidate sources + context policy
 → sections + citation candidates + diagnostics
 → prompt variables / context report
 → chat_structured / stream_chat
+
+06 Reliability + Degradation
+messages + primary config_ref
+→ ReliableLLMService
+→ retry / fallback / parse validation
+→ ReliableCallResult + ReliableCallReport
 ```
 
 ## 模块职责
@@ -62,6 +68,7 @@ requirement + candidate sources + context policy
 | `context/builder.py` | 上下文装配主流程：去重、排序、预算、压缩、引用候选 | `build_review_context` |
 | `context/compression.py` | 确定性 extractive compression | `fit_source` |
 | `context/formatting.py` | source 与 evidence block 格式化 | `format_context_source` |
+| `reliability.py` | 可靠调用外壳：重试、降级、结构化失败报告 | `ReliableLLMService` |
 | `observability.py` | demo 日志格式与调用详情输出 | `render_call_log` |
 
 ## 读代码顺序
@@ -112,6 +119,16 @@ requirement + candidate sources + context policy
 6. 最后回到 [`prompts/review/risk_review_v4.yaml`](prompts/review/risk_review_v4.yaml)：Prompt 仍只接收 `requirement_text` 与 `evidence_block`，不直接关心证据来源是静态文件还是后续 RAG。
 
 核心判断：Context Engineering 不是把所有材料塞进 Prompt，而是把候选材料池装配成可追溯、可预算、可诊断的模型输入；被压缩或丢弃的 source 要可见，引用候选要清楚。
+
+### 06：Reliability、Errors 与 Degradation
+
+1. 先看 [`errors.py`](errors.py)：`LLMErrorCode` 如何把限流、超时、鉴权、能力不匹配、结构化解析失败分开。
+2. 再看 [`reliability.py`](reliability.py)：`RetryPolicy`、`DegradationPolicy`、`ReliableCallReport` 的职责。
+3. 再看 [`client.py`](client.py)：基础 `chat` / `chat_structured` 仍保持直接调用，不内置重试。
+4. 再看测试 [`tests/test_reliability.py`](tests/test_reliability.py)：超时重试、鉴权不重试、fallback、schema parse 失败如何被验证。
+5. 最后看 demo [`02_reliability_errors/reliability_compare.py`](../../demos/02_reliability_errors/reliability_compare.py)：脚本只选择场景并打印 report，不实现可靠性核心逻辑。
+
+核心判断：可靠性不是让模型永远成功，而是把失败分类、限制重试次数、必要时降级，并把每一次 attempt 留在 report 里。
 
 ## 快速使用
 
@@ -214,6 +231,25 @@ print(context.included_source_ids, context.dropped_source_ids)
 print(context.report.citation_source_ids)
 ```
 
+可靠调用：
+
+```python
+from llm_core import LLMClient, ReliableLLMService, RetryPolicy
+
+client = LLMClient.from_default_config()
+service = ReliableLLMService(client)
+result = service.chat(
+    [{"role": "user", "content": "列出这个需求的研发风险"}],
+    "chat.dev_chat",
+    retry_policy=RetryPolicy(max_attempts=2),
+    temperature=0,
+)
+if result.ok:
+    print(result.report.attempt_count, result.output.content)
+else:
+    print(result.report.final_error_code, result.report.final_message)
+```
+
 FastAPI SSE：
 
 ```bash
@@ -241,6 +277,9 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 | 关键证据没进 Prompt | `dropped_source_ids` 与 `token_budget`；不要只看最终回答 |
 | 引用了 history 或 agent summary | `context.report.citation_source_ids` 是否只含 evidence 类 source |
 | 不同策略结果差异大 | 先跑 `02_context_engineering/context_compare.py` 看 section budget 和 dropped reason |
+| 模型调用偶发失败 | `ReliableCallReport.attempts` 里每次 attempt 的错误码 |
+| 不知道是否发生降级 | `ReliableCallReport.degraded` 与 `final_config_ref` |
+| 结构化输出解析失败 | `ReliableCallResult.error.code` 是否为 `schema_parse` 或 `empty_response` |
 
 ## 对应 demo
 
@@ -250,6 +289,7 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 - 03 Structured Outputs：[../../demos/02_provider_switching/structured_risk.py](../../demos/02_provider_switching/structured_risk.py)
 - 04 Streaming SSE：[../../apps/02_llm_streaming_api/](../../apps/02_llm_streaming_api/)
 - 05 Context Engineering：[../../demos/02_context_engineering/](../../demos/02_context_engineering/)
+- 06 Reliability Errors：[../../demos/02_reliability_errors/](../../demos/02_reliability_errors/)
 
 对应课程正文：
 
@@ -258,3 +298,4 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 - [03 Structured Outputs](../../../course/02_llm/03_structured_outputs.md)
 - [04 Streaming 与 Conversation](../../../course/02_llm/04_streaming_and_conversation.md)
 - [05 Context Engineering](../../../course/02_llm/05_context_engineering.md)
+- [06 Reliability、Errors 与 Degradation](../../../course/02_llm/06_reliability_errors_and_degradation.md)

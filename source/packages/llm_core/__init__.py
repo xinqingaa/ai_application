@@ -5,6 +5,7 @@
 03 起提供 Pydantic Schema、结构化解析与 chat_structured。
 04 起提供流式事件、SSE 编码与最小 Conversation Buffer。
 05 起提供上下文构造、证据编号与预算诊断。
+06 起提供可靠调用外壳：重试、降级与尝试报告。
 """
 
 from llm_core.client import LLMClient
@@ -30,6 +31,14 @@ from llm_core.conversation import ConversationBuffer, ConversationMessage
 from llm_core.errors import LLMError, LLMErrorCode
 from llm_core.observability import DemoLog, demo_log, format_call_log, print_call_log
 from llm_core.prompts import PromptTemplate, get_prompt, list_prompt_versions, render_prompt
+from llm_core.reliability import (
+    DegradationPolicy,
+    ReliableCallAttempt,
+    ReliableCallReport,
+    ReliableCallResult,
+    ReliableLLMService,
+    RetryPolicy,
+)
 from llm_core.schemas import (
     Citation,
     ClarificationQuestion,
@@ -43,7 +52,7 @@ from llm_core.schemas import (
 from llm_core.streaming import LLMStreamEvent, StreamEventBuilder, encode_sse
 from llm_core.structured import StructuredLLMResponse, build_response_format
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 __all__ = [
     "LLMClient",
@@ -54,6 +63,12 @@ __all__ = [
     "StreamEventBuilder",
     "LLMError",
     "LLMErrorCode",
+    "RetryPolicy",
+    "DegradationPolicy",
+    "ReliableCallAttempt",
+    "ReliableCallReport",
+    "ReliableCallResult",
+    "ReliableLLMService",
     "ModelConfig",
     "TokenUsage",
     "CapabilityTags",
