@@ -32,26 +32,44 @@
 uv sync
 ```
 
-默认离线运行，不需要 API key：
+默认运行 `evidence_first`，不需要 API key：
 
 ```bash
 uv run python source/demos/02_context_engineering/context_compare.py
 ```
 
-只看某个策略：
+常用开关在 [`context_compare.py`](context_compare.py) 顶部，改完后仍运行上面这一条短命令：
 
-```bash
-uv run python source/demos/02_context_engineering/context_compare.py --strategy evidence_first
-uv run python source/demos/02_context_engineering/context_compare.py --strategy tight_budget
+```python
+DEFAULT_STRATEGY = "evidence_first"
+CALL_LLM = False
+COMPARE_WITH_MINIMAL = False
+PRINT_MESSAGES = False
+PRINT_FULL_CONTEXT = False
 ```
 
-可选真实模型调用：
+真实项目里这些值通常来自配置文件、环境变量、数据库配置或后台管理页；本 demo 为了学习方便，先集中放在脚本顶部。
 
-```bash
-uv run python source/demos/02_context_engineering/context_compare.py --strategy evidence_first --call-llm
-```
+## 配置开关
 
-`--call-llm` 会读取根目录 `.env`，用 `review.risk_review@4.0.0` + `chat_structured(..., json_object)` 做一次结构化风险识别。默认不调用模型，是为了让 context 诊断本身可离线观察、可测试。
+| 开关 | 含义 | 常用改法 |
+| --- | --- | --- |
+| `DEFAULT_STRATEGY` | 本次使用哪种上下文构建策略 | `"evidence_first"` 看默认证据优先；`"tight_budget"` 看紧预算压缩；`"minimal"` 看不带证据；`"all"` 看全部策略 |
+| `CALL_LLM` | 是否调用真实模型 | `False` 只看上下文构建诊断；`True` 输出 `[llm_result]`，会消耗真实 token |
+| `COMPARE_WITH_MINIMAL` | 是否额外跑一遍 `minimal` 做对照 | `True` 时会先跑不带证据，再跑 `DEFAULT_STRATEGY`；适合比较带/不带上下文差异 |
+| `PRINT_MESSAGES` | 是否打印完整 system / user messages | `True` 时能看到最终发给模型的完整 Prompt，适合学习 Prompt 和 context 如何合并 |
+| `PRINT_FULL_CONTEXT` | 是否打印完整 context block | `True` 时不截断上下文，适合排查某条 source 是否真的进入 Prompt |
+
+几个常见组合：
+
+| 想观察什么 | 推荐配置 |
+| --- | --- |
+| 默认离线诊断 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = False` |
+| 紧预算压缩 | `DEFAULT_STRATEGY = "tight_budget"`，`CALL_LLM = False` |
+| 真实模型结果 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = True` |
+| 带/不带证据对比 | `DEFAULT_STRATEGY = "evidence_first"`，`COMPARE_WITH_MINIMAL = True`，`PRINT_MESSAGES = True` |
+
+`CALL_LLM=True` 或 `COMPARE_WITH_MINIMAL=True` 会读取根目录 `.env`，用 `review.risk_review@4.0.0` + `chat_structured(..., json_object)` 做结构化风险识别。
 
 ## 策略怎么看
 
@@ -70,13 +88,24 @@ uv run python source/demos/02_context_engineering/context_compare.py --strategy 
 
 | 字段 | 含义 |
 | --- | --- |
+| `[context_build]` | 下面是上下文构建诊断，不是模型最终回答 |
 | `[included_sources]` | 最终进入 Prompt 的 source id |
 | `[section_tokens]` | requirement / evidence / history / agent_summary / other 各 section 的估算 tokens |
 | `[citation_candidates]` | 允许模型引用的证据 source；history 和 agent_summary 不进入 citation candidates |
 | `[compressed_sources]` | 被确定性压缩过的 source |
 | `[dropped_sources]` | 未进入 Prompt 的 source 及原因 |
 | `[warnings]` | 可用于调试的上下文异常或风险提示 |
-| `[prompt_preview]` | 最终上下文块预览 |
+| `[built_context_preview]` | 最终上下文块预览；这是即将进入 Prompt 的材料 |
+| `[llm_result] not_run` | 没有调用真实模型，因此没有最终评审结果 |
+
+真实调用时还会看到：
+
+| 字段 | 含义 |
+| --- | --- |
+| `[messages]` | `PRINT_MESSAGES = True` 时打印的完整 system / user 输入 |
+| `[llm_result] parse=ok` | 模型返回通过结构化解析；这里才是模型结果 |
+| `tokens` / `latency_ms` | 供应商返回的 token 用量和耗时 |
+| `cites=...` | 每条风险声明引用的 source id |
 
 ## 常见定位
 

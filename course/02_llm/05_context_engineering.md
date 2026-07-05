@@ -62,11 +62,59 @@ Context Engineering 没有唯一标准答案。不同产品可能使用 RAG、�
 | 层级 | 本节怎么理解 |
 | --- | --- |
 | **通用原则** | 上下文必须分层；当前任务优先；证据可追溯；预算不足要可见；中间过程不能直接污染事实依据 |
-| **工程实践** | 用 `ContextSource` 表示候选材料，用 `ContextBuildPolicy` 控制预算和策略，用 `ContextBuildReport` 输出诊断 |
-| **项目取舍** | 本节用静态样例模拟材料池；压缩只做确定性 extractive compression，不做 LLM 摘要 |
+| **工程实践** | 先把材料变成有身份的候选项，再按策略装配 Prompt，并输出诊断报告 |
+| **项目取舍** | 本节用静态样例模拟材料池；压缩只做确定性片段抽取，不做 LLM 摘要 |
 | **非目标** | 不把本节做成完整 RAG；不实现 embedding / vector store / rerank；不把 token 估算当真实计费 |
 
-换句话说，本节不是提前实现 03_rag，而是给后续 RAG、Agent、Workflow 准备一个统一入口：无论材料来自静态 JSON、检索结果、工具调用还是 Agent 摘要，都先变成 `ContextSource`，再由 builder 决定是否进入模型输入。
+换句话说，本节不是提前实现 03_rag，而是给后续 RAG、Agent、Workflow 准备一个统一入口：无论材料来自静态 JSON、检索结果、工具调用还是 Agent 摘要，都先变成候选材料，再由 builder 决定是否进入模型输入。
+
+### 先用一个小例子抓住主线
+
+假设本轮评审只有三条材料：
+
+```text
+用户需求：订单详情页新增「申请售后」入口。
+接口文档：售后接口 v2 必填 order_id、sku_list、apply_reason、source_channel、paid_at。
+历史评审：上一次售后入口遗漏重复申请拦截，造成用户重复提交。
+```
+
+如果只把用户需求交给模型，模型可能凭常识说“注意接口异常”，但说不出 v2 必填参数，也不能给出来源。如果把三条材料原样拼进去，模型又可能把“历史评审里发生过的问题”当成当前需求已经确定存在的问题。更麻烦的是，模型最终输出 citation 时，应用不知道它引用的是接口文档、历史摘要，还是自己编出来的 source id。
+
+Context Engineering 解决的就是这一步：**模型调用前，应用先整理本轮输入**。它不是让模型更聪明，而是让模型看到的材料更干净、边界更清楚、事后更好排查。
+
+本节的最小数据流可以记成一句话：
+
+```text
+候选材料 ContextSource
+→ 按 ContextBuildPolicy 取舍
+→ 生成 Prompt 变量和 citation candidates
+→ 用 ContextBuildReport 解释为什么这样装配
+```
+
+这四个动作对应四个问题：
+
+| 问题 | 本节对象 | 白话解释 |
+| --- | --- | --- |
+| 我现在手上有哪些材料？ | `ContextSource` | 一条候选材料，还没决定放不放进 Prompt |
+| 本轮按什么规则取舍？ | `ContextBuildPolicy` | 预算、优先级、哪些类型允许进入 |
+| 模型最终能看到什么？ | `BuiltContext` | 已经组织好的 Requirement / Evidence / History / Agent Summary |
+| 为什么是这个结果？ | `ContextBuildReport` | 哪些 source 进了、丢了、压缩了、能被引用 |
+
+先抓住这条线，再看后面的 `source_type`、section budget、compression 和 citation，就不会觉得它们是突然冒出来的术语。
+
+### 先把几个词说清楚
+
+**Context**：本次模型调用能看到的全部输入，不只是聊天历史。它包括 system prompt、user prompt、当前需求、证据、历史摘要、Agent 摘要等。
+
+**Context window**：模型一次调用最多能接收的 token 上限。窗口变大只是“装得下更多”，不代表材料相关、可信或可追溯。
+
+**Context budget**：应用主动给本轮上下文设置的预算。即使模型窗口很大，也要控制成本、噪声和排查复杂度。
+
+**Source**：一条带身份的材料。它不只是文本，还要有 `source_id`、`source_type`、标题、优先级和 metadata。
+
+**Evidence**：可以支撑当前结论的证据材料。接口文档、业务规则、客户端接入说明通常可以作为 evidence；历史评审和 Agent 中间判断不默认作为当前事实依据。
+
+**Citation**：模型输出里指向 evidence 的引用。03 的 Schema 只能保证 `citations` 字段长得对；05 的 `citation_candidates` 才告诉应用：本次 Prompt 中哪些 source id 是合法候选。
 
 ### 候选材料池不等于最终 Prompt
 
@@ -80,6 +128,8 @@ Context Engineering 没有唯一标准答案。不同产品可能使用 RAG、�
 候选材料池可以很杂：PRD、接口文档、业务规则、历史评审、Agent 输出、工具日志、用户反馈、旧版本材料。最终 Prompt 必须更克制：它只包含当轮任务真正需要的内容，并且每个可引用证据都有 source id。
 
 如果没有这个分层，系统无法回答一个关键问题：模型没提到接口 v2，是因为没有检索到接口文档，还是检索到了但被预算裁掉，还是进入 Prompt 后模型忽略了？这三个问题的修复方向完全不同。
+
+这也解释了为什么 `ContextSource` 不是“多余包装”。如果材料只是一段字符串，builder 就不知道它来自接口文档还是历史摘要，不知道能不能被引用，也不知道重复内容应该保留哪一条。把材料变成 `ContextSource`，不是为了写更多类，而是为了让后面的取舍有依据。
 
 ### Source Type 决定能否作为证据
 
@@ -97,6 +147,8 @@ Context Engineering 没有唯一标准答案。不同产品可能使用 RAG、�
 | `other` | 噪声或暂不分类材料 | 通常不作为 citation |
 
 这个区分非常重要。历史评审和 Agent 输出可以帮助模型注意风险方向，但它们不能替代当前需求的原始证据。如果模型把 `agent_summary` 当成 citation，前端展示出来会给用户一种“这条风险有文档依据”的错觉。
+
+可以这样判断：**能被用户点开追溯、并且确实描述当前规则或接口的材料，才适合做 citation**。历史评审可以提醒“重复申请以前出过问题”，但它不能证明当前接口 v2 的字段要求；Agent 摘要可以提醒“可能关注三端一致性”，但它不能证明三端 API 的真实规则。
 
 ### Context Builder 的工程流水线
 
@@ -126,6 +178,8 @@ source_type + priority + score 排序
 - 追问任务可能应该在 evidence 不足时保留缺口诊断。
 - 紧预算任务宁愿压缩历史，也要保留当前 PRD 与关键证据。
 
+因此 `ContextBuildPolicy` 可以理解成“本轮装配规则”。它不是模型参数，也不是 Prompt 文案，而是应用在模型调用前做的一次工程取舍。例如 `evidence_first` 表示风险审查优先保留业务规则、接口文档和客户端说明；`tight_budget` 表示预算很小，允许压缩 source，并且会丢掉低优先级材料。
+
 ### 分区预算比一个总预算更可控
 
 只给一个 `token_budget=1200` 会出现一个常见问题：某类材料独占预算。例如历史评审很长，排序又靠前，它可能挤掉当前接口文档。真实项目里更稳的做法是把预算分区：
@@ -140,11 +194,15 @@ other: 兜底材料
 
 分区预算不是绝对标准答案，但它让工程调试更清楚：如果 `evidence` 不够，就调整 evidence budget；如果 history 污染结果，就调低 history budget 或换策略，而不是盲目加大整个上下文窗口。
 
+反例：如果只有总预算，历史评审摘要可能因为 priority 不低而挤掉客户端三端说明。模型最后没提 H5 / iOS / Android 一致性，你可能误以为模型漏看了，其实是 builder 根本没把这条材料放进去。分区预算让这类问题能从 report 中直接看到。
+
 ### 压缩不是简单截断字符串
 
 上下文超预算时，最粗暴的办法是 `text[:N]`。这会导致两个问题：source id 还在，但关键句可能被截断；或者截断位置正好切掉错误码、状态约束、接口字段。用户看到 citation 时，以为模型依据完整文档，实际 Prompt 里只有半截。
 
-本节先做确定性的 extractive compression：把内容拆成行或句子，根据当前需求关键词选择更相关的片段。它不是完美摘要，也不替代后续 RAG compression，但比无脑截断更可解释。更重要的是：压缩会写入 report，告诉你哪条 source 从多少 token 压到了多少 token。
+本节先做确定性的 **extractive compression**。它的意思是：不让模型重写摘要，而是从原文里抽取更相关的行或句子。比如接口文档很长，当前需求包含“售后接口 v2、订单状态、重复申请”，压缩器会优先保留包含这些词的句子。
+
+这不是完美摘要，也不保证保留所有关键事实。它的优点是可解释：保留下来的话仍来自原文，source id 不变，report 会记录哪条 source 从多少 token 压到了多少 token。它的风险也必须明确：如果关键词没覆盖真正关键的句子，压缩会丢事实。后续 RAG 或 LLM 摘要压缩会更强，但本节先用确定性方法帮助你看清“压缩会改变模型看见的事实”。
 
 ### Citation Candidates 是应用侧边界
 
@@ -157,6 +215,15 @@ other: 兜底材料
 - bad case 可以定位到“模型编造 citation”还是“builder 没放入关键 source”。
 
 本节只生成 citation candidates，不做完整 citation 校验；真实校验会在 RAG 和 eval 阶段继续深化。
+
+最小判断路径是：
+
+```text
+模型输出 citation=API-AFTER-SALE-V2
+→ 先看 ContextBuildReport.citation_source_ids 是否包含它
+→ 不包含：模型编造或 Prompt 约束不足
+→ 包含：再看该 source 是否被压缩、内容是否真的支持这条风险
+```
 
 ### 从弱到强的机制递进
 
@@ -183,6 +250,8 @@ other: 兜底材料
 **第 6 步 · Compression + Citation Map + Report**
 
 source 可被压缩，合法引用候选可被列出，drop / warning 可被诊断。仍遗留：真实检索、rerank、LLM 摘要、引用质量评估在后续课程处理。
+
+这条递进和前几节是连起来的：02 解决 Prompt 任务协议，03 解决输出能不能进程序，04 解决生成过程和 history 边界，05 解决模型调用前“本轮到底该看什么”。如果 05 没做好，Prompt 再清楚、Schema 再严格，也只是让模型稳定地处理一份被污染或缺证据的输入。
 
 ### 与 Prompt、Structured Output、Conversation 的分工
 
@@ -401,7 +470,7 @@ Document / Memory / State / Tool Result
 2. 通过 `get_context_policy(...)` 选择上下文策略。
 3. `build_review_context(...)` 执行去重、排序、分区预算、压缩、citation candidates 生成。
 4. `context_compare.py` 打印每个策略的 report 和 prompt preview。
-5. 可选 `--call-llm` 把某个策略下的上下文交给 `chat_structured`，观察 citation 是否落在候选范围内。
+5. 可选打开 `COMPARE_WITH_MINIMAL`，把 `minimal` 与 `evidence_first` 交给真实模型，对比无证据和带证据时输出差异。
 
 ### 运行方式
 
@@ -414,25 +483,33 @@ uv run pytest source/packages/llm_core/tests/test_context.py
 策略对比：
 
 ```bash
-cd source/demos/02_context_engineering
 uv run python source/demos/02_context_engineering/context_compare.py
 ```
 
-只看紧预算策略：
+`context_compare.py` 顶部提供学习期实验开关，改完后仍运行上面这一条短命令：
 
-```bash
-uv run python source/demos/02_context_engineering/context_compare.py --strategy tight_budget
+```python
+DEFAULT_STRATEGY = "evidence_first"
+CALL_LLM = False
+COMPARE_WITH_MINIMAL = False
+PRINT_MESSAGES = False
+PRINT_FULL_CONTEXT = False
 ```
 
-可选真实模型调用：
+真实项目中，这类值通常来自配置、环境变量或后台开关；本节 demo 先放在文件顶部，避免每次靠一长串 CLI 参数控制行为。
 
-```bash
-uv run python source/demos/02_context_engineering/context_compare.py --strategy evidence_first --call-llm
-```
+常见改法：
+
+| 想观察什么 | 推荐配置 |
+| --- | --- |
+| 默认证据优先策略 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = False` |
+| 紧预算压缩 | `DEFAULT_STRATEGY = "tight_budget"`，`CALL_LLM = False` |
+| 真实模型结果 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = True` |
+| 带/不带证据对比 | `DEFAULT_STRATEGY = "evidence_first"`，`COMPARE_WITH_MINIMAL = True`，`PRINT_MESSAGES = True` |
 
 ### 预期结果
 
-默认运行会输出多组策略。你应重点观察：
+默认运行会输出 `evidence_first` 策略。你应重点观察：
 
 - `minimal`：只有 requirement，warning 提示没有 evidence。
 - `full_context`：更多材料进入 Prompt，可能包含 history 和 old note。
@@ -453,6 +530,13 @@ uv run python source/demos/02_context_engineering/context_compare.py --strategy 
 
 这说明模型可以引用业务规则和接口文档，但客户端说明因为预算不足没有进入 Prompt。如果最终答案缺少三端展示风险，应先查 context report，而不是直接改 Prompt。
 
+真实模型对照时，你应观察两件事：
+
+- `minimal` 只有 Requirement，`citation_candidates` 为空。模型即使能说出一些风险，也很难给出可靠来源。
+- `evidence_first` 会把业务规则、接口文档和客户端说明放进 Evidence。模型更容易输出带 source id 的风险，但仍要检查 citation 是否在候选列表里。
+
+默认离线运行只会输出 `[context_build]` 和 `[built_context_preview]`，这是上下文构建诊断，不是模型最终结果。只有打开 `CALL_LLM = True` 或 `COMPARE_WITH_MINIMAL = True` 后，终端才会出现 `[llm_result] parse=ok`，那一段才是模型输出的结构化评审结果。
+
 ---
 
 ## 完成标准
@@ -468,17 +552,16 @@ uv run python source/demos/02_context_engineering/context_compare.py --strategy 
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_context.py
-cd source/demos/02_context_engineering
-uv run python source/demos/02_context_engineering/context_compare.py --strategy tight_budget
+uv run python source/demos/02_context_engineering/context_compare.py
 ```
 
 观察点：
 
 - section token 是否符合策略预期。
 - `API-AFTER-SALE-V2-DUP` 是否因为重复内容被 drop。
-- `tight_budget` 是否出现 compressed source。
 - `citation_candidates` 是否只包含 evidence 类 source。
-- `agent_summary_only` 是否不会产生 citation candidates。
+- 若把 `DEFAULT_STRATEGY` 改为 `tight_budget`，是否出现 compressed source。
+- 若把 `DEFAULT_STRATEGY` 改为 `agent_summary_only`，是否不会产生 citation candidates。
 
 ### 自检题
 
