@@ -107,6 +107,72 @@ PRINT_FULL_CONTEXT = False
 | `tokens` / `latency_ms` | 供应商返回的 token 用量和耗时 |
 | `cites=...` | 每条风险声明引用的 source id |
 
+## 经典输出怎么看
+
+若配置为：
+
+```python
+DEFAULT_STRATEGY = "evidence_first"
+COMPARE_WITH_MINIMAL = True
+PRINT_MESSAGES = True
+```
+
+终端会先输出 `minimal`，再输出 `evidence_first`。建议按下面顺序读，不要从头到尾硬啃。
+
+### 1. 看策略
+
+```text
+[strategy] minimal
+```
+
+表示只带 Requirement，不带 Evidence。它是“无上下文”的对照组。
+
+```text
+[strategy] evidence_first
+```
+
+表示优先带业务规则、接口文档和客户端说明。它是“带证据上下文”的实验组。
+
+### 2. 看上下文构建
+
+`minimal` 里通常会看到：
+
+```text
+[included_sources] —
+[citation_candidates] —
+no_evidence_included
+```
+
+意思是：没有任何 source 进入 Prompt，也没有合法引用候选。
+
+`evidence_first` 里通常会看到：
+
+```text
+[included_sources] BR-ORDER-STATE, API-AFTER-SALE-V2, CLIENT-DETAIL-API
+[citation_candidates] BR-ORDER-STATE, API-AFTER-SALE-V2, CLIENT-DETAIL-API
+```
+
+意思是：模型可以基于这三条证据输出引用。
+
+### 3. 看 messages
+
+`messages` 是最终发给模型的完整输入。重点确认：
+
+- `minimal` 的 Evidence 段是“无可用证据”。
+- `evidence_first` 的 Evidence 段确实包含三个 source id。
+
+### 4. 看模型结果
+
+```text
+[llm_result] parse=ok risks=...
+```
+
+这才是模型输出结果。读每条风险时，重点看 `cites=...`。
+
+如果 `minimal` 输出 `cites=PRD片段`，但 `citation_candidates` 为空，说明模型自造了引用名。结构化解析通过了，不代表 citation 可信。
+
+如果 `evidence_first` 输出 `cites=API-AFTER-SALE-V2`，并且它在 `citation_candidates` 里，说明这条引用至少指向了本次 Prompt 中真实存在的证据。
+
 ## 常见定位
 
 | 现象 | 优先检查 |

@@ -537,6 +537,108 @@ PRINT_FULL_CONTEXT = False
 
 默认离线运行只会输出 `[context_build]` 和 `[built_context_preview]`，这是上下文构建诊断，不是模型最终结果。只有打开 `CALL_LLM = True` 或 `COMPARE_WITH_MINIMAL = True` 后，终端才会出现 `[llm_result] parse=ok`，那一段才是模型输出的结构化评审结果。
 
+### 经典案例：读懂一次 minimal vs evidence_first 输出
+
+当你把配置改成：
+
+```python
+DEFAULT_STRATEGY = "evidence_first"
+COMPARE_WITH_MINIMAL = True
+PRINT_MESSAGES = True
+```
+
+脚本会连续跑两组：第一组 `minimal`，第二组 `evidence_first`。这是一组很适合学习的对照，因为它让你看到“同一个 PRD，不带证据”和“带证据”到底差在哪里。
+
+读这种大段输出时，不要从头到尾逐字看。按四步读：
+
+```text
+strategy
+→ context_build
+→ messages
+→ llm_result
+```
+
+**第一步，看 `strategy`：这次在比较什么。**
+
+`minimal` 表示只保留当前 Requirement，不带任何 Evidence。它是“无上下文 / 只靠 PRD”的基线。`evidence_first` 表示优先保留业务规则、接口文档和客户端说明，是本节推荐的风险审查策略。
+
+**第二步，看 `context_build`：模型调用前，应用到底准备了什么。**
+
+`minimal` 的关键片段通常是：
+
+```text
+[strategy] minimal
+  [included_sources] —
+  [citation_candidates] —
+  [warnings]
+    no_evidence_included
+```
+
+这说明 builder 没有放入任何证据，也没有任何合法 citation 候选。后面模型即使输出风险，也只能基于 Requirement 和常识判断。
+
+`evidence_first` 的关键片段通常是：
+
+```text
+[strategy] evidence_first
+  [included_sources] BR-ORDER-STATE, API-AFTER-SALE-V2, CLIENT-DETAIL-API
+  [citation_candidates] BR-ORDER-STATE, API-AFTER-SALE-V2, CLIENT-DETAIL-API
+```
+
+这说明本次 Prompt 里放进了三条可引用证据：订单状态机、售后接口 v2、客户端接入说明。后面模型如果引用这三个 source id，至少说明引用对象来自本次上下文。
+
+同时要看 `dropped_sources`。例如：
+
+```text
+API-AFTER-SALE-V2-DUP reason=duplicate_content
+HISTORY-2026-0412 reason=token_budget_exceeded
+AGENT-RISK-SUMMARY reason=token_budget_exceeded
+NOISE-OLD-V1 reason=token_budget_exceeded
+```
+
+这里不是“丢了就坏”。重复接口摘录被去重，是好事；历史评审、Agent 摘要和过期 v1 笔记没有进入 evidence，也避免了旧信息和中间结论污染当前事实依据。
+
+**第三步，看 `messages`：模型实际收到的输入。**
+
+`PRINT_MESSAGES = True` 时，终端会打印 system / user messages。这里你要确认两件事：
+
+- `minimal` 的 Evidence 段是“无可用证据”。
+- `evidence_first` 的 Evidence 段里真的包含 `[BR-ORDER-STATE]`、`[API-AFTER-SALE-V2]`、`[CLIENT-DETAIL-API]`。
+
+这一步回答的是：“我以为带了上下文，模型是否真的看到了？”如果这里没有出现某条 source，再去怪模型漏答就没有意义。
+
+**第四步，看 `llm_result`：模型最后生成了什么。**
+
+`minimal` 也可能返回 `parse=ok`，例如：
+
+```text
+[llm_result] parse=ok risks=7
+  [1] interaction/medium ... cites=PRD片段
+```
+
+这说明结构化解析成功了，但不代表引用可信。因为 `minimal` 的 `citation_candidates` 是空的，`PRD片段` 并不是合法 source id。这个结果正好说明：**Schema 只能保证字段长得对，不能保证 citation 真实。**
+
+`evidence_first` 的结果通常更像这样：
+
+```text
+[llm_result] parse=ok risks=6
+  [1] interaction/high ... cites=BR-ORDER-STATE
+  [2] api/high ... cites=API-AFTER-SALE-V2
+  [4] exception/medium ... cites=CLIENT-DETAIL-API
+```
+
+这说明模型输出的风险开始绑定到合法证据上。比如 `apply_reason` 缺失只能从接口文档里稳定得出；弱网下跳转丢失上下文来自客户端说明；入口展示条件与状态机不一致来自业务规则和 PRD 的组合。
+
+这组案例要沉淀的判断是：
+
+| 对比点 | `minimal` | `evidence_first` |
+| --- | --- | --- |
+| 模型看到什么 | 只有 Requirement | Requirement + 三条 Evidence |
+| citation candidates | 空 | 三个合法 source id |
+| 输出风险 | 看起来也合理，但更像常识推断 | 更具体，能绑定接口字段、状态机、客户端规则 |
+| 最大风险 | 模型会编造或自造 citation 名 | 仍需检查 citation 是否落在 candidates 中 |
+
+因此，本节不是要证明“带上下文一定更聪明”，而是要证明：**带经过 builder 筛选和编号的上下文，模型输出才更容易被追溯、调试和评估。**
+
 ---
 
 ## 完成标准
