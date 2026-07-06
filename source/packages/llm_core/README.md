@@ -1,6 +1,6 @@
 # llm_core
 
-需求评审助手的 **LLM 模型交互底座**。它不是一个完整 LLM 平台，而是 `02_llm` 阶段沉淀出来的共享 package，供后续 RAG、Agent、Workflow 和评估观测继续复用。
+需求评审助手的 **LLM 模型交互底座**。它不是完整 LLM 平台，而是 `02_llm` 阶段沉淀出来的共享 package，供后续 RAG、Agent、Workflow、评估观测和 AI Native 工作台继续复用。
 
 课程正文负责解释为什么这样设计；本 README 负责帮助你读代码、跑 demo、定位模块。
 
@@ -8,22 +8,21 @@
 
 ```text
 01 Provider 抽象
-业务 messages + config_ref
+messages + config_ref
 → LLMClient.chat
 → Provider
 → LLMResponse
 
 02 Prompt 工程化
 prompt_id@version + variables
-→ get_prompt / render_prompt
+→ render_prompt
 → messages
 → LLMClient.chat
 
 03 Structured Outputs
-messages + response_model + structured_mode
+messages + structured_mode
 → chat_structured
-→ response_format
-→ parse_risk_list
+→ response_format + parse_risk_list
 → StructuredLLMResponse
 
 04 Streaming + Conversation
@@ -31,111 +30,100 @@ messages + config_ref
 → LLMClient.stream_chat
 → LLMStreamEvent
 → FastAPI SSE
-→ 前端按事件更新状态
 
 05 Context Engineering
-requirement + candidate sources + context policy
+requirement + candidate sources + policy
 → build_review_context
-→ sections + citation candidates + diagnostics
-→ prompt variables / context report
-→ chat_structured / stream_chat
+→ prompt variables + context report
 
 06 Reliability + Degradation
 messages + primary config_ref
 → ReliableLLMService
 → retry / fallback / parse validation
 → ReliableCallResult + ReliableCallReport
+
+07 Calling Harness
+case set + run config
+→ LLMCallingHarness
+→ HarnessRunRecord + HarnessSummary
 ```
 
 ## 模块职责
 
 | 模块 | 职责 | 先读什么 |
 | --- | --- | --- |
-| `client.py` | 统一调用入口：`chat` / `chat_structured` | `LLMClient.chat` |
-| `config/types.py` | 调用层数据结构：`ModelConfig`、`LLMResponse`、`TokenUsage` | `LLMResponse` |
-| `config/models.yaml` | 模型配置真源：`config_ref`、model、base_url、默认参数、能力标签 | `chat.dev_chat` |
-| `providers/registry.py` | 读取 YAML，注册 provider，按 `config_ref` 找配置 | `ConfigRegistry.default` |
-| `providers/openai_compat.py` | OpenAI-compatible 请求适配与错误映射 | `OpenAICompatProvider.chat` |
-| `prompts/registry.py` | 加载 YAML Prompt，按 `prompt_id@version` 渲染 messages | `get_prompt` / `render_prompt` |
-| `prompts/review/*.yaml` | 需求评审风险审查 Prompt 版本 | `risk_review_v1`–`v4` |
-| `schemas/review.py` | 结构化风险列表 Schema 真源 | `ReviewRisk` / `ReviewRiskList` |
-| `schemas/parse.py` | JSON 提取、Pydantic 校验、`error_stage` 判层 | `parse_risk_list` |
-| `structured.py` | 构造 `response_format`，封装结构化响应 | `build_response_format` |
-| `streaming.py` | 流式事件模型与 SSE 编码 | `LLMStreamEvent` / `encode_sse` |
-| `conversation.py` | 最小会话历史缓存，区分最终消息与中间 token | `ConversationBuffer` |
-| `context/types.py` | 上下文候选、分区、报告和诊断数据结构 | `ContextSource` / `ContextBuildReport` |
-| `context/policies.py` | 上下文策略预设：预算、分区和压缩开关 | `get_context_policy` |
-| `context/builder.py` | 上下文装配主流程：去重、排序、预算、压缩、引用候选 | `build_review_context` |
-| `context/compression.py` | 确定性 extractive compression | `fit_source` |
-| `context/formatting.py` | source 与 evidence block 格式化 | `format_context_source` |
-| `reliability.py` | 可靠调用外壳：重试、降级、结构化失败报告 | `ReliableLLMService` |
-| `observability.py` | demo 日志格式与调用详情输出 | `render_call_log` |
+| `client/` | 统一调用入口：`chat` / `stream_chat` / `chat_structured` | `client/service.py` |
+| `config/` | `ModelConfig`、`LLMResponse`、`models.yaml` | `config/models.yaml` |
+| `providers/` | OpenAI-compatible 请求适配与错误映射 | `providers/openai_compat.py` |
+| `prompts/` | YAML Prompt 加载、版本化与渲染 | `prompts/registry.py` |
+| `schemas/` | 需求评审结构化 schema 与解析结果 | `schemas/review.py` / `schemas/parse.py` |
+| `structured/` | `response_format` 构造与结构化响应包装 | `structured/response.py` |
+| `streaming/` | 流式事件模型与 SSE 编码 | `streaming/events.py` |
+| `conversation/` | 最小会话历史缓存 | `conversation/buffer.py` |
+| `context/` | 上下文候选、策略、预算、压缩和引用候选 | `context/builder.py` |
+| `errors/` | 全局 LLM 错误分类 | `errors/types.py` |
+| `reliability/` | 重试、降级、attempt report、可靠调用服务 | `reliability/service.py` |
+| `harness/` | 批量 case 调用记录与汇总 | `harness/runner.py` |
+| `observability/` | demo 日志格式与调用详情输出 | `observability/demo_log.py` |
 
 ## 读代码顺序
 
-### 01：Provider 抽象
+### 01 Provider
 
-1. 先看 [`config/models.yaml`](config/models.yaml)，理解 `chat.dev_chat`、`chat.structured_chat`、`chat.fallback_chat` 的用途。
-2. 再看 [`config/types.py`](config/types.py) 里的 `ModelConfig` 和 `LLMResponse`。
-3. 再看 [`client.py`](client.py) 的 `LLMClient.chat`：查配置、校验 role、找 provider、返回统一响应。
-4. 最后看 [`providers/openai_compat.py`](providers/openai_compat.py)：真实 SDK 调用和错误分类。
+1. [`config/models.yaml`](config/models.yaml)：理解 `chat.dev_chat`、`chat.structured_chat`、`chat.fallback_chat`。
+2. [`config/types.py`](config/types.py)：理解 `ModelConfig` 和 `LLMResponse`。
+3. [`client/service.py`](client/service.py)：`LLMClient.chat` 如何查配置、校验 role、调用 provider。
+4. [`providers/openai_compat.py`](providers/openai_compat.py)：真实 SDK 调用和错误映射。
 
-核心判断：业务层不写具体 model 字符串，而是写 `config_ref`；业务层不读 SDK 原始对象，而是读 `LLMResponse`。
+### 02 Prompt
 
-### 02：Prompt 工程化
+1. [`prompts/review/risk_review_v1.yaml`](prompts/review/risk_review_v1.yaml) 到 `v4`：Prompt 版本如何演进。
+2. [`prompts/registry.py`](prompts/registry.py)：`get_prompt` / `render_prompt`。
+3. demo [`02_model_contracts/prompt_compare.py`](../../demos/02_model_contracts/prompt_compare.py)：同一样例比较 Prompt 版本。
 
-1. 先看 [`prompts/review/risk_review_v1.yaml`](prompts/review/risk_review_v1.yaml)、`v2`、`v3` 的差异。
-2. 再看 [`prompts/registry.py`](prompts/registry.py)：`get_prompt` 如何按 `prompt_id@version` 找模板，`render_prompt` 如何替换变量。
-3. 最后看 demo [`prompt_compare.py`](../../demos/02_provider_switching/prompt_compare.py)：同一样例、同一温度下比较三版 Prompt。
+### 03 Structured Outputs
 
-核心判断：YAML + `prompt_id@version` 是本项目的实践方案，不是 Prompt 工程唯一标准。通用原则是任务边界清楚、变量来源清楚、改动可回归。
+1. [`schemas/review.py`](schemas/review.py)：应用认可的风险数据结构。
+2. [`structured/response.py`](structured/response.py)：`none` / `json_object` / `json_schema` 如何影响请求。
+3. [`schemas/parse.py`](schemas/parse.py)：`empty`、`json`、`schema` 失败如何判层。
+4. [`client/service.py`](client/service.py)：`chat_structured` 调用后立刻 parse。
 
-### 03：Structured Outputs
+### 04 Streaming + Conversation
 
-1. 先看 [`schemas/review.py`](schemas/review.py)：应用认可的风险数据结构是什么。
-2. 再看 [`structured.py`](structured.py)：`none` / `json_object` / `json_schema` 如何影响 API 请求。
-3. 再看 [`schemas/parse.py`](schemas/parse.py)：如何区分 `empty`、`json`、`schema` 失败。
-4. 最后看 [`client.py`](client.py) 的 `chat_structured`：调用后立刻 parse，返回 `StructuredLLMResponse`。
+1. [`streaming/events.py`](streaming/events.py)：`LLMStreamEvent` 与 `encode_sse`。
+2. [`providers/openai_compat.py`](providers/openai_compat.py)：供应商 chunk 如何翻译成事件。
+3. [`conversation/buffer.py`](conversation/buffer.py)：只有稳定消息进入 history。
+4. app [`02_llm_streaming_api`](../../apps/02_llm_streaming_api/)：SSE 如何暴露给前端。
 
-核心判断：Pydantic 本地校验是通用原则；`ReviewRiskList` 字段是需求评审助手当前阶段的项目取舍。
+### 05 Context
 
-### 04：Streaming 与 Conversation
+1. [`context/types.py`](context/types.py)：`ContextSource`、`ContextBuildPolicy`、`ContextBuildReport`。
+2. [`context/policies.py`](context/policies.py)：`minimal` / `balanced` / `evidence_first` / `tight_budget`。
+3. [`context/builder.py`](context/builder.py)：去重、排序、预算、压缩、引用候选。
+4. demo [`02_context_lab/context_compare.py`](../../demos/02_context_lab/context_compare.py)：观察 context report。
 
-1. 先看 [`streaming.py`](streaming.py)：事件必须有 `type`、`run_id`、`sequence`，token 增量放在 `delta`，最终消息放在 `content`。
-2. 再看 [`providers/openai_compat.py`](providers/openai_compat.py) 的 `stream_chat`：供应商 chunk 被翻译成统一 `LLMStreamEvent`。
-3. 再看 [`client.py`](client.py) 的 `LLMClient.stream_chat`：业务层仍通过 `config_ref` 调用，不直接依赖 SDK stream 对象。
-4. 再看 [`conversation.py`](conversation.py)：只有用户输入和最终 assistant 消息进入 history，中间 token 不进入 history。
-5. 最后看 FastAPI app [`../../apps/02_llm_streaming_api/`](../../apps/02_llm_streaming_api/)：`encode_sse` 如何变成 `text/event-stream`。
+### 06 Reliability
 
-核心判断：token stream 是模型供应商返回的增量；SSE 是应用给前端的传输协议；conversation history 只保存稳定消息，不保存中间过程。
+1. [`errors/types.py`](errors/types.py)：统一错误码。
+2. [`reliability/policies.py`](reliability/policies.py)：`RetryPolicy` / `DegradationPolicy`。
+3. [`reliability/report.py`](reliability/report.py)：attempt、report、result。
+4. [`reliability/service.py`](reliability/service.py)：如何包住 `LLMClient`。
+5. demo [`02_call_ops_lab/reliability_compare.py`](../../demos/02_call_ops_lab/reliability_compare.py)：观察 retry / fallback。
 
-### 05：Context Engineering
+### 07 Harness
 
-1. 先看 [`context/types.py`](context/types.py)：`ContextSource`、`ContextBuildPolicy`、`ContextSection`、`ContextBuildReport` 的职责。
-2. 再看 [`context/policies.py`](context/policies.py)：`minimal` / `full_context` / `balanced` / `evidence_first` / `tight_budget` / `agent_summary_only` 如何改变预算与 source 类型。
-3. 再看 [`context/builder.py`](context/builder.py)：候选 source 如何被编排成 sections、citation candidates 和 warnings。
-4. 再看 [`context/ranking.py`](context/ranking.py) 与 [`context/compression.py`](context/compression.py)：去重、排序、source 压缩这些细节如何从主流程里拆开。
-5. 再看 demo [`02_context_engineering/context_compare.py`](../../demos/02_context_engineering/context_compare.py)：脚本只加载样例和调用 package API，不实现核心算法。
-6. 最后回到 [`prompts/review/risk_review_v4.yaml`](prompts/review/risk_review_v4.yaml)：Prompt 仍只接收 `requirement_text` 与 `evidence_block`，不直接关心证据来源是静态文件还是后续 RAG。
-
-核心判断：Context Engineering 不是把所有材料塞进 Prompt，而是把候选材料池装配成可追溯、可预算、可诊断的模型输入；被压缩或丢弃的 source 要可见，引用候选要清楚。
-
-### 06：Reliability、Errors 与 Degradation
-
-1. 先看 [`errors.py`](errors.py)：`LLMErrorCode` 如何把限流、超时、鉴权、能力不匹配、结构化解析失败分开。
-2. 再看 [`reliability.py`](reliability.py)：`RetryPolicy`、`DegradationPolicy`、`ReliableCallReport` 的职责。
-3. 再看 [`client.py`](client.py)：基础 `chat` / `chat_structured` 仍保持直接调用，不内置重试。
-4. 再看测试 [`tests/test_reliability.py`](tests/test_reliability.py)：超时重试、鉴权不重试、fallback、schema parse 失败如何被验证。
-5. 最后看 demo [`02_reliability_errors/reliability_compare.py`](../../demos/02_reliability_errors/reliability_compare.py)：脚本只选择场景并打印 report，不实现可靠性核心逻辑。
-
-核心判断：可靠性不是让模型永远成功，而是把失败分类、限制重试次数、必要时降级，并把每一次 attempt 留在 report 里。
+1. [`harness/cases.py`](harness/cases.py)：`HarnessCase` 与 `HarnessRunConfig`。
+2. [`harness/records.py`](harness/records.py)：`HarnessRunRecord` 与 `HarnessSummary`。
+3. [`harness/runner.py`](harness/runner.py)：批量运行如何复用 `ReliableLLMService`。
+4. [`harness/formatting.py`](harness/formatting.py)：demo 的记录表和汇总输出。
+5. demo [`02_call_ops_lab/harness_compare.py`](../../demos/02_call_ops_lab/harness_compare.py)：观察 case 批量运行。
 
 ## 快速使用
 
 安装：
 
 ```bash
-uv sync   # 仓库根目录
+uv sync
 ```
 
 普通 chat：
@@ -152,113 +140,48 @@ response = client.chat(
 print(response.model, response.usage, response.content)
 ```
 
-Prompt 渲染：
-
-```python
-from llm_core import LLMClient
-from llm_core.prompts import get_prompt, render_prompt
-
-client = LLMClient.from_default_config()
-tpl = get_prompt("review.risk_review", version="2.0.0")
-messages = render_prompt(tpl, {
-    "requirement_text": "订单详情页新增申请售后按钮...",
-    "evidence_block": "【Evidence】售后接口 v2...",
-})
-response = client.chat(messages, tpl.model_config_ref, temperature=0)
-```
-
-结构化输出：
-
-```python
-from llm_core import LLMClient
-from llm_core.prompts import get_prompt, render_prompt
-
-client = LLMClient.from_default_config()
-tpl = get_prompt("review.risk_review", version="4.0.0")
-messages = render_prompt(tpl, {
-    "requirement_text": "订单详情页新增申请售后按钮...",
-    "evidence_block": "【Evidence】售后接口 v2...",
-})
-out = client.chat_structured(
-    messages,
-    "chat.dev_chat",
-    structured_mode="json_object",  # none | json_object | json_schema
-)
-if out.parse.ok:
-    for risk in out.parse.risks:
-        print(risk.category, risk.level, risk.title)
-else:
-    print(out.parse.error_stage, out.parse.message)
-```
-
-流式输出：
-
-```python
-from llm_core import LLMClient
-
-client = LLMClient.from_default_config()
-events = client.stream_chat(
-    [{"role": "user", "content": "列出这个需求的研发风险"}],
-    "chat.dev_chat",
-    temperature=0,
-)
-for event in events:
-    if event.type == "token":
-        print(event.delta, end="", flush=True)
-    elif event.type == "message_done":
-        final_text = event.content
-```
-
-上下文构造：
-
-```python
-from llm_core import ContextSource, build_review_context, get_context_policy
-
-context = build_review_context(
-    requirement_text="订单详情页新增申请售后按钮，对接售后接口 v2。",
-    sources=[
-        ContextSource(
-            source_id="S2.evidence.after_sale_api_v2",
-            title="内部接口说明摘录",
-            content="售后接口 v2 路径：POST /api/after-sale/v2/cases。",
-            priority=80,
-        )
-    ],
-    policy=get_context_policy("evidence_first"),
-)
-variables = context.to_prompt_variables()
-print(context.included_source_ids, context.dropped_source_ids)
-print(context.report.citation_source_ids)
-```
-
 可靠调用：
 
 ```python
 from llm_core import LLMClient, ReliableLLMService, RetryPolicy
 
-client = LLMClient.from_default_config()
-service = ReliableLLMService(client)
+service = ReliableLLMService(LLMClient.from_default_config())
 result = service.chat(
     [{"role": "user", "content": "列出这个需求的研发风险"}],
     "chat.dev_chat",
     retry_policy=RetryPolicy(max_attempts=2),
     temperature=0,
 )
-if result.ok:
-    print(result.report.attempt_count, result.output.content)
-else:
-    print(result.report.final_error_code, result.report.final_message)
+print(result.ok, result.report.attempt_count, result.report.degraded)
 ```
 
-FastAPI SSE：
+批量 harness：
 
-```bash
-uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
-open http://127.0.0.1:8004/
-curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
+```python
+from llm_core import HarnessCase, HarnessRunConfig, LLMCallingHarness, LLMClient, ReliableLLMService
+
+cases = [
+    HarnessCase.from_user_input(
+        case_id="S1",
+        title="售后入口",
+        user_input="订单详情页新增申请售后入口。",
+    )
+]
+service = ReliableLLMService(LLMClient.from_default_config())
+records, summary = LLMCallingHarness(service).run_cases(
+    cases,
+    HarnessRunConfig(run_name="risk_review_smoke"),
+)
+print(summary.success_count, records[0].attempt_count)
 ```
 
-浏览器页面用于观察打字机效果；`curl -N` 用于观察原始 SSE 协议，所以会看到 `id:`、`event:`、`data:`。
+## 对应入口
+
+- 00 SDK 最小调用：[../../demos/02_llm_basics/](../../demos/02_llm_basics/)
+- 01–03 模型契约 lab：[../../demos/02_model_contracts/](../../demos/02_model_contracts/)
+- 04 Streaming SSE：[../../apps/02_llm_streaming_api/](../../apps/02_llm_streaming_api/)
+- 05 Context lab：[../../demos/02_context_lab/](../../demos/02_context_lab/)
+- 06–08 Call ops lab：[../../demos/02_call_ops_lab/](../../demos/02_call_ops_lab/)
 
 ## 常见定位
 
@@ -267,31 +190,15 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 | Key 未配置、401 | 根目录 `.env` 与 `models.yaml` 的 `api_key_env` |
 | 换模型不生效 | `config_ref` 是否指向预期配置；`.env` 占位符是否正确 |
 | Prompt 版本找不到 | YAML 内 `prompt_id` / `version`，不是文件名 |
-| Evidence 没进 Prompt | `render_prompt` 的 variables 是否传了 `evidence_block` |
-| `json_schema` 直接 API 失败 | 供应商是否支持该 `response_format` |
+| `json_schema` API 失败 | 供应商是否支持该 `response_format` |
 | `error_stage=json` | assistant 原文是否为合法 JSON、是否有围栏或截断 |
-| `error_stage=schema` | 字段名、枚举、根形态是否符合 `ReviewRiskList` |
-| SSE 没有逐 token 刷新 | 当前供应商、代理或终端是否缓冲；先看 `event: token` 是否逐条到达 |
-| 会话越来越长 | `ConversationBuffer.max_messages` 与后续 05 的 context budget |
 | 模型没有引用证据 | `context.included_source_ids` 是否为空；`evidence_block` 是否含 source id |
-| 关键证据没进 Prompt | `dropped_source_ids` 与 `token_budget`；不要只看最终回答 |
-| 引用了 history 或 agent summary | `context.report.citation_source_ids` 是否只含 evidence 类 source |
-| 不同策略结果差异大 | 先跑 `02_context_engineering/context_compare.py` 看 section budget 和 dropped reason |
+| 关键证据没进 Prompt | `dropped_source_ids` 与 `token_budget` |
 | 模型调用偶发失败 | `ReliableCallReport.attempts` 里每次 attempt 的错误码 |
 | 不知道是否发生降级 | `ReliableCallReport.degraded` 与 `final_config_ref` |
-| 结构化输出解析失败 | `ReliableCallResult.error.code` 是否为 `schema_parse` 或 `empty_response` |
+| 不知道一批 case 是否退化 | `HarnessSummary` 的成功率、解析成功率、错误分布 |
 
-## 对应 demo
-
-- 00 first chat：[../../demos/02_first_chat/](../../demos/02_first_chat/)
-- 01 Provider：[../../demos/02_provider_switching/provider_switching.py](../../demos/02_provider_switching/provider_switching.py)
-- 02 Prompt：[../../demos/02_provider_switching/prompt_compare.py](../../demos/02_provider_switching/prompt_compare.py)
-- 03 Structured Outputs：[../../demos/02_provider_switching/structured_risk.py](../../demos/02_provider_switching/structured_risk.py)
-- 04 Streaming SSE：[../../apps/02_llm_streaming_api/](../../apps/02_llm_streaming_api/)
-- 05 Context Engineering：[../../demos/02_context_engineering/](../../demos/02_context_engineering/)
-- 06 Reliability Errors：[../../demos/02_reliability_errors/](../../demos/02_reliability_errors/)
-
-对应课程正文：
+## 对应课程正文
 
 - [01 Model API 与 Provider 抽象](../../../course/02_llm/01_model_api_and_provider_abstraction.md)
 - [02 面向应用的 Prompt Engineering](../../../course/02_llm/02_prompt_engineering_for_apps.md)
@@ -299,3 +206,4 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 - [04 Streaming 与 Conversation](../../../course/02_llm/04_streaming_and_conversation.md)
 - [05 Context Engineering](../../../course/02_llm/05_context_engineering.md)
 - [06 Reliability、Errors 与 Degradation](../../../course/02_llm/06_reliability_errors_and_degradation.md)
+- [07 LLM Calling Harness](../../../course/02_llm/07_llm_calling_harness.md)

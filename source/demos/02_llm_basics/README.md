@@ -1,8 +1,8 @@
-# 02_first_chat
+# 02_llm_basics
 
 `02_llm/00` 第一个可运行 demo：用 OpenAI SDK 发起一次最小 chat，打印 `usage` 与 `latency_ms`。
 
-Provider 抽象与 `LLMClient` 见专题 01（`source/demos/02_provider_switching/`）。
+Provider 抽象与 `LLMClient` 见专题 01（`source/demos/02_model_contracts/`）。
 
 ## 前置
 
@@ -23,7 +23,7 @@ Provider 抽象与 `LLMClient` 见专题 01（`source/demos/02_provider_switchin
 ## 运行
 
 ```bash
-cd source/demos/02_first_chat
+cd source/demos/02_llm_basics
 
 # 默认：样例 S2（售后 PRD 风险识别），temperature=0
 uv run python first_chat.py

@@ -95,12 +95,12 @@ data: {"type": "done", ...}
 
 ## 读代码顺序
 
-1. [`llm_core/streaming.py`](../../packages/llm_core/streaming.py)：`LLMStreamEvent` 与 `encode_sse`。
+1. [`llm_core/streaming/events.py`](../../packages/llm_core/streaming/events.py)：`LLMStreamEvent` 与 `encode_sse`。
 2. [`llm_core/providers/openai_compat.py`](../../packages/llm_core/providers/openai_compat.py)：OpenAI-compatible chunk 如何转成事件。
-3. [`llm_core/client.py`](../../packages/llm_core/client.py)：`LLMClient.stream_chat` 如何保持统一入口。
+3. [`llm_core/client/service.py`](../../packages/llm_core/client/service.py)：`LLMClient.stream_chat` 如何保持统一入口。
 4. [`main.py`](main.py)：FastAPI `StreamingResponse` 如何返回 SSE。
 5. [`index.html`](index.html)：浏览器如何用 `EventSource` 开始、停止和展示打字机效果。
-6. [`llm_core/conversation.py`](../../packages/llm_core/conversation.py)：哪些消息进入 history。
+6. [`llm_core/conversation/buffer.py`](../../packages/llm_core/conversation/buffer.py)：哪些消息进入 history。
 
 ## 输出怎么看
 

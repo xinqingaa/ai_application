@@ -261,7 +261,7 @@ Streaming 与 Conversation 的工程设计可以按下面这条链理解：
 
 ### 1. 统一事件对象
 
-[`streaming.py`](../../source/packages/llm_core/streaming.py)：
+[`streaming/events.py`](../../source/packages/llm_core/streaming/events.py)：
 
 ```python
 @dataclass(frozen=True)
@@ -408,9 +408,9 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 
 关键路径：
 
-- [`source/packages/llm_core/streaming.py`](../../source/packages/llm_core/streaming.py)：流式事件与 SSE 编码。
-- [`source/packages/llm_core/conversation.py`](../../source/packages/llm_core/conversation.py)：最小 Conversation Buffer。
-- [`source/packages/llm_core/client.py`](../../source/packages/llm_core/client.py)：`LLMClient.stream_chat`。
+- [`source/packages/llm_core/streaming/events.py`](../../source/packages/llm_core/streaming/events.py)：流式事件与 SSE 编码。
+- [`source/packages/llm_core/conversation/buffer.py`](../../source/packages/llm_core/conversation/buffer.py)：最小 Conversation Buffer。
+- [`source/packages/llm_core/client/service.py`](../../source/packages/llm_core/client/service.py)：`LLMClient.stream_chat`。
 - [`source/packages/llm_core/providers/openai_compat.py`](../../source/packages/llm_core/providers/openai_compat.py)：OpenAI-compatible streaming 实现。
 - [`source/apps/02_llm_streaming_api/main.py`](../../source/apps/02_llm_streaming_api/main.py)：FastAPI SSE app。
 - [`source/apps/02_llm_streaming_api/index.html`](../../source/apps/02_llm_streaming_api/index.html)：浏览器打字机观察页面。

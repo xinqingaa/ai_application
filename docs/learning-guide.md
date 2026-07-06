@@ -300,6 +300,13 @@ review_assistant/      # 07_projects 起：根目录可部署产品（import sou
 3. 本节是否需要**新的观测维度**（如流式 token 事件）？→ 才新增或拆 demo。
 4. 长链路课 → 优先**串联节**合并验收，而非每节一个脚本。
 
+**Demo Lab 策略（硬规则）**
+
+- `source/demos/` 不按课程节号镜像创建目录；相近能力应合并到同一个 lab。
+- 一个 lab 可以服务多个相邻专题，例如 provider / prompt / structured 属于模型契约 lab，reliability / harness / cost latency 属于调用治理 lab。
+- 新增 demo 目录前必须先判断已有 lab 是否能承载；只有出现新的观察对象、输入形态或运行方式时才新增。
+- demo 目录不是 package 的替代品；核心逻辑必须沉淀在 `source/packages/`，demo 只加载样例、选择配置、调用 package API、打印观察结果。
+
 **00 的特殊职责**
 
 - 建立 `source/packages/{name}_core/`（若尚不存在）、`__init__.py`、`.env.example`（若尚未有）、`source/demos/{课号}_first_*` 第一个可运行 demo。
@@ -516,6 +523,8 @@ RAG、Agent 等长链路课程中，可在若干专题完成后设一节「串�
 - 每门课 00 在 `source/packages/` 创建或扩展本课负责的 `*_core`（若尚不存在）；后续节在同一包上增量修改。
 - 新代码优先围绕主项目能力组织，**不按章节堆独立脚本**；**不为一节一 demo**。
 - 每个 **package** 与**已落地的 demo** 必须有 README、运行入口和当节完成标准。
+- package 根目录不应持续堆积单文件模块；当一个能力域出现多类职责（如 policies、records、runner、formatting）时，应目录化为子包，并用 `__init__.py` 提供清晰公开入口。
+- 目录化重构应优先发生在课程中段以前；如果继续新增能力会让迁移成本明显上升，应先收敛工程边界，再继续写下一节。
 - 涉及真实 API、密钥、模型配置时必须隔离（`.env`）。
 - 涉及 RAG、Agent 时，优先保留可调试输出（在对应章节再展开）。
 
@@ -564,7 +573,7 @@ uv sync
 运行脚本：
 
 ```bash
-uv run python source/demos/02_first_chat/first_chat.py
+uv run python source/demos/02_llm_basics/first_chat.py
 ```
 
 启动 FastAPI / uvicorn：

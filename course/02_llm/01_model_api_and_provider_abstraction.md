@@ -36,7 +36,7 @@
 | 假设「兼容 OpenAI = 所有参数都能用」 | structured / tool call 在部分平台失败 | `capabilities` 认知；03 起实测 |
 | 错误全部 `except Exception` | 429 与 Key 错误混在一起 | `LLMError` + `LLMErrorCode` 分类 |
 
-本篇在 `llm_core` 建立 **`LLMClient` + `models.yaml` + `LLMResponse`**，把调用与可观测收敛到一层。00 的 `02_first_chat` 保留作 SDK 直调对照，本篇是项目内的标准入口。
+本篇在 `llm_core` 建立 **`LLMClient` + `models.yaml` + `LLMResponse`**，把调用与可观测收敛到一层。00 的 `02_llm_basics` 保留作 SDK 直调对照，本篇是项目内的标准入口。
 
 ---
 
@@ -249,7 +249,7 @@ OpenAI-compatible 的意思是：很多平台愿意用近似 OpenAI Chat Complet
 
 ### 1. `LLMClient.chat`：业务层唯一入口
 
-[`client.py`](../../source/packages/llm_core/client.py)：
+[`client/service.py`](../../source/packages/llm_core/client/service.py)：
 
 ```python
 config = self._registry.get_config(config_ref)
@@ -384,12 +384,12 @@ class LLMResponse:
 
 关键路径：
 
-- [`source/packages/llm_core/client.py`](../../source/packages/llm_core/client.py)：统一调用入口。
+- [`source/packages/llm_core/client/service.py`](../../source/packages/llm_core/client/service.py)：统一调用入口。
 - [`source/packages/llm_core/config/types.py`](../../source/packages/llm_core/config/types.py)：`ModelConfig`、`LLMResponse` 等数据结构。
 - [`source/packages/llm_core/config/models.yaml`](../../source/packages/llm_core/config/models.yaml)：模型配置真源。
-- [`source/demos/02_provider_switching/provider_switching.py`](../../source/demos/02_provider_switching/provider_switching.py)：本节观察入口。
+- [`source/demos/02_model_contracts/provider_switching.py`](../../source/demos/02_model_contracts/provider_switching.py)：本节观察入口。
 
-完整文件说明和命令变体放在 [demo README](../../source/demos/02_provider_switching/README.md)。
+完整文件说明和命令变体放在 [demo README](../../source/demos/02_model_contracts/README.md)。
 
 ### 实现步骤（与最小实现对照）
 
@@ -412,7 +412,7 @@ DeepSeek 等 OpenAI-compatible 平台可通过 `.env` 切换 `OPENAI_BASE_URL` /
 ### 步骤 2：运行对比 demo
 
 ```bash
-cd source/demos/02_provider_switching
+cd source/demos/02_model_contracts
 uv run python provider_switching.py
 ```
 
@@ -439,12 +439,12 @@ uv run python provider_switching.py
 ### 运行与观察
 
 ```bash
-cd source/demos/02_provider_switching
+cd source/demos/02_model_contracts
 uv run python provider_switching.py
 uv run python provider_switching.py --verbose
 ```
 
-应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../source/demos/02_provider_switching/README.md)。
+应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../source/demos/02_model_contracts/README.md)。
 
 ### 自检题
 
@@ -459,8 +459,8 @@ uv run python provider_switching.py --verbose
 
 ## 本节沉淀
 
-- 新增 `llm_core` 调用层（`LLMClient`、`models.yaml`、`ConfigRegistry`、`LLMResponse`、`LLMError`）与 `02_provider_switching` demo。
-- 需求评审助手具备：**按任务切换模型配置、统一响应结构与可观测日志**；00 的 `02_first_chat` 保留作 SDK 直调对照。
+- 新增 `llm_core` 调用层（`LLMClient`、`models.yaml`、`ConfigRegistry`、`LLMResponse`、`LLMError`）与 `02_model_contracts` demo。
+- 需求评审助手具备：**按任务切换模型配置、统一响应结构与可观测日志**；00 的 `02_llm_basics` 保留作 SDK 直调对照。
 - 下一节 [02_prompt_engineering_for_apps.md](02_prompt_engineering_for_apps.md) 在同一 `LLMClient` 上叠加 Prompt 模板。
 
 ---

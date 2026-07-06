@@ -1,7 +1,7 @@
 """Compare retry and fallback behavior for 02_llm/06.
 
 运行方式：
-    uv run python source/demos/02_reliability_errors/reliability_compare.py
+    uv run python source/demos/02_call_ops_lab/reliability_compare.py
 
 本 demo 默认使用本地模拟，不消耗模型额度。若想观察真实模型调用，把
 USE_REAL_LLM 改为 True；仍然运行同一条命令。
@@ -12,6 +12,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from dotenv import load_dotenv
 
 from llm_core import (
     DegradationPolicy,
@@ -25,6 +27,9 @@ from llm_core import (
 from llm_core.config import LLMResponse
 from llm_core.schemas.parse import parse_risk_list
 from llm_core.structured import StructuredLLMResponse
+
+DEMO_DIR = Path(__file__).resolve().parent
+REPO_ROOT = DEMO_DIR.parents[2]
 
 # 默认案例：
 # - "timeout_then_success"：第一次超时，第二次重试成功。
@@ -61,6 +66,8 @@ MESSAGES = [
 
 
 def main() -> None:
+    find_and_load_env()
+
     if USE_REAL_LLM:
         result = _run_real_call()
         _print_case("real_llm", "真实模型调用：观察可靠调用外壳如何记录 attempt。")
@@ -72,6 +79,14 @@ def main() -> None:
     if COMPARE_WITH_NO_RETRY:
         _run_case(DEFAULT_CASE, compare_no_retry=True)
     _run_case(DEFAULT_CASE, compare_no_retry=False)
+
+
+def find_and_load_env() -> None:
+    env_path = REPO_ROOT / ".env"
+    if env_path.is_file():
+        load_dotenv(env_path)
+    else:
+        load_dotenv()
 
 
 def _run_case(case_id: str, *, compare_no_retry: bool) -> None:

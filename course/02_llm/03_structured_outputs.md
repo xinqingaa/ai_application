@@ -274,7 +274,7 @@ class ReviewRiskList(BaseModel):
 
 ### 2. 构建 `response_format`
 
-[`structured.py`](../../source/packages/llm_core/structured.py) 根据 `structured_mode` 决定是否给 API 传 `response_format`：
+[`structured/response.py`](../../source/packages/llm_core/structured/response.py) 根据 `structured_mode` 决定是否给 API 传 `response_format`：
 
 - `none`：不传，让 Prompt 自己约束输出。
 - `json_object`：传 JSON Mode，约束格式层。
@@ -284,7 +284,7 @@ class ReviewRiskList(BaseModel):
 
 ### 3. 调用与解析合一
 
-[`client.py`](../../source/packages/llm_core/client.py) 的 `chat_structured` 做三件事：先按 mode 组装 `response_format`，再调用普通 `chat`，最后立刻把 `llm.content` 交给 `parse_structured_content`。它返回的不是单纯文本，而是 `StructuredLLMResponse`：里面同时保留原始模型响应、解析结果和请求参数。
+[`client/service.py`](../../source/packages/llm_core/client/service.py) 的 `chat_structured` 做三件事：先按 mode 组装 `response_format`，再调用普通 `chat`，最后立刻把 `llm.content` 交给 `parse_structured_content`。它返回的不是单纯文本，而是 `StructuredLLMResponse`：里面同时保留原始模型响应、解析结果和请求参数。
 
 注意顺序：**调用后立刻 parse**。如果先把原始字符串交给 UI 或数据库，再在别处解析，失败就会扩散。结构化输出的工程习惯是：在模型调用边界处就把「可用 / 不可用」判清楚。
 
@@ -423,10 +423,10 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 - [`source/packages/llm_core/schemas/review.py`](../../source/packages/llm_core/schemas/review.py)：风险列表 Schema 真源。
 - [`source/packages/llm_core/schemas/parse.py`](../../source/packages/llm_core/schemas/parse.py)：解析与 `error_stage` 判层。
-- [`source/packages/llm_core/structured.py`](../../source/packages/llm_core/structured.py)：`response_format` 构建。
-- [`source/demos/02_provider_switching/structured_risk.py`](../../source/demos/02_provider_switching/structured_risk.py)：本节观察入口。
+- [`source/packages/llm_core/structured/response.py`](../../source/packages/llm_core/structured/response.py)：`response_format` 构建。
+- [`source/demos/02_model_contracts/structured_risk.py`](../../source/demos/02_model_contracts/structured_risk.py)：本节观察入口。
 
-完整文件说明与参数变体放在 [demo README](../../source/demos/02_provider_switching/README.md)。
+完整文件说明与参数变体放在 [demo README](../../source/demos/02_model_contracts/README.md)。
 
 ### 实现步骤（与最小实现对照）
 
@@ -441,7 +441,7 @@ demo 默认固定 S2、Prompt v4、`chat.dev_chat` 和 `temperature=0`，只改�
 
 ```bash
 uv sync
-cd source/demos/02_provider_switching
+cd source/demos/02_model_contracts
 uv run python structured_risk.py
 ```
 
@@ -477,7 +477,7 @@ uv run python structured_risk.py
 ### 运行与观察
 
 ```bash
-cd source/demos/02_provider_switching
+cd source/demos/02_model_contracts
 uv run python structured_risk.py
 ```
 

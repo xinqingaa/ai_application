@@ -1,5 +1,5 @@
 """
-02_provider_switching — 02_llm/01 切换 config_ref 对比 demo。
+02_model_contracts — 02_llm/01 切换 config_ref 对比 demo。
 
 运行：
     python provider_switching.py

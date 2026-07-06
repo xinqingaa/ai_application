@@ -9,104 +9,19 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import Any, Generic, Optional, TypeVar
+from typing import Any, Optional, TypeVar
 
 from pydantic import BaseModel
 
 from llm_core.client import LLMClient
 from llm_core.config import LLMResponse
 from llm_core.errors import LLMError, LLMErrorCode
+from llm_core.reliability.policies import DegradationPolicy, RetryPolicy
+from llm_core.reliability.report import ReliableCallAttempt, ReliableCallReport, ReliableCallResult
 from llm_core.schemas.review import ReviewRiskList
 from llm_core.structured import StructuredLLMResponse, StructuredMode
 
 T = TypeVar("T")
-
-
-DEFAULT_RETRYABLE_ERRORS = (
-    LLMErrorCode.RATE_LIMIT,
-    LLMErrorCode.TIMEOUT,
-    LLMErrorCode.PROVIDER_ERROR,
-)
-
-DEFAULT_FALLBACK_ERRORS = (
-    LLMErrorCode.RATE_LIMIT,
-    LLMErrorCode.TIMEOUT,
-    LLMErrorCode.CAPABILITY_MISMATCH,
-    LLMErrorCode.PROVIDER_ERROR,
-    LLMErrorCode.SCHEMA_PARSE,
-    LLMErrorCode.EMPTY_RESPONSE,
-)
-
-
-@dataclass(frozen=True)
-class RetryPolicy:
-    """How many times one config_ref may be attempted before moving on."""
-
-    max_attempts: int = 2
-    retryable_errors: tuple[LLMErrorCode, ...] = DEFAULT_RETRYABLE_ERRORS
-    backoff_seconds: float = 0.0
-
-    def should_retry(self, code: LLMErrorCode, attempt_number: int) -> bool:
-        return attempt_number < self.max_attempts and code in self.retryable_errors
-
-
-@dataclass(frozen=True)
-class DegradationPolicy:
-    """Fallback model policy for one reliable call."""
-
-    fallback_config_refs: tuple[str, ...] = ("chat.fallback_chat",)
-    fallback_on_errors: tuple[LLMErrorCode, ...] = DEFAULT_FALLBACK_ERRORS
-
-    def should_fallback(self, code: LLMErrorCode) -> bool:
-        return bool(self.fallback_config_refs) and code in self.fallback_on_errors
-
-
-@dataclass(frozen=True)
-class ReliableCallAttempt:
-    attempt_number: int
-    config_ref: str
-    status: str
-    latency_ms: float
-    error_code: Optional[LLMErrorCode] = None
-    message: Optional[str] = None
-
-    @property
-    def ok(self) -> bool:
-        return self.status == "success"
-
-
-@dataclass(frozen=True)
-class ReliableCallReport:
-    primary_config_ref: str
-    final_config_ref: Optional[str]
-    attempts: list[ReliableCallAttempt] = field(default_factory=list)
-    degraded: bool = False
-    final_error_code: Optional[LLMErrorCode] = None
-    final_message: Optional[str] = None
-
-    @property
-    def ok(self) -> bool:
-        return self.final_error_code is None and self.final_config_ref is not None
-
-    @property
-    def attempt_count(self) -> int:
-        return len(self.attempts)
-
-    @property
-    def attempted_config_refs(self) -> list[str]:
-        return [attempt.config_ref for attempt in self.attempts]
-
-
-@dataclass(frozen=True)
-class ReliableCallResult(Generic[T]):
-    output: Optional[T]
-    report: ReliableCallReport
-    error: Optional[LLMError] = None
-
-    @property
-    def ok(self) -> bool:
-        return self.error is None and self.output is not None
 
 
 Validator = Callable[[T], Optional[LLMError]]

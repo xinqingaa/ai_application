@@ -17,7 +17,7 @@ from llm_core import ConversationBuffer, LLMClient, encode_sse
 
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parents[2]
-SAMPLES_PATH = REPO_ROOT / "source" / "demos" / "02_first_chat" / "samples.json"
+SAMPLES_PATH = REPO_ROOT / "source" / "demos" / "02_llm_basics" / "samples.json"
 INDEX_PATH = APP_DIR / "index.html"
 
 DEFAULT_SYSTEM_PROMPT = (

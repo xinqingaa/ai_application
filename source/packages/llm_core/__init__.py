@@ -29,6 +29,15 @@ from llm_core.context import (
 )
 from llm_core.conversation import ConversationBuffer, ConversationMessage
 from llm_core.errors import LLMError, LLMErrorCode
+from llm_core.harness import (
+    HarnessCase,
+    HarnessRunConfig,
+    HarnessRunRecord,
+    HarnessSummary,
+    LLMCallingHarness,
+    format_records_table,
+    format_summary,
+)
 from llm_core.observability import DemoLog, demo_log, format_call_log, print_call_log
 from llm_core.prompts import PromptTemplate, get_prompt, list_prompt_versions, render_prompt
 from llm_core.reliability import (
@@ -63,6 +72,13 @@ __all__ = [
     "StreamEventBuilder",
     "LLMError",
     "LLMErrorCode",
+    "HarnessCase",
+    "HarnessRunConfig",
+    "HarnessRunRecord",
+    "HarnessSummary",
+    "LLMCallingHarness",
+    "format_records_table",
+    "format_summary",
     "RetryPolicy",
     "DegradationPolicy",
     "ReliableCallAttempt",

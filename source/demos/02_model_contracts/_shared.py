@@ -1,4 +1,4 @@
-"""Shared helpers for 02_provider_switching demos."""
+"""Shared helpers for 02_model_contracts demos."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from llm_core.structured import StructuredLLMResponse
 
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
-SAMPLES_PATH = DEMO_DIR.parent / "02_first_chat" / "samples.json"
+SAMPLES_PATH = DEMO_DIR.parent / "02_llm_basics" / "samples.json"
 
 
 def find_and_load_env() -> None:

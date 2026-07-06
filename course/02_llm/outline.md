@@ -104,7 +104,7 @@ AI 应用不是“调用一次模型接口”。需求评审助手需要处理�
 ### 最小实现
 
 - 按根目录 `.env.example` 配置 `OPENAI_API_KEY`（可选 `OPENAI_BASE_URL` / `OPENAI_MODEL`，对接 OpenAI 兼容平台）。
-- 运行 `source/demos/02_first_chat/first_chat.py`，发起一次最小 chat。
+- 运行 `source/demos/02_llm_basics/first_chat.py`，发起一次最小 chat。
 - 在终端读懂：`sample`、`model`、`temperature`、`usage`（prompt/completion tokens）、`latency_ms`、`content preview`。
 - （建议）对同一样例执行 `temperature=0` 与 `0.7` 各一次，在笔记中手工记录差异。
 
@@ -129,14 +129,14 @@ AI 应用不是“调用一次模型接口”。需求评审助手需要处理�
 ### 完成标准（运行与观察）
 
 - 能解释：LLM 是什么；一次 Chat 里 `messages` / `usage` / `model` 各表示什么（见正文）。
-- 能独立跑通 `source/demos/02_first_chat/`（见 demo README）。
+- 能独立跑通 `source/demos/02_llm_basics/`（见 demo README）。
 - 能说出 `samples.json` 中 S1–S5 的用途；默认样例为 S2。
 - 能画出：用户 → API → `llm_core` →（RAG / Agent）→ 报告 的数据流。
 - 能列举至少 3 类「只调一次 API」在需求评审场景会出的问题。
 
 ### 本节实战
 
-为需求评审助手定义 LLM 职责边界（文档）；并跑通 `02_first_chat` 完成第一次真实调用观察：
+为需求评审助手定义 LLM 职责边界（文档）；并跑通 `02_llm_basics` 完成第一次真实调用观察：
 
 - 总结需求。
 - 抽取风险。
@@ -164,7 +164,7 @@ AI 应用不是“调用一次模型接口”。需求评审助手需要处理�
 
 - 通过 `LLMClient.chat(messages, config_ref)` 调用；配置真源 [`config/models.yaml`](../../source/packages/llm_core/config/models.yaml)。
 - 统一返回 `LLMResponse`（content / usage / latency_ms / model / config_ref）。
-- 运行 [`02_provider_switching`](../../source/demos/02_provider_switching/)；`--verbose` 打印完整 messages 与响应。
+- 运行 [`02_model_contracts`](../../source/demos/02_model_contracts/)；`--verbose` 打印完整 messages 与响应。
 
 ### 主流框架实现
 
@@ -183,14 +183,14 @@ AI 应用不是“调用一次模型接口”。需求评审助手需要处理�
 
 ### 完成标准（运行与观察）
 
-- 能跑通 `source/demos/02_provider_switching/`（含 `--verbose`）。
+- 能跑通 `source/demos/02_model_contracts/`（含 `--verbose`）。
 - 能解释 `config_ref`、`temperature`、`max_tokens` 与 `LLMResponse` 字段。
 - 能配置 OpenAI 或 DeepSeek（见 01 正文「本节实战」）。
 - 对 S2 样例完成至少 2 个 `config_ref` 的对比（笔记即可）。
 
 ### 本节实战
 
-建立 `models.yaml` 与 `LLMClient`；运行 `02_provider_switching` 对比 `chat.dev_chat` / `chat.structured_chat`（详见 [01 正文](01_model_api_and_provider_abstraction.md)）。
+建立 `models.yaml` 与 `LLMClient`；运行 `02_model_contracts` 对比 `chat.dev_chat` / `chat.structured_chat`（详见 [01 正文](01_model_api_and_provider_abstraction.md)）。
 
 配置条目：
 
@@ -201,7 +201,7 @@ AI 应用不是“调用一次模型接口”。需求评审助手需要处理�
 
 ### 本节沉淀
 
-沉淀 `llm_core` 调用层与 `02_provider_switching` demo；业务通过 `config_ref` 调模型。
+沉淀 `llm_core` 调用层与 `02_model_contracts` demo；业务通过 `config_ref` 调模型。
 
 ## 02. 面向应用的 Prompt Engineering
 
@@ -467,9 +467,9 @@ Prompt 不是“写一句提示词”，而是模型和应用之间的任务协�
 
 ### 最小实现
 
-- 建立一组 JSON/YAML 调用样例。
-- 批量运行同一 prompt。
-- 输出结果对比表。
+- 在 `llm_core.harness` 中定义 `HarnessCase`、`HarnessRunConfig`、`HarnessRunRecord`、`HarnessSummary`。
+- 复用 `ReliableLLMService` 批量运行同一组 case。
+- 在 `02_call_ops_lab` 输出 records 表和 summary，而不是新建孤立 demo。
 
 ### 主流框架实现
 
@@ -485,19 +485,18 @@ Prompt 不是“写一句提示词”，而是模型和应用之间的任务协�
 
 ### 完成标准（运行与观察）
 
-- schema 成功率。
-- 字段完整率。
-- token / latency。
-- 模型间差异。
+- 能运行 `test_harness.py`。
+- 能运行 `source/demos/02_call_ops_lab/harness_compare.py`。
+- 能读懂成功数、解析成功率、降级数、错误分布、attempt 数。
 
 ### 本节实战
 
-建立需求评审助手最小调用集：
+建立需求评审助手最小 calling harness：
 
-- 需求摘要样例。
-- 风险识别样例。
-- 缺失信息追问样例。
-- 结构化报告样例。
+- 固定一组需求评审 case。
+- 批量运行 structured call。
+- 记录 parse、error、latency、attempt、degraded。
+- 输出本地 summary，为后续 eval / observability 提供原始数据形状。
 
 ### 本节沉淀
 

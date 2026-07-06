@@ -149,7 +149,7 @@ Prompt（任务协议：你是谁、要做什么、不能做什么）
 ## 最小实现
 
 目标：**亲手看清一次调用里有什么**，建立「模型返回的不是魔法，是一串可记录的响应」的直觉。  
-实现见 [`source/demos/02_first_chat/`](../../source/demos/02_first_chat/)（见 [outline 代码里程碑](outline.md)）。
+实现见 [`source/demos/02_llm_basics/`](../../source/demos/02_llm_basics/)（见 [outline 代码里程碑](outline.md)）。
 
 ### 前置
 
@@ -179,10 +179,10 @@ HTTP 层面：你的 Python 程序 `POST` 到 `/v1/chat/completions`（或兼容
 - `usage.prompt_tokens` / `usage.completion_tokens` —— 计费用
 - `model` —— 实际使用的模型 id
 
-### 第一次调用（`02_first_chat`）
+### 第一次调用（`02_llm_basics`）
 
-入口：[`source/demos/02_first_chat/first_chat.py`](../../source/demos/02_first_chat/first_chat.py)。  
-Provider 抽象与切换对比见专题 01（[`02_provider_switching`](../../source/demos/02_provider_switching/)）。
+入口：[`source/demos/02_llm_basics/first_chat.py`](../../source/demos/02_llm_basics/first_chat.py)。  
+Provider 抽象与切换对比见专题 01（[`02_model_contracts`](../../source/demos/02_model_contracts/)）。
 
 核心调用逻辑（节选）：
 
@@ -197,18 +197,18 @@ latency_ms = (time.perf_counter() - t0) * 1000
 # 打印 resp.model、resp.usage、latency_ms、content 前 300 字
 ```
 
-样例 S1–S5 定义在 [`samples.json`](../../source/demos/02_first_chat/samples.json)，默认跑 S2（售后 PRD 风险识别）。
+样例 S1–S5 定义在 [`samples.json`](../../source/demos/02_llm_basics/samples.json)，默认跑 S2（售后 PRD 风险识别）。
 
 ### 运行与观察
 
 ```bash
-cd source/demos/02_first_chat
+cd source/demos/02_llm_basics
 uv run python first_chat.py
 uv run python first_chat.py --temperature 0.7
 uv run python first_chat.py --sample S4
 ```
 
-应看到：`sample`、`model`、`usage`（prompt/completion tokens）、`latency_ms`、`content preview`。详见 [demo README](../../source/demos/02_first_chat/README.md)。
+应看到：`sample`、`model`、`usage`（prompt/completion tokens）、`latency_ms`、`content preview`。详见 [demo README](../../source/demos/02_llm_basics/README.md)。
 
 ### 建议做的两个对比实验
 
@@ -287,7 +287,7 @@ uv run python first_chat.py --sample S4
 
 ### 最小调用样例集（S1–S5 种子；批量回归在 07）
 
-样例数据在 [`samples.json`](../../source/demos/02_first_chat/samples.json)；默认跑 S2。完整 harness 对比在专题 **07** 落地，不必在 00 实现 JSONL 或自动跑批。
+样例数据在 [`samples.json`](../../source/demos/02_llm_basics/samples.json)；默认跑 S2。完整 harness 对比在专题 **07** 落地，不必在 00 实现 JSONL 或自动跑批。
 
 ---
 
@@ -347,7 +347,7 @@ source/packages/llm_core/
 2. `models.yaml`：Chat / Embedding / Rerank 分角色  
 3. 命名 Prompt：`requirement_summary`、`risk_review` 等  
 4. 核心 Schema：`ReviewRisk`、`ReviewReport`、`Citation`、`RefusalResponse`  
-5. 上文 5 条样例集（[`samples.json`](../../source/demos/02_first_chat/samples.json)）+ 日志字段约定  
+5. 上文 5 条样例集（[`samples.json`](../../source/demos/02_llm_basics/samples.json)）+ 日志字段约定  
 
 ---
 
@@ -357,7 +357,7 @@ source/packages/llm_core/
 - **能解释**：为什么需求评审助手不能只做「复制 PRD 到 ChatGPT」。  
 - **能讲述**：小周提交售后 PRD 时，只做一次 API 调用会在产品/工程上出哪些问题（至少 3 点）。  
 - **能画出**：用户 → API → `llm_core` →（RAG / Agent）→ 报告 的数据流。  
-- **能运行**：[`02_first_chat`](../../source/demos/02_first_chat/README.md) 最小 chat，并解读 `usage` 与 `latency_ms`。  
+- **能运行**：[`02_llm_basics`](../../source/demos/02_llm_basics/README.md) 最小 chat，并解读 `usage` 与 `latency_ms`。  
 - **能列举**：5 类 LLM 层无法单独解决的事及对应课程/模块。  
 
 ### 自检题（不看正文能否答）

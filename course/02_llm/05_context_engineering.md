@@ -277,7 +277,7 @@ source 可被压缩，合法引用候选可被列出，drop / warning 可被诊�
 4. 被压缩、被去重、被预算丢弃的 source 必须出现在 report 里。
 5. demo 不能实现核心排序、压缩、引用映射逻辑，只能加载样例、选择策略、打印结果。
 
-完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [context demo README](../../source/demos/02_context_engineering/README.md)。
+完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [context demo README](../../source/demos/02_context_lab/README.md)。
 
 ### 1. 候选材料与策略
 
@@ -347,7 +347,7 @@ ContextSource[]
 
 ### 3. Demo 只调用 package API
 
-[`context_compare.py`](../../source/demos/02_context_engineering/context_compare.py)：
+[`context_compare.py`](../../source/demos/02_context_lab/context_compare.py)：
 
 ```python
 policy = get_context_policy(strategy)
@@ -460,9 +460,9 @@ Document / Memory / State / Tool Result
 - [`source/packages/llm_core/context/builder.py`](../../source/packages/llm_core/context/builder.py)：上下文装配主流程。
 - [`source/packages/llm_core/context/policies.py`](../../source/packages/llm_core/context/policies.py)：`minimal`、`balanced`、`evidence_first`、`tight_budget` 等策略预设。
 - [`source/packages/llm_core/tests/test_context.py`](../../source/packages/llm_core/tests/test_context.py)：策略、压缩、引用映射和诊断测试。
-- [`source/demos/02_context_engineering/context_compare.py`](../../source/demos/02_context_engineering/context_compare.py)：05 专属观察入口，只调用 package API。
-- [`source/demos/02_context_engineering/context_cases.json`](../../source/demos/02_context_engineering/context_cases.json)：需求评审材料池样例。
-- [`source/demos/02_context_engineering/README.md`](../../source/demos/02_context_engineering/README.md)：demo 运行与输出说明。
+- [`source/demos/02_context_lab/context_compare.py`](../../source/demos/02_context_lab/context_compare.py)：05 context lab 观察入口，只调用 package API。
+- [`source/demos/02_context_lab/context_cases.json`](../../source/demos/02_context_lab/context_cases.json)：需求评审材料池样例。
+- [`source/demos/02_context_lab/README.md`](../../source/demos/02_context_lab/README.md)：demo 运行与输出说明。
 
 ### 实现步骤
 
@@ -483,7 +483,7 @@ uv run pytest source/packages/llm_core/tests/test_context.py
 策略对比：
 
 ```bash
-uv run python source/demos/02_context_engineering/context_compare.py
+uv run python source/demos/02_context_lab/context_compare.py
 ```
 
 `context_compare.py` 顶部提供学习期实验开关，改完后仍运行上面这一条短命令：
@@ -654,7 +654,7 @@ NOISE-OLD-V1 reason=token_budget_exceeded
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_context.py
-uv run python source/demos/02_context_engineering/context_compare.py
+uv run python source/demos/02_context_lab/context_compare.py
 ```
 
 观察点：
@@ -679,7 +679,7 @@ uv run python source/demos/02_context_engineering/context_compare.py
 ## 本节沉淀
 
 - `llm_core.context` 从简单 evidence formatter 升级为策略化 Context Builder，包含 source、policy、section、report、citation candidates 和确定性压缩。
-- 新增 `02_context_engineering` demo，用独立观察入口比较不同 context 策略，避免和 Structured Outputs demo 耦合。
+- `02_context_lab` 作为 context 观察 lab，用独立入口比较不同 context 策略，避免和 Structured Outputs demo 耦合。
 - 下一节 06 Reliability、Errors 与 Degradation 将处理模型调用失败、结构化失败、超时和降级；05 的 report 会成为后续 harness / eval 诊断的重要输入。
 
 ---
@@ -687,5 +687,5 @@ uv run python source/demos/02_context_engineering/context_compare.py
 ## 相关专题
 
 - 上一篇：[04_streaming_and_conversation.md](04_streaming_and_conversation.md)
-- 下一篇：06 Reliability、Errors 与 Degradation（待落地）
+- 下一篇：[06_reliability_errors_and_degradation.md](06_reliability_errors_and_degradation.md)
 - 课程大纲：[outline.md](outline.md)

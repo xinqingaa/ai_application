@@ -227,11 +227,11 @@ StructuredParseResult：文本是否能被应用解析为目标 schema
 3. 结构化解析失败会被转成可靠性错误，而不是被当作普通成功。
 4. 每次 attempt 都进入 `ReliableCallReport`，demo 和后续 trace 都能读取。
 
-完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [reliability demo README](../../source/demos/02_reliability_errors/README.md)。
+完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [call ops lab README](../../source/demos/02_call_ops_lab/README.md)。
 
 ### 1. 策略和报告
 
-[`reliability.py`](../../source/packages/llm_core/reliability.py) 先定义可靠性层的数据契约：
+[`reliability/`](../../source/packages/llm_core/reliability/) 先定义可靠性层的数据契约：
 
 ```python
 @dataclass(frozen=True)
@@ -258,7 +258,7 @@ class ReliableCallReport:
 
 ### 2. 可靠调用外壳
 
-[`ReliableLLMService`](../../source/packages/llm_core/reliability.py) 的主职责是包住 `LLMClient`：
+[`ReliableLLMService`](../../source/packages/llm_core/reliability/) 的主职责是包住 `LLMClient`：
 
 ```python
 result = service.chat(
@@ -290,7 +290,7 @@ parse.error_stage == "schema" -> schema_parse
 
 ### 4. Demo 只观察可靠性行为
 
-[`reliability_compare.py`](../../source/demos/02_reliability_errors/reliability_compare.py) 默认不调用真实模型，而是用 fake client 模拟失败：
+[`reliability_compare.py`](../../source/demos/02_call_ops_lab/reliability_compare.py) 默认不调用真实模型，而是用 fake client 模拟失败：
 
 ```text
 timeout_then_success
@@ -377,11 +377,11 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 
 关键路径：
 
-- [`source/packages/llm_core/errors.py`](../../source/packages/llm_core/errors.py)：统一错误码。
-- [`source/packages/llm_core/reliability.py`](../../source/packages/llm_core/reliability.py)：`RetryPolicy`、`DegradationPolicy`、`ReliableLLMService` 和 report。
+- [`source/packages/llm_core/errors/types.py`](../../source/packages/llm_core/errors/types.py)：统一错误码。
+- [`source/packages/llm_core/reliability/`](../../source/packages/llm_core/reliability/)：`RetryPolicy`、`DegradationPolicy`、`ReliableLLMService` 和 report。
 - [`source/packages/llm_core/tests/test_reliability.py`](../../source/packages/llm_core/tests/test_reliability.py)：可靠性单元测试。
-- [`source/demos/02_reliability_errors/reliability_compare.py`](../../source/demos/02_reliability_errors/reliability_compare.py)：06 专属观察入口。
-- [`source/demos/02_reliability_errors/README.md`](../../source/demos/02_reliability_errors/README.md)：demo 配置与输出说明。
+- [`source/demos/02_call_ops_lab/reliability_compare.py`](../../source/demos/02_call_ops_lab/reliability_compare.py)：06 call ops lab 观察入口。
+- [`source/demos/02_call_ops_lab/README.md`](../../source/demos/02_call_ops_lab/README.md)：reliability 与 harness 的输出说明。
 
 ### 实现步骤
 
@@ -403,7 +403,7 @@ uv run pytest source/packages/llm_core/tests/test_reliability.py
 demo：
 
 ```bash
-uv run python source/demos/02_reliability_errors/reliability_compare.py
+uv run python source/demos/02_call_ops_lab/reliability_compare.py
 ```
 
 `reliability_compare.py` 顶部提供学习期实验开关：
@@ -528,7 +528,7 @@ DEFAULT_CASE = "primary_timeout_then_fallback"
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_reliability.py
-uv run python source/demos/02_reliability_errors/reliability_compare.py
+uv run python source/demos/02_call_ops_lab/reliability_compare.py
 ```
 
 观察点：
@@ -552,8 +552,8 @@ uv run python source/demos/02_reliability_errors/reliability_compare.py
 
 ## 本节沉淀
 
-- `llm_core` 新增 `reliability.py`，把单次模型调用升级为可重试、可降级、可诊断的可靠调用。
-- 新增 `02_reliability_errors` demo，用稳定模拟 case 学习失败路径，不默认消耗真实模型额度，也不保存运行文件。
+- `llm_core` 新增 `reliability/`，把单次模型调用升级为可重试、可降级、可诊断的可靠调用。
+- 扩展 `02_call_ops_lab`，用稳定模拟 case 学习失败路径，不默认消耗真实模型额度，也不保存运行文件。
 - 下一节 07 LLM Calling Harness 将把单次可靠调用扩展为批量样例、调用记录和回归对比。
 
 ---
@@ -561,5 +561,5 @@ uv run python source/demos/02_reliability_errors/reliability_compare.py
 ## 相关专题
 
 - 上一篇：[05_context_engineering.md](05_context_engineering.md)
-- 下一篇：07 LLM Calling Harness（待落地）
+- 下一篇：[07_llm_calling_harness.md](07_llm_calling_harness.md)
 - 课程大纲：[outline.md](outline.md)

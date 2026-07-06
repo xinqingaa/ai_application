@@ -2,7 +2,7 @@
 05_context_compare — compare context-building policies for one review case.
 
 Run from the repo root:
-    uv run python source/demos/02_context_engineering/context_compare.py
+    uv run python source/demos/02_context_lab/context_compare.py
 """
 
 from __future__ import annotations

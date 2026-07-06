@@ -1,4 +1,4 @@
-# 02_context_engineering
+# 02_context_lab
 
 `02_llm/05` 的上下文工程观察 demo。它不是新的业务实现，也不承载核心算法；核心逻辑在 [`llm_core.context`](../../packages/llm_core/context/)，本 demo 只加载样例、选择策略、调用 package API 并打印诊断报告。
 
@@ -15,7 +15,7 @@
 - Prompt 预览是否符合预期。
 - bad case 应该查预算、排序、压缩、Prompt，还是模型。
 
-这些维度如果继续塞进 `02_provider_switching/structured_risk.py`，会把 03 Structured Outputs 与 05 Context Engineering 混在一起。因此本节单独建 demo，但仍复用同一个 `llm_core` package。
+这些维度如果继续塞进 `02_model_contracts/structured_risk.py`，会把 03 Structured Outputs 与 05 Context Engineering 混在一起。因此本节单独建 demo，但仍复用同一个 `llm_core` package。
 
 ## 文件
 
@@ -35,7 +35,7 @@ uv sync
 默认运行 `evidence_first`，不需要 API key：
 
 ```bash
-uv run python source/demos/02_context_engineering/context_compare.py
+uv run python source/demos/02_context_lab/context_compare.py
 ```
 
 常用开关在 [`context_compare.py`](context_compare.py) 顶部，改完后仍运行上面这一条短命令：
@@ -185,7 +185,7 @@ no_evidence_included
 
 ## 与 03 demo 的关系
 
-- `02_provider_switching/structured_risk.py`：观察 structured output 三种 mode。
-- `02_context_engineering/context_compare.py`：观察 context builder 策略和诊断。
+- `02_model_contracts/structured_risk.py`：观察 structured output 三种 mode。
+- `02_context_lab/context_compare.py`：观察 context builder 策略和诊断。
 
 二者都调用 `llm_core`，但观察问题不同。

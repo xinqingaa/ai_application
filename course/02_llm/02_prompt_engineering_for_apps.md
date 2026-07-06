@@ -183,7 +183,7 @@ Few-shot 的本质不是“给模型更多材料”，而是“用样例定义�
 | **Prompt** | 通过 `{{evidence_block}}` 接收片段，并要求结论绑定材料、证据不足时拒答或追问 |
 | **应用** | 校验 citation 是否指向真实 source（03_rag / 03 结构化课深化） |
 
-本节使用静态文件 [`evidence_s2.json`](../../source/demos/02_provider_switching/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
+本节使用静态文件 [`evidence_s2.json`](../../source/demos/02_model_contracts/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
 
 这里有一个常见误区：在 Prompt 里写“请依据公司规范回答”，并不等于模型真的拥有公司规范。Prompt 只能规定“如果有证据，应该如何使用证据；如果没有证据，应该如何拒答或追问”。证据从哪里来，是 RAG 的职责。
 
@@ -496,9 +496,9 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 - [`source/packages/llm_core/prompts/registry.py`](../../source/packages/llm_core/prompts/registry.py)：加载与渲染 Prompt。
 - [`source/packages/llm_core/prompts/review/`](../../source/packages/llm_core/prompts/review/)：三版 `review.risk_review`。
-- [`source/demos/02_provider_switching/prompt_compare.py`](../../source/demos/02_provider_switching/prompt_compare.py)：本节观察入口。
+- [`source/demos/02_model_contracts/prompt_compare.py`](../../source/demos/02_model_contracts/prompt_compare.py)：本节观察入口。
 
-完整参数说明、样例列表和命令变体放在 [demo README](../../source/demos/02_provider_switching/README.md)。
+完整参数说明、样例列表和命令变体放在 [demo README](../../source/demos/02_model_contracts/README.md)。
 
 ### 实现步骤
 
@@ -509,7 +509,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ### 核心实验变量
 
-入口文件是 [`prompt_compare.py`](../../source/demos/02_provider_switching/prompt_compare.py)。正文只保留本节必须理解的实验变量：
+入口文件是 [`prompt_compare.py`](../../source/demos/02_model_contracts/prompt_compare.py)。正文只保留本节必须理解的实验变量：
 
 - `SAMPLE_ID`：默认 S2，表示同一份售后 PRD。
 - `PROMPT_VERSIONS`：默认 v1 / v2 / v3，表示只换 Prompt 版本。
@@ -522,7 +522,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ```bash
 uv sync
-cd source/demos/02_provider_switching
+cd source/demos/02_model_contracts
 uv run python prompt_compare.py
 ```
 
@@ -567,11 +567,11 @@ uv run python prompt_compare.py
 ### 运行与观察
 
 ```bash
-cd source/demos/02_provider_switching
+cd source/demos/02_model_contracts
 uv run python prompt_compare.py
 ```
 
-详见 [demo README](../../source/demos/02_provider_switching/README.md)。
+详见 [demo README](../../source/demos/02_model_contracts/README.md)。
 
 ### 自检题（不看正文能否答）
 

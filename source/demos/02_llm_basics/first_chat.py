@@ -1,5 +1,5 @@
 """
-02_first_chat — 02_llm/00 最小 chat 调用。
+02_llm_basics — 02_llm/00 最小 chat 调用。
 
 运行：
     python first_chat.py

@@ -1,4 +1,4 @@
-# 02_provider_switching
+# 02_model_contracts
 
 `02_llm/01`–`03` 的观察 demo 目录。这里不是三套独立小项目，而是在同一个 `llm_core` 底座上逐步观察：
 
@@ -16,7 +16,7 @@
 | `prompt_compare.py` | 02 Prompt 三版对比 | `uv run python prompt_compare.py` |
 | `structured_risk.py` | 03 Structured Outputs（同时消费 05 context builder） | `uv run python structured_risk.py` |
 
-00 的 [`02_first_chat`](../02_first_chat/) 保留直调 OpenAI SDK，用于对照「抽象前后」的差异。
+00 的 [`02_llm_basics`](../02_llm_basics/) 保留直调 OpenAI SDK，用于对照「抽象前后」的差异。
 
 ## 前置
 
@@ -66,7 +66,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 
 ### 03：`structured_risk.py`
 
-这个脚本用于观察结构化输出的约束层级。它会消费 05 的 context builder，把静态 evidence 变成带 source id 的 `evidence_block`，但 05 的主观察入口是 [`../02_context_engineering/`](../02_context_engineering/)。
+这个脚本用于观察结构化输出的约束层级。它会消费 05 的 context builder，把静态 evidence 变成带 source id 的 `evidence_block`，但 05 的主观察入口是 [`../02_context_lab/`](../02_context_lab/)。
 
 读代码时关注：
 
@@ -87,7 +87,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 ## 运行命令
 
 ```bash
-cd source/demos/02_provider_switching
+cd source/demos/02_model_contracts
 
 uv run python provider_switching.py
 uv run python provider_switching.py --verbose
@@ -149,7 +149,7 @@ uv run python structured_risk.py
 | tag / 字段 | 含义 |
 | --- | --- |
 | `[experiment]` | 当前样例、配置、版本或 mode |
-| `[context]` | 结构化调用前的最小 context 诊断；完整策略对比见 `02_context_engineering` |
+| `[context]` | 结构化调用前的最小 context 诊断；完整策略对比见 `02_context_lab` |
 | `[content]` | 模型正文输出 |
 | `[call_detail]` | verbose 下的 messages、params、assistant、usage |
 | `model` | 实际命中的模型 |
@@ -169,7 +169,7 @@ uv run python structured_risk.py
 | v2/v3 没有 evidence | `EVIDENCE_FILE` 是否存在，`evidence_block` 字段是否存在 |
 | `[context] included_sources` 为空 | evidence 文件是否存在；`CONTEXT_TOKEN_BUDGET` 是否太小 |
 | citation 没有对应 source id | 先看 `[context] evidence_block` 是否含 source id；真实 citation 校验在 03_rag |
-| 想比较不同 context 策略 | 运行 `source/demos/02_context_engineering/context_compare.py` |
+| 想比较不同 context 策略 | 运行 `source/demos/02_context_lab/context_compare.py` |
 | `json_schema` API 失败 | 当前供应商是否支持该 `response_format` |
 | `error_stage=json` | assistant 是否为合法 JSON、是否被截断或带多余说明 |
 | `error_stage=schema` | 字段名、枚举值、根形态是否符合 `ReviewRiskList` |

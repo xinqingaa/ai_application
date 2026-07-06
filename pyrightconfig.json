@@ -1,0 +1,11 @@
+{
+  "include": [
+    "source",
+    "review_assistant"
+  ],
+  "extraPaths": [
+    "source/packages"
+  ],
+  "venvPath": ".",
+  "venv": ".venv"
+}
