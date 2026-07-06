@@ -5,7 +5,7 @@
 - `reliability_compare.py`：对应 06，观察 retry、fallback、schema failure 和 attempt report。
 - `harness_compare.py`：对应 07，观察一组 case 如何批量运行、记录、汇总。
 
-两个入口默认都使用本地模拟，不调用真实模型，也不保存任何文件。
+两个入口默认都使用本地模拟，不调用真实模型，也不保存任何文件。需要观察真实模型时，在脚本顶部打开对应 `USE_REAL_LLM` 开关。
 
 ## 运行
 
@@ -80,3 +80,14 @@ S3       failed   -      true      2         2.0         schema_parse
 ```
 
 这说明 harness 不只看最终文本，而是把 parse、降级、attempt 和错误码都记录下来，给后续 eval / observability 使用。
+
+`harness_compare.py` 顶部可改：
+
+| 开关 | 默认值 | 含义 |
+| --- | --- | --- |
+| `USE_REAL_LLM` | `False` | 是否用真实 `LLMClient` 跑同一批 case |
+| `PRINT_RECORD_DETAIL` | `True` | 是否打印每条 case 的内容预览或错误信息 |
+| `PRIMARY_CONFIG_REF` | `"chat.dev_chat"` | 主模型配置 |
+| `FALLBACK_CONFIG_REF` | `"chat.fallback_chat"` | fallback 模型配置 |
+
+真实模型路径会读取根目录 `.env`。它的目的不是稳定触发失败，而是观察同一批业务 case 在当前模型、Prompt 和结构化输出约束下的真实调用事实：parse 是否通过、是否降级、耗时和错误分布如何。

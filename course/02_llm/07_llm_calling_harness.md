@@ -1,151 +1,201 @@
 # 07. LLM Calling Harness
 
-> 06 已经让一次模型调用具备错误分类、有限重试、fallback 和 attempt report。本篇继续回答：**当你开始反复修改 Prompt、模型、Schema 和 Context 时，如何用一组稳定 case 记录调用结果，而不是凭“我刚才跑了一次感觉还行”判断质量**。
+> 06 已经让一次模型调用具备错误分类、有限重试、fallback 和 attempt report。本篇继续回答：**当 LLM 调用从“能跑一次”进入“持续迭代”后，应用如何建立最小实验闭环，让 Prompt、模型、Schema、Context 和 Reliability 的改动可以被同一批业务样例反复验证**。
 
 ---
 
 ## 真实问题
 
-05 和 06 之后，需求评审助手已经不再是裸调模型：输入经过 context builder，输出经过 structured parse，调用经过 reliability shell。到这里，很容易进入另一种误区：每改一次 Prompt 或模型，手动跑一个 demo，看终端输出还不错，就认为系统变好了。
+前面几节已经把一次 LLM 调用拆成了比较完整的应用链路：01 负责 provider 和 `config_ref`，02 负责 Prompt 版本，03 负责结构化输出，05 负责上下文装配，06 负责错误、重试和降级。到这里，需求评审助手不再是“发一段文本给模型，看它回什么”的小脚本。
 
-真实项目里这不够。你可能把 `risk_review_v3` 改成 `v4`，默认样例 S2 看起来更稳，但 S1 的需求摘要开始遗漏状态机风险；你可能把模型从 `chat.dev_chat` 切到 fallback，解析成功率没变，但风险描述更空泛；你可能缩短 context budget，token 降低了，但 citation 变少；你也可能只盯最终文本，忽略了 `schema_parse`、`degraded=True` 和 attempt 数量变多。
+但新的问题马上出现：你开始频繁改东西，却不知道改动有没有让系统退化。
 
-本节要解决的不是完整评估打分。完整的准确性、引用正确性、拒答合理性、人工标注、趋势面板会进入后续 `05_eval_observability`。07 先做更基础的一层：**把同一批调用样例稳定跑起来，并把每次调用变成可比较的记录**。
+比如你把 `risk_review_v3` 改成 `v4`，默认售后入口样例看起来更清楚，但优惠叠加样例开始漏掉金额边界；你把 `structured_mode` 从 `json_object` 改成 `json_schema`，某个供应商直接报能力不兼容；你把 context budget 调小，token 降了，但关键接口证据没有进入 Prompt；你把主模型换成 fallback，终端仍显示 success，但 `degraded=True` 说明这不是普通成功；你为了让输出更像 JSON 改了 Prompt，parse 成功率上去了，但风险内容变得空泛。
+
+如果每次都只手动跑一个 demo，看一段模型输出，然后凭感觉说“这版不错”，你就没有真正进入工程化。真实 AI 应用的迭代，需要一个最小实验闭环：
+
+```text
+固定业务样例
+→ 固定运行配置
+→ 批量调用
+→ 记录每条调用事实
+→ 汇总工程健康信号
+→ 再决定是否进入更完整的 eval
+```
+
+这就是本节的 Calling Harness。
 
 ### 学习者真实问题
 
-如果你有前端 / Flutter / 客户端经验，可以把 harness 类比成 UI 组件的快照用例或接口契约样例。你不会只点一次按钮说“这个页面没问题”，而会准备几组输入：空数据、长文本、异常状态、权限不足、弱网重试。每次改组件，都用同一批输入重新跑，至少确认没有明显退化。
+如果你有前端、Flutter 或客户端经验，可以把 harness 类比成“组件样例集 + 回归检查”。你不会只打开一个页面点一次按钮，就判断某个复杂组件没有问题。你会准备：空数据、长文本、异常状态、权限不足、弱网重试、深色模式、不同屏幕尺寸。每次改组件，都用同一批输入再看一遍。
 
-LLM 调用也需要类似思路。区别在于，LLM 的输出不是固定字符串，不能只做简单断言。07 的 harness 不要求“答案必须一字不差”，而是先记录这些事实：
+LLM 调用也一样。区别在于，LLM 输出不是固定字符串，不能简单断言“必须等于某段文本”。所以 07 先不做完整评分，而是先记录调用事实：
 
-- 哪个 case 跑了。
-- 用了哪个 `config_ref`、Prompt 或 structured mode。
-- 最终成功还是失败。
-- 结构化解析是否通过。
-- 是否发生 retry / fallback。
-- token、latency、错误码是什么。
+- 这次跑了哪条业务 case。
+- 本次变量是什么：模型、Prompt、structured mode、temperature、retry / fallback 策略。
+- 结果是成功、调用失败，还是结构化解析失败。
+- 成功是不是 retry 后成功，或 fallback 后成功。
+- token、latency、error code、parse 状态是什么。
 
-这一步看似朴素，但它把学习方式从“单次 demo 感觉”推进到“同一批输入的可回归记录”。
+这些事实本身不等于质量结论，但没有它们，后续任何“评估”“观测”“bad case 回流”都会变成空话。
 
 ### 产品真实问题
 
-继续看需求评审助手。产品里至少会有几类稳定样例：
+需求评审助手至少需要几类稳定业务样例：
 
-- 售后入口：重点看订单状态、售后接口、三端入口一致性。
-- 优惠叠加：重点看业务规则优先级、金额计算、边界状态。
-- 发票改造：重点看历史记录复用、权限、异常输入。
-- 材料不足：重点看是否追问，而不是编造结论。
+- 售后入口：重点看订单状态、售后接口、入口展示条件、三端一致性。
+- 优惠叠加：重点看金额计算、优先级、券状态和边界规则。
+- 发票改造：重点看历史记录复用、权限、异常输入和数据一致性。
+- 材料不足：重点看系统是否追问，而不是编造评审结论。
 
-如果每次只跑售后入口，你会对系统产生虚假信心。真正有用的反馈应该像这样：
+如果你只跑售后入口，系统很容易“看起来会评审”。但项目真正需要的是一批样例一起跑完后的事实：
 
 ```text
 本次 run：
-1. 一共 12 条 case；
-2. 10 条结构化解析成功；
-3. 2 条失败，其中 1 条 schema_parse，1 条 timeout；
-4. 3 条发生 fallback；
-5. 平均耗时比上次高。
+- 12 条 case 中 10 条调用成功；
+- 9 条结构化解析成功；
+- 2 条发生 fallback；
+- 1 条 schema_parse；
+- 平均耗时比上次高；
+- 失败集中在“材料不足”和“优惠叠加”。
 ```
 
-这还不是最终质量评估，但它已经能提醒你：本次改动可能引入了工程退化，需要继续看 bad case。
+这还不是完整 eval，因为它没有判断答案是否准确、引用是否正确、追问是否合理。但它已经能告诉你：这次改动有没有明显工程退化，哪些 case 值得进一步人工查看。
 
 ### 工程真实问题
 
-工程上，harness 至少要把四类对象分开：
+工程上，Calling Harness 不是“多跑几个脚本”，而是把一次调用拆成四个稳定对象：
 
-| 对象 | 解决什么问题 | 本节落点 |
+| 对象 | 解决的问题 | 为什么需要 |
 | --- | --- | --- |
-| Case | 固定输入是什么 | `HarnessCase` |
-| Run Config | 本次用什么模型、参数、结构化模式 | `HarnessRunConfig` |
-| Record | 每条 case 的调用事实 | `HarnessRunRecord` |
-| Summary | 一批 case 的汇总事实 | `HarnessSummary` |
+| Case | 固定业务输入是什么 | 没有稳定 case，就无法回归 |
+| Run Config | 本次实验变量是什么 | 不记录变量，就无法解释差异 |
+| Record | 每条 case 的调用事实是什么 | 不记录事实，就无法复盘失败 |
+| Summary | 一批 case 的整体信号是什么 | 不汇总，就只能逐条肉眼看 |
 
-如果没有这些对象，后续 eval 会缺少原始数据；如果一上来就做完整平台，又会把学习压成数据库、看板和 CI 的工程泥潭。本节选择中间路线：先把 harness 内核沉淀到 `llm_core.harness`，demo 只作为观察入口。
+本节的重点是把这四个对象沉淀进 `llm_core.harness`。demo 只是观察入口，不承载核心逻辑。
 
 ---
 
 ## 基础原理
 
-### 本节方案性质
+### Harness 是实验装置，不是评估系统
 
-Harness 没有唯一标准形态。企业里可能使用 LangSmith dataset、内部 eval 平台、数据库 run 表、CI 门禁、人工标注系统和 dashboard。本仓库 07 先做本地轻量版。
-
-| 层级 | 本节怎么理解 |
-| --- | --- |
-| 通用原则 | 用固定 case 集重复运行；记录输入、配置、输出、错误、耗时和解析结果 |
-| 工程实践 | `LLMCallingHarness` 复用 `ReliableLLMService`，返回 records + summary |
-| 项目取舍 | 先打印终端表格，不落数据库，不做完整评分 |
-| 非目标 | 不做 LangSmith 接入、不做 dashboard、不做 CI 门禁、不做人评平台 |
-
-### 先用一个小例子抓住主线
-
-假设你有三条需求评审 case：
+Harness 的第一责任，是让同一批输入可以在同一套运行配置下反复执行，并把过程记录下来。它回答的是：
 
 ```text
-S1：售后入口
-S2：优惠叠加
-S3：发票改造
+这批 case 在这套配置下发生了什么？
 ```
 
-你想比较当前 Prompt 是否还能稳定输出结构化风险列表。单次调用只能回答“某一条有没有返回”。Harness 要回答的是“一组输入整体表现如何”。
-
-数据流是：
+Eval 回答的是另一个问题：
 
 ```text
-HarnessCase[]
-→ HarnessRunConfig
-→ LLMCallingHarness
-→ ReliableLLMService.chat_structured
-→ HarnessRunRecord[]
-→ HarnessSummary
+这些结果质量好不好？
 ```
 
-这条链路刻意复用了 06 的 reliable shell。原因很简单：如果一次 case 发生了 fallback，harness 不能只记录“成功”，还要记录 `degraded=True` 和 attempt 数量。否则后续你会把降级成功误看成普通成功。
+两者必须区分。`parse_ok=True` 只说明结构化解析通过，不说明风险识别完整；`degraded=True` 只说明发生了降级，不说明答案不能用；`success_count` 上升只说明调用层更稳定，不说明业务结论更准确。
 
-### Harness 和 Eval 的区别
+反过来，如果没有 harness，eval 也站不住。你可能知道“这条答案不好”，但不知道它来自哪个 Prompt 版本、哪个模型、是否 fallback、是否 context 缺证据、是否 parse 其实失败过。
 
-Harness 是调用外壳，Eval 是质量判断。它们相关，但不是一件事。
+### Case 是业务样本，不是随便几条 Prompt
 
-| 维度 | Harness | Eval |
-| --- | --- | --- |
-| 关注点 | 调用事实是否可记录、可回归 | 结果质量是否正确、完整、可信 |
-| 典型字段 | status、parse_ok、latency、error_code、degraded | accuracy、citation correctness、refusal quality |
-| 本节是否实现 | 是 | 否，后续 `05_eval_observability` |
-| 失败例子 | 没记录 schema_parse，无法复盘 | 记录了结果，但不知道答案是否准确 |
+很多初学者会把 harness case 理解成“多写几条用户问题”。这不够。Case 应该代表一类业务风险或一类失败模式。
 
-反例：如果只做 harness，你能知道 S2 解析成功，却不知道它漏掉了“优惠叠加优先级”。如果只做 eval，但没有 harness record，你又很难追溯那次结果用了哪个模型、是否 fallback、耗时是否异常。
+例如“售后入口”不是一句普通问题，而是用来观察：
+
+- 是否识别订单状态机风险。
+- 是否追问售后接口参数。
+- 是否关注 H5 / Flutter / 原生入口一致性。
+- 是否在材料不足时保守表达。
+
+所以 `HarnessCase` 里除了 `messages`，还保留 `case_id`、`title`、`expected_focus`、`tags`。07 不用 `expected_focus` 自动打分，但它给后续 eval 留下“这条样例本来要看什么”的业务入口。
+
+### Run Config 是变量控制
+
+如果你今天改了 Prompt，明天换了模型，后天又改了 structured mode，却没有记录这些变量，那么结果变化就无法解释。
+
+`HarnessRunConfig` 的作用是让一次实验有名字、有配置：
+
+- `run_name`：这次实验叫什么。
+- `config_ref`：用哪个模型配置。
+- `structured_mode`：用哪种结构化约束。
+- `temperature` / `max_tokens`：采样和输出边界。
+- `retry_policy` / `degradation_policy`：调用失败时怎么恢复。
+
+它不是为了字段好看，而是为了让“本次改动是什么”可追溯。
+
+### Record 是事实，不是结论
+
+`HarnessRunRecord` 记录的是每条 case 的调用事实：
+
+```text
+case_id
+status
+parse_ok
+risk_count
+latency_ms
+total_tokens
+error_code
+attempt_count
+degraded
+```
+
+这些字段的价值在于排查路径非常清楚：
+
+- `status=failed`：先看 `error_code`。
+- `parse_ok=False`：先看 structured output 和 schema。
+- `attempt_count` 变多：先看 06 reliability report。
+- `degraded=True`：先确认结果是否来自 fallback。
+- `latency_ms` / `total_tokens` 变高：08 再继续做成本和延迟分析。
+
+Record 不负责判断“答案好不好”。它负责让你知道“发生了什么”。
+
+### Summary 是早期健康信号
+
+`HarnessSummary` 把一批 records 汇总成工程健康信号：
+
+- 成功数。
+- 失败数。
+- 解析成功数。
+- 降级数。
+- 平均耗时。
+- 错误分布。
+
+它的作用是快速提醒“这次 run 是否值得继续看”。如果 parse 成功率突然下降，说明 Prompt、schema 或模型能力可能出问题；如果 degraded 数量突然上升，说明主模型或网络路径可能不稳定；如果平均耗时上升，08 要继续看 token 和 latency。
+
+但 summary 仍然不是质量评分。它只能告诉你“工程表现是否异常”，不能告诉你“风险识别是否准确”。
 
 ### 从弱到强的机制递进
 
-**第 1 步 · 手动跑一个 demo**
+**第 1 步：手动跑一次 demo**
 
-最快，但只能看到一个输入的一次结果。反例：S2 正常不代表 S1、S3 正常。
+解决“能不能跑”。遗留问题：只能看到一个输入的一次结果。反例：S2 正常，不代表 S1、S3 正常。
 
-**第 2 步 · 固定一组 case**
+**第 2 步：固定一组 case**
 
-开始具备回归意识，但如果只看终端文本，仍然难以比较。反例：两次输出都像中文答案，但一次 parse 失败。
+解决“每次都用同一批输入”。遗留问题：如果只看文本，仍然不知道 parse、error、fallback。反例：两次输出都像中文答案，但一次结构化解析失败。
 
-**第 3 步 · 记录 run config**
+**第 3 步：记录 run config**
 
-知道本次用了哪个模型、参数和 structured mode。仍遗留：每条 case 的调用事实没有统一结构。
+解决“本次变量是什么”。遗留问题：还没有统一记录每条 case 的调用事实。反例：效果变化了，但不知道是模型、Prompt 还是 structured mode 导致。
 
-**第 4 步 · 生成 run record**
+**第 4 步：生成 record**
 
-每条 case 都记录 status、parse、latency、error、degraded。仍遗留：一批 case 的整体趋势不明显。
+解决“每条 case 发生了什么”。遗留问题：一批 case 的整体趋势仍然需要肉眼汇总。
 
-**第 5 步 · 汇总 summary**
+**第 5 步：生成 summary**
 
-得到成功率、解析成功率、错误分布和平均耗时。仍遗留：答案质量还没有被打分；这进入后续 eval。
+解决“这一批 run 的健康信号是什么”。遗留问题：答案是否准确、引用是否正确、拒答是否合理，进入后续 `05_eval_observability`。
 
 ---
 
 ## 最小实现
 
-本节把 harness 放进 [`llm_core.harness`](../../source/packages/llm_core/harness/)，不是写在 demo 脚本里。demo 只负责构造样例、调用 package、打印表格。
+本节的最小实现遵守一个原则：**核心能力进 `llm_core.harness`，demo 只负责观察**。
 
-### 1. Case 和运行配置
+### 为什么要有 HarnessCase
 
-[`harness/cases.py`](../../source/packages/llm_core/harness/cases.py) 定义输入和本次运行配置：
+[`harness/cases.py`](../../source/packages/llm_core/harness/cases.py) 中的 `HarnessCase` 不是为了包装一层对象，而是为了让业务样例离开 demo 脚本，成为后续可以复用、筛选、标注和扩展的输入单位。
 
 ```python
 @dataclass(frozen=True)
@@ -155,83 +205,105 @@ class HarnessCase:
     messages: list[dict[str, str]]
     expected_focus: tuple[str, ...] = ()
     tags: tuple[str, ...] = ()
+```
 
+如果没有 `HarnessCase`，样例就会散落在脚本变量里。后面想做“只跑高风险 case”“只跑材料不足 case”“比较售后入口历史 bad case”，都会很难。
 
+### 为什么要有 HarnessRunConfig
+
+`HarnessRunConfig` 解决的是实验变量控制。一次 run 至少要知道：用哪个模型、哪种结构化模式、温度多少、是否允许 fallback。
+
+```python
 @dataclass(frozen=True)
 class HarnessRunConfig:
     run_name: str
     config_ref: str = "chat.dev_chat"
     structured: bool = True
     structured_mode: StructuredMode = "json_object"
+    temperature: float = 0
 ```
 
-`expected_focus` 不是本节的自动评分规则，只是给后续 eval 留下“这条 case 本来应该关注什么”的入口。07 不用它打分，避免把 harness 和 eval 混在一起。
+这和前端调试也很像：如果你不知道当前环境、feature flag、接口版本和设备尺寸，就无法解释 UI 表现差异。LLM 调用也是一样，不记录 run config，就无法比较两次结果。
 
-### 2. Record 和 Summary
+### 为什么 record 要接住 reliability report
 
-[`harness/records.py`](../../source/packages/llm_core/harness/records.py) 把每条调用结果记录下来：
-
-```python
-@dataclass(frozen=True)
-class HarnessRunRecord:
-    case_id: str
-    title: str
-    status: str
-    config_ref: Optional[str]
-    parse_ok: Optional[bool] = None
-    risk_count: Optional[int] = None
-    latency_ms: float = 0.0
-    error_code: Optional[LLMErrorCode] = None
-    attempt_count: int = 0
-    degraded: bool = False
-```
-
-注意这里记录的是“调用事实”。`parse_ok=True` 不代表答案正确，只代表它通过了应用 schema。`degraded=True` 不代表答案不可用，只代表它不是主路径普通成功。
-
-### 3. Runner 复用可靠调用
-
-[`harness/runner.py`](../../source/packages/llm_core/harness/runner.py) 的关键取舍是：harness 不直接调 provider，而是调 `ReliableLLMService`。
+[`harness/runner.py`](../../source/packages/llm_core/harness/runner.py) 没有直接调用 provider，而是复用 06 的 `ReliableLLMService`：
 
 ```python
 records, summary = LLMCallingHarness(service).run_cases(
     cases,
-    HarnessRunConfig(run_name="risk_review_v4_smoke"),
+    HarnessRunConfig(run_name="risk_review_v4_fake"),
 )
 ```
 
-这样 06 的 attempt report 会进入 07 的 record。后续如果一次 case 因 timeout 后 fallback 成功，record 仍能保留 `attempt_count=2` 和 `degraded=True`。
+这个设计非常关键。因为对业务来说，“成功”有不同来源：
+
+- 第一次主模型成功。
+- 主模型超时后重试成功。
+- 主模型失败后 fallback 成功。
+- HTTP 成功但结构化解析失败。
+
+如果 harness 直接调用 `LLMClient`，它就拿不到完整 attempt 和 degraded 信息。这样后续 summary 里的 success 会混在一起，掩盖调用路径差异。
+
+### 为什么默认 fake，但必须支持真实 LLM
+
+本节有两条运行路径：
+
+```text
+默认 fake：
+稳定制造 success / timeout / fallback / schema_parse，适合学习 record 和 summary。
+
+可选 real LLM：
+用真实模型跑同一批业务 case，观察当前 Prompt、模型和 schema 在真实调用下的表现。
+```
+
+单元测试必须 fake，否则测试不稳定、消耗额度、受供应商影响。学习 demo 默认 fake，也是为了让你稳定看到失败路径。
+
+但 07 不能只有 fake。真实 LLM 路径能让你看到 harness 的真正价值：同一批 case 在真实模型下 parse 是否通过、耗时多少、是否触发 fallback、错误分布是什么。现在 [`harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py) 顶部提供：
+
+```python
+USE_REAL_LLM = False
+```
+
+改成 `True` 后，仍运行同一条命令。它会读取根目录 `.env`，用真实 `LLMClient` 接入同一个 `LLMCallingHarness`。
 
 ---
 
 ## 主流框架实现
 
-`pytest.mark.parametrize` 可以把 case 集变成测试输入，适合做确定性断言，例如“parse 必须成功”“错误码必须是 schema_parse”。本节的 `test_harness.py` 就用 fake client 验证核心行为。
+`pytest.mark.parametrize` 可以把 case 集变成测试输入，适合验证确定性行为：例如 parse 必须成功、schema failure 必须归类为 `schema_parse`、fallback 后 `degraded=True`。本节的 `test_harness.py` 就用 fake client 验证 harness 的结构，不依赖真实模型。
 
-LangSmith / LangFuse / 内部 eval 平台通常会提供 dataset、run、trace、annotation 和 dashboard。它们比本节完整得多，但底层问题相同：固定输入、记录配置、保存输出、对比版本、回流 bad case。
+LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、trace、annotation、dashboard 串起来。它们比本节完整得多，但底层思路相同：固定输入、记录配置、保存输出、对比版本、回流 bad case。
 
-自定义 lightweight harness 适合学习期和项目早期。它不替代企业平台，但能帮你先建立正确的数据形状，避免后续 eval 平台只剩一个空壳。
+本仓库现在不接这些平台，是因为还没有到完整评估观测阶段。07 先把 record 形状、run 边界和调用事实整理清楚，后续接平台才不会变成只会上传一段文本。
 
 ---
 
 ## 失败分析与能力边界
 
-### 1. 样例太少带来虚假信心
+### 1. Case 集太少导致虚假信心
 
-- **表现**：默认样例一直成功，但真实需求一换就失控。
-- **原因**：case 集没有覆盖不同业务类型、材料缺失、长上下文和异常输出。
-- **怎么验证**：至少准备摘要、风险识别、材料不足、结构化报告等不同类型 case；不要只跑 S2。
+- **表现**：默认样例一直成功，但真实需求一换就失败。
+- **原因**：case 没覆盖不同业务类型、材料缺失、长上下文、异常输出。
+- **怎么验证**：至少准备售后入口、优惠叠加、发票改造、材料不足几类样例；不要只跑 S2。
 
-### 2. 只看文本，不看 record 字段
+### 2. 把 parse 成功误当成质量正确
 
-- **表现**：输出看起来像中文答案，但前端或后续 workflow 不能用。
-- **原因**：忽略 `parse_ok`、`error_code`、`degraded`、`attempt_count`。
-- **怎么验证**：先看 `[records]` 和 `[summary]`，再看内容 preview。
+- **表现**：summary 里 parse 成功率很高，但人工看结果发现风险漏了。
+- **原因**：schema 只校验形状，不校验事实完整性。
+- **怎么验证**：把 `parse_ok` 当工程事实；准确性、引用正确性、拒答合理性进入 `05_eval_observability`。
 
-### 3. Harness 被误当成完整评估系统
+### 3. 只看最终 success，忽略 degraded
 
-- **表现**：看到 parse 成功率 100%，就认为模型质量很好。
-- **原因**：schema 通过不等于事实正确、引用正确或结论完整。
-- **怎么验证**：把 harness record 作为后续 eval 输入，而不是最终质量结论。
+- **表现**：成功率没有下降，但回答质量变弱、耗时异常。
+- **原因**：大量 case 是 fallback 成功，不是主路径成功。
+- **怎么验证**：看 `degraded_count`、`attempt_count` 和 `final_config_ref`。如果降级上升，要回到 06 查 reliability。
+
+### 4. 真实 LLM 路径没有固定变量
+
+- **表现**：今天结果和昨天不同，但不知道改了什么。
+- **原因**：没有固定 run config，或同时改了模型、Prompt、temperature、context。
+- **怎么验证**：一次 run 尽量只改一个变量；把 run name 写清楚，例如 `risk_review_v4_deepseek_json_object`。
 
 ### 本节不做（defer）
 
@@ -256,17 +328,34 @@ LangSmith / LangFuse / 内部 eval 平台通常会提供 dataset、run、trace�
 
 - [`source/packages/llm_core/harness/`](../../source/packages/llm_core/harness/)：harness 核心对象与 runner。
 - [`source/packages/llm_core/tests/test_harness.py`](../../source/packages/llm_core/tests/test_harness.py)：fake client 单元测试。
-- [`source/demos/02_call_ops_lab/harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py)：07 观察入口。
+- [`source/demos/02_call_ops_lab/harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py)：07 观察入口，支持 fake / real LLM 双路径。
 - [`source/demos/02_call_ops_lab/README.md`](../../source/demos/02_call_ops_lab/README.md)：call ops lab 输出说明。
 
 ### 运行方式
+
+默认 fake 路径：
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_harness.py
 uv run python source/demos/02_call_ops_lab/harness_compare.py
 ```
 
-`harness_compare.py` 默认使用 fake client，不调用真实模型。它的目标不是评估答案质量，而是观察 harness record 如何承接 06 的 reliable report。
+真实 LLM 路径：
+
+1. 确认根目录 `.env` 已配置 `OPENAI_API_KEY`，以及可选的 `OPENAI_BASE_URL` / `OPENAI_MODEL`。
+2. 把 `harness_compare.py` 顶部改为：
+
+```python
+USE_REAL_LLM = True
+```
+
+3. 仍运行：
+
+```bash
+uv run python source/demos/02_call_ops_lab/harness_compare.py
+```
+
+真实路径不保证稳定触发失败，它的价值是观察当前模型和 Prompt 在同一批 case 下的真实调用事实。
 
 ### 输出怎么看
 
@@ -290,7 +379,7 @@ degraded: 2
 errors: schema_parse=1
 ```
 
-这说明：本次有 3 条 case，2 条成功，1 条结构化失败；其中 2 条发生了 fallback。它不是最终质量评估，但已经能提醒你：这批调用存在退化风险。
+最后再看 `[detail]`。detail 只是内容预览，不是最终评估结论。07 的阅读顺序必须是：先看 record 和 summary，再看文本内容。
 
 ---
 
@@ -298,9 +387,10 @@ errors: schema_parse=1
 
 - 能解释 Harness、Eval、Reliability 三者的区别。
 - 能说明为什么同一批 case 比单次 demo 更适合回归。
-- 能读懂 `HarnessCase`、`HarnessRunConfig`、`HarnessRunRecord`、`HarnessSummary`。
-- 能运行 `test_harness.py` 并理解成功、schema failure、fallback 三类路径。
+- 能说明 `HarnessCase`、`HarnessRunConfig`、`HarnessRunRecord`、`HarnessSummary` 各自为什么存在。
+- 能运行 `test_harness.py`，理解 fake 路径如何稳定覆盖 success、schema failure、fallback。
 - 能运行 `harness_compare.py`，读懂 `[records]` 与 `[summary]`。
+- 能打开 `USE_REAL_LLM=True` 跑真实模型，并说明真实路径观察什么、不保证什么。
 - 能说明 07 为什么不做数据库、dashboard、LangSmith 和完整 eval 打分。
 
 ### 运行与观察
@@ -316,6 +406,7 @@ uv run python source/demos/02_call_ops_lab/harness_compare.py
 - `S2` 是否 fallback 后成功，并保留 `degraded=true`。
 - `S3` 是否最终失败，并把错误归到 `schema_parse`。
 - summary 是否统计出成功数、解析成功率、降级数和错误分布。
+- 打开真实 LLM 后，是否能看到真实模型的 parse、latency、error、degraded 分布。
 
 ### 自检题
 
@@ -323,14 +414,15 @@ uv run python source/demos/02_call_ops_lab/harness_compare.py
 2. 为什么 `parse_ok=True` 不等于答案质量正确？
 3. 为什么 07 要复用 `ReliableLLMService`，而不是直接调用 `LLMClient`？
 4. 如果一次 Prompt 修改后 `success_count` 不变，但 `degraded_count` 上升，你会怎么判断风险？
-5. 07 的 record 到后续 eval 平台还缺哪些信息？
+5. 为什么默认 demo 用 fake，但仍然要提供真实 LLM 路径？
+6. 07 的 record 到后续 eval 平台还缺哪些信息？
 
 ---
 
 ## 本节沉淀
 
-- `llm_core` 新增 `harness/`，把批量 case、run config、record 和 summary 沉淀为正式 package 能力。
-- `02_call_ops_lab` 继续承载调用治理实验，避免为 07 再创建孤立 demo。
+- `llm_core.harness` 把批量 case、run config、record 和 summary 沉淀为正式 package 能力。
+- `02_call_ops_lab` 继续承载调用治理实验，07 不再创建孤立 demo。
 - 下一节 08 会在 harness record 基础上继续观察成本、延迟和缓存边界。
 
 ---
