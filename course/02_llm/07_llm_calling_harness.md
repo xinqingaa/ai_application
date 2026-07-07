@@ -232,7 +232,7 @@ class HarnessRunConfig:
 ```python
 records, summary = LLMCallingHarness(service).run_cases(
     cases,
-    HarnessRunConfig(run_name="risk_review_v4_fake"),
+    HarnessRunConfig(run_name="risk_review_v4_real"),
 )
 ```
 
@@ -245,27 +245,27 @@ records, summary = LLMCallingHarness(service).run_cases(
 
 如果 harness 直接调用 `LLMClient`，它就拿不到完整 attempt 和 degraded 信息。这样后续 summary 里的 success 会混在一起，掩盖调用路径差异。
 
-### 为什么默认 fake，但必须支持真实 LLM
+### 为什么默认真实 LLM，但仍保留 fake
 
 本节有两条运行路径：
 
 ```text
-默认 fake：
-稳定制造 success / timeout / fallback / schema_parse，适合学习 record 和 summary。
-
-可选 real LLM：
+默认 real LLM：
 用真实模型跑同一批业务 case，观察当前 Prompt、模型和 schema 在真实调用下的表现。
+
+可选 fake：
+稳定制造 success / timeout / fallback / schema_parse，适合离线排查和学习 record 结构。
 ```
 
-单元测试必须 fake，否则测试不稳定、消耗额度、受供应商影响。学习 demo 默认 fake，也是为了让你稳定看到失败路径。
+单元测试必须 fake，否则测试不稳定、受供应商影响。学习 demo 则默认真实模型，因为 harness 的核心价值正是观察同一批 case 在当前真实模型下 parse 是否通过、耗时多少、是否触发 fallback、错误分布是什么。
 
-但 07 不能只有 fake。真实 LLM 路径能让你看到 harness 的真正价值：同一批 case 在真实模型下 parse 是否通过、耗时多少、是否触发 fallback、错误分布是什么。现在 [`harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py) 顶部提供：
+[`harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py) 顶部提供：
 
 ```python
-USE_REAL_LLM = False
+USE_REAL_LLM = True
 ```
 
-改成 `True` 后，仍运行同一条命令。它会读取根目录 `.env`，用真实 `LLMClient` 接入同一个 `LLMCallingHarness`。
+默认运行会读取根目录 `.env`，用真实 `LLMClient` 接入同一个 `LLMCallingHarness`。如果需要稳定复现 schema failure 或 fallback，把它改成 `False`，仍运行同一条命令。
 
 ---
 
@@ -328,34 +328,35 @@ LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、tra
 
 - [`source/packages/llm_core/harness/`](../../source/packages/llm_core/harness/)：harness 核心对象与 runner。
 - [`source/packages/llm_core/tests/test_harness.py`](../../source/packages/llm_core/tests/test_harness.py)：fake client 单元测试。
-- [`source/demos/02_call_ops_lab/harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py)：07 观察入口，支持 fake / real LLM 双路径。
+- [`source/demos/02_call_ops_lab/harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py)：07 观察入口，默认真实 LLM，支持 fake 对照路径。
 - [`source/demos/02_call_ops_lab/README.md`](../../source/demos/02_call_ops_lab/README.md)：call ops lab 输出说明。
 
 ### 运行方式
 
-默认 fake 路径：
+默认真实 LLM 路径：
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_harness.py
 uv run python source/demos/02_call_ops_lab/harness_compare.py
 ```
 
-真实 LLM 路径：
+运行前确认根目录 `.env` 已配置 `OPENAI_API_KEY`，以及可选的 `OPENAI_BASE_URL` / `OPENAI_MODEL`。
 
-1. 确认根目录 `.env` 已配置 `OPENAI_API_KEY`，以及可选的 `OPENAI_BASE_URL` / `OPENAI_MODEL`。
-2. 把 `harness_compare.py` 顶部改为：
+模拟对照路径：
+
+把 `harness_compare.py` 顶部改为：
 
 ```python
-USE_REAL_LLM = True
+USE_REAL_LLM = False
 ```
 
-3. 仍运行：
+仍运行：
 
 ```bash
 uv run python source/demos/02_call_ops_lab/harness_compare.py
 ```
 
-真实路径不保证稳定触发失败，它的价值是观察当前模型和 Prompt 在同一批 case 下的真实调用事实。
+模拟路径能稳定复现 success、schema failure、fallback，但它不代表真实模型表现。
 
 ### 输出怎么看
 
@@ -388,9 +389,10 @@ errors: schema_parse=1
 - 能解释 Harness、Eval、Reliability 三者的区别。
 - 能说明为什么同一批 case 比单次 demo 更适合回归。
 - 能说明 `HarnessCase`、`HarnessRunConfig`、`HarnessRunRecord`、`HarnessSummary` 各自为什么存在。
-- 能运行 `test_harness.py`，理解 fake 路径如何稳定覆盖 success、schema failure、fallback。
+- 能运行 `test_harness.py`，理解 fake 单元测试如何稳定覆盖 success、schema failure、fallback。
 - 能运行 `harness_compare.py`，读懂 `[records]` 与 `[summary]`。
-- 能打开 `USE_REAL_LLM=True` 跑真实模型，并说明真实路径观察什么、不保证什么。
+- 能用默认 `USE_REAL_LLM=True` 跑真实模型，并说明真实路径观察什么、不保证什么。
+- 能把 `USE_REAL_LLM=False` 作为对照，说明模拟路径只用于失败复现。
 - 能说明 07 为什么不做数据库、dashboard、LangSmith 和完整 eval 打分。
 
 ### 运行与观察
@@ -406,7 +408,7 @@ uv run python source/demos/02_call_ops_lab/harness_compare.py
 - `S2` 是否 fallback 后成功，并保留 `degraded=true`。
 - `S3` 是否最终失败，并把错误归到 `schema_parse`。
 - summary 是否统计出成功数、解析成功率、降级数和错误分布。
-- 打开真实 LLM 后，是否能看到真实模型的 parse、latency、error、degraded 分布。
+- 默认真实 LLM 路径下，是否能看到真实模型的 parse、latency、token、error、degraded 分布。
 
 ### 自检题
 
@@ -414,7 +416,7 @@ uv run python source/demos/02_call_ops_lab/harness_compare.py
 2. 为什么 `parse_ok=True` 不等于答案质量正确？
 3. 为什么 07 要复用 `ReliableLLMService`，而不是直接调用 `LLMClient`？
 4. 如果一次 Prompt 修改后 `success_count` 不变，但 `degraded_count` 上升，你会怎么判断风险？
-5. 为什么默认 demo 用 fake，但仍然要提供真实 LLM 路径？
+5. 为什么学习 demo 默认用真实 LLM，但单元测试仍然用 fake？
 6. 07 的 record 到后续 eval 平台还缺哪些信息？
 
 ---

@@ -3,8 +3,8 @@
 运行方式：
     uv run python source/demos/02_call_ops_lab/harness_compare.py
 
-默认使用本地 fake client，不调用真实模型。若想观察真实模型在同一批 case
-上的表现，把 USE_REAL_LLM 改为 True；仍然运行同一条命令。
+默认调用真实模型，观察同一批 case 在当前模型、Prompt 和 schema 下的表现。
+若需要离线排查或稳定复现失败路径，把 USE_REAL_LLM 改为 False。
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from llm_core.structured import StructuredLLMResponse
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 
-# 默认 False，保证学习 demo 一运行不会消耗模型额度。
+# 课程主路径默认 True；fake 仅用于离线排查和稳定复现失败路径。
 USE_REAL_LLM = True
 
 # 真实模型路径下建议保持 True，便于看每条 case 的内容预览。

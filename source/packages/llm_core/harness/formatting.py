@@ -7,7 +7,7 @@ from llm_core.harness.records import HarnessRunRecord, HarnessSummary
 
 def format_records_table(records: list[HarnessRunRecord]) -> str:
     rows = [
-        ("case_id", "status", "parse", "degraded", "attempts", "latency_ms", "error"),
+        ("case_id", "status", "parse", "degraded", "attempts", "tokens", "latency_ms", "cost", "cache", "error"),
     ]
     for record in records:
         rows.append(
@@ -17,7 +17,10 @@ def format_records_table(records: list[HarnessRunRecord]) -> str:
                 _dash(_parse_label(record)),
                 str(record.degraded).lower(),
                 str(record.attempt_count),
+                str(record.total_tokens) if record.total_tokens is not None else "-",
                 f"{record.latency_ms:.1f}",
+                _format_cost(record.estimated_cost),
+                "hit" if record.cache_hit else "-",
                 record.error_code.value if record.error_code else "-",
             )
         )
@@ -41,6 +44,10 @@ def format_summary(summary: HarnessSummary) -> str:
             f"parse_success_rate: {summary.parse_success_rate:.0%}",
             f"degraded: {summary.degraded_count}",
             f"average_latency_ms: {summary.average_latency_ms:.1f}",
+            f"max_latency_ms: {summary.max_latency_ms:.1f}",
+            f"total_tokens: {summary.total_tokens}",
+            f"estimated_total_cost: {_format_cost(summary.estimated_total_cost)}",
+            f"cache_hit_rate: {summary.cache_hit_rate:.0%}",
             f"errors: {error_text}",
         ]
     )
@@ -54,3 +61,9 @@ def _parse_label(record: HarnessRunRecord) -> str | None:
 
 def _dash(value: str | None) -> str:
     return value if value else "-"
+
+
+def _format_cost(value: float | None) -> str:
+    if value is None:
+        return "-"
+    return f"${value:.6f}"

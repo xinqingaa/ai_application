@@ -8,7 +8,6 @@ Run from the repo root:
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -42,10 +41,8 @@ CASE_PATH = DEMO_DIR / "context_cases.json"
 # - "all"：依次打印所有策略，只做离线观察时有用。
 DEFAULT_STRATEGY = "evidence_first"
 
-# 是否调用真实 LLM。
-# False：只打印 context build 诊断，不消耗 token，也不会得到模型评审结果。
-# True：把构建好的上下文放进 Prompt，调用真实模型，输出 [llm_result]。
-CALL_LLM = False
+# 是否调用真实 LLM。课程主路径默认 True；False 只用于离线观察 context build 诊断。
+CALL_LLM = True
 
 # 是否额外跑 minimal 策略做对照。
 # True 时会先跑 minimal，再跑 DEFAULT_STRATEGY；通常和 CALL_LLM=True 一起使用，
@@ -181,7 +178,7 @@ def _print_context(
         print()
     else:
         print("  [llm_result] not_run")
-        print("    将脚本顶部 CALL_LLM 改为 True 后，才会调用真实模型并输出评审结果。")
+        print("    当前 CALL_LLM=False，仅输出上下文诊断；改为 True 后会调用真实模型。")
         print()
 
 
@@ -202,9 +199,6 @@ def _call_llm(
     messages: list[dict[str, str]],
 ) -> None:
     _load_env()
-    if not os.environ.get("OPENAI_API_KEY", "").strip():
-        print("  [llm] skipped: OPENAI_API_KEY is not configured")
-        return
     client = LLMClient.from_default_config()
     try:
         result = client.chat_structured(

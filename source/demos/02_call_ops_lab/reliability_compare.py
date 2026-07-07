@@ -3,8 +3,8 @@
 运行方式：
     uv run python source/demos/02_call_ops_lab/reliability_compare.py
 
-本 demo 默认使用本地模拟，不消耗模型额度。若想观察真实模型调用，把
-USE_REAL_LLM 改为 True；仍然运行同一条命令。
+本 demo 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt。
+若需要稳定复现 timeout、fallback、auth 或 schema failure，把 USE_REAL_LLM 改为 False。
 """
 
 from __future__ import annotations
@@ -38,8 +38,8 @@ REPO_ROOT = DEMO_DIR.parents[2]
 # - "schema_failure"：模拟结构化解析失败，本节先观察失败可见。
 DEFAULT_CASE = "timeout_then_success"
 
-# 是否调用真实模型。默认 False，避免学习 demo 一运行就消耗额度。
-USE_REAL_LLM = False
+# 是否调用真实模型。课程主路径默认 True；模拟路径只用于稳定复现失败。
+USE_REAL_LLM = True
 
 # 是否打印发送给模型的 messages。真实调用排查时再打开。
 PRINT_MESSAGES = False
@@ -69,8 +69,11 @@ def main() -> None:
     find_and_load_env()
 
     if USE_REAL_LLM:
+        retry_policy = RetryPolicy(max_attempts=2)
+        degradation_policy = DegradationPolicy(fallback_config_refs=(FALLBACK_CONFIG_REF,))
         result = _run_real_call()
         _print_case("real_llm", "真实模型调用：观察可靠调用外壳如何记录 attempt。")
+        _print_call_plan(retry_policy, degradation_policy)
         _print_messages()
         _print_result(result)
         _print_lesson("真实调用通常不会稳定触发失败；06 更关注失败出现时 report 是否能解释。")

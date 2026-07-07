@@ -490,7 +490,7 @@ uv run python source/demos/02_context_lab/context_compare.py
 
 ```python
 DEFAULT_STRATEGY = "evidence_first"
-CALL_LLM = False
+CALL_LLM = True
 COMPARE_WITH_MINIMAL = False
 PRINT_MESSAGES = False
 PRINT_FULL_CONTEXT = False
@@ -502,9 +502,9 @@ PRINT_FULL_CONTEXT = False
 
 | 想观察什么 | 推荐配置 |
 | --- | --- |
-| 默认证据优先策略 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = False` |
-| 紧预算压缩 | `DEFAULT_STRATEGY = "tight_budget"`，`CALL_LLM = False` |
-| 真实模型结果 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = True` |
+| 默认真实模型结果 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = True` |
+| 只看上下文构建诊断 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = False` |
+| 紧预算压缩 + 真实模型 | `DEFAULT_STRATEGY = "tight_budget"`，`CALL_LLM = True` |
 | 带/不带证据对比 | `DEFAULT_STRATEGY = "evidence_first"`，`COMPARE_WITH_MINIMAL = True`，`PRINT_MESSAGES = True` |
 
 ### 预期结果
@@ -535,7 +535,7 @@ PRINT_FULL_CONTEXT = False
 - `minimal` 只有 Requirement，`citation_candidates` 为空。模型即使能说出一些风险，也很难给出可靠来源。
 - `evidence_first` 会把业务规则、接口文档和客户端说明放进 Evidence。模型更容易输出带 source id 的风险，但仍要检查 citation 是否在候选列表里。
 
-默认离线运行只会输出 `[context_build]` 和 `[built_context_preview]`，这是上下文构建诊断，不是模型最终结果。只有打开 `CALL_LLM = True` 或 `COMPARE_WITH_MINIMAL = True` 后，终端才会出现 `[llm_result] parse=ok`，那一段才是模型输出的结构化评审结果。
+默认运行会输出 `[context_build]`、`[built_context_preview]` 和 `[llm_result]`。前两段是上下文构建诊断，不是模型最终结果；`[llm_result] parse=ok` 才是模型输出的结构化评审结果。只有把 `CALL_LLM = False` 时，demo 才会进入离线诊断模式，不调用真实模型。
 
 ### 经典案例：读懂一次 minimal vs evidence_first 输出
 

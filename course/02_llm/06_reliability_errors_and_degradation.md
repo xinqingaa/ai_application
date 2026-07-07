@@ -288,9 +288,11 @@ parse.error_stage == "schema" -> schema_parse
 
 这样 03 的 `parse_risk_list` 不只是本地校验工具，也能进入 06 的 retry / fallback / report 链路。
 
-### 4. Demo 只观察可靠性行为
+### 4. Demo 默认真实调用，模拟只做失败复现
 
-[`reliability_compare.py`](../../source/demos/02_call_ops_lab/reliability_compare.py) 默认不调用真实模型，而是用 fake client 模拟失败：
+[`reliability_compare.py`](../../source/demos/02_call_ops_lab/reliability_compare.py) 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt、latency、final config 和错误。真实调用的价值是让你看到供应商、模型能力、API key、网络和 structured mode 等真实工程变量。
+
+但真实模型通常不会稳定触发 timeout、auth、schema failure 或 fallback。为了学习失败路径，脚本保留 `USE_REAL_LLM = False` 的模拟模式，可稳定复现：
 
 ```text
 timeout_then_success
@@ -299,7 +301,7 @@ auth_error
 schema_failure
 ```
 
-这是为了稳定观察失败路径。真实模型调用很可能一次成功，反而不利于学习“失败时 report 怎么看”。如果要观察真实调用，把脚本顶部 `USE_REAL_LLM = True` 打开即可。
+这类模拟结果只用于理解 report 结构，不代表真实模型表现。课程主路径仍是先跑真实模型，再按需要切到模拟模式观察特定失败。
 
 ---
 
@@ -390,7 +392,7 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 3. 用 `DegradationPolicy` 定义 fallback config 和允许降级的错误。
 4. 用 `ReliableLLMService` 包装 `LLMClient.chat()` / `chat_structured()`。
 5. 用 `ReliableCallReport` 输出 attempts、final config、degraded 和 final error。
-6. 用 demo 模拟 timeout、auth、schema failure 和 fallback。
+6. 用 demo 默认观察真实 attempt；必要时切到模拟模式复现 timeout、auth、schema failure 和 fallback。
 
 ### 运行方式
 
@@ -410,7 +412,7 @@ uv run python source/demos/02_call_ops_lab/reliability_compare.py
 
 ```python
 DEFAULT_CASE = "timeout_then_success"
-USE_REAL_LLM = False
+USE_REAL_LLM = True
 PRINT_MESSAGES = False
 PRINT_ATTEMPT_DETAIL = True
 COMPARE_WITH_NO_RETRY = True
@@ -553,7 +555,7 @@ uv run python source/demos/02_call_ops_lab/reliability_compare.py
 ## 本节沉淀
 
 - `llm_core` 新增 `reliability/`，把单次模型调用升级为可重试、可降级、可诊断的可靠调用。
-- 扩展 `02_call_ops_lab`，用稳定模拟 case 学习失败路径，不默认消耗真实模型额度，也不保存运行文件。
+- 扩展 `02_call_ops_lab`：默认真实调用观察真实 attempt；模拟 case 仅用于稳定学习 timeout、auth、schema failure 和 fallback。
 - 下一节 07 LLM Calling Harness 将把单次可靠调用扩展为批量样例、调用记录和回归对比。
 
 ---

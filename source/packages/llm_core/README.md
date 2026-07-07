@@ -46,6 +46,11 @@ messages + primary config_ref
 case set + run config
 → LLMCallingHarness
 → HarnessRunRecord + HarnessSummary
+
+08 Cost / Latency / Cache
+harness records + learning price table + cache key
+→ cost estimate + cache diagnostics
+→ cost / latency baseline
 ```
 
 ## 模块职责
@@ -64,6 +69,8 @@ case set + run config
 | `errors/` | 全局 LLM 错误分类 | `errors/types.py` |
 | `reliability/` | 重试、降级、attempt report、可靠调用服务 | `reliability/service.py` |
 | `harness/` | 批量 case 调用记录与汇总 | `harness/runner.py` |
+| `costing/` | 学习用价格表、token 成本估算 | `costing/estimate.py` |
+| `cache/` | 本地 exact-match cache key 与命中统计 | `cache/keys.py` |
 | `observability/` | demo 日志格式与调用详情输出 | `observability/demo_log.py` |
 
 ## 读代码顺序
@@ -117,6 +124,14 @@ case set + run config
 3. [`harness/runner.py`](harness/runner.py)：批量运行如何复用 `ReliableLLMService`。
 4. [`harness/formatting.py`](harness/formatting.py)：demo 的记录表和汇总输出。
 5. demo [`02_call_ops_lab/harness_compare.py`](../../demos/02_call_ops_lab/harness_compare.py)：观察 case 批量运行。
+
+### 08 Cost / Latency / Cache
+
+1. [`costing/pricing.py`](costing/pricing.py)：学习用价格表，真实项目应改为配置。
+2. [`costing/estimate.py`](costing/estimate.py)：从 `TokenUsage` 估算输入、输出和总成本。
+3. [`cache/keys.py`](cache/keys.py)：cache key 如何包含模型、Prompt、schema、messages 和 context 指纹。
+4. [`cache/records.py`](cache/records.py)：cache hit / miss 与节省 token、成本、延迟。
+5. demo [`02_call_ops_lab/cost_latency_cache.py`](../../demos/02_call_ops_lab/cost_latency_cache.py)：观察冷启动、重复命中和上下文变化 miss。
 
 ## 快速使用
 
@@ -197,6 +212,8 @@ print(summary.success_count, records[0].attempt_count)
 | 模型调用偶发失败 | `ReliableCallReport.attempts` 里每次 attempt 的错误码 |
 | 不知道是否发生降级 | `ReliableCallReport.degraded` 与 `final_config_ref` |
 | 不知道一批 case 是否退化 | `HarnessSummary` 的成功率、解析成功率、错误分布 |
+| 成本估算为空 | `LLMResponse.usage` 是否为空，或当前模型是否没有学习用价格配置 |
+| 缓存没有命中 | `CacheKeyParts` 中 model / prompt_version / schema_version / context_fingerprint 是否变化 |
 
 ## 对应课程正文
 
@@ -207,3 +224,4 @@ print(summary.success_count, records[0].attempt_count)
 - [05 Context Engineering](../../../course/02_llm/05_context_engineering.md)
 - [06 Reliability、Errors 与 Degradation](../../../course/02_llm/06_reliability_errors_and_degradation.md)
 - [07 LLM Calling Harness](../../../course/02_llm/07_llm_calling_harness.md)
+- [08 Cost、Latency 与 Caching](../../../course/02_llm/08_cost_latency_caching.md)

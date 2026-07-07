@@ -14,15 +14,16 @@ from llm_core import (
     RetryPolicy,
 )
 from llm_core.config import LLMResponse
+from llm_core.config import TokenUsage
 from llm_core.schemas.parse import parse_risk_list
 from llm_core.structured import StructuredLLMResponse
 
 
-def _response(content: str, config_ref: str) -> LLMResponse:
+def _response(content: str, config_ref: str, usage: TokenUsage | None = None) -> LLMResponse:
     return LLMResponse(
         content=content,
         raw_response=None,
-        usage=None,
+        usage=usage,
         latency_ms=1.0,
         provider="fake",
         model="fake-model",
@@ -38,6 +39,8 @@ class FakeClient:
         outcome = self.outcomes.pop(0)
         if isinstance(outcome, Exception):
             raise outcome
+        if isinstance(outcome, LLMResponse):
+            return outcome
         return _response(str(outcome), config_ref)
 
     def chat_structured(
@@ -116,3 +119,34 @@ def test_harness_keeps_reliability_attempts_and_degraded_flag() -> None:
     assert records[0].attempt_count == 2
     assert records[0].degraded is True
     assert summary.degraded_count == 1
+
+
+def test_harness_summary_includes_tokens_cost_and_latency() -> None:
+    client = FakeClient(
+        [
+            _response(
+                '{"risks":[{"title":"接口风险","category":"api","level":"high","rationale":"需确认接口参数"}]}',
+                "chat.dev_chat",
+                TokenUsage(prompt_tokens=1_000, completion_tokens=500, total_tokens=1_500),
+            )
+        ]
+    )
+    harness = LLMCallingHarness(ReliableLLMService(client))  # type: ignore[arg-type]
+
+    records, summary = harness.run_cases(
+        [_case("S1")],
+        HarnessRunConfig(
+            run_name="cost",
+            retry_policy=RetryPolicy(max_attempts=1),
+            degradation_policy=DegradationPolicy(fallback_config_refs=()),
+        ),
+    )
+
+    assert records[0].prompt_tokens == 1_000
+    assert records[0].completion_tokens == 500
+    assert records[0].total_tokens == 1_500
+    assert records[0].estimated_cost == 0.00045
+    assert summary.prompt_tokens == 1_000
+    assert summary.completion_tokens == 500
+    assert summary.total_tokens == 1_500
+    assert summary.estimated_total_cost == 0.00045

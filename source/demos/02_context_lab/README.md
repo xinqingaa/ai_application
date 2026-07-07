@@ -32,7 +32,7 @@
 uv sync
 ```
 
-默认运行 `evidence_first`，不需要 API key：
+默认运行 `evidence_first`，并调用真实模型。请先确认根目录 `.env` 已配置 `OPENAI_API_KEY`（以及需要时的 `OPENAI_BASE_URL` / `OPENAI_MODEL`）：
 
 ```bash
 uv run python source/demos/02_context_lab/context_compare.py
@@ -42,7 +42,7 @@ uv run python source/demos/02_context_lab/context_compare.py
 
 ```python
 DEFAULT_STRATEGY = "evidence_first"
-CALL_LLM = False
+CALL_LLM = True
 COMPARE_WITH_MINIMAL = False
 PRINT_MESSAGES = False
 PRINT_FULL_CONTEXT = False
@@ -55,7 +55,7 @@ PRINT_FULL_CONTEXT = False
 | 开关 | 含义 | 常用改法 |
 | --- | --- | --- |
 | `DEFAULT_STRATEGY` | 本次使用哪种上下文构建策略 | `"evidence_first"` 看默认证据优先；`"tight_budget"` 看紧预算压缩；`"minimal"` 看不带证据；`"all"` 看全部策略 |
-| `CALL_LLM` | 是否调用真实模型 | `False` 只看上下文构建诊断；`True` 输出 `[llm_result]`，会消耗真实 token |
+| `CALL_LLM` | 是否调用真实模型 | 默认 `True` 输出 `[llm_result]`；改为 `False` 时只看上下文构建诊断 |
 | `COMPARE_WITH_MINIMAL` | 是否额外跑一遍 `minimal` 做对照 | `True` 时会先跑不带证据，再跑 `DEFAULT_STRATEGY`；适合比较带/不带上下文差异 |
 | `PRINT_MESSAGES` | 是否打印完整 system / user messages | `True` 时能看到最终发给模型的完整 Prompt，适合学习 Prompt 和 context 如何合并 |
 | `PRINT_FULL_CONTEXT` | 是否打印完整 context block | `True` 时不截断上下文，适合排查某条 source 是否真的进入 Prompt |
@@ -64,9 +64,9 @@ PRINT_FULL_CONTEXT = False
 
 | 想观察什么 | 推荐配置 |
 | --- | --- |
-| 默认离线诊断 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = False` |
-| 紧预算压缩 | `DEFAULT_STRATEGY = "tight_budget"`，`CALL_LLM = False` |
-| 真实模型结果 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = True` |
+| 默认真实模型结果 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = True` |
+| 离线上下文诊断 | `DEFAULT_STRATEGY = "evidence_first"`，`CALL_LLM = False` |
+| 紧预算压缩 | `DEFAULT_STRATEGY = "tight_budget"`，`CALL_LLM = True` |
 | 带/不带证据对比 | `DEFAULT_STRATEGY = "evidence_first"`，`COMPARE_WITH_MINIMAL = True`，`PRINT_MESSAGES = True` |
 
 `CALL_LLM=True` 或 `COMPARE_WITH_MINIMAL=True` 会读取根目录 `.env`，用 `review.risk_review@4.0.0` + `chat_structured(..., json_object)` 做结构化风险识别。
@@ -96,7 +96,7 @@ PRINT_FULL_CONTEXT = False
 | `[dropped_sources]` | 未进入 Prompt 的 source 及原因 |
 | `[warnings]` | 可用于调试的上下文异常或风险提示 |
 | `[built_context_preview]` | 最终上下文块预览；这是即将进入 Prompt 的材料 |
-| `[llm_result] not_run` | 没有调用真实模型，因此没有最终评审结果 |
+| `[llm_result] not_run` | 仅在 `CALL_LLM=False` 时出现；表示本次只看上下文构建诊断 |
 
 真实调用时还会看到：
 

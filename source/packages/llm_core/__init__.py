@@ -6,8 +6,10 @@
 04 起提供流式事件、SSE 编码与最小 Conversation Buffer。
 05 起提供上下文构造、证据编号与预算诊断。
 06 起提供可靠调用外壳：重试、降级与尝试报告。
+08 起提供成本估算与本地缓存诊断。
 """
 
+from llm_core.cache import CacheEvent, CacheKeyParts, CacheStats, InMemoryLLMCache, build_cache_key
 from llm_core.client import LLMClient
 from llm_core.config import CapabilityTags, LLMResponse, ModelConfig, TokenUsage
 from llm_core.context import (
@@ -28,6 +30,7 @@ from llm_core.context import (
     list_context_policy_names,
 )
 from llm_core.conversation import ConversationBuffer, ConversationMessage
+from llm_core.costing import CostEstimate, ModelPrice, estimate_token_cost, estimate_usage_cost
 from llm_core.errors import LLMError, LLMErrorCode
 from llm_core.harness import (
     HarnessCase,
@@ -65,6 +68,11 @@ __version__ = "0.6.0"
 
 __all__ = [
     "LLMClient",
+    "CacheEvent",
+    "CacheKeyParts",
+    "CacheStats",
+    "InMemoryLLMCache",
+    "build_cache_key",
     "LLMResponse",
     "StructuredLLMResponse",
     "StructuredParseResult",
@@ -88,6 +96,10 @@ __all__ = [
     "ModelConfig",
     "TokenUsage",
     "CapabilityTags",
+    "CostEstimate",
+    "ModelPrice",
+    "estimate_token_cost",
+    "estimate_usage_cost",
     "BuiltContext",
     "CitationCandidate",
     "CompressedContextSource",

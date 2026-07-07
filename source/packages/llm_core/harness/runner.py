@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from llm_core.config import LLMResponse
+from llm_core.costing import estimate_usage_cost
 from llm_core.harness.cases import HarnessCase, HarnessRunConfig
 from llm_core.harness.records import HarnessRunRecord, HarnessSummary
 from llm_core.reliability import ReliableCallResult, ReliableLLMService
@@ -68,6 +69,7 @@ def _record_from_result(case: HarnessCase, result: ReliableCallResult[Any]) -> H
     if isinstance(output, StructuredLLMResponse):
         llm = output.llm
         parse = output.parse
+        cost = estimate_usage_cost(llm.usage, config_ref=llm.config_ref, model=llm.model)
         return HarnessRunRecord(
             case_id=case.case_id,
             title=case.title,
@@ -77,13 +79,19 @@ def _record_from_result(case: HarnessCase, result: ReliableCallResult[Any]) -> H
             content_preview=_preview(llm.content),
             parse_ok=parse.ok,
             risk_count=parse.risk_count,
-            latency_ms=latency_ms or llm.latency_ms,
+            prompt_tokens=cost.prompt_tokens,
+            completion_tokens=cost.completion_tokens,
+            latency_ms=_effective_latency(latency_ms, llm.latency_ms),
             total_tokens=llm.usage.total_tokens if llm.usage else None,
+            estimated_cost=cost.total_cost,
+            cost_currency=cost.currency,
+            cost_estimate_known=cost.known,
             attempt_count=report.attempt_count,
             degraded=report.degraded,
         )
 
     if isinstance(output, LLMResponse):
+        cost = estimate_usage_cost(output.usage, config_ref=output.config_ref, model=output.model)
         return HarnessRunRecord(
             case_id=case.case_id,
             title=case.title,
@@ -93,8 +101,13 @@ def _record_from_result(case: HarnessCase, result: ReliableCallResult[Any]) -> H
             content_preview=_preview(output.content),
             parse_ok=None,
             risk_count=None,
-            latency_ms=latency_ms or output.latency_ms,
+            prompt_tokens=cost.prompt_tokens,
+            completion_tokens=cost.completion_tokens,
+            latency_ms=_effective_latency(latency_ms, output.latency_ms),
             total_tokens=output.usage.total_tokens if output.usage else None,
+            estimated_cost=cost.total_cost,
+            cost_currency=cost.currency,
+            cost_estimate_known=cost.known,
             attempt_count=report.attempt_count,
             degraded=report.degraded,
         )
@@ -116,3 +129,7 @@ def _preview(text: str, *, limit: int = 120) -> str:
     if len(compact) <= limit:
         return compact
     return f"{compact[:limit]}..."
+
+
+def _effective_latency(report_latency_ms: float, response_latency_ms: float) -> float:
+    return max(report_latency_ms, response_latency_ms)
