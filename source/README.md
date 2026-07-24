@@ -11,16 +11,16 @@ source/
 ├── packages/
 │   └── llm_core/              # 模型调用、契约、上下文与调用治理
 ├── demos/
-│   ├── llm_api_smoke/         # 真实模型最小调用
-│   ├── model_contract_lab/    # Provider、Prompt 与 Structured Output
-│   ├── context_assembly_lab/   # Context Builder 观察
-│   └── llm_call_ops_lab/       # Reliability、Harness、成本与缓存实验
+│   ├── llm_invoke_lab/        # 步骤 3–5：SDK 对照、Provider、Prompt、Structured
+│   ├── llm_reliability_lab/   # 步骤 6：Reliability
+│   ├── llm_context_lab/       # 步骤 12：Context Builder（等待 RAG 前置）
+│   └── llm_regression_lab/    # 步骤 14 + 按需 Cost：Harness 与成本缓存
 ├── apps/
-│   └── llm_streaming_api/      # FastAPI + SSE 学习期组合入口
+│   └── llm_streaming_api/     # 按需：FastAPI + SSE 学习期组合入口
 └── python_base/               # 已完成的 Python 基础练习
 ```
 
-demo 和 app 使用语义名称，不携带课程章节编号；新增能力也不按文档数量机械创建目录。
+demo 按标准学习路径的观察段落组织，使用语义名称，不携带课程章节编号。相近观察合并进同一 lab；不为每篇文档新建目录。
 
 ## 目录职责
 
@@ -37,6 +37,7 @@ demo 和 app 使用语义名称，不携带课程章节编号；新增能力也�
 - 用于机制实验、策略对照和稳定失败复现。
 - 不承担最终产品逻辑。
 - 优先复用已有 lab；只有新的观察维度确实无法承载时才增加目录。
+- 每个 lab README 标明课表位置、跑序和允许的调用面。
 - Mock 只允许用于确定性测试或明确标注的故障对照，真实模型仍是主路径。
 
 ### `apps/`

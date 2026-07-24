@@ -1,10 +1,10 @@
 """
-llm_api_smoke — 最小真实 Chat 调用。
+llm_invoke_lab — SDK 直调对照（步骤 3 之前的基线观察）。
 
 运行：
-    python first_chat.py
-    python first_chat.py --temperature 0.7
-    python first_chat.py --sample S3 --model gpt-4o-mini
+    uv run python first_chat.py
+    uv run python first_chat.py --temperature 0.7
+    uv run python first_chat.py --sample S3 --model gpt-4o-mini
 """
 
 from __future__ import annotations

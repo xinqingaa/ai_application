@@ -343,8 +343,8 @@ Schema 回答：
 
 这些契约分别会在不同机制篇中展开，它们是相关知识入口，不代表阅读顺序：
 
-- [Prompt Engineering](../mechanisms/llm/prompt-engineering.md)
-- [Structured Output](../mechanisms/llm/structured-output.md)
-- [Context Engineering](../mechanisms/llm/context-engineering.md)
+- [Prompt Engineering](../mechanisms/prompt-engineering.md)
+- [Structured Output](../mechanisms/structured-output.md)
+- [Context Engineering](../mechanisms/context-engineering.md)
 
 完成后回到 [标准学习路径](../learning-path.md)。

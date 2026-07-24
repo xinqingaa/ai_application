@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型增量如何变成前端可消费的事件，以及稳定会话历史为什么不能混入一次运行的全部中间态。
 >
-> 课程位置：[标准学习路径](../../learning-path.md) 中的按需交互支撑，不是固定 RAG 前置。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)；本文交付 Provider Chunk、应用事件、SSE、前端状态和稳定会话之间的边界。
+> 课程位置：[标准学习路径](../learning-path.md) 中的按需交互支撑，不是固定 RAG 前置。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)；本文交付 Provider Chunk、应用事件、SSE、前端状态和稳定会话之间的边界。
 
 ---
 
@@ -219,11 +219,11 @@ Streaming 与 Conversation 的工程设计可以按下面这条链理解：
 1. 模型 chunk 能被翻译成稳定应用事件。
 2. FastAPI 能把这些事件作为 SSE 输出给前端。
 
-正文只保留两个关键片段，完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [SSE app README](../../../source/apps/llm_streaming_api/README.md)。
+正文只保留两个关键片段，完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [SSE app README](../../source/apps/llm_streaming_api/README.md)。
 
 ### 1. 统一事件对象
 
-[`streaming/events.py`](../../../source/packages/llm_core/streaming/events.py)：
+[`streaming/events.py`](../../source/packages/llm_core/streaming/events.py)：
 
 ```python
 @dataclass(frozen=True)
@@ -250,7 +250,7 @@ class LLMStreamEvent:
 
 ### 2. FastAPI SSE 输出
 
-[`source/apps/llm_streaming_api/main.py`](../../../source/apps/llm_streaming_api/main.py)：
+[`source/apps/llm_streaming_api/main.py`](../../source/apps/llm_streaming_api/main.py)：
 
 ```python
 def event_stream() -> Iterator[str]:
@@ -370,14 +370,14 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 
 关键路径：
 
-- [`source/packages/llm_core/streaming/events.py`](../../../source/packages/llm_core/streaming/events.py)：流式事件与 SSE 编码。
-- [`source/packages/llm_core/conversation/buffer.py`](../../../source/packages/llm_core/conversation/buffer.py)：最小 Conversation Buffer。
-- [`source/packages/llm_core/client/service.py`](../../../source/packages/llm_core/client/service.py)：`LLMClient.stream_chat`。
-- [`source/packages/llm_core/providers/openai_compat.py`](../../../source/packages/llm_core/providers/openai_compat.py)：OpenAI-compatible streaming 实现。
-- [`source/apps/llm_streaming_api/main.py`](../../../source/apps/llm_streaming_api/main.py)：FastAPI SSE app。
-- [`source/apps/llm_streaming_api/index.html`](../../../source/apps/llm_streaming_api/index.html)：浏览器打字机观察页面。
+- [`source/packages/llm_core/streaming/events.py`](../../source/packages/llm_core/streaming/events.py)：流式事件与 SSE 编码。
+- [`source/packages/llm_core/conversation/buffer.py`](../../source/packages/llm_core/conversation/buffer.py)：最小 Conversation Buffer。
+- [`source/packages/llm_core/client/service.py`](../../source/packages/llm_core/client/service.py)：`LLMClient.stream_chat`。
+- [`source/packages/llm_core/providers/openai_compat.py`](../../source/packages/llm_core/providers/openai_compat.py)：OpenAI-compatible streaming 实现。
+- [`source/apps/llm_streaming_api/main.py`](../../source/apps/llm_streaming_api/main.py)：FastAPI SSE app。
+- [`source/apps/llm_streaming_api/index.html`](../../source/apps/llm_streaming_api/index.html)：浏览器打字机观察页面。
 
-完整运行说明与输出字段见 [SSE app README](../../../source/apps/llm_streaming_api/README.md)。
+完整运行说明与输出字段见 [SSE app README](../../source/apps/llm_streaming_api/README.md)。
 
 ### 实现步骤
 
@@ -479,4 +479,4 @@ uv run uvicorn main:app --app-dir source/apps/llm_streaming_api --reload --port 
 - 需求评审助手获得一个可运行的 FastAPI SSE 入口，前端可以基于事件协议展示模型运行态。
 - RAG、Agent 和 Workflow 后续可以扩展同一事件协议；Context Engineering 与本文没有固定先后关系。
 
-完成实验后回到 [标准学习路径](../../learning-path.md) 的当前主线。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。
+完成实验后回到 [标准学习路径](../learning-path.md) 的当前主线。需要查完整知识关系时再使用 [知识地图](../knowledge-map.md)。

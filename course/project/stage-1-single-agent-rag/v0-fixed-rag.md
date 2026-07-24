@@ -109,8 +109,8 @@ V0 不从头教授下面这些知识。开始综合实现前，应当已经能�
 
 - 解释 [LLM 在 AI 应用中的位置与边界](../../concepts/llm-in-ai-applications.md)，知道固定 RAG 为什么仍然需要真实模型调用。
 - 使用 [Prompt、Context 与 Schema 的模型契约](../../concepts/model-input-output-contracts.md)描述一次评审调用的任务、证据和结果边界。
-- 通过 [模型 API、Provider 与统一调用入口](../../mechanisms/llm/model-api-and-provider.md)运行真实模型。
-- 使用 [面向应用的 Prompt Engineering](../../mechanisms/llm/prompt-engineering.md)和 [Structured Output 与本地校验](../../mechanisms/llm/structured-output.md)生成可被程序消费的风险结果。
+- 通过 [模型 API、Provider 与统一调用入口](../../mechanisms/model-api-and-provider.md)运行真实模型。
+- 使用 [面向应用的 Prompt Engineering](../../mechanisms/prompt-engineering.md)和 [Structured Output 与本地校验](../../mechanisms/structured-output.md)生成可被程序消费的风险结果。
 - 解释文档为什么要经过加载、清洗、Chunk、Metadata、Embedding、索引和 Retrieval，能够观察每一步的输入输出。
 - 说明 Retriever 产生候选证据，Context Builder 决定哪些证据真正进入模型，两者不是同一机制。
 - 区分检索失败、上下文失败、模型调用失败和结构化校验失败。

@@ -1,10 +1,10 @@
 """
-model_contract_lab — 切换 config_ref 的真实对比实验。
+llm_invoke_lab — 切换 config_ref 的真实对比实验（学习路径步骤 3）。
 
 运行：
-    python provider_switching.py
-    python provider_switching.py --verbose
-    python provider_switching.py --configs chat.dev_chat,chat.structured_chat
+    uv run python provider_switching.py
+    uv run python provider_switching.py --verbose
+    uv run python provider_switching.py --configs chat.dev_chat,chat.structured_chat
 """
 
 from __future__ import annotations

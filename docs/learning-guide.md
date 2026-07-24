@@ -94,6 +94,7 @@ course/README.md
 - 不要求先读完 `concepts/`。
 - 不要求先读完某个能力域下的全部机制。
 - 不要求学完所有 LLM 内容才进入 RAG。
+- `course/concepts/` 与 `course/mechanisms/` 均平铺正文，不按 LLM、RAG、Agent 等能力域分子目录；能力域分组只在 `course/knowledge-map.md` 维护。
 - 与项目暂时关系不大的重要知识，可以作为概念或机制补充，但不进入当前项目验收。
 - 不根据正文页尾、目录排列、文件名或 package 模块顺序推断下一篇。
 - 概念篇、机制篇和项目篇不独立维护平行课表；正文读完后返回 `course/learning-path.md`。

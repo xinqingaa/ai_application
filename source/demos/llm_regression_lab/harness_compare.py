@@ -1,7 +1,7 @@
 """Run a small Calling Harness for repeatable LLM comparisons.
 
 运行方式：
-    uv run python source/demos/llm_call_ops_lab/harness_compare.py
+    uv run python source/demos/llm_regression_lab/harness_compare.py
 
 默认调用真实模型，观察同一批 case 在当前模型、Prompt 和 schema 下的表现。
 若需要离线排查或稳定复现失败路径，把 USE_REAL_LLM 改为 False。

@@ -2,7 +2,7 @@
 
 > 机制篇：解释如何用固定业务样例和调用记录，让 Prompt、模型、Schema、Context 与可靠性改动可以重复比较。
 >
-> 课程位置：[标准学习路径](../../learning-path.md) V0 第十四步。必要前提是 [Prompt Engineering](prompt-engineering.md)、[Structured Output](structured-output.md)、[可靠调用](reliability-and-errors.md)，以及已经可以运行的固定 RAG 生成链；本文交付直接 LLM 与检索 RAG 可复用的 Case、Record 和 Summary。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第十四步。必要前提是 [Prompt Engineering](prompt-engineering.md)、[Structured Output](structured-output.md)、[可靠调用](reliability-and-errors.md)，以及已经可以运行的固定 RAG 生成链；本文交付直接 LLM 与检索 RAG 可复用的 Case、Record 和 Summary。
 
 ---
 
@@ -148,7 +148,7 @@ Record 不负责判断“答案好不好”。它负责让你知道“发生了�
 
 ### 为什么要有 HarnessCase
 
-[`harness/cases.py`](../../../source/packages/llm_core/harness/cases.py) 中的 `HarnessCase` 不是为了包装一层对象，而是为了让业务样例离开 demo 脚本，成为后续可以复用、筛选、标注和扩展的输入单位。
+[`harness/cases.py`](../../source/packages/llm_core/harness/cases.py) 中的 `HarnessCase` 不是为了包装一层对象，而是为了让业务样例离开 demo 脚本，成为后续可以复用、筛选、标注和扩展的输入单位。
 
 ```python
 @dataclass(frozen=True)
@@ -180,7 +180,7 @@ class HarnessRunConfig:
 
 ### 为什么 record 要接住 reliability report
 
-[`harness/runner.py`](../../../source/packages/llm_core/harness/runner.py) 没有直接调用 Provider，而是复用可靠调用层的 `ReliableLLMService`：
+[`harness/runner.py`](../../source/packages/llm_core/harness/runner.py) 没有直接调用 Provider，而是复用可靠调用层的 `ReliableLLMService`：
 
 ```python
 records, summary = LLMCallingHarness(service).run_cases(
@@ -212,7 +212,7 @@ records, summary = LLMCallingHarness(service).run_cases(
 
 单元测试必须 fake，否则测试不稳定、受供应商影响。学习 demo 则默认真实模型，因为 harness 的核心价值正是观察同一批 case 在当前真实模型下 parse 是否通过、耗时多少、是否触发 fallback、错误分布是什么。
 
-[`harness_compare.py`](../../../source/demos/llm_call_ops_lab/harness_compare.py) 顶部提供：
+[`harness_compare.py`](../../source/demos/llm_regression_lab/harness_compare.py) 顶部提供：
 
 ```python
 USE_REAL_LLM = True
@@ -279,10 +279,10 @@ LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、tra
 
 ### 涉及文件
 
-- [`source/packages/llm_core/harness/`](../../../source/packages/llm_core/harness/)：harness 核心对象与 runner。
-- [`source/packages/llm_core/tests/test_harness.py`](../../../source/packages/llm_core/tests/test_harness.py)：fake client 单元测试。
-- [`source/demos/llm_call_ops_lab/harness_compare.py`](../../../source/demos/llm_call_ops_lab/harness_compare.py)：调用 Harness 观察入口，默认真实 LLM，支持 fake 对照路径。
-- [`source/demos/llm_call_ops_lab/README.md`](../../../source/demos/llm_call_ops_lab/README.md)：call ops lab 输出说明。
+- [`source/packages/llm_core/harness/`](../../source/packages/llm_core/harness/)：harness 核心对象与 runner。
+- [`source/packages/llm_core/tests/test_harness.py`](../../source/packages/llm_core/tests/test_harness.py)：fake client 单元测试。
+- [`source/demos/llm_regression_lab/harness_compare.py`](../../source/demos/llm_regression_lab/harness_compare.py)：调用 Harness 观察入口，默认真实 LLM，支持 fake 对照路径。
+- [`source/demos/llm_regression_lab/README.md`](../../source/demos/llm_regression_lab/README.md)：Harness 与 Cost 输出说明。
 
 ### 运行方式
 
@@ -290,7 +290,7 @@ LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、tra
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_harness.py
-uv run python source/demos/llm_call_ops_lab/harness_compare.py
+uv run python source/demos/llm_regression_lab/harness_compare.py
 ```
 
 运行前确认根目录 `.env` 已配置 `OPENAI_API_KEY`，以及可选的 `OPENAI_BASE_URL` / `OPENAI_MODEL`。
@@ -306,7 +306,7 @@ USE_REAL_LLM = False
 仍运行：
 
 ```bash
-uv run python source/demos/llm_call_ops_lab/harness_compare.py
+uv run python source/demos/llm_regression_lab/harness_compare.py
 ```
 
 模拟路径能稳定复现 success、schema failure、fallback，但它不代表真实模型表现。
@@ -362,7 +362,7 @@ errors: schema_parse=1
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_harness.py
-uv run python source/demos/llm_call_ops_lab/harness_compare.py
+uv run python source/demos/llm_regression_lab/harness_compare.py
 ```
 
 观察点：
@@ -387,7 +387,7 @@ uv run python source/demos/llm_call_ops_lab/harness_compare.py
 ## 交给评估系统的调用事实
 
 - `llm_core.harness` 把批量 case、run config、record 和 summary 沉淀为正式 package 能力。
-- `llm_call_ops_lab` 继续承载调用治理实验，调用 Harness 不再创建孤立 demo。
+- `llm_regression_lab` 承载 Harness 与按需 Cost；Reliability 已独立为 `llm_reliability_lab`，避免与早期主线混目录。
 - 成本、延迟与缓存机制会继续消费 harness record。
 
-完成实验后回到 [标准学习路径](../../learning-path.md)。成本与缓存是 Harness 记录稳定后的 [按需支撑](cost-latency-and-caching.md)。
+完成实验后回到 [标准学习路径](../learning-path.md)。成本与缓存是 Harness 记录稳定后的 [按需支撑](cost-latency-and-caching.md)。

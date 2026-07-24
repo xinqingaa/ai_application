@@ -94,7 +94,7 @@ harness records + learning price table + cache key
 
 1. [`prompts/review/risk_review_v1.yaml`](prompts/review/risk_review_v1.yaml) 到 `v4`：Prompt 版本如何演进。
 2. [`prompts/registry.py`](prompts/registry.py)：`get_prompt` / `render_prompt`。
-3. demo [`model_contract_lab/prompt_compare.py`](../../demos/model_contract_lab/prompt_compare.py)：同一样例比较 Prompt 版本。
+3. demo [`llm_invoke_lab/prompt_compare.py`](../../demos/llm_invoke_lab/prompt_compare.py)：同一样例比较 Prompt 版本。
 
 ### Structured Outputs
 
@@ -109,7 +109,7 @@ harness records + learning price table + cache key
 2. [`reliability/policies.py`](reliability/policies.py)：`RetryPolicy` / `DegradationPolicy`。
 3. [`reliability/report.py`](reliability/report.py)：attempt、report、result。
 4. [`reliability/service.py`](reliability/service.py)：如何包住 `LLMClient`。
-5. demo [`llm_call_ops_lab/reliability_compare.py`](../../demos/llm_call_ops_lab/reliability_compare.py)：观察 retry / fallback。
+5. demo [`llm_reliability_lab/reliability_compare.py`](../../demos/llm_reliability_lab/reliability_compare.py)：观察 retry / fallback。
 
 ### Context Engineering
 
@@ -118,7 +118,7 @@ harness records + learning price table + cache key
 1. [`context/types.py`](context/types.py)：`ContextSource`、`ContextBuildPolicy`、`ContextBuildReport`。
 2. [`context/policies.py`](context/policies.py)：`minimal` / `balanced` / `evidence_first` / `tight_budget`。
 3. [`context/builder.py`](context/builder.py)：去重、排序、预算、压缩、引用候选。
-4. demo [`context_assembly_lab/context_compare.py`](../../demos/context_assembly_lab/context_compare.py)：观察 Context Report。
+4. demo [`llm_context_lab/context_compare.py`](../../demos/llm_context_lab/context_compare.py)：观察 Context Report。
 
 ### Calling Harness
 
@@ -126,7 +126,7 @@ harness records + learning price table + cache key
 2. [`harness/records.py`](harness/records.py)：`HarnessRunRecord` 与 `HarnessSummary`。
 3. [`harness/runner.py`](harness/runner.py)：批量运行如何复用 `ReliableLLMService`。
 4. [`harness/formatting.py`](harness/formatting.py)：demo 的记录表和汇总输出。
-5. demo [`llm_call_ops_lab/harness_compare.py`](../../demos/llm_call_ops_lab/harness_compare.py)：观察 case 批量运行。
+5. demo [`llm_regression_lab/harness_compare.py`](../../demos/llm_regression_lab/harness_compare.py)：观察 case 批量运行。
 
 ### 按需 Streaming + Conversation
 
@@ -143,7 +143,7 @@ harness records + learning price table + cache key
 2. [`costing/estimate.py`](costing/estimate.py)：从 `TokenUsage` 估算输入、输出和总成本。
 3. [`cache/keys.py`](cache/keys.py)：cache key 如何包含模型、Prompt、schema、messages 和 context 指纹。
 4. [`cache/records.py`](cache/records.py)：cache hit / miss 与节省 token、成本、延迟。
-5. demo [`llm_call_ops_lab/cost_latency_cache.py`](../../demos/llm_call_ops_lab/cost_latency_cache.py)：观察冷启动、重复命中和上下文变化 miss。
+5. demo [`llm_regression_lab/cost_latency_cache.py`](../../demos/llm_regression_lab/cost_latency_cache.py)：观察冷启动、重复命中和上下文变化 miss。
 
 ## 快速使用
 
@@ -204,11 +204,13 @@ print(summary.success_count, records[0].attempt_count)
 
 ## 对应入口
 
-- SDK 最小调用：[../../demos/llm_api_smoke/](../../demos/llm_api_smoke/)
-- Provider、Prompt 与 Structured Output：[../../demos/model_contract_lab/](../../demos/model_contract_lab/)
-- Streaming SSE：[../../apps/llm_streaming_api/](../../apps/llm_streaming_api/)
-- Context lab：[../../demos/context_assembly_lab/](../../demos/context_assembly_lab/)
-- Reliability、Harness 与成本实验：[../../demos/llm_call_ops_lab/](../../demos/llm_call_ops_lab/)
+按 [标准学习路径](../../../course/learning-path.md) 进入，不要按目录字母序通关：
+
+- 步骤 3–5 调用与契约：[../../demos/llm_invoke_lab/](../../demos/llm_invoke_lab/)（含 `first_chat.py` SDK 对照）
+- 步骤 6 Reliability：[../../demos/llm_reliability_lab/](../../demos/llm_reliability_lab/)
+- 步骤 12 Context（等待 RAG）：[../../demos/llm_context_lab/](../../demos/llm_context_lab/)
+- 步骤 14 Harness + 按需 Cost：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
+- 按需 Streaming SSE：[../../apps/llm_streaming_api/](../../apps/llm_streaming_api/)
 
 ## 常见定位
 
@@ -229,11 +231,11 @@ print(summary.success_count, records[0].attempt_count)
 
 ## 对应课程正文
 
-- [模型 API 与 Provider 抽象](../../../course/mechanisms/llm/model-api-and-provider.md)
-- [面向应用的 Prompt Engineering](../../../course/mechanisms/llm/prompt-engineering.md)
-- [Structured Outputs](../../../course/mechanisms/llm/structured-output.md)
-- [Streaming 与 Conversation](../../../course/mechanisms/llm/streaming-and-conversation.md)
-- [Context Engineering](../../../course/mechanisms/llm/context-engineering.md)
-- [Reliability、Errors 与 Degradation](../../../course/mechanisms/llm/reliability-and-errors.md)
-- [LLM Calling Harness](../../../course/mechanisms/llm/calling-harness-and-regression.md)
-- [Cost、Latency 与 Caching](../../../course/mechanisms/llm/cost-latency-and-caching.md)
+- [模型 API 与 Provider 抽象](../../../course/mechanisms/model-api-and-provider.md)
+- [面向应用的 Prompt Engineering](../../../course/mechanisms/prompt-engineering.md)
+- [Structured Outputs](../../../course/mechanisms/structured-output.md)
+- [Streaming 与 Conversation](../../../course/mechanisms/streaming-and-conversation.md)
+- [Context Engineering](../../../course/mechanisms/context-engineering.md)
+- [Reliability、Errors 与 Degradation](../../../course/mechanisms/reliability-and-errors.md)
+- [LLM Calling Harness](../../../course/mechanisms/calling-harness-and-regression.md)
+- [Cost、Latency 与 Caching](../../../course/mechanisms/cost-latency-and-caching.md)

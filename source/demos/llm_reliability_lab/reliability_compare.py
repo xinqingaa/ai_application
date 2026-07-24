@@ -1,7 +1,7 @@
 """Compare retry and fallback behavior for the Reliability mechanism.
 
 运行方式：
-    uv run python source/demos/llm_call_ops_lab/reliability_compare.py
+    uv run python source/demos/llm_reliability_lab/reliability_compare.py
 
 本 demo 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt。
 若需要稳定复现 timeout、fallback、auth 或 schema failure，把 USE_REAL_LLM 改为 False。
@@ -44,7 +44,7 @@ USE_REAL_LLM = True
 # 是否打印发送给模型的 messages。真实调用排查时再打开。
 PRINT_MESSAGES = False
 
-# 是否打印每次 attempt 的详细错误。学习 06 时建议保持 True。
+# 是否打印每次 attempt 的详细错误。学习步骤 6 时建议保持 True。
 PRINT_ATTEMPT_DETAIL = True
 
 # 是否同时跑一组“无重试”对照，帮助观察 retry 的价值。
@@ -76,7 +76,7 @@ def main() -> None:
         _print_call_plan(retry_policy, degradation_policy)
         _print_messages()
         _print_result(result)
-        _print_lesson("真实调用通常不会稳定触发失败；06 更关注失败出现时 report 是否能解释。")
+        _print_lesson("真实调用通常不会稳定触发失败；步骤 6 更关注失败出现时 report 是否能解释。")
         return
 
     if COMPARE_WITH_NO_RETRY:

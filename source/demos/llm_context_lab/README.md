@@ -1,12 +1,20 @@
-# context_assembly_lab
+# llm_context_lab
 
-Context Engineering 观察 demo。它不是新的业务实现，也不承载核心算法；核心逻辑在 [`llm_core.context`](../../packages/llm_core/context/)，本 demo 只加载样例、选择策略、调用 package API 并打印诊断报告。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 12（**等待前置**）。  
+> 必须先完成文档、Chunk、Metadata 与 Retriever 相关步骤，再把本 lab 当主线。  
+> Retriever 产生候选证据；本 lab 观察 Context Builder 如何决定本轮模型真正看到什么。
 
-课程正文负责解释 Context Engineering 的机制；本 README 负责说明怎么跑、怎么看输出、如何定位 bad case。
+Context Engineering 观察 demo。核心逻辑在 [`llm_core.context`](../../packages/llm_core/context/)；本 demo 只加载样例、选择策略、调用 package API 并打印诊断报告。
 
-## 为什么单独建 demo
+## 本 lab 调用面
 
-这里的观察维度不是“模型是否返回 JSON”，而是：
+允许：`build_review_context`、`ContextSource` / policy / report、`prompts`、`LLMClient`（可选真实生成对照）。
+
+不替代：Retriever / 向量检索。材料池来自 `context_cases.json` 静态样例。
+
+## 为什么单独建 lab
+
+观察维度不是“模型是否返回 JSON”，而是：
 
 - 候选材料如何进入材料池。
 - 不同策略如何分配 section budget。
@@ -15,7 +23,7 @@ Context Engineering 观察 demo。它不是新的业务实现，也不承载核�
 - Prompt 预览是否符合预期。
 - bad case 应该查预算、排序、压缩、Prompt，还是模型。
 
-这些维度如果继续塞进 `model_contract_lab/structured_risk.py`，会把 Structured Outputs 与 Context Engineering 混在一起。因此单独保留这个观察入口，但仍复用同一个 `llm_core` package。
+这些维度若塞进 [`llm_invoke_lab/structured_risk.py`](../llm_invoke_lab/structured_risk.py)，会把 Structured Output 与 Context Engineering 混在一起。
 
 ## 文件
 
@@ -35,7 +43,7 @@ uv sync
 默认运行 `evidence_first`，并调用真实模型。请先确认根目录 `.env` 已配置 `OPENAI_API_KEY`（以及需要时的 `OPENAI_BASE_URL` / `OPENAI_MODEL`）：
 
 ```bash
-uv run python source/demos/context_assembly_lab/context_compare.py
+uv run python source/demos/llm_context_lab/context_compare.py
 ```
 
 常用开关在 [`context_compare.py`](context_compare.py) 顶部，改完后仍运行上面这一条短命令：
@@ -183,9 +191,9 @@ no_evidence_included
 | `tight_budget` 下内容断裂 | 看 `[compressed_sources]` 与 `prompt_preview`，确认 source id 是否仍保留 |
 | 无 evidence 仍生成确定结论 | `[warnings] no_evidence_included`；Prompt 或调用层应提示依据不足 |
 
-## 与 结构化输出 demo 的关系
+## 与 Structured Output demo 的关系
 
-- `model_contract_lab/structured_risk.py`：观察 structured output 三种 mode。
-- `context_assembly_lab/context_compare.py`：观察 context builder 策略和诊断。
+- [`llm_invoke_lab/structured_risk.py`](../llm_invoke_lab/structured_risk.py)：观察 structured mode（步骤 5）。
+- 本 lab `context_compare.py`：观察 context builder 策略和诊断（步骤 12，等 RAG）。
 
-二者都调用 `llm_core`，但观察问题不同。
+二者都调用 `llm_core`，但观察问题不同；课表顺序不允许跳过 RAG 前置直接把本 lab 当主线。

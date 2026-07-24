@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型调用失败如何被分类、有限重试、显式降级，并保留完整 attempt 记录。
 >
-> 课程位置：[标准学习路径](../../learning-path.md) V0 第六步。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)和 [Structured Output](structured-output.md)；本文交付错误分类、有限重试、显式降级和 Attempt Report。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第六步。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)和 [Structured Output](structured-output.md)；本文交付错误分类、有限重试、显式降级和 Attempt Report。
 
 ---
 
@@ -175,11 +175,11 @@ Reliability：失败可解释、可恢复、可降级
 3. 结构化解析失败会被转成可靠性错误，而不是被当作普通成功。
 4. 每次 attempt 都进入 `ReliableCallReport`，demo 和后续 trace 都能读取。
 
-完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [call ops lab README](../../../source/demos/llm_call_ops_lab/README.md)。
+完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [reliability lab README](../../source/demos/llm_reliability_lab/README.md)。
 
 ### 1. 策略和报告
 
-[`reliability/`](../../../source/packages/llm_core/reliability/) 先定义可靠性层的数据契约：
+[`reliability/`](../../source/packages/llm_core/reliability/) 先定义可靠性层的数据契约：
 
 ```python
 @dataclass(frozen=True)
@@ -206,7 +206,7 @@ class ReliableCallReport:
 
 ### 2. 可靠调用外壳
 
-[`ReliableLLMService`](../../../source/packages/llm_core/reliability/) 的主职责是包住 `LLMClient`：
+[`ReliableLLMService`](../../source/packages/llm_core/reliability/) 的主职责是包住 `LLMClient`：
 
 ```python
 result = service.chat(
@@ -238,7 +238,7 @@ parse.error_stage == "schema" -> schema_parse
 
 ### 4. Demo 默认真实调用，模拟只做失败复现
 
-[`reliability_compare.py`](../../../source/demos/llm_call_ops_lab/reliability_compare.py) 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt、latency、final config 和错误。真实调用的价值是让你看到供应商、模型能力、API key、网络和 structured mode 等真实工程变量。
+[`reliability_compare.py`](../../source/demos/llm_reliability_lab/reliability_compare.py) 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt、latency、final config 和错误。真实调用的价值是让你看到供应商、模型能力、API key、网络和 structured mode 等真实工程变量。
 
 但真实模型通常不会稳定触发 timeout、auth、schema failure 或 fallback。为了学习失败路径，脚本保留 `USE_REAL_LLM = False` 的模拟模式，可稳定复现：
 
@@ -255,7 +255,7 @@ schema_failure
 
 ## 重试框架不能替你决定什么
 
-OpenAI SDK、Anthropic SDK 和其他兼容平台都会抛出自己的异常类型，例如 timeout、rate limit、status error。项目里不应该让业务层到处判断供应商异常名，而应在 provider 层先映射为统一的 `LLMErrorCode`。本仓库的 [`OpenAICompatProvider`](../../../source/packages/llm_core/providers/openai_compat.py) 已经做了第一层映射。
+OpenAI SDK、Anthropic SDK 和其他兼容平台都会抛出自己的异常类型，例如 timeout、rate limit、status error。项目里不应该让业务层到处判断供应商异常名，而应在 provider 层先映射为统一的 `LLMErrorCode`。本仓库的 [`OpenAICompatProvider`](../../source/packages/llm_core/providers/openai_compat.py) 已经做了第一层映射。
 
 Tenacity / backoff 这类 Python 库可以帮助实现重试、退避和停止条件。它们适合生产项目，但学习阶段直接写一个小的 `RetryPolicy` 更容易看清机制：哪些错误可重试，最多重试几次，失败记录在哪里。
 
@@ -327,11 +327,11 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 
 关键路径：
 
-- [`source/packages/llm_core/errors/types.py`](../../../source/packages/llm_core/errors/types.py)：统一错误码。
-- [`source/packages/llm_core/reliability/`](../../../source/packages/llm_core/reliability/)：`RetryPolicy`、`DegradationPolicy`、`ReliableLLMService` 和 report。
-- [`source/packages/llm_core/tests/test_reliability.py`](../../../source/packages/llm_core/tests/test_reliability.py)：可靠性单元测试。
-- [`source/demos/llm_call_ops_lab/reliability_compare.py`](../../../source/demos/llm_call_ops_lab/reliability_compare.py)：可靠调用 call ops lab 观察入口。
-- [`source/demos/llm_call_ops_lab/README.md`](../../../source/demos/llm_call_ops_lab/README.md)：reliability 与 harness 的输出说明。
+- [`source/packages/llm_core/errors/types.py`](../../source/packages/llm_core/errors/types.py)：统一错误码。
+- [`source/packages/llm_core/reliability/`](../../source/packages/llm_core/reliability/)：`RetryPolicy`、`DegradationPolicy`、`ReliableLLMService` 和 report。
+- [`source/packages/llm_core/tests/test_reliability.py`](../../source/packages/llm_core/tests/test_reliability.py)：可靠性单元测试。
+- [`source/demos/llm_reliability_lab/reliability_compare.py`](../../source/demos/llm_reliability_lab/reliability_compare.py)：本节观察入口。
+- [`source/demos/llm_reliability_lab/README.md`](../../source/demos/llm_reliability_lab/README.md)：输出解读与实验开关。
 
 ### 实现步骤
 
@@ -353,7 +353,7 @@ uv run pytest source/packages/llm_core/tests/test_reliability.py
 demo：
 
 ```bash
-uv run python source/demos/llm_call_ops_lab/reliability_compare.py
+uv run python source/demos/llm_reliability_lab/reliability_compare.py
 ```
 
 `reliability_compare.py` 顶部提供学习期实验开关：
@@ -490,7 +490,7 @@ DEFAULT_CASE = "primary_timeout_then_fallback"
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_reliability.py
-uv run python source/demos/llm_call_ops_lab/reliability_compare.py
+uv run python source/demos/llm_reliability_lab/reliability_compare.py
 ```
 
 观察点：
@@ -515,7 +515,7 @@ uv run python source/demos/llm_call_ops_lab/reliability_compare.py
 ## 交给项目的可靠调用报告
 
 - `llm_core` 新增 `reliability/`，把单次模型调用升级为可重试、可降级、可诊断的可靠调用。
-- 扩展 `llm_call_ops_lab`：默认真实调用观察真实 attempt；模拟 case 仅用于稳定学习 timeout、auth、schema failure 和 fallback。
+- 扩展 `llm_reliability_lab`：默认真实调用观察真实 attempt；模拟 case 仅用于稳定学习 timeout、auth、schema failure 和 fallback。Harness / Cost 在后续 `llm_regression_lab`，不要与本节入口混读。
 - Context、RAG Pipeline 和 Calling Harness 后续都可以携带这里的可靠调用报告，但 Context 不是本文前置。
 
-完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。
+完成实验后回到 [标准学习路径](../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../knowledge-map.md)。

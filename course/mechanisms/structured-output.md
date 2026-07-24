@@ -2,7 +2,7 @@
 
 > 机制篇：解释为什么“像 JSON”还不够，以及生成约束、JSON 解析、Schema 校验和业务消费如何形成可信输出链路。
 >
-> 课程位置：[标准学习路径](../../learning-path.md) V0 第五步。必要前置是 [Prompt Engineering](prompt-engineering.md)；本文交付模型结果的生成约束、解析、Schema 校验和业务接受边界。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第五步。必要前置是 [Prompt Engineering](prompt-engineering.md)；本文交付模型结果的生成约束、解析、Schema 校验和业务接受边界。
 
 ---
 
@@ -136,7 +136,7 @@ UI、数据库、Workflow 只读校验后的结构；`assistant` 原文仅用于
 
 ### 数据契约：`ReviewRiskList`
 
-真源在 [`schemas/review.py`](../../../source/packages/llm_core/schemas/review.py)。Prompt（[`risk_review_v4.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v4.yaml)）的 Output 段、Pydantic、`json_schema` 模式的 API Schema **必须描述同一份字段**。
+真源在 [`schemas/review.py`](../../source/packages/llm_core/schemas/review.py)。Prompt（[`risk_review_v4.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v4.yaml)）的 Output 段、Pydantic、`json_schema` 模式的 API Schema **必须描述同一份字段**。
 
 **根形态**：v4 要求 JSON 对象且含 `risks` 数组（不能是裸数组——OpenAI Structured Outputs 也要求根为 object）：
 
@@ -234,7 +234,7 @@ JSON 语法合法，但字段不符合契约。比如 `category` 写成中文「
 
 ### 1. Schema 真源
 
-[`schemas/review.py`](../../../source/packages/llm_core/schemas/review.py)：
+[`schemas/review.py`](../../source/packages/llm_core/schemas/review.py)：
 
 ```python
 class ReviewRisk(BaseModel):
@@ -252,7 +252,7 @@ class ReviewRiskList(BaseModel):
 
 ### 2. 构建 `response_format`
 
-[`structured/response.py`](../../../source/packages/llm_core/structured/response.py) 根据 `structured_mode` 决定是否给 API 传 `response_format`：
+[`structured/response.py`](../../source/packages/llm_core/structured/response.py) 根据 `structured_mode` 决定是否给 API 传 `response_format`：
 
 - `none`：不传，让 Prompt 自己约束输出。
 - `json_object`：传 JSON Mode，约束格式层。
@@ -262,13 +262,13 @@ class ReviewRiskList(BaseModel):
 
 ### 3. 调用与解析合一
 
-[`client/service.py`](../../../source/packages/llm_core/client/service.py) 的 `chat_structured` 做三件事：先按 mode 组装 `response_format`，再调用普通 `chat`，最后立刻把 `llm.content` 交给 `parse_structured_content`。它返回的不是单纯文本，而是 `StructuredLLMResponse`：里面同时保留原始模型响应、解析结果和请求参数。
+[`client/service.py`](../../source/packages/llm_core/client/service.py) 的 `chat_structured` 做三件事：先按 mode 组装 `response_format`，再调用普通 `chat`，最后立刻把 `llm.content` 交给 `parse_structured_content`。它返回的不是单纯文本，而是 `StructuredLLMResponse`：里面同时保留原始模型响应、解析结果和请求参数。
 
 注意顺序：**调用后立刻 parse**。如果先把原始字符串交给 UI 或数据库，再在别处解析，失败就会扩散。结构化输出的工程习惯是：在模型调用边界处就把「可用 / 不可用」判清楚。
 
 ### 4. 解析分层与 `error_stage`
 
-[`schemas/parse.py`](../../../source/packages/llm_core/schemas/parse.py)：
+[`schemas/parse.py`](../../source/packages/llm_core/schemas/parse.py)：
 
 ```python
 def parse_risk_list(content: str) -> StructuredParseResult:
@@ -399,12 +399,12 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 关键路径：
 
-- [`source/packages/llm_core/schemas/review.py`](../../../source/packages/llm_core/schemas/review.py)：风险列表 Schema 真源。
-- [`source/packages/llm_core/schemas/parse.py`](../../../source/packages/llm_core/schemas/parse.py)：解析与 `error_stage` 判层。
-- [`source/packages/llm_core/structured/response.py`](../../../source/packages/llm_core/structured/response.py)：`response_format` 构建。
-- [`source/demos/model_contract_lab/structured_risk.py`](../../../source/demos/model_contract_lab/structured_risk.py)：本节观察入口。
+- [`source/packages/llm_core/schemas/review.py`](../../source/packages/llm_core/schemas/review.py)：风险列表 Schema 真源。
+- [`source/packages/llm_core/schemas/parse.py`](../../source/packages/llm_core/schemas/parse.py)：解析与 `error_stage` 判层。
+- [`source/packages/llm_core/structured/response.py`](../../source/packages/llm_core/structured/response.py)：`response_format` 构建。
+- [`source/demos/llm_invoke_lab/structured_risk.py`](../../source/demos/llm_invoke_lab/structured_risk.py)：本节观察入口。
 
-完整文件说明与参数变体放在 [demo README](../../../source/demos/model_contract_lab/README.md)。
+完整文件说明与参数变体放在 [demo README](../../source/demos/llm_invoke_lab/README.md)。
 
 ### 实现步骤（与最小实现对照）
 
@@ -419,7 +419,7 @@ demo 默认固定 S2、Prompt v4、`chat.dev_chat` 和 `temperature=0`，只改�
 
 ```bash
 uv sync
-cd source/demos/model_contract_lab
+cd source/demos/llm_invoke_lab
 uv run python structured_risk.py
 ```
 
@@ -467,7 +467,7 @@ uv run python structured_risk.py
 ### 运行与观察
 
 ```bash
-cd source/demos/model_contract_lab
+cd source/demos/llm_invoke_lab
 uv run python structured_risk.py
 ```
 
@@ -488,4 +488,4 @@ uv run python structured_risk.py
 - 需求评审助手具备：**结构化风险列表契约 + 分层解析 + 三 mode 可观测**。
 - Reliability 会复用这里的解析结果判断一次调用是否真正成功；Streaming 则是独立的按需交互支撑。
 
-完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。
+完成实验后回到 [标准学习路径](../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../knowledge-map.md)。

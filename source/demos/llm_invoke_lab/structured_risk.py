@@ -1,8 +1,8 @@
 """
-structured_risk — 固定 Prompt 和 evidence，只切换 structured_mode。
+llm_invoke_lab — 固定 Prompt 和 evidence，只切换 structured_mode（学习路径步骤 5）。
 
 运行（改下方「实验配置」）：
-    python structured_risk.py
+    uv run python structured_risk.py
 """
 
 from __future__ import annotations

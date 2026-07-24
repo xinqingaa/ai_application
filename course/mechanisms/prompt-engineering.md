@@ -2,7 +2,7 @@
 
 > 机制篇：解释任务描述如何成为可命名、可版本化、可回归的 Prompt 协议，以及它如何与 Schema 和检索证据分工。
 >
-> 课程位置：[标准学习路径](../../learning-path.md) V0 第四步。必要前置是 [模型输入输出契约](../../concepts/model-input-output-contracts.md)和 [模型 API 与 Provider](model-api-and-provider.md)；本文交付可命名、可版本化、可比较的任务协议。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第四步。必要前置是 [模型输入输出契约](../concepts/model-input-output-contracts.md)和 [模型 API 与 Provider](model-api-and-provider.md)；本文交付可命名、可版本化、可比较的任务协议。
 
 ---
 
@@ -159,7 +159,7 @@ Few-shot 的本质不是“给模型更多材料”，而是“用样例定义�
 | **Prompt** | 通过 `{{evidence_block}}` 接收片段，并要求结论绑定材料、证据不足时拒答或追问 |
 | **应用** | 校验 citation 是否指向真实 source（RAG / 结构化输出 结构化课深化） |
 
-本节使用静态文件 [`evidence_s2.json`](../../../source/demos/model_contract_lab/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
+本节使用静态文件 [`evidence_s2.json`](../../source/demos/llm_invoke_lab/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
 
 这里有一个常见误区：在 Prompt 里写“请依据公司规范回答”，并不等于模型真的拥有公司规范。Prompt 只能规定“如果有证据，应该如何使用证据；如果没有证据，应该如何拒答或追问”。证据从哪里来，是 RAG 的职责。
 
@@ -178,7 +178,7 @@ Few-shot 的本质不是“给模型更多材料”，而是“用样例定义�
 | `review_dimensions` | 可选维度标签 | 后续 workflow 用 |
 | `previous_summary` | 多步工作流上游摘要 | Agent / workflow 用 |
 
-渲染规则（实现见 [`registry.py`](../../../source/packages/llm_core/prompts/registry.py)）：
+渲染规则（实现见 [`registry.py`](../../source/packages/llm_core/prompts/registry.py)）：
 
 - YAML 中 `system` / `user` 字符串里的 `{{variable}}` 由 `render_prompt(template, variables)` 替换。
 - 未提供的占位符替换为空字符串（应避免漏传关键变量）。
@@ -206,7 +206,7 @@ model_config_ref: chat.dev_chat
 
 本节只做最小版本管理：YAML 存正文，`version` 标记变化，demo 固定样例做对比。后续调用 Harness 会把它扩展成 harness：把样例、Prompt 版本、模型配置、token、延迟和人工观察一起记录。
 
-[`registry.py`](../../../source/packages/llm_core/prompts/registry.py) 核心查找逻辑：
+[`registry.py`](../../source/packages/llm_core/prompts/registry.py) 核心查找逻辑：
 
 ```python
 def get_prompt(prompt_id: str, version: Optional[str] = None) -> PromptTemplate:
@@ -223,7 +223,7 @@ def get_prompt(prompt_id: str, version: Optional[str] = None) -> PromptTemplate:
             return tpl
 ```
 
-[`render_prompt`](../../../source/packages/llm_core/prompts/registry.py) 把 `{{variable}}` 替换后输出 messages。未提供的占位符变为空字符串——**漏传 `evidence_block` 会导致 Evidence 段为空**，这是常见配置错误。
+[`render_prompt`](../../source/packages/llm_core/prompts/registry.py) 把 `{{variable}}` 替换后输出 messages。未提供的占位符变为空字符串——**漏传 `evidence_block` 会导致 Evidence 段为空**，这是常见配置错误。
 
 这段代码只展示两个机制：**按逻辑名找模板**，以及**把变量渲染成 messages**。不要把学习重点放在扫描文件的细节上；真正要掌握的是：Prompt 真源从业务代码里移出来以后，调用方仍然可以用稳定的 `prompt_id@version` 得到一组可复现的 `messages`。
 
@@ -341,9 +341,9 @@ Prompt Engineering 不只是技术动作，也包含产品判断。需求评审�
 
 | 版本 | 文件 | 刻意差异 | 观察重点 |
 | --- | --- | --- | --- |
-| **v1.0.0** | [`risk_review_v1.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v1.yaml) | 短 system + 直接把 PRD 当 user | 是否空泛、是否编造接口细节 |
-| **v2.0.0** | [`risk_review_v2.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v2.yaml) | + Task / Evidence / Constraints / 维度 checklist | 是否更贴材料、少幻觉 |
-| **v3.0.0** | [`risk_review_v3.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v3.yaml) | v2 + 1 条 example + **要求 JSON 字段** | 结构是否更稳；JSON 是否可解析（仍可能失败） |
+| **v1.0.0** | [`risk_review_v1.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v1.yaml) | 短 system + 直接把 PRD 当 user | 是否空泛、是否编造接口细节 |
+| **v2.0.0** | [`risk_review_v2.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v2.yaml) | + Task / Evidence / Constraints / 维度 checklist | 是否更贴材料、少幻觉 |
+| **v3.0.0** | [`risk_review_v3.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v3.yaml) | v2 + 1 条 example + **要求 JSON 字段** | 结构是否更稳；JSON 是否可解析（仍可能失败） |
 
 ### 核心 API（真实代码）
 
@@ -359,7 +359,7 @@ messages = render_prompt(tpl, {
 resp = client.chat(messages, tpl.model_config_ref, temperature=0)
 ```
 
-`get_prompt` 在 [`prompts/registry.py`](../../../source/packages/llm_core/prompts/registry.py) 扫描 `prompts/review/*.yaml`；`PromptTemplate` 定义在 [`prompts/template.py`](../../../source/packages/llm_core/prompts/template.py)。`PromptTemplate.ref` 即 `review.risk_review@2.0.0`，应写入实验笔记与后续日志。
+`get_prompt` 在 [`prompts/registry.py`](../../source/packages/llm_core/prompts/registry.py) 扫描 `prompts/review/*.yaml`；`PromptTemplate` 定义在 [`prompts/template.py`](../../source/packages/llm_core/prompts/template.py)。`PromptTemplate.ref` 即 `review.risk_review@2.0.0`，应写入实验笔记与后续日志。
 
 这段代码足够说明本节最小闭环：业务不再拼长字符串，而是加载一份命名 Prompt、注入变量、得到 `messages`，再交给 Provider 调用层 的 `LLMClient`。正文不需要展开 registry 的所有文件扫描细节；学习重点是 **Prompt 真源外置以后，业务仍能稳定复现某个任务版本**。
 
@@ -470,11 +470,11 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 关键路径：
 
-- [`source/packages/llm_core/prompts/registry.py`](../../../source/packages/llm_core/prompts/registry.py)：加载与渲染 Prompt。
-- [`source/packages/llm_core/prompts/review/`](../../../source/packages/llm_core/prompts/review/)：三版 `review.risk_review`。
-- [`source/demos/model_contract_lab/prompt_compare.py`](../../../source/demos/model_contract_lab/prompt_compare.py)：本节观察入口。
+- [`source/packages/llm_core/prompts/registry.py`](../../source/packages/llm_core/prompts/registry.py)：加载与渲染 Prompt。
+- [`source/packages/llm_core/prompts/review/`](../../source/packages/llm_core/prompts/review/)：三版 `review.risk_review`。
+- [`source/demos/llm_invoke_lab/prompt_compare.py`](../../source/demos/llm_invoke_lab/prompt_compare.py)：本节观察入口。
 
-完整参数说明、样例列表和命令变体放在 [demo README](../../../source/demos/model_contract_lab/README.md)。
+完整参数说明、样例列表和命令变体放在 [demo README](../../source/demos/llm_invoke_lab/README.md)。
 
 ### 实现步骤
 
@@ -485,7 +485,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ### 核心实验变量
 
-入口文件是 [`prompt_compare.py`](../../../source/demos/model_contract_lab/prompt_compare.py)。正文只保留本节必须理解的实验变量：
+入口文件是 [`prompt_compare.py`](../../source/demos/llm_invoke_lab/prompt_compare.py)。正文只保留本节必须理解的实验变量：
 
 - `SAMPLE_ID`：默认 S2，表示同一份售后 PRD。
 - `PROMPT_VERSIONS`：默认 v1 / v2 / v3，表示只换 Prompt 版本。
@@ -498,7 +498,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ```bash
 uv sync
-cd source/demos/model_contract_lab
+cd source/demos/llm_invoke_lab
 uv run python prompt_compare.py
 ```
 
@@ -557,11 +557,11 @@ uv run python prompt_compare.py
 ### 运行与观察
 
 ```bash
-cd source/demos/model_contract_lab
+cd source/demos/llm_invoke_lab
 uv run python prompt_compare.py
 ```
 
-详见 [demo README](../../../source/demos/model_contract_lab/README.md)。
+详见 [demo README](../../source/demos/llm_invoke_lab/README.md)。
 
 ### 自检题（不看正文能否答）
 
@@ -581,4 +581,4 @@ uv run python prompt_compare.py
 - 需求评审助手具备：**按任务版本渲染 messages、与 `LLMClient` 衔接**；风险审查可在固定样例上受控对比。  
 - Structured Output 会继续消费这里的 Prompt 协议，但它不是由本页自行指定的“下一课”。
 
-完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。
+完成实验后回到 [标准学习路径](../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../knowledge-map.md)。

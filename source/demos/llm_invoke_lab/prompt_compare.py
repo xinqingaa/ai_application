@@ -1,8 +1,8 @@
 """
-prompt_compare — 同一任务的多版 Prompt 对比实验。
+llm_invoke_lab — 同一任务的多版 Prompt 对比实验（学习路径步骤 4）。
 
 运行（无需命令行参数，改下方「实验配置」即可）：
-    python prompt_compare.py
+    uv run python prompt_compare.py
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from _shared import (
     require_api_key,
 )
 
-# --- 实验配置（改这里，不用敲长命令；逐项说明见本目录 README 与 02 正文）---
+# --- 实验配置（改这里，不用敲长命令；逐项说明见本目录 README 与 Prompt 机制篇）---
 SAMPLE_ID = "S2"
 PROMPT_ID = "review.risk_review"
 PROMPT_VERSIONS = ("1.0.0", "2.0.0", "3.0.0")

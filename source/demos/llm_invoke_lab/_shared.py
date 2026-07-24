@@ -22,7 +22,7 @@ from llm_core.structured import StructuredLLMResponse
 
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
-SAMPLES_PATH = DEMO_DIR.parent / "llm_api_smoke" / "samples.json"
+SAMPLES_PATH = DEMO_DIR / "samples.json"
 
 
 def find_and_load_env() -> None:
