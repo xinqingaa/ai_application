@@ -23,7 +23,7 @@
 ## 与课程的边界
 
 ```text
-course/project/       项目篇教材：为什么做、学什么、设计题、失败题和版本验收
+course/project/       项目篇教材：组合任务、设计选择、失败题和版本验收
 review_assistant/     产品真源：代码、API、测试、配置、运行和部署
 ```
 

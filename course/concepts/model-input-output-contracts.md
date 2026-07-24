@@ -1,6 +1,10 @@
 # 模型输入输出契约：Prompt、Schema 与 Context
 
 > 概念篇：建立一条统一主线，理解应用如何把“希望模型完成什么、允许模型依据什么、程序最终接受什么”变成可验证契约。
+>
+> 阅读前提：先理解 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)。本文建立 Provider、Prompt、Structured Output、Context 和可靠调用都会复用的契约心智；读完后进入 [模型 API 与 Provider](../mechanisms/llm/model-api-and-provider.md)。
+
+---
 
 ## 为什么需要模型契约
 
@@ -79,6 +83,115 @@ Schema
 ```
 
 这并不能让模型变成确定性程序，但能让不确定性进入应用可观察、可拒绝和可回归的边界。
+
+## 同一份需求怎样穿过四层契约
+
+继续使用“申请售后入口”需求。应用收到的原始输入只有：
+
+```text
+订单详情页增加“申请售后”入口，对接售后接口 v2。
+```
+
+### 第一步：Prompt 把开放问题收敛成任务
+
+应用不是要求模型“随便评审”，而是明确：
+
+```text
+任务
+  从状态约束、接口失败、多端一致性和验收标准四个维度识别风险
+
+约束
+  不得补充材料中不存在的接口
+  证据不足时进入 missing_information
+
+输出意图
+  产生风险项，而不是长篇会议纪要
+```
+
+这一步改变的是模型要做什么，但还没有给它业务依据。
+
+### 第二步：Context 决定本轮看见什么
+
+假设知识系统找到三份候选材料：
+
+```text
+订单状态规则
+  已完成、已发货订单允许申请售后
+
+售后接口 v2
+  请求必须携带 order_id 和 item_id
+
+客户端展示规则
+  入口由服务端 can_apply_after_sale 字段控制
+```
+
+Context Builder 还可能拿到一份两年前的历史评审。应用必须决定：
+
+- 当前 PRD 是任务主体。
+- 三份现行规则可以作为证据。
+- 旧评审只能作为历史参考，不能成为 Citation。
+- 超出预算时优先保留接口约束和状态规则。
+
+这一步改变的是模型本轮可以依据什么。
+
+### 第三步：Schema 定义程序接受什么
+
+模型不能只返回“建议关注状态判断”。应用需要的结果可能是：
+
+```text
+ReviewReport
+  summary
+  risks[]
+    category
+    severity
+    description
+    suggestion
+    source_ids[]
+  missing_information[]
+```
+
+Schema 会拒绝缺少必填字段、严重程度枚举非法或根对象错误的结果。
+
+### 第四步：本地校验判断内容能否继续流转
+
+即使模型返回：
+
+```json
+{
+  "risks": [
+    {
+      "category": "api",
+      "severity": "high",
+      "description": "接口需要 user_id",
+      "suggestion": "补充 user_id",
+      "source_ids": ["API-AFTER-SALE-V3"]
+    }
+  ]
+}
+```
+
+这段 JSON 可能通过基础 Schema，却仍然不能进入评审报告：
+
+- 当前资料写的是 `order_id` 和 `item_id`，没有 `user_id`。
+- 本次候选来源中不存在 `API-AFTER-SALE-V3`。
+- 模型把不存在的事实包装成了结构正确的结果。
+
+因此还需要业务校验：
+
+```text
+source_ids 是否属于本轮 citation candidates
+→ 风险描述中的关键事实能否在证据中找到
+→ 证据不足时是否应该降级为待确认问题
+```
+
+这条完整链路说明了四层契约的分工：
+
+```text
+Prompt 收敛任务
+→ Context 收敛依据
+→ Schema 收敛形状
+→ 本地校验收敛业务可接受性
+```
 
 ## Prompt：任务协议
 

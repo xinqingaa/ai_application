@@ -21,7 +21,7 @@ V0–V6 是唯一项目里程碑。完整定义见 [docs/strategy.md](docs/strat
 
 ```text
 当前项目版本提出问题
-→ 按需阅读概念篇与机制篇
+→ 按需阅读概念篇与机制篇                                             
 → 通过真实实验观察机制
 → 将能力组合进项目
 → 主动制造失败并定位
@@ -60,7 +60,7 @@ V0–V6 是唯一项目里程碑。完整定义见 [docs/strategy.md](docs/strat
 项目相关目录不是重复实现：
 
 ```text
-course/project/       项目篇教材：为什么做、学什么、怎样判断和验收
+course/project/       项目篇教材：组合任务、设计选择、失败题和版本验收
 review_assistant/     产品真源：安装、运行、测试、API 和部署
 ```
 
@@ -71,8 +71,8 @@ review_assistant/     产品真源：安装、运行、测试、API 和部署
 1. [docs/strategy.md](docs/strategy.md)：目标、阶段和 V0–V6。
 2. [docs/learning-guide.md](docs/learning-guide.md)：学习、文档、代码和运行规则。
 3. [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md)：怎样判断真正掌握。
-4. `course/` 的当前项目篇及其链接的概念篇、机制篇。
-5. 对应 package README 和产品 README。
+4. [course/README.md](course/README.md)：从概念、机制和小实验开始的当前正向学习路线。
+5. 完成核心前置后进入当前项目篇，再阅读对应 package README 和产品 README。
 
 AI Agent 协作规则见 [AGENTS.md](AGENTS.md) 和 [docs/agent-skill.md](docs/agent-skill.md)。
 
@@ -85,13 +85,3 @@ LLM、RAG、Agent 和 Eval 的学习主路径使用真实模型或真实外部�
 - Mock 仅用于单元测试、离线排查、稳定失败复现或明确标注的对照实验。
 - Mock 结果不能作为真实模型质量或项目效果的主要证据。
 
-## 依赖管理
-
-全仓库统一使用 uv：
-
-```bash
-uv sync
-uv run ...
-```
-
-依赖只维护在根 `pyproject.toml` 和 `uv.lock`。密钥与外部服务配置使用 `.env` / `.env.example`，不提交真实密钥。

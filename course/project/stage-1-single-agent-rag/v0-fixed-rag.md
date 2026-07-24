@@ -1,5 +1,7 @@
 # V0：固定 RAG 需求评审基线
 
+> 阅读位置：这是 V0 的综合实践与验收文档，不是课程第一篇。请先按 [课程入口](../../README.md) 完成模型契约、真实调用、结构化输出以及 RAG 核心机制的学习和小实验；如果下面的术语仍然陌生，先回到正向学习路线。
+
 V0 是需求评审助手的第一个可运行产品版本。
 
 它不是“上传文件后聊天”的 Demo，也不是单纯比较几个模型调用脚本。V0 要回答一个具体问题：
@@ -101,18 +103,20 @@ V0 的核心不是追求高级检索，而是让每一层都可以观察和替�
 
 V0 可以展示来源候选，但不把“模型写出了来源编号”视为已经完成 Citation 校验。严格 Citation、Refusal 和证据充分性进入 V1。
 
-## 必须掌握的知识
+## 进入项目之前
 
-先在 [集中知识清单](../../knowledge-map.md) 查看：
+V0 不从头教授下面这些知识。开始综合实现前，应当已经能够：
 
-- LLM：`K-LLM-01`–`K-LLM-09`
-- RAG：`K-RAG-01`–`K-RAG-11`
-- Eval：`K-EVAL-01`、`K-EVAL-02`、`K-EVAL-07`、`K-EVAL-12`
-- AI Native：`K-UX-01`–`K-UX-03`、`K-UX-09`
-- 工程主线：`K-ENG-01`–`K-ENG-03`
-- 工程支撑：`K-ENG-04`
+- 解释 [LLM 在 AI 应用中的位置与边界](../../concepts/llm-in-ai-applications.md)，知道固定 RAG 为什么仍然需要真实模型调用。
+- 使用 [Prompt、Context 与 Schema 的模型契约](../../concepts/model-input-output-contracts.md)描述一次评审调用的任务、证据和结果边界。
+- 通过 [模型 API、Provider 与统一调用入口](../../mechanisms/llm/model-api-and-provider.md)运行真实模型。
+- 使用 [面向应用的 Prompt Engineering](../../mechanisms/llm/prompt-engineering.md)和 [Structured Output 与本地校验](../../mechanisms/llm/structured-output.md)生成可被程序消费的风险结果。
+- 解释文档为什么要经过加载、清洗、Chunk、Metadata、Embedding、索引和 Retrieval，能够观察每一步的输入输出。
+- 说明 Retriever 产生候选证据，Context Builder 决定哪些证据真正进入模型，两者不是同一机制。
+- 区分检索失败、上下文失败、模型调用失败和结构化校验失败。
+- 使用固定样例记录检索命中、风险覆盖、无依据结论、Token 和延迟。
 
-不是所有支撑知识都要在编码前一次读完。先读能解释当前设计选择和失败位置的部分，再通过项目反馈补齐。
+具体正向顺序只在 [课程入口](../../README.md) 维护；完整知识范围可在 [知识地图](../../knowledge-map.md) 查询。支撑知识不要求一次读完，遇到真实问题时再进入。
 
 ## 关键设计选择
 
@@ -186,7 +190,7 @@ V0 的步骤是已知的：
 - 调用 `llm_core` 和 `rag_core`。
 - 产品 README 中的安装、配置、运行和排错。
 
-项目篇不复制产品运行手册。
+产品的真实运行入口和命令由 [review_assistant README](../../../review_assistant/README.md) 维护，项目篇不复制产品运行手册。
 
 ## 数据流、状态流与异常流
 

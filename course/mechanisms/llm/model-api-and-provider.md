@@ -1,44 +1,36 @@
 # Model API、调用生命周期与 Provider 抽象
 
 > 机制篇：观察一次真实模型调用如何从业务配置进入 Provider、返回统一响应并暴露供应商差异。
+>
+> 阅读前提：[模型输入输出契约](../../concepts/model-input-output-contracts.md)。本文负责把真实模型调用收敛成统一入口；跑通实验后继续 [Prompt Engineering](prompt-engineering.md)。
 
 ---
 
 ## 为什么业务代码不能直接绑定 SDK
 
-LLM 应用问题空间 建立了问题空间：需求评审助手需要稳定的 LLM 层。本篇回答：**具体怎么接模型，业务代码才不写死** `model="gpt-4o"`，以及一次 Chat 调用在工程上到底经过哪些环节。
+需求评审助手最早可以这样调用模型：
 
-### 学习者真实问题
+```python
+client = OpenAI(api_key=...)
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages,
+)
+```
 
-- **调 API 到底在调什么？** 是你的 Python 程序向云端发一次 HTTP 请求，云端模型根据 `messages` 生成文本；不是在本机跑模型文件。
-- **Token 是什么？** 文本切成词元后的计数单位；`usage.prompt_tokens` / `completion_tokens` 决定成本，也反映上下文有多长。
-- **OpenAI 兼容是什么意思？** 很多平台（含 DeepSeek）提供与 OpenAI Chat API **相同 JSON 格式**的接口；换 `base_url` + Key 即可，不必重写业务逻辑。
-- **Embedding 和 Chat 不都是「模型」吗？** API 路径、输入输出完全不同；Chat 生成文本，Embedding 生成向量；配置必须分开（RAG 课再用 embedding）。
+它足够证明 API 能通，却把五类变化绑进业务代码：密钥、endpoint、模型名、默认参数和供应商响应对象。摘要、风险评审和追问各复制一次后，只要其中一个模块漏改配置，同一份 PRD 就可能由不同模型处理，而且日志无法解释差异。
 
-### 产品真实问题
+本文要建立的不是“多包一层 SDK”，而是一条可验证边界：
 
-继续小周团队的售后 PRD 场景。SDK 最小调用 用 `first_chat.py` 直连 OpenAI SDK 已经能打出风险预览，团队很高兴。两周后要做三件事：
+```text
+业务声明 messages  config_ref
+→ 配置层解析模型角色和参数
+→ Provider 适配真实供应商请求
+→ 调用层统一响应与错误
+→ 上层只消费 LLMResponse
+```
 
-1. **开发用便宜模型、演示用强模型**——若 `model="gpt-4o"` 写死在业务里，每个脚本都要改。
-2. **接入 DeepSeek 降本**——若 Key、`base_url` 散落在五个文件里，换一次供应商要全库搜索。
-3. **前端要展示每次调用的 model、耗时、token**——若有的模块返回 SDK 原始对象、有的只返回字符串，日志和 eval 无法汇总。
-
-某次上线前，后端在风险审查、摘要、追问三个模块里各写了一份 `OpenAI(api_key=...)`，模型名还不一致。运维把 `.env` 里的 `OPENAI_MODEL` 改成 `deepseek-chat` 后，只有两个模块生效，第三个仍打旧 endpoint，评审会上出现「同一 PRD、两份结论、模型还不同」的尴尬。
-
-产品需要的是：**业务只声明「用哪类任务配置」**（如 `chat.dev_chat`），模型名、供应商、默认参数集中在仓库里的配置真源；每次调用返回统一结构，便于对比和记账。
-
-### 工程真实问题
-
-| 问题 | 典型表现 | 本节方向 |
-| --- | --- | --- |
-| 直接依赖 SDK 原始对象 | 日志字段不一致，eval 难汇总 | 统一 `LLMResponse` |
-| 写死 model 字符串 | 换阶段 / 换供应商改多处 | `config_ref` + `models.yaml` |
-| 假设「兼容 OpenAI = 所有参数都能用」 | structured / tool call 在部分平台失败 | `capabilities` 认知；结构化输出 起实测 |
-| 错误全部 `except Exception` | 429 与 Key 错误混在一起 | `LLMError` + `LLMErrorCode` 分类 |
-
-本篇在 `llm_core` 建立 **`LLMClient` + `models.yaml` + `LLMResponse`**，把调用与可观测收敛到一层。SDK 最小调用 的 `02_llm_basics` 保留作 SDK 直调对照，本篇是项目内的标准入口。
-
----
+后面的实现都围绕一个判断：供应商变化能否被调用层吸收，业务任务是否保持不变。
 
 ## 一次模型调用的完整生命周期
 
@@ -47,7 +39,7 @@ LLM 应用问题空间 建立了问题空间：需求评审助手需要稳定的
 **输入**：`messages`（`system` / `user` / `assistant` 角色文本）+ 模型参数（`temperature`、`max_tokens` 等）+ 选哪条模型配置（`config_ref`）。  
 **输出**：`LLMResponse`——至少包含 `content`、`usage`、`latency_ms`、`model`、`config_ref`；`raw_response` 仅供调试。
 
-与 SDK 最小调用 SDK 直调的区别：SDK 最小调用 证明「能通」；Provider 调用层 证明「能换、能记、能统一」。
+与 SDK 直调的区别是：直调只证明「能通」；Provider 调用层还要证明「能换、能记录、能统一」。
 
 这里要先建立一个很重要的心智模型：**模型 API 调用不是业务逻辑本身，而是业务逻辑依赖的一层外部能力**。需求评审助手真正关心的是「这份 PRD 有哪些研发风险」「依据是什么」「能不能进入前端卡片和后续评估」，而不是某个页面、某个 Agent、某个 RAG 链路各自知道 OpenAI SDK 的初始化方式。
 
@@ -427,6 +419,18 @@ uv run python provider_switching.py
 
 ---
 
+## 亲手改变一次模型配置边界
+
+不要只运行现有 demo。完成一次受控修改：
+
+1. 在 `models.yaml` 增加一个表达业务用途的新配置，例如风险评审实验配置，不把供应商名写进 `config_ref`。
+2. 让它通过环境变量选择真实模型，保持业务调用只使用 `config_ref`。
+3. 用同一条 S2 样例分别调用原配置和新配置。
+4. 记录最终 `model`、`provider`、`usage`、`latency_ms` 和错误类型。
+5. 临时把 Embedding 配置传给 `LLMClient.chat`，确认角色守卫在请求发出前失败。
+
+完成后要能解释：哪些变化只修改配置，哪些供应商差异必须修改 Provider，哪些变化不应该传播到业务代码。
+
 ## 怎样判断调用层已经可复用
 
 - **能解释**：一次 Chat 的输入（messages、config_ref、参数）与输出（`LLMResponse` 各字段）。
@@ -467,6 +471,6 @@ uv run python provider_switching.py --verbose
 
 ## 继续学习
 
-- 相关前置：[00_llm_problem_space.md](../../concepts/llm-in-ai-applications.md)
+- 相关前置：[LLM 在 AI 应用中的位置与边界](../../concepts/llm-in-ai-applications.md)
 - 继续阅读：[prompt-engineering.md](prompt-engineering.md)
 - 集中知识地图：[集中知识地图](../../knowledge-map.md)

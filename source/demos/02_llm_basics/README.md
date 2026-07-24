@@ -62,7 +62,7 @@ uv run python first_chat.py --temperature 0.7
 
 ## 样例集
 
-[`samples.json`](samples.json) 对应 [LLM 概念篇的最小调用样例集](../../../course/concepts/llm-in-ai-applications.md#最小调用样例集建议先收-5-条)（S1–S5），供调用 Harness 复用。
+[`samples.json`](samples.json) 使用需求评审场景的 S1–S5 样例，供 [LLM 概念篇](../../../course/concepts/llm-in-ai-applications.md)、真实调用实验和 Calling Harness 复用。
 
 ## 相关
 

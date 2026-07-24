@@ -1,81 +1,34 @@
 # LLM Calling Harness 与最小回归
 
 > 机制篇：解释如何用固定业务样例和调用记录，让 Prompt、模型、Schema、Context 与可靠性改动可以重复比较。
+>
+> 阅读前提：[Prompt Engineering](prompt-engineering.md)、[Structured Output](structured-output.md)和 [可靠调用](reliability-and-errors.md)。先用本文固定直接 LLM 基线；固定 RAG 链路跑通后，再用同一套 Case 和记录方式比较检索带来的变化。
 
 ---
 
 ## 为什么单次成功无法支持持续迭代
 
-前面几节已经把一次 LLM 调用拆成了比较完整的应用链路：Provider 调用层 负责 provider 和 `config_ref`，Prompt 工程 负责 Prompt 版本，结构化输出 负责结构化输出，上下文工程 负责上下文装配，可靠调用 负责错误、重试和降级。到这里，需求评审助手不再是“发一段文本给模型，看它回什么”的小脚本。
-
-但新的问题马上出现：你开始频繁改东西，却不知道改动有没有让系统退化。
-
-比如你把 `risk_review_v3` 改成 `v4`，默认售后入口样例看起来更清楚，但优惠叠加样例开始漏掉金额边界；你把 `structured_mode` 从 `json_object` 改成 `json_schema`，某个供应商直接报能力不兼容；你把 context budget 调小，token 降了，但关键接口证据没有进入 Prompt；你把主模型换成 fallback，终端仍显示 success，但 `degraded=True` 说明这不是普通成功；你为了让输出更像 JSON 改了 Prompt，parse 成功率上去了，但风险内容变得空泛。
-
-如果每次都只手动跑一个 demo，看一段模型输出，然后凭感觉说“这版不错”，你就没有真正进入工程化。真实 AI 应用的迭代，需要一个最小实验闭环：
+单独运行一次 Prompt 并觉得结果不错，不能说明改动有效。要比较两个版本，至少必须固定：
 
 ```text
-固定业务样例
-→ 固定运行配置
-→ 批量调用
-→ 记录每条调用事实
-→ 汇总工程健康信号
-→ 再决定是否进入更完整的 eval
+同一批业务 Case
+同一模型配置
+同一温度
+同一 Schema
+同一 Context
 ```
 
-这就是本节的 Calling Harness。
-
-### 学习者真实问题
-
-如果你有前端、Flutter 或客户端经验，可以把 harness 类比成“组件样例集 + 回归检查”。你不会只打开一个页面点一次按钮，就判断某个复杂组件没有问题。你会准备：空数据、长文本、异常状态、权限不足、弱网重试、深色模式、不同屏幕尺寸。每次改组件，都用同一批输入再看一遍。
-
-LLM 调用也一样。区别在于，LLM 输出不是固定字符串，不能简单断言“必须等于某段文本”。所以 调用 Harness 先不做完整评分，而是先记录调用事实：
-
-- 这次跑了哪条业务 case。
-- 本次变量是什么：模型、Prompt、structured mode、temperature、retry / fallback 策略。
-- 结果是成功、调用失败，还是结构化解析失败。
-- 成功是不是 retry 后成功，或 fallback 后成功。
-- token、latency、error code、parse 状态是什么。
-
-这些事实本身不等于质量结论，但没有它们，后续任何“评估”“观测”“bad case 回流”都会变成空话。
-
-### 产品真实问题
-
-需求评审助手至少需要几类稳定业务样例：
-
-- 售后入口：重点看订单状态、售后接口、入口展示条件、三端一致性。
-- 优惠叠加：重点看金额计算、优先级、券状态和边界规则。
-- 发票改造：重点看历史记录复用、权限、异常输入和数据一致性。
-- 材料不足：重点看系统是否追问，而不是编造评审结论。
-
-如果你只跑售后入口，系统很容易“看起来会评审”。但项目真正需要的是一批样例一起跑完后的事实：
+然后把每次调用留下的事实放进同一种 Record：
 
 ```text
-本次 run：
-- 12 条 case 中 10 条调用成功；
-- 9 条结构化解析成功；
-- 2 条发生 fallback；
-- 1 条 schema_parse；
-- 平均耗时比上次高；
-- 失败集中在“材料不足”和“优惠叠加”。
+Case + Run Config
+→ Reliable Call
+→ HarnessRunRecord
+→ HarnessSummary
+→ 两次 Run 对比
 ```
 
-这还不是完整 eval，因为它没有判断答案是否准确、引用是否正确、追问是否合理。但它已经能告诉你：这次改动有没有明显工程退化，哪些 case 值得进一步人工查看。
-
-### 工程真实问题
-
-工程上，Calling Harness 不是“多跑几个脚本”，而是把一次调用拆成四个稳定对象：
-
-| 对象 | 解决的问题 | 为什么需要 |
-| --- | --- | --- |
-| Case | 固定业务输入是什么 | 没有稳定 case，就无法回归 |
-| Run Config | 本次实验变量是什么 | 不记录变量，就无法解释差异 |
-| Record | 每条 case 的调用事实是什么 | 不记录事实，就无法复盘失败 |
-| Summary | 一批 case 的整体信号是什么 | 不汇总，就只能逐条肉眼看 |
-
-本节的重点是把这四个对象沉淀进 `llm_core.harness`。demo 只是观察入口，不承载核心逻辑。
-
----
+Harness 不替结果质量打分。它先保证实验变量、调用事实和失败信息没有散失，让后续人工评审或 Eval 能回答“究竟改了什么、结果为什么不同”。
 
 ## Harness 如何控制变量并留下事实
 
@@ -161,7 +114,7 @@ Record 不负责判断“答案好不好”。它负责让你知道“发生了�
 - 平均耗时。
 - 错误分布。
 
-它的作用是快速提醒“这次 run 是否值得继续看”。如果 parse 成功率突然下降，说明 Prompt、schema 或模型能力可能出问题；如果 degraded 数量突然上升，说明主模型或网络路径可能不稳定；如果平均耗时上升，成本治理 要继续看 token 和 latency。
+它的作用是快速提醒“这次 run 是否值得继续看”。如果 parse 成功率突然下降，说明 Prompt、Schema 或模型能力可能出问题；如果 degraded 数量突然上升，说明主模型或网络路径可能不稳定；如果平均耗时上升，就要继续检查 token、重试次数和 latency。
 
 但 summary 仍然不是质量评分。它只能告诉你“工程表现是否异常”，不能告诉你“风险识别是否准确”。
 
@@ -227,7 +180,7 @@ class HarnessRunConfig:
 
 ### 为什么 record 要接住 reliability report
 
-[`harness/runner.py`](../../../source/packages/llm_core/harness/runner.py) 没有直接调用 provider，而是复用 可靠调用 的 `ReliableLLMService`：
+[`harness/runner.py`](../../../source/packages/llm_core/harness/runner.py) 没有直接调用 Provider，而是复用可靠调用层的 `ReliableLLMService`：
 
 ```python
 records, summary = LLMCallingHarness(service).run_cases(
@@ -383,6 +336,16 @@ errors: schema_parse=1
 最后再看 `[detail]`。detail 只是内容预览，不是最终评估结论。调用 Harness 的阅读顺序必须是：先看 record 和 summary，再看文本内容。
 
 ---
+
+## 亲手建立一次可比较回归
+
+增加一条“证据不足时应提出待确认问题”的业务 Case，然后执行两轮 Run：
+
+1. 两轮使用相同 Case 集、模型、温度、Schema 和 Context。
+2. 第一轮使用原 Prompt，第二轮只切换 Prompt 版本。
+3. 比较 parse、degraded、attempts、Token 和 latency。
+4. 人工标注是否仍产生无依据风险。
+5. 写出结论时区分调用事实和质量判断，不用 parse 成功率代替答案质量。
 
 ## 怎样判断已经建立回归能力
 

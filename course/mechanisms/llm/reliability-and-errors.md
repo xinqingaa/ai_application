@@ -1,80 +1,28 @@
 # Reliability、错误分类与可见降级
 
 > 机制篇：解释模型调用失败如何被分类、有限重试、显式降级，并保留完整 attempt 记录。
+>
+> 阅读前提：[模型 API 与 Provider](model-api-and-provider.md)和 [Structured Output](structured-output.md)。本文不要求先学完 RAG；它先建立真实调用的失败边界，后续由 Context、RAG Pipeline 和 Calling Harness 共同复用。
 
 ---
 
 ## 为什么一次失败不能统一重试
 
-上下文工程 的 `Context Builder` 让需求评审助手可以把 PRD、业务规则、接口文档和客户端说明装配成可追溯的 Prompt。你已经能看到哪些 source 进了上下文，哪些被丢弃，哪些可以作为 citation。到这一步，很容易产生一种错觉：只要上下文构造正确，模型调用就应该稳定产出结构化结果。
-
-真实项目不会这么听话。一次评审请求可能在任何位置失败：网络抖动导致超时，供应商限流，API key 配错，模型不支持 `json_schema`，响应被截断，返回了自然语言而不是 JSON，Pydantic 解析失败，或者主模型不可用但 fallback 模型还能回答。更麻烦的是，这些失败不能用同一种处理方式。超时可以有限重试；鉴权失败不应该重试；结构化解析失败可能需要换 `structured_mode` 或换模型；高风险评审如果降级到能力更弱的模型，应该让后续 trace 和人工审核知道，而不是伪装成一次普通成功。
-
-本节要解决的不是“怎么让模型永不失败”。LLM 应用里没有这个保证。真正可交付的目标是：**失败要被分类，重试要有边界，降级要可见，最终结果要能解释是正常成功、重试后成功、降级成功，还是失败退出**。
-
-### 学习者真实问题
-
-如果你有前端 / Flutter / 客户端经验，可以把这节类比成复杂接口调用的错误处理。一个支付接口失败时，你不会简单写成：
+同一次结构化评审可能经历：
 
 ```text
-try request
-catch error
-retry forever
+第一次请求超时
+→ 判断 timeout 是否允许重试
+→ 第二次请求仍失败
+→ 判断是否允许切换 fallback
+→ fallback 返回文本
+→ Structured Output 校验
+→ 结果可用，但标记 degraded
 ```
 
-你会区分网络失败、参数错误、鉴权失败、余额不足、业务拒绝、服务不可用。网络失败可以提示重试；参数错误应该改代码；业务拒绝要展示明确原因；服务不可用可以降级或稍后再试。AI 应用也是一样，只是失败类型更多，而且有一类新问题：**请求成功了，但模型内容不能被应用使用**。
+这条链中任何一步都不能被一个通用 retry 装饰器替代。鉴权失败不应重试，Schema 失败在 Prompt 和输入没有变化时盲目重试意义很小，fallback 成功也不能伪装成普通成功。
 
-例如 `chat_structured()` 收到 HTTP 200，不代表应用成功。如果模型返回：
-
-```text
-这个需求主要有三类风险：接口参数、状态机、三端一致性。
-```
-
-这段话对人有意义，但如果本节任务要求 `ReviewRiskList`，它就是结构化失败。前端无法稳定渲染风险卡片，评估无法统计字段完整率，Workflow 也不知道下一步怎么走。所以本节要训练的判断是：应用成功不等于 HTTP 成功；模型输出可读不等于业务可用；失败处理要围绕应用契约，而不是只围绕 SDK 异常。
-
-### 产品真实问题
-
-继续看售后入口评审。用户提交 PRD 后，系统构造了 `evidence_first` 上下文：订单状态机、售后接口 v2、客户端接入说明都进入 Prompt。第一次调用主模型时超时了。如果系统直接失败，用户会看到“评审失败”，但其实第二次请求可能就能成功；如果系统无限重试，用户会等很久，成本也会放大；如果系统偷偷切到便宜模型并输出结果，评审负责人后续又无法判断这份结论是否经过同等能力模型处理。
-
-再看另一个场景：主模型返回了一段自然语言总结，没有返回 JSON。对普通聊天来说这算回答成功；对需求评审助手来说，这无法进入风险列表组件。此时系统应该把它归类为 `schema_parse` 或 `empty_response`，记录原始输出与解析失败阶段，然后决定是否重试、切换 fallback、或者失败可见。
-
-产品真正需要的是这样的反馈：
-
-```text
-本次评审：
-1. 第一次调用 chat.dev_chat 超时；
-2. 第二次调用 chat.dev_chat 成功；
-3. 没有发生模型降级；
-4. 最终输出可解析为结构化风险列表。
-```
-
-或者：
-
-```text
-本次评审：
-1. 主模型两次超时；
-2. fallback 模型成功返回；
-3. 结果标记为 degraded；
-4. 后续报告页和 trace 中保留降级标记。
-```
-
-这比一句“成功 / 失败”更有价值，因为它让用户和开发者都知道系统到底经历了什么。
-
-### 工程真实问题
-
-工程上，Reliability 至少要拆成五层：
-
-| 层 | 解决什么 | 本节落点 |
-| --- | --- | --- |
-| 错误分类 | 不同失败不能同样处理 | `LLMErrorCode` |
-| 重试策略 | 哪些错误可重试、最多几次 | `RetryPolicy` |
-| 降级策略 | 主模型失败后能否换 fallback | `DegradationPolicy` |
-| 结果校验 | HTTP 成功后内容是否可用 | `chat_structured` parse validation |
-| 尝试报告 | 每次 attempt 如何被诊断 | `ReliableCallReport` |
-
-这五层共同构成一个可靠调用外壳。它不替代 `LLMClient`，而是包在 `LLMClient` 外面：基础 client 负责“按配置调一次模型”；可靠性层负责“这次失败了怎么办，以及过程如何记录”。
-
----
+本文把一次可靠调用拆成错误分类、Retry Policy、Degradation Policy、结果校验和 Attempt Report。目标不是“尽量返回答案”，而是让成功、降级成功和最终失败都可解释。
 
 ## 分类、重试、降级与报告
 
@@ -89,14 +37,14 @@ Reliability 也没有唯一标准答案。真实生产系统可能使用 SDK 内
 | **项目取舍** | 本节只做同步调用级 retry / fallback，不引入队列、熔断器和分布式任务状态 |
 | **非目标** | 不做完整生产级限流；不做 Prompt Injection 安全体系；不做成本统计和 trace 平台 |
 
-你可以把本节看成 调用 Harness harness、成本治理 cost latency、后续 eval observability 的前置层。没有可靠调用报告，后续就很难判断一次失败是模型能力问题、网络问题、schema 问题，还是 fallback 后质量下降。
+你可以把本节看成 Calling Harness、成本与延迟治理、后续 Eval 与可观测性的前置层。没有可靠调用报告，后续就很难判断一次失败是模型能力问题、网络问题、Schema 问题，还是 fallback 后质量下降。
 
 ### 先用一个小例子抓住主线
 
 假设系统要调用主模型生成结构化风险列表：
 
 ```text
-输入：已经由 上下文工程 构造好的 messages
+输入：已经由 Context Builder 构造好的 messages
 目标：返回 ReviewRiskList
 主模型：chat.dev_chat
 fallback：chat.fallback_chat
@@ -286,7 +234,7 @@ parse.error_stage == "json"   -> schema_parse
 parse.error_stage == "schema" -> schema_parse
 ```
 
-这样 结构化输出 的 `parse_risk_list` 不只是本地校验工具，也能进入 可靠调用 的 retry / fallback / report 链路。
+这样，Structured Output 中的 `parse_risk_list` 不只是本地校验工具，也能进入可靠调用的 retry / fallback / report 链路。
 
 ### 4. Demo 默认真实调用，模拟只做失败复现
 
@@ -517,6 +465,18 @@ DEFAULT_CASE = "primary_timeout_then_fallback"
 
 ---
 
+## 亲手增加一种失败策略
+
+新增一个“供应商明确不支持当前能力”的失败样例：
+
+1. 把它映射为独立且不可重试的错误类型。
+2. 断言该错误只产生一次 attempt。
+3. 分别配置“禁止 fallback”和“允许切到具备该能力的 fallback”。
+4. 检查最终结果中的 success、degraded、final config 和 attempts。
+5. 说明为什么不能把能力不支持当作普通 API 异常无限重试。
+
+真实模型仍是主路径；本地 fake 只用于稳定复现这一条控制流。
+
 ## 怎样判断失败已可观察、可控制
 
 - 能解释 `timeout`、`rate_limit`、`auth`、`schema_parse` 为什么不能用同一种处理方式。
@@ -547,7 +507,7 @@ uv run python source/demos/02_call_ops_lab/reliability_compare.py
 2. 为什么 HTTP 请求成功，但 `parse.ok=False` 时仍应算调用失败？
 3. fallback 成功后，为什么还要保留 `degraded=True`？
 4. 如果某次评审成本突然升高，你会如何从 `ReliableCallReport.attempts` 开始排查？
-5. 如果模型输出缺少 citation，你会先查 上下文工程 的 context report，还是 可靠调用 的 reliability report？为什么？
+5. 如果模型输出缺少 citation，你会先查 Context Report，还是 Reliability Report？为什么？
 6. 为什么本节不把 retry 逻辑直接写进 `LLMClient.chat()`？
 
 ---

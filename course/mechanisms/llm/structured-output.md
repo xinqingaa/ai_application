@@ -1,57 +1,35 @@
 # Structured Output 与应用侧校验
 
 > 机制篇：解释为什么“像 JSON”还不够，以及生成约束、JSON 解析、Schema 校验和业务消费如何形成可信输出链路。
+>
+> 阅读前提：[Prompt Engineering](prompt-engineering.md)。本文把模型文本变成可接受或拒绝的业务对象；读完后先学习 [可靠调用](reliability-and-errors.md)，当外部知识候选出现后再进入 [Context Engineering](context-engineering.md)。
 
 ---
 
 ## 为什么“请输出 JSON”不是数据契约
 
-Prompt 工程 已经把 Prompt 从随手写的提示收敛成 `prompt_id + version + YAML`。风险审查 Prompt v3 也开始用文字要求模型输出 JSON。到这里会自然遇到一个新问题：**Prompt 说“请输出 JSON”，并不等于应用真的拿到了可用数据**。
+假设模型返回下面这段内容：
 
-Structured Outputs 不是某个 API 参数的别名，也不是为了让终端打印漂亮 JSON。它要解决的是：**模型生成的内容如何进入前端、数据库、评估和后续 Workflow，而不是停留在聊天文本里**。
-
-### 学习者真实问题
-
-如果你主要来自前端 / Flutter / 客户端开发，最容易把 Structured Outputs 理解成「让模型返回 JSON」。这只说对了一半。真实应用里更关键的是：
-
-- JSON 语法对了，字段名和枚举值是否也对？
-- 字段缺失时，程序怎么知道失败发生在 JSON 解析还是业务字段校验？
-- 前端要渲染卡片、列表和状态标签时，拿到的是一段字符串，还是已经校验过的结构？
-- `response_format`、JSON Mode、Pydantic 分别解决哪一层问题？
-
-本节要建立的直觉是：**Structured Outputs 的核心不是 JSON，而是契约**。JSON 只是载体；字段名、类型、枚举、失败阶段和应用侧校验，才是 AI 应用能继续往下走的关键。
-
-### 产品真实问题
-
-产品同学小周提交 S2 样例 PRD：订单详情页新增「申请售后」按钮，需对接售后接口 v2。评审助手在 Prompt 工程 已经能列出风险，评审负责人希望在会前看到**可筛选、可对比、可入库**的风险卡片，而不是每次复制一大段 Markdown 到会议纪要里。
-
-第一次联调时，后端把模型返回的 `assistant` 全文存进数据库，前端直接 `JSON.parse`。某次模型返回：
-
-```json
+```text
+以下是结果：
 [
-  {"风险类别": "接口", "风险等级": "较高", "说明": "售后 v2 兼容性未在 PRD 中说明"}
+  {"category": "api", "severity": "严重", "description": "..."}
 ]
 ```
 
-聊天窗口里「看起来能用」，但产品很快发现问题：前端枚举只认 `high / medium / low`，筛选器绑的是 `category` 不是「风险类别」；第二次跑同一 PRD，模型改成根对象包 `risks`，字段名又换成英文但 `category` 写成「交互」。会议里无法对比「这次比上次多发现了什么」，评估脚本也无法统计「枚举非法占比」。
+人可以看懂，程序却至少面临四个问题：前缀让 JSON 解析失败，根对象可能不符，severity 不在业务枚举中，字段内容也可能没有证据。
 
-这些不是「模型不够聪明」，而是**没有把输出当作程序接口来设计**。应用需要一份稳定的**数据契约**：字段名、类型、枚举、根形态在发请求前就定好，返回后必须经过校验，失败时要能判断错在哪一层，而不是把原始字符串伪装成成功。
+因此“输出 JSON”不是一个开关，而是一条分层链路：
 
-### 工程真实问题
+```text
+Prompt 描述输出意图
+→ 供应商生成约束尽量限制形状
+→ JSON parser 判断语法
+→ Pydantic 判断字段和类型
+→ 业务校验判断来源与规则
+```
 
-从工程上看，输出结构化至少分三层，不能混在一起：
-
-| 层级 | 典型问题 | 当节由谁解决 |
-| --- | --- | --- |
-| 格式层 | 不是 JSON、被 Markdown 围栏包住、被截断 | Prompt + JSON Mode + `extract_json_text` / `json.loads` |
-| 契约层 | 字段名漂移、缺字段、枚举非法 | Schema + Pydantic `model_validate` |
-| 能力层 | 供应商不支持 `json_schema` | Provider 能力识别 + 降级 `structured_mode` |
-
-因此本节要同时观察：请求里有没有 `response_format`、模型是否返回可解析 JSON、是否通过 Pydantic、失败发生在 API、JSON 解析还是 Schema 校验。
-
-本节最小落点选「风险列表」`ReviewRisk` / `ReviewRiskList`，因为足够小、贴近需求评审助手，又能覆盖字段、枚举、引用与 `error_stage`。完整 `ReviewReport`、citation 真伪校验、自动重试与 harness 统计本节不展开（见文末边界与 defer）。
-
----
+本文沿这条链实现，并要求每次失败都保留发生阶段。应用不能把 HTTP 200 或 JSON 可解析直接当作业务成功。
 
 ## 从概率文本到分层校验
 
@@ -74,7 +52,7 @@ Structured Outputs 也没有唯一标准答案。不同模型、SDK、业务对�
 **输入**：`messages`（含 Prompt 渲染后的任务与材料）+ 可选 `response_format` + 模型参数。  
 **输出（应用可信部分）**：经 Pydantic 校验后的 `list[ReviewRisk]`，或带 `error_stage` 的解析失败结果——**不是**原始的 `assistant` 字符串。
 
-与 Prompt 工程 的区别：Prompt 工程 用 Prompt **描述**希望输出的形状；结构化输出 用 Schema **定义**契约，用解析器 **强制执行**，并可选把 Schema 前移到 API 生成阶段。
+与 Prompt Engineering 的区别是：Prompt 用来**描述**希望输出的形态；Schema 用来**定义**应用契约，解析器负责**强制执行**，必要时还可以把 Schema 前移到 API 的生成约束阶段。
 
 这里最容易误解的是：Structured Output 不是“让模型听话地返回 JSON”。如果只停在 JSON 语法层，前端仍然可能拿到中文字段、错误枚举、缺失字段或根结构漂移。真正的结构化输出要回答三个问题：
 
@@ -206,7 +184,7 @@ UI、数据库、Workflow 只读校验后的结构；`assistant` 原文仅用于
 
 这份契约刻意不追求复杂。初学结构化输出时，最重要的是把根形态、字段名、枚举和失败分层跑通，而不是一开始设计完整 `ReviewReport`。`ReviewRiskList` 小到足以观察每个失败点，又贴近需求评审助手的真实业务对象。
 
-### 与 Prompt 工程 的分工
+### 与 Prompt Engineering 的分工
 
 | | Prompt 工程 | 结构化输出 |
 | --- | --- | --- |
@@ -388,7 +366,7 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 - **表现**：`parse.ok` 为真，但 `rationale` 胡编、citation 指向不存在材料。
 - **原因**：Schema 只保证**形状**，不保证**内容真伪**。
-- **当节判断**：记录 bad case；引用是否存在由 RAG 校验；质量统计由调用 Harness harness 负责。
+- **当节判断**：记录 bad case；引用是否存在由 RAG 链路校验；批量结果由 Calling Harness 留档，质量判断再交给 Eval。
 
 ### 常见误区
 
@@ -455,7 +433,7 @@ uv run python structured_risk.py
 
 无论哪种 mode，有文本就必须过 `parse_risk_list`；仅 `result.parse.ok=True` 时可把 `result.parse.risks` 交给下游。
 
-本节最重要的观察不是「哪种 mode 一定最好」，而是你能否说清失败发生在哪一层：没有返回文本、不是合法 JSON、字段不符合 Schema，还是供应商不支持某个 API 参数。这个判层能力会直接服务 可靠调用 的重试降级和 调用 Harness 的 harness 统计。
+本节最重要的观察不是「哪种 mode 一定最好」，而是你能否说清失败发生在哪一层：没有返回文本、不是合法 JSON、字段不符合 Schema，还是供应商不支持某个 API 参数。这个判层能力会直接服务后续的重试降级与 Calling Harness 统计。
 
 ### 建议观察清单
 
@@ -465,6 +443,18 @@ uv run python structured_risk.py
 - [ ] 校验通过时，`category` / `level` 是否为英文枚举值
 
 ---
+
+## 亲手扩展一次结果契约
+
+给每个风险项增加“影响端”字段，允许 Web、Flutter、服务端或多端：
+
+1. 先为非法枚举和缺失字段补充解析测试。
+2. 修改 Pydantic Schema，而不是只在 Prompt 中要求新字段。
+3. 同步 Prompt 输出意图和 demo 展示。
+4. 分别观察 `prompt_only`、`json_mode` 和 `json_schema`。
+5. 确认旧结果会被明确拒绝、兼容或迁移，不能无声丢字段。
+
+完成后要能指出失败发生在生成约束、JSON 语法、Schema 还是业务消费阶段。
 
 ## 怎样判断输出可以进入业务
 

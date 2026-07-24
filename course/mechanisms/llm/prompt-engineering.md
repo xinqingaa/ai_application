@@ -1,58 +1,34 @@
 # 面向应用的 Prompt Engineering
 
 > 机制篇：解释任务描述如何成为可命名、可版本化、可回归的 Prompt 协议，以及它如何与 Schema 和检索证据分工。
+>
+> 阅读前提：[模型输入输出契约](../../concepts/model-input-output-contracts.md)和 [模型 API 与 Provider](model-api-and-provider.md)。本文先把任务协议稳定下来，再进入 [Structured Output](structured-output.md)建立应用侧结果契约。
 
 ---
 
 ## 为什么随手写 Prompt 无法持续迭代
 
-模型 API 与 Provider 抽象 解决了「用 `config_ref` 调哪台引擎」。但同一引擎上，**你塞给模型的文字不同，输出可以天差地别**。需求评审助手不是单一聊天任务：既要读 PRD、又要找风险、又要追问缺失、最后还要汇总报告——如果所有场景共用一段 system prompt，或把约束散落在业务代码字符串里，产品会很快失控。
+同一个模型、同一份售后 PRD，只改下面两段指令就可能产生完全不同的产品行为：
 
-### 学习者真实问题
+```text
+版本 A：帮我评审这份需求。
 
-- **Prompt 和「多写几句提示」有什么区别？**  
-  Prompt 在本项目里指**可命名、可版本化、可渲染**的任务协议（YAML + 变量），不是某次请求里临时拼的一段字。
+版本 B：只依据 Requirement 和 Evidence，
+从状态、接口、多端一致性和验收标准识别风险；
+证据不足时输出待确认问题，不得补充不存在的接口。
+```
 
-- **system 和 user 里各写什么？**  
-  常见约定：`system` 放角色与长期约束；`user` 放**本次任务**、材料占位（PRD、证据块）、输出要求。要有稳定模板，便于回归对比。
+差异不只是“第二段写得更详细”。版本 B 已经开始定义任务、材料边界、禁止行为和结果意图。若这些内容继续散落在 Python 字符串里，应用无法知道线上使用了哪一版，也无法固定变量比较改动。
 
-- **改了一个词的 Prompt，怎么知道变好还是变坏？**  
-  需要 `prompt_id + version`、固定样例（S2）、固定 `temperature`，对比输出——本节用三版 `review.risk_review` 练这件事；系统化 harness 在调用 Harness。
+本文直接解决三件事：
 
-- **模型输出的 JSON 字段名谁定？**  
-  **Prompt** 描述「希望长什么样」；**Schema（结构化输出机制）** 用 Pydantic 约束字段与枚举。本节 v3 只在 Prompt 里**文字要求** JSON，不做校验。
+```text
+Prompt 如何成为命名任务协议
+→ 变量怎样被渲染成 messages
+→ 版本变化怎样被真实样例比较
+```
 
-### 产品真实问题
-
-继续小周团队的售后 PRD。Provider 调用层 上线后，`provider_switching.py` 里写死了 `SYSTEM_PROMPT` + 把 PRD 塞进 user，评审会上「能出结果」。但第二轮评审很快暴露问题：
-
-评审负责人发现，同一份 S2 PRD，周一和周三各跑一次，风险列表**维度完全不同**——不是模型随机性 alone，而是有人为了「让输出短一点」在代码里删了两句约束，还有人把摘要任务的「尽量简短」和风险任务的「列全维度」写进了**同一段** system 字符串。更糟的是，后端日志只有 `model` 和 `latency`，**看不出当时用的是哪版任务描述**；出问题时只能猜「是不是 Prompt 又被谁改了」。
-
-产品需要的是：**每个任务一条独立协议**（`review.risk_review`、`review.requirement_summary` …），材料通过变量注入，改约束要**升版本**而不是改生产代码；对比实验时固定样例与 `temperature`，才能判断「是 Prompt 变了还是模型变了」。
-
-下表是助手生命周期里不同任务对 Prompt 的要求（本节只实现风险审查一行）：
-
-| 任务 | 模型要做什么 | Prompt 若写得太糊会怎样 |
-| --- | --- | --- |
-| 需求理解 | 提炼目标、范围、模块 | 摘要漏模块、把假设当事实 |
-| **风险审查** | **按维度找风险、给依据** | **空泛「可能有问题」、编造接口** |
-| 技术影响 | 判断接口/数据变化 | 与 PRD 无关的架构臆测 |
-| 缺失追问 | 证据不足时 blocking 问题 | 该问不问 |
-| 报告汇总 | 合并多段结论 | 重复、矛盾、无依据风险 |
-
-### 工程真实问题
-
-| 问题 | 典型表现 | 本节方向 |
-| --- | --- | --- |
-| Prompt 与调用耦合 | `chat` 前硬编码 system 字符串 | `get_prompt` + `render_prompt` |
-| 无版本 | 「上周那版比较好」但找不到 | YAML 内 `version: "2.0.0"` |
-| 与 RAG 职责混淆 | Prompt 里塞编造的公司规章 | `evidence_block` 变量；真检索在 RAG |
-| 与 Schema 职责混淆 | 只说「输出 JSON」却不校验 | v3 练格式；结构化输出 做 Pydantic |
-| 观测缺失 | 不知生产用了哪版 Prompt | 日志带 `prompt_id@version`；调用 Harness harness |
-
-本篇在 `llm_core.prompts` 沉淀 **YAML 真源 + 渲染为 messages**，demo 对**同一 PRD 样例**对比三版风险审查 Prompt。
-
----
+Schema 负责最终接受什么结构，RAG 负责提供真实证据；Prompt 不替代它们。
 
 ## 把 Prompt 变成任务协议
 
@@ -251,7 +227,7 @@ def get_prompt(prompt_id: str, version: Optional[str] = None) -> PromptTemplate:
 
 这段代码只展示两个机制：**按逻辑名找模板**，以及**把变量渲染成 messages**。不要把学习重点放在扫描文件的细节上；真正要掌握的是：Prompt 真源从业务代码里移出来以后，调用方仍然可以用稳定的 `prompt_id@version` 得到一组可复现的 `messages`。
 
-### 从 Provider 调用层 的硬编码到 Prompt 工程 的模板：数据流
+### 从 Provider 示例中的硬编码到可维护 Prompt：数据流
 
 ```text
 prompt_compare.py（实验配置：样例 id、版本列表、temperature）
@@ -403,7 +379,7 @@ v2 的 user 模板显式分出 `## Task`、`## Requirement`、`## Evidence`、`#
 ### v3 为何加 Example + JSON 文字
 
 - **Example**：few-shot 只给**风格**，并注明「勿照搬」，降低过时业务规则污染（见失败分析）。
-- **JSON output_format**：为 结构化输出 结构化输出做铺垫——本节**不**做 `json.loads` 成功率统计，只在笔记里肉眼看是否多出 Markdown 包裹、字段是否齐全。
+- **JSON output_format**：为后续 Structured Output 做铺垫——本节**不**做 `json.loads` 成功率统计，只在笔记里观察是否多出 Markdown 包裹、字段是否齐全。
 
 v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只改一个方向」：v1 观察没有约束时会怎样，v2 观察 Evidence 和 constraints 能否减少幻觉，v3 观察 example 与 JSON 意图是否让输出更接近程序接口。若一口气加入十几个技巧，就很难解释到底是哪一个在起作用。
 
@@ -448,7 +424,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 - **表现**：肉眼是 JSON，但有 ` ```json ` 围栏、中文 key、缺字段。
 - **原因**：只有 Prompt 软约束，无 Schema（结构化输出 职责）。
-- **验证**：`json.loads` 试一次；记失败形态，结构化输出 用 Pydantic 判层。
+- **验证**：用 `json.loads` 初步检查并记录失败形态；下一篇再用 Pydantic 区分具体失败层级。
 
 **5. 对比实验结论不可信**
 
@@ -555,6 +531,20 @@ uv run python prompt_compare.py
 - [ ] 三版 `prompt_tokens` 随 Prompt 变长而增加——体会 **Prompt 长度即成本**
 
 ---
+
+## 亲手完成一次 Prompt 变更
+
+以 v2 为基线创建一个新版本，只修改一项产品策略：
+
+> 证据不足时，不再输出低置信风险，改为生成待确认问题。
+
+保持样例、模型、温度、Evidence 和输出观察项不变，然后：
+
+1. 修改 YAML 中对应的 constraint，不在 Python 里增加特殊判断。
+2. 确认新旧版本都能被 registry 按 `prompt_id@version` 加载。
+3. 在有证据和无证据样例上分别比较。
+4. 记录无依据风险、待确认问题、Token 和输出结构变化。
+5. 说明为什么这属于 Prompt 产品策略，而不是 Schema 或 Retriever 修改。
 
 ## 怎样判断 Prompt 可被项目维护
 
