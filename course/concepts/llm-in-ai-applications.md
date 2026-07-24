@@ -1,12 +1,12 @@
-# 00. LLM 应用问题空间
+# LLM 在 AI 应用中的位置与边界
 
-> 从「LLM 是什么」出发，理解需求评审助手为什么需要 LLM 应用工程，以及 `llm_core` 在整个项目里负责什么、不负责什么。
+> 概念篇：从「LLM 是什么」出发，理解需求评审助手为什么需要模型，以及模型、RAG、Agent、Workflow 与普通程序分别负责什么。
 
 ---
 
-## 真实问题
+## 为什么聊天能力还不是 AI 应用
 
-本篇是 `02_llm` 的入口。如果你已经用过 ChatGPT 网页版或调通过 API，你会熟悉「问一句、答一句」；如果你主要做前端或客户端，可能还不清楚：**把 LLM 接进一个真实产品，和「打开聊天网页」差在哪里**。下面分三层说明「真实问题」——先说你作为学习者为什么要读这一篇，再说产品为什么需要 LLM 层，最后说工程上会踩哪些坑。
+本篇是模型能力的概念入口。如果你已经用过 ChatGPT 网页版或调通过 API，你会熟悉「问一句、答一句」；如果你主要做前端或客户端，可能还不清楚：**把 LLM 接进一个真实产品，和「打开聊天网页」差在哪里**。下面分三层说明「真实问题」——先说你作为学习者为什么要读这一篇，再说产品为什么需要 LLM 层，最后说工程上会踩哪些坑。
 
 ### 学习者真实问题：我遇到的困惑
 
@@ -15,7 +15,7 @@
 - **ChatGPT 已经能评审需求了，为什么还要学一门「LLM 课」？** 网页聊天和「需求评审助手」是一回事吗？
 - **后面会学的 RAG、Agent 和 LLM 是什么关系？** 会不会重复学很多东西？
 
-读完全篇，你应能回答：LLM 在本项目里是**生成与推理引擎**；RAG / Agent 是在 LLM 之上叠加**知识**与**行动**；`02_llm` 只负责把引擎用得**稳定、可配置、可观测**，不负责知识库和工具执行。
+读完全篇，你应能回答：LLM 在本项目里是**生成与推理引擎**；RAG / Agent 是在 LLM 之上叠加**知识**与**行动**；模型调用层负责把引擎用得**稳定、可配置、可观测**，不负责知识库和工具执行。
 
 ### 产品真实问题：需求评审助手里发生什么
 
@@ -32,23 +32,23 @@
 5. **开发阶段用便宜模型、演示用强模型**，代码里写死一个模型名，**换供应商要改很多文件**。
 6. **用户只看到转圈 30 秒**，不知道是在「读文档」「查知识库」还是「已经失败」——体验像黑盒。
 
-这些痛点**不全是「模型不够聪明」**。很多是：**没有把 LLM 当作应用系统里的一层来设计**——缺少统一的调用方式、任务描述（Prompt）、输出格式（Schema）、日志与成本记录。这就是「LLM 应用工程」要解决的问题；`02_llm` 整门课都在建这一层，沉淀为 `llm_core` 包。
+这些痛点**不全是「模型不够聪明」**。很多是：**没有把 LLM 当作应用系统里的一层来设计**——缺少统一的调用方式、任务描述（Prompt）、输出格式（Schema）、日志与成本记录。这就是「LLM 应用工程」要解决的问题；相关机制统一沉淀为 `llm_core` 包。
 
 ### 工程真实问题：只调一次 API 为什么不够
 
 当需求评审助手从 Demo 走向可迭代产品时，工程上必须提前考虑：
 
-| 工程问题 | 若只「调一次 API」会怎样 | `02_llm` 方向 |
+| 工程问题 | 若只「调一次 API」会怎样 | 对应机制 |
 | --- | --- | --- |
-| 输出不稳定 | 无法回归对比，改 Prompt 不知好坏 | Harness 样例 + 版本记录（专题 07） |
-| 上下文超限 | 长 PRD 被截断或漏看中间段 | Context 预算（专题 05）；RAG 按需检索（`03_rag`） |
-| 不可解析 | 前端 / DB / Workflow 接不住 | Structured Outputs（专题 03） |
-| 成本不可控 | 多轮、多 Agent 后账单失控 | usage 记录 + 成本基线（专题 08） |
-| 供应商绑定 | 换模型改遍业务代码 | Provider 抽象（专题 01） |
-| 失败不可观测 | 不知超时是网络还是模型 | 统一错误类型 + 日志（专题 06） |
-| 体验黑盒 | 用户只能干等 | 流式事件（专题 04）；检索态由 RAG + 前端展示 |
+| 输出不稳定 | 无法回归对比，改 Prompt 不知好坏 | Harness 样例 + 版本记录（调用 Harness） |
+| 上下文超限 | 长 PRD 被截断或漏看中间段 | Context 预算；RAG 按需检索 |
+| 不可解析 | 前端 / DB / Workflow 接不住 | Structured Outputs（结构化输出机制） |
+| 成本不可控 | 多轮、多 Agent 后账单失控 | usage 记录 + 成本基线（成本、延迟与缓存机制） |
+| 供应商绑定 | 换模型改遍业务代码 | Provider 抽象（模型 API 与 Provider 抽象） |
+| 失败不可观测 | 不知超时是网络还是模型 | 统一错误类型 + 日志（可靠调用机制） |
+| 体验黑盒 | 用户只能干等 | 流式事件（流式与对话机制）；检索态由 RAG + 前端展示 |
 
-注意：**检索是否命中、引用是否正确、工具是否越权**——LLM 层单独解决不了，需要 RAG（`03_rag`）、Agent（`04_agent`）、Eval（`05_eval`）。本篇只建立边界，避免以为「学好 LLM 课就够了」。
+注意：**检索是否命中、引用是否正确、工具是否越权**——LLM 层单独解决不了，需要 RAG、Agent 与评估观测共同完成。本篇只建立边界，避免把模型调用误当成完整 AI 应用。
 
 ### 和「打开 ChatGPT 网页」的对比
 
@@ -62,7 +62,7 @@
 
 ---
 
-## 基础原理
+## 模型层的最小心智模型
 
 ### LLM 是什么（应用开发者版）
 
@@ -75,7 +75,7 @@
 - **温度（temperature）** 等参数控制随机性：越低越稳定，越高越发散。
 
 在本项目里，LLM 的**输入**通常是：系统指令 + 用户问题 +（可选）PRD 片段 / 检索到的证据。  
-**输出**通常是：自然语言，或按 Schema 生成的 JSON（专题 03）。
+**输出**通常是：自然语言，或按 Schema 生成的 JSON（结构化输出机制）。
 
 **和已有概念的区别：**
 
@@ -95,21 +95,21 @@
 ```text
 用户 / 前端
     ↓ 提交 PRD、提问
-API 服务（FastAPI，06 / 07）
+API 服务（FastAPI，可靠调用 / 调用 Harness）
     ↓
-llm_core（02_llm）          ← 本篇定义的「模型层」
+llm_core                    ← 本篇定义的「模型层」
     · 选哪个模型、怎么调
     · 用什么 Prompt、什么 Schema
     · 记录 usage / 错误
     ↓
-（可选）rag_core 提供 evidence   ← 03_rag
-（可选）agent_core 多步执行       ← 04_agent
+（可选）rag_core 提供 evidence   ← RAG 机制
+（可选）agent_core 多步执行       ← Agent 机制
     ↓
-评审结论、报告、引用展示          ← 06_ai_native / 07_projects
+评审结论、报告、引用展示          ← AI Native 交互与项目篇
 ```
 
-**`02_llm` 不负责：** 文档上传与向量索引、检索策略、工具执行、人工审批流程、完整质量平台。  
-**`02_llm` 负责：** 无论上层是固定 RAG 还是多 Agent，都通过**同一套** `LLMClient`、Prompt 集、Schema 去调用模型。
+**模型调用层不负责：** 文档上传与向量索引、检索策略、工具执行、人工审批流程、完整质量平台。  
+**模型调用层负责：** 无论上层是固定 RAG 还是多 Agent，都通过**同一套** `LLMClient`、Prompt 集、Schema 去调用模型。
 
 ### 四要素：为什么「看起来能答」却不可信
 
@@ -130,10 +130,10 @@ Prompt（任务协议：你是谁、要做什么、不能做什么）
 
 | 职责 | 通俗解释 | 在本项目的落点 |
 | --- | --- | --- |
-| 上下文管理 | 什么材料进 Prompt、多长、如何编号引用 | 05 context；RAG context builder |
-| 约束与校验 | 输出是否符合 schema、引用是否存在于材料中 | 03 schema；RAG citation checker |
-| 回归与对比 | 改 Prompt / 换模型后，同一批问题结果是否变好 | 07 harness；05_eval |
-| 观测 | 花了多少 token、多久、失败原因 | 01 LLMResponse；06 reliability |
+| 上下文管理 | 什么材料进 Prompt、多长、如何编号引用 | 上下文工程 context；RAG context builder |
+| 约束与校验 | 输出是否符合 schema、引用是否存在于材料中 | 结构化输出 schema；RAG citation checker |
+| 回归与对比 | 改 Prompt / 换模型后，同一批问题结果是否变好 | 调用回归机制；评估观测 |
+| 观测 | 花了多少 token、多久、失败原因 | Provider 调用层 LLMResponse；可靠调用 reliability |
 
 **常见误区：**
 
@@ -142,14 +142,14 @@ Prompt（任务协议：你是谁、要做什么、不能做什么）
 - **误区 3：**「LLM 课学完就能做完整助手」——助手 = LLM + 知识 + 流程 + 前端 + eval。
 - **误区 4：**「网页聊天体验 = 产品体验」——产品要状态、引用、权限、日志，网页不负责这些。
 
-更底层的「下一个 token 预测 / Transformer」属于按需查阅：[99_foundation/outline.md](../99_foundation/outline.md)（非主链路，默认不读）。
+更底层的「下一个 token 预测 / Transformer」属于按需补充的原理知识，不是当前项目主链路的前置要求。
 
 ---
 
-## 最小实现
+## 观察一次真实模型调用
 
 目标：**亲手看清一次调用里有什么**，建立「模型返回的不是魔法，是一串可记录的响应」的直觉。  
-实现见 [`source/demos/02_llm_basics/`](../../source/demos/02_llm_basics/)（见 [outline 代码里程碑](outline.md)）。
+实现见 [`source/demos/02_llm_basics/`](../../source/demos/02_llm_basics/)。
 
 ### 前置
 
@@ -182,7 +182,7 @@ HTTP 层面：你的 Python 程序 `POST` 到 `/v1/chat/completions`（或兼容
 ### 第一次调用（`02_llm_basics`）
 
 入口：[`source/demos/02_llm_basics/first_chat.py`](../../source/demos/02_llm_basics/first_chat.py)。  
-Provider 抽象与切换对比见专题 01（[`02_model_contracts`](../../source/demos/02_model_contracts/)）。
+Provider 抽象与切换对比见模型 API 与 Provider 抽象（[`02_model_contracts`](../../source/demos/02_model_contracts/)）。
 
 核心调用逻辑（节选）：
 
@@ -217,30 +217,30 @@ uv run python first_chat.py --sample S4
 1. **`temperature=0` vs `0.7`** —— 观察风险表述是否更「飘」、是否出现材料里没有的模块名。
 2. **换 model**（如 `gpt-4o-mini` vs 更强模型）—— 观察 `usage`、`latency_ms`、风险是否更贴材料。
 
-记录到一个简单表格（笔记本或 CSV 即可），字段：`model`, `temperature`, `prompt_tokens`, `completion_tokens`, `latency_ms`, `notes`。这就是专题 07 harness 的雏形。
+记录到一个简单表格（笔记本或 CSV 即可），字段：`model`, `temperature`, `prompt_tokens`, `completion_tokens`, `latency_ms`, `notes`。这就是调用 Harness harness 的雏形。
 
 ### 观察重点（写进实验笔记）
 
 - 材料里**没写**的内容，模型是否**仍然断言**（例如「需要兼容 iOS 12」）—— 体会「概率生成 ≠ 有依据」。
 - `prompt_tokens` 如何随 PRD 变长而增加—— 体会后面为什么要 context 预算和 RAG。
-- 要求「只输出 JSON」时，是否仍夹带 Markdown 说明—— 体会为什么要 Schema + 校验（专题 03）。
+- 要求「只输出 JSON」时，是否仍夹带 Markdown 说明—— 体会为什么要 Schema + 校验（结构化输出机制）。
 
 ---
 
-## 主流框架实现
+## SDK、兼容接口与框架怎样分工
 
 | 方式 | 是什么 | 在本项目中的位置 |
 | --- | --- | --- |
-| **OpenAI SDK** | 官方 Python 客户端，也支持 `base_url` 对接兼容 API | M1 起封装进 `llm_core`（专题 01） |
+| **OpenAI SDK** | 官方 Python 客户端，也支持 `base_url` 对接兼容 API | M1 起封装进 `llm_core`（模型 API 与 Provider 抽象） |
 | **OpenAI 兼容 HTTP** | 同一 JSON 格式，换 base_url / key | 国内多数平台；由 Provider 适配 |
-| **LangChain ChatModel** | 框架对 Chat API 的再封装 | `03_rag` 组合链时，**配置仍读 `llm_core`**，避免两套 model 名 |
-| **LangGraph** | 带状态的图执行 | `04_agent`；节点内调用 `LLMClient` |
+| **LangChain ChatModel** | 框架对 Chat API 的再封装 | RAG 组合链仍读 `llm_core` 配置，避免两套 model 名 |
+| **LangGraph** | 带状态的图执行 | Agent / Workflow 节点内调用 `LLMClient` |
 
 原则：**业务代码只依赖 `llm_core`，不 scattered 地 `OpenAI(...)`**。这样换供应商、记日志、统一错误类型只需改一处。
 
 ---
 
-## 失败分析与能力边界
+## 模型层的失败与责任边界
 
 ### 在本场景下常见的「看起来能用其实不行」
 
@@ -250,31 +250,31 @@ uv run python first_chat.py --sample S4
 | 编造接口/规则 | 材料未提供 | RAG + 拒答（V1） |
 | 回答变短、漏后半段 PRD | 上下文截断 | Context 工程；RAG 只检索相关 chunk |
 | 前端接不住结果 | 自由文本 | Schema（V1） |
-| 429 / 超时 | 平台限流、网络 | 错误分类、fallback（专题 06） |
+| 429 / 超时 | 平台限流、网络 | 错误分类、fallback（可靠调用机制） |
 
 ### LLM 层**单独**无法可靠负责的 5 类事
 
-1. **企业内部知识从哪来、是否最新** → `03_rag` 知识库与入库  
+1. **企业内部知识从哪来、是否最新** → RAG 知识库与入库  
 2. **答案是否有依据、引用是否真实** → RAG 检索 + citation checker（V1）  
-3. **查工单、调接口、多步流程** → `04_agent` Tool / Workflow  
-4. **改 Prompt 后是否真的变好** → `05_eval` golden set / bad case  
-5. **用户看到进度、人工确认** → `06_ai_native` 工作台  
+3. **查工单、调接口、多步流程** → Agent / Workflow  
+4. **改 Prompt 后是否真的变好** → golden set / bad case 评估  
+5. **用户看到进度、人工确认** → AI Native 工作台  
 
 ### 不在本篇展开
 
 - RAG 主链路、LangChain Document / Retriever  
 - FastAPI、SSE、Docker  
-- 评审维度矩阵全文 → [07_projects/03](../07_projects/outline.md)  
+- 项目版本与交付顺序 → [集中知识地图](../knowledge-map.md)  
 
 ---
 
-## 评估观测
+## 从第一次调用开始留下事实
 
-从**第一次**调用开始就养成记录习惯；**00 的 demo 在终端打印** `usage` 与 `latency_ms`，完整字段表与结构化落盘在 **01**（`LLMResponse`）与 **07**（harness）实现。
+从**第一次**调用开始就养成记录习惯；**SDK 最小调用 的 demo 在终端打印** `usage` 与 `latency_ms`，完整字段表与结构化落盘在 **Provider 调用层**（`LLMResponse`）与 **调用 Harness**（harness）实现。
 
-### 最小日志字段（全课目标；00 仅部分在终端可见）
+### 最小日志字段（全课目标；SDK 最小调用 仅部分在终端可见）
 
-| 字段 | 用途 | 00 demo |
+| 字段 | 用途 | SDK 最小调用 demo |
 | --- | --- | --- |
 | `timestamp` | 对比不同天的实验 | 手工记笔记 |
 | `model` / `provider` | 选型 | 终端打印 `model` |
@@ -285,13 +285,13 @@ uv run python first_chat.py --sample S4
 | `output_preview` | 人工回看 | `content preview`（前 300 字） |
 | `notes` | 是否编造、是否可用 | 建议手写对比实验笔记 |
 
-### 最小调用样例集（S1–S5 种子；批量回归在 07）
+### 最小调用样例集（S1–S5 种子；批量回归在 调用 Harness）
 
-样例数据在 [`samples.json`](../../source/demos/02_llm_basics/samples.json)；默认跑 S2。完整 harness 对比在专题 **07** 落地，不必在 00 实现 JSONL 或自动跑批。
+样例数据在 [`samples.json`](../../source/demos/02_llm_basics/samples.json)；默认跑 S2。完整批量对比由 Calling Harness 承担，最小调用 demo 不实现 JSONL 或自动跑批。
 
 ---
 
-## 小项目实战
+## 在需求评审助手中落位
 
 为**需求评审助手**定义 LLM 层职责边界（本专题不写代码实现，只定契约）：
 
@@ -308,40 +308,40 @@ uv run python first_chat.py --sample S4
 | 版本 | LLM 层支撑 |
 | --- | --- |
 | **V0** | 能调模型 + 固定 Prompt 生成（配合 RAG 检索上下文） |
-| **V1** | + Schema 评审报告 + 拒答结构（专题 02、03） |
+| **V1** | + Schema 评审报告 + 拒答结构（Prompt 工程、结构化输出） |
 
 ---
 
-## 项目收敛
+## 模型层交给后续能力的契约
 
 ### 能力边界总表
 
-| 能力 | `02_llm` | 下游 |
+| 能力 | 模型调用层 | 下游 |
 | --- | --- | --- |
-| 统一模型调用 | 01–10 `llm_core` | — |
-| Prompt 任务协议 | 02 | — |
-| Structured Output | 03 | — |
-| 流式 / 上下文 / 可靠性 / harness | 04–07 | — |
-| 检索 / 引用 / 拒答逻辑 | 概念 | `03_rag` |
-| Tool / Agent / Workflow | 认知 | `04_agent` |
-| 系统化 eval / trace | 铺垫 | `05_eval` |
-| 运行态 UI | 事件格式铺垫 | `06_ai_native` |
+| 统一模型调用 | Provider 调用层–10 `llm_core` | — |
+| Prompt 任务协议 | Prompt 工程 | — |
+| Structured Output | 结构化输出 | — |
+| 流式 / 上下文 / 可靠性 / harness | 流式机制–调用 Harness | — |
+| 检索 / 引用 / 拒答逻辑 | 概念 | RAG |
+| Tool / Agent / Workflow | 认知 | Agent / Workflow |
+| 系统化 eval / trace | 铺垫 | 评估观测 |
+| 运行态 UI | 事件格式铺垫 | AI Native 交互 |
 
 ### `llm_core` 目标结构（设计输入）
 
 ```text
 source/packages/llm_core/
-├── client.py           # LLMClient（01）
-├── providers/          # 多供应商（01）
-├── prompts/            # 模板 registry（02）
-├── schemas/            # Pydantic（03）
-├── context/            # 上下文构造（05）
-├── streaming/          # 事件（04）
-├── reliability/        # 错误与降级（06）
-└── harness/            # 回归样例（07）
+├── client.py           # LLMClient（Provider 调用层）
+├── providers/          # 多供应商（Provider 调用层）
+├── prompts/            # 模板 registry（Prompt 工程）
+├── schemas/            # Pydantic（结构化输出）
+├── context/            # 上下文构造（上下文工程）
+├── streaming/          # 事件（流式机制）
+├── reliability/        # 错误与降级（可靠调用）
+└── harness/            # 回归样例（调用 Harness）
 ```
 
-### 交给专题 01–03 的设计清单
+### 交给模型 API 与 Provider 抽象–结构化输出 的设计清单
 
 1. `LLMResponse` 统一响应 + 错误枚举  
 2. `models.yaml`：Chat / Embedding / Rerank 分角色  
@@ -351,7 +351,7 @@ source/packages/llm_core/
 
 ---
 
-## 完成标准
+## 读完后应该能做什么
 
 - **能解释**：LLM 是什么（应用开发者版）；它和规则程序、搜索、数据库的分工。  
 - **能解释**：为什么需求评审助手不能只做「复制 PRD 到 ChatGPT」。  
@@ -364,14 +364,13 @@ source/packages/llm_core/
 
 1. LLM 的「生成」和数据库「查询」本质区别是什么？  
 2. 为什么 `temperature=0` 仍然可能产生与材料不符的风险描述？  
-3. 需求评审助手里，`02_llm` 和 `03_rag` 各解决哪一类问题？  
+3. 需求评审助手里，模型调用层和 RAG 各解决哪一类问题？  
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 下一篇：[01_model_api_and_provider_abstraction.md](01_model_api_and_provider_abstraction.md)  
-- 课程大纲与代码里程碑：[outline.md](outline.md)  
-- RAG 为何需要单独一门课：[03_rag/outline.md](../03_rag/outline.md)  
-- 评审业务场景：[07_projects/03](../07_projects/outline.md)  
-- Transformer 原理补充（按需）：[99_foundation/outline.md](../99_foundation/outline.md)  
+- 模型调用入口：[模型 API 与 Provider 抽象](../mechanisms/llm/model-api-and-provider.md)  
+- 输入输出契约：[Prompt、Schema 与 Context](model-input-output-contracts.md)  
+- 集中路线与知识清单：[knowledge-map.md](../knowledge-map.md)  
+- 当前项目闭环：[V0 固定知识 RAG](../project/stage-1-single-agent-rag/v0-fixed-rag.md)  

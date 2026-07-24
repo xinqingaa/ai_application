@@ -1,12 +1,12 @@
-# 05. Context Engineering
+# Context Engineering：输入装配、预算与证据边界
 
-> 04 已经把流式 token、事件协议和 conversation history 分开。本篇回答：**模型调用前，应用如何把当前需求、证据、历史摘要和 Agent 中间结论装配成可追溯、可预算、可诊断的上下文**。
+> 机制篇：解释模型调用前，应用如何把任务、证据、历史和中间结果装配成可追溯、可预算、可诊断的上下文。
 
 ---
 
-## 真实问题
+## 为什么把所有材料塞进 Prompt 会失控
 
-到 04 为止，需求评审助手已经能完成模型调用、Prompt 版本化、结构化输出和流式展示。但这些能力都有一个共同前提：模型收到的 `messages` 质量足够好。真实项目里，`messages` 不再只是一个 user 字符串，而会混入 PRD、业务规则、接口文档、历史评审、上一轮对话、RAG 召回片段、Agent 中间结论、Workflow 状态和人工补充说明。
+到 流式机制 为止，需求评审助手已经能完成模型调用、Prompt 版本化、结构化输出和流式展示。但这些能力都有一个共同前提：模型收到的 `messages` 质量足够好。真实项目里，`messages` 不再只是一个 user 字符串，而会混入 PRD、业务规则、接口文档、历史评审、上一轮对话、RAG 召回片段、Agent 中间结论、Workflow 状态和人工补充说明。
 
 如果没有 Context Engineering，系统会自然滑向两个极端。一个极端是“能拿到什么就都塞进去”：Prompt 变长、成本上升、模型在旧材料和新材料之间摇摆，还可能把历史评审里的旧接口规则套到当前需求上。另一个极端是“只给当前用户问题”：模型看不到业务规则和接口约束，只能凭常识生成风险，最后输出看起来合理但无法溯源。
 
@@ -51,7 +51,7 @@ PRD + 业务规则 + 接口文档 + 客户端说明 + 历史评审 + Agent 输�
 
 ---
 
-## 基础原理
+## Context Builder 如何选择材料
 
 ### 本节方案性质
 
@@ -66,7 +66,7 @@ Context Engineering 没有唯一标准答案。不同产品可能使用 RAG、�
 | **项目取舍** | 本节用静态样例模拟材料池；压缩只做确定性片段抽取，不做 LLM 摘要 |
 | **非目标** | 不把本节做成完整 RAG；不实现 embedding / vector store / rerank；不把 token 估算当真实计费 |
 
-换句话说，本节不是提前实现 03_rag，而是给后续 RAG、Agent、Workflow 准备一个统一入口：无论材料来自静态 JSON、检索结果、工具调用还是 Agent 摘要，都先变成候选材料，再由 builder 决定是否进入模型输入。
+换句话说，本节不是提前实现 RAG，而是给后续 RAG、Agent、Workflow 准备一个统一入口：无论材料来自静态 JSON、检索结果、工具调用还是 Agent 摘要，都先变成候选材料，再由 builder 决定是否进入模型输入。
 
 ### 先用一个小例子抓住主线
 
@@ -114,7 +114,7 @@ Context Engineering 解决的就是这一步：**模型调用前，应用先整�
 
 **Evidence**：可以支撑当前结论的证据材料。接口文档、业务规则、客户端接入说明通常可以作为 evidence；历史评审和 Agent 中间判断不默认作为当前事实依据。
 
-**Citation**：模型输出里指向 evidence 的引用。03 的 Schema 只能保证 `citations` 字段长得对；05 的 `citation_candidates` 才告诉应用：本次 Prompt 中哪些 source id 是合法候选。
+**Citation**：模型输出里指向 evidence 的引用。结构化输出 的 Schema 只能保证 `citations` 字段长得对；上下文工程 的 `citation_candidates` 才告诉应用：本次 Prompt 中哪些 source id 是合法候选。
 
 ### 候选材料池不等于最终 Prompt
 
@@ -206,7 +206,7 @@ other: 兜底材料
 
 ### Citation Candidates 是应用侧边界
 
-03 的 `ReviewRisk.citations` 只是结构形状，不能保证 source id 真实存在。05 增加 `citation_candidates`，告诉下游：**本次 Prompt 中哪些 source id 是合法证据引用候选**。
+结构化输出 的 `ReviewRisk.citations` 只是结构形状，不能保证 source id 真实存在。上下文工程 增加 `citation_candidates`，告诉下游：**本次 Prompt 中哪些 source id 是合法证据引用候选**。
 
 这一步对后续评估和前端都重要：
 
@@ -251,7 +251,7 @@ other: 兜底材料
 
 source 可被压缩，合法引用候选可被列出，drop / warning 可被诊断。仍遗留：真实检索、rerank、LLM 摘要、引用质量评估在后续课程处理。
 
-这条递进和前几节是连起来的：02 解决 Prompt 任务协议，03 解决输出能不能进程序，04 解决生成过程和 history 边界，05 解决模型调用前“本轮到底该看什么”。如果 05 没做好，Prompt 再清楚、Schema 再严格，也只是让模型稳定地处理一份被污染或缺证据的输入。
+这条递进和前几节是连起来的：Prompt 工程 解决 Prompt 任务协议，结构化输出 解决输出能不能进程序，流式机制 解决生成过程和 history 边界，上下文工程 解决模型调用前“本轮到底该看什么”。如果 上下文工程 没做好，Prompt 再清楚、Schema 再严格，也只是让模型稳定地处理一份被污染或缺证据的输入。
 
 ### 与 Prompt、Structured Output、Conversation 的分工
 
@@ -265,7 +265,7 @@ source 可被压缩，合法引用候选可被列出，drop / warning 可被诊�
 
 ---
 
-## 最小实现
+## 构造可诊断的上下文
 
 本节代码要验证的不是“模型回答更好了吗”，而是上下文装配链路能不能可解释地工作。最小实现不应该从 demo 开始，因为 demo 很容易把加载样例、排序、预算、压缩和打印结果混在一起。更稳的工程切分是：核心规则沉淀在 `llm_core.context`，demo 只调用 package API 做观察。
 
@@ -277,11 +277,11 @@ source 可被压缩，合法引用候选可被列出，drop / warning 可被诊�
 4. 被压缩、被去重、被预算丢弃的 source 必须出现在 report 里。
 5. demo 不能实现核心排序、压缩、引用映射逻辑，只能加载样例、选择策略、打印结果。
 
-完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [context demo README](../../source/demos/02_context_lab/README.md)。
+完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [context demo README](../../../source/demos/02_context_lab/README.md)。
 
 ### 1. 候选材料与策略
 
-[`context/types.py`](../../source/packages/llm_core/context/types.py) 定义材料契约和策略契约：
+[`context/types.py`](../../../source/packages/llm_core/context/types.py) 定义材料契约和策略契约：
 
 ```python
 @dataclass(frozen=True)
@@ -305,11 +305,11 @@ class ContextBuildPolicy:
 
 这里的关键不是字段数量，而是职责边界。`ContextSource` 表示“应用拿到的一条候选材料”，它还没有资格直接进入 Prompt；`ContextBuildPolicy` 表示“一次装配实验的预算和过滤规则”，它让 `minimal`、`evidence_first`、`tight_budget` 等策略可以复用同一条 builder 流水线。
 
-策略预设放在 [`context/policies.py`](../../source/packages/llm_core/context/policies.py)，而不是写在 demo 参数里。这样后续 RAG、Agent、Workflow 接入时，只要继续产出 `ContextSource`，就能沿用同一套上下文边界。
+策略预设放在 [`context/policies.py`](../../../source/packages/llm_core/context/policies.py)，而不是写在 demo 参数里。这样后续 RAG、Agent、Workflow 接入时，只要继续产出 `ContextSource`，就能沿用同一套上下文边界。
 
 ### 2. 构造结果与诊断报告
 
-[`context/builder.py`](../../source/packages/llm_core/context/builder.py) 是主流水线，内部会调用 ranking、compression、formatting 和 tokenization；[`context/types.py`](../../source/packages/llm_core/context/types.py) 则定义最终诊断结构：
+[`context/builder.py`](../../../source/packages/llm_core/context/builder.py) 是主流水线，内部会调用 ranking、compression、formatting 和 tokenization；[`context/types.py`](../../../source/packages/llm_core/context/types.py) 则定义最终诊断结构：
 
 ```python
 @dataclass(frozen=True)
@@ -324,7 +324,7 @@ class ContextBuildReport:
     warnings: list[ContextWarning]
 ```
 
-这份 report 是 05 代码的重点。没有 report，上下文工程就只能靠“看最终答案猜原因”。有了 report，bad case 可以沿着上下文装配链路定位：source 是否进了？是否被压缩？是否可引用？是否因为策略被排除？
+这份 report 是 上下文工程 代码的重点。没有 report，上下文工程就只能靠“看最终答案猜原因”。有了 report，bad case 可以沿着上下文装配链路定位：source 是否进了？是否被压缩？是否可引用？是否因为策略被排除？
 
 builder 的主流程可以简化理解为：
 
@@ -337,7 +337,7 @@ ContextSource[]
 → build citation candidates and ContextBuildReport
 ```
 
-这也是为什么 05 的核心代码拆成子模块，而不是堆在单个文件中：
+这也是为什么 上下文工程 的核心代码拆成子模块，而不是堆在单个文件中：
 
 - `types.py` 只放数据契约。
 - `policies.py` 只放策略预设。
@@ -347,7 +347,7 @@ ContextSource[]
 
 ### 3. Demo 只调用 package API
 
-[`context_compare.py`](../../source/demos/02_context_lab/context_compare.py)：
+[`context_compare.py`](../../../source/demos/02_context_lab/context_compare.py)：
 
 ```python
 policy = get_context_policy(strategy)
@@ -360,15 +360,15 @@ print(context.included_source_ids)
 print(context.report.citation_source_ids)
 ```
 
-这段代码刻意很薄：demo 只加载样例、选择策略、打印结果。排序、压缩、预算、citation candidates 和 warnings 都在 `llm_core.context` 内部完成。这样新增 demo 不会变成另一套平行实现，也不会把 05 的核心能力耦合进某个脚本。
+这段代码刻意很薄：demo 只加载样例、选择策略、打印结果。排序、压缩、预算、citation candidates 和 warnings 都在 `llm_core.context` 内部完成。这样新增 demo 不会变成另一套平行实现，也不会把 上下文工程 的核心能力耦合进某个脚本。
 
 ---
 
-## 主流框架实现
+## 检索框架与 Context Builder 的分工
 
 LangChain 的 `Document(page_content, metadata)` 和本节的 `ContextSource` 很接近：二者都把文本和 metadata 绑在一起。区别在于，本节更早强调 `source_type`、section budget 和 citation candidates，因为需求评审助手后续要把证据展示给前端，而不仅是让模型“读到”一段文字。
 
-Contextual Compression Retriever 的思路是：先检索，再根据 query 压缩 chunk。它和本节的 extractive compression 方向一致，但本节没有真实 retriever，也不调用模型做摘要，只做确定性的句/行级选择。这样更适合在 02_llm 阶段理解机制：压缩不是魔法，它会改变模型能看到的事实，因此必须记录在 report 里。
+Contextual Compression Retriever 的思路是：先检索，再根据 query 压缩 chunk。它和本节的 extractive compression 方向一致，但本节没有真实 retriever，也不调用模型做摘要，只做确定性的句/行级选择。这样更适合在 LLM 机制 阶段理解机制：压缩不是魔法，它会改变模型能看到的事实，因此必须记录在 report 里。
 
 Conversation memory 处理的是多轮会话怎样保留。它不等于 context builder。Memory 可以生产 `history_summary`，但是否进入本轮 Prompt、占多少预算、能不能作为 citation，仍应由 context builder 决定。
 
@@ -385,7 +385,7 @@ Document / Memory / State / Tool Result
 
 ---
 
-## 失败分析与能力边界
+## 沿诊断报告排查上下文失败
 
 ### 1. 模型引用了不存在的 source id
 
@@ -421,7 +421,7 @@ Document / Memory / State / Tool Result
 
 - **表现**：`estimated_tokens` 与 API 返回 `usage.prompt_tokens` 不一致。
 - **原因**：本节估算只覆盖 context 材料；真实请求还包含 system prompt、任务描述、schema、消息包装和供应商 tokenizer 差异。
-- **怎么验证**：把 `estimated_tokens` 当作上下文预算参考；真实成本统计放到 08。
+- **怎么验证**：把 `estimated_tokens` 当作上下文预算参考；真实成本统计放到 成本治理。
 
 ### 常见误区
 
@@ -437,15 +437,15 @@ Document / Memory / State / Tool Result
 
 | 能力 | 目标节 | 当节最小判断 |
 | --- | --- | --- |
-| 文档 chunk、embedding、vector search、rerank | 03_rag | 本节只消费候选 source，不生产检索结果 |
-| LLM 摘要压缩 | 03_rag / 后续项目 | 本节只做确定性 extractive compression |
-| citation 真伪的批量评估 | 05_eval_observability | 本节只生成合法候选 |
-| Agent scratchpad 管理和工具权限 | 04_agent | 本节只接收整理后的 `agent_summary` |
-| 真实成本、延迟和缓存 | 08 | 本节只估算上下文材料 token |
+| 文档 chunk、embedding、vector search、rerank | RAG | 本节只消费候选 source，不生产检索结果 |
+| LLM 摘要压缩 | RAG / 后续项目 | 本节只做确定性 extractive compression |
+| citation 真伪的批量评估 | 评估观测 | 本节只生成合法候选 |
+| Agent scratchpad 管理和工具权限 | Agent | 本节只接收整理后的 `agent_summary` |
+| 真实成本、延迟和缓存 | 成本治理 | 本节只估算上下文材料 token |
 
 ---
 
-## 本节实战
+## 比较两种上下文策略
 
 ### 目标
 
@@ -455,14 +455,14 @@ Document / Memory / State / Tool Result
 
 关键路径：
 
-- [`source/packages/llm_core/context/`](../../source/packages/llm_core/context/)：核心上下文工程子包，包含数据契约、策略、排序、压缩和 builder。
-- [`source/packages/llm_core/context/types.py`](../../source/packages/llm_core/context/types.py)：`ContextSource`、`ContextBuildPolicy`、`BuiltContext`、`ContextBuildReport` 等数据结构。
-- [`source/packages/llm_core/context/builder.py`](../../source/packages/llm_core/context/builder.py)：上下文装配主流程。
-- [`source/packages/llm_core/context/policies.py`](../../source/packages/llm_core/context/policies.py)：`minimal`、`balanced`、`evidence_first`、`tight_budget` 等策略预设。
-- [`source/packages/llm_core/tests/test_context.py`](../../source/packages/llm_core/tests/test_context.py)：策略、压缩、引用映射和诊断测试。
-- [`source/demos/02_context_lab/context_compare.py`](../../source/demos/02_context_lab/context_compare.py)：05 context lab 观察入口，只调用 package API。
-- [`source/demos/02_context_lab/context_cases.json`](../../source/demos/02_context_lab/context_cases.json)：需求评审材料池样例。
-- [`source/demos/02_context_lab/README.md`](../../source/demos/02_context_lab/README.md)：demo 运行与输出说明。
+- [`source/packages/llm_core/context/`](../../../source/packages/llm_core/context/)：核心上下文工程子包，包含数据契约、策略、排序、压缩和 builder。
+- [`source/packages/llm_core/context/types.py`](../../../source/packages/llm_core/context/types.py)：`ContextSource`、`ContextBuildPolicy`、`BuiltContext`、`ContextBuildReport` 等数据结构。
+- [`source/packages/llm_core/context/builder.py`](../../../source/packages/llm_core/context/builder.py)：上下文装配主流程。
+- [`source/packages/llm_core/context/policies.py`](../../../source/packages/llm_core/context/policies.py)：`minimal`、`balanced`、`evidence_first`、`tight_budget` 等策略预设。
+- [`source/packages/llm_core/tests/test_context.py`](../../../source/packages/llm_core/tests/test_context.py)：策略、压缩、引用映射和诊断测试。
+- [`source/demos/02_context_lab/context_compare.py`](../../../source/demos/02_context_lab/context_compare.py)：上下文工程 context lab 观察入口，只调用 package API。
+- [`source/demos/02_context_lab/context_cases.json`](../../../source/demos/02_context_lab/context_cases.json)：需求评审材料池样例。
+- [`source/demos/02_context_lab/README.md`](../../../source/demos/02_context_lab/README.md)：demo 运行与输出说明。
 
 ### 实现步骤
 
@@ -641,7 +641,7 @@ NOISE-OLD-V1 reason=token_budget_exceeded
 
 ---
 
-## 完成标准
+## 怎样判断上下文选择可解释
 
 - 能解释候选材料池与最终 Prompt 的区别。
 - 能说明 `source_type` 为什么影响 citation candidates。
@@ -676,16 +676,16 @@ uv run python source/demos/02_context_lab/context_compare.py
 
 ---
 
-## 本节沉淀
+## 交给 RAG 与 Agent 的上下文入口
 
 - `llm_core.context` 从简单 evidence formatter 升级为策略化 Context Builder，包含 source、policy、section、report、citation candidates 和确定性压缩。
 - `02_context_lab` 作为 context 观察 lab，用独立入口比较不同 context 策略，避免和 Structured Outputs demo 耦合。
-- 下一节 06 Reliability、Errors 与 Degradation 将处理模型调用失败、结构化失败、超时和降级；05 的 report 会成为后续 harness / eval 诊断的重要输入。
+- 继续学习可靠调用：模型调用失败、结构化失败、超时和降级会消费这里的 context report，并把它带入后续 harness / eval 诊断。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 上一篇：[04_streaming_and_conversation.md](04_streaming_and_conversation.md)
-- 下一篇：[06_reliability_errors_and_degradation.md](06_reliability_errors_and_degradation.md)
-- 课程大纲：[outline.md](outline.md)
+- 相关前置：[streaming-and-conversation.md](streaming-and-conversation.md)
+- 继续阅读：[reliability-and-errors.md](reliability-and-errors.md)
+- 集中知识地图：[集中知识地图](../../knowledge-map.md)

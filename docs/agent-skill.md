@@ -155,6 +155,10 @@ AI Agent 不只交付生成结果，还应帮助用户理解：
 - 如何主动制造失败。
 - 如何通过测试、评估或 trace 验证修改。
 
+实现 Agent、Tool、Workflow 或 Multi-Agent 时，必须先按
+[learning-guide.md](learning-guide.md)「Agent、Workflow 与 Multi-Agent 工程规则」
+检查结构选择、模型与应用控制边界、Tool 契约、停止条件、状态恢复、评估和人工确认。
+
 ## 7. 平台能力采用边界
 
 参考 RAGFlow、MaxKB 或其他平台时，优先吸收：

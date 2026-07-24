@@ -1,22 +1,22 @@
 # 02_model_contracts
 
-`02_llm/01`–`03` 的观察 demo 目录。这里不是三套独立小项目，而是在同一个 `llm_core` 底座上逐步观察：
+Provider、Prompt 与结构化输出的观察 demo。这里不是三套独立小项目，而是在同一个 `llm_core` 底座上逐步观察：
 
 ```text
-01 Provider      config_ref → LLMClient.chat → LLMResponse
-02 Prompt        prompt_id@version → render_prompt → LLMClient.chat
-03 Structured    structured_mode → response_format → parse_risk_list
+Provider      config_ref → LLMClient.chat → LLMResponse
+Prompt        prompt_id@version → render_prompt → LLMClient.chat
+Structured    structured_mode → response_format → parse_risk_list
 ```
 
 课程正文负责讲原理；本 README 负责告诉你怎么读脚本、怎么运行、输出怎么看。
 
-| 脚本 | 课程节 | 运行 |
+| 脚本 | 观察机制 | 运行 |
 | --- | --- | --- |
-| `provider_switching.py` | 01 Provider / `config_ref` | `uv run python provider_switching.py` |
-| `prompt_compare.py` | 02 Prompt 三版对比 | `uv run python prompt_compare.py` |
-| `structured_risk.py` | 03 Structured Outputs（同时消费 05 context builder） | `uv run python structured_risk.py` |
+| `provider_switching.py` | Provider / `config_ref` | `uv run python provider_switching.py` |
+| `prompt_compare.py` | Prompt 三版对比 | `uv run python prompt_compare.py` |
+| `structured_risk.py` | Structured Outputs（同时消费 Context Builder） | `uv run python structured_risk.py` |
 
-00 的 [`02_llm_basics`](../02_llm_basics/) 保留直调 OpenAI SDK，用于对照「抽象前后」的差异。
+[`02_llm_basics`](../02_llm_basics/) 保留直调 OpenAI SDK，用于对照抽象前后的差异。
 
 ## 前置
 
@@ -30,12 +30,12 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 
 ## 读脚本顺序
 
-### 01：`provider_switching.py`
+### Provider 调用层：`provider_switching.py`
 
 先读顶部参数，再读主流程：
 
 1. `find_and_load_env()`：加载根目录 `.env`。
-2. `load_sample("S2")`：读取 00 的 PRD 样例。
+2. `load_sample("S2")`：读取最小调用 demo 的 PRD 样例。
 3. `build_messages(...)`：拼出 system / user。
 4. `LLMClient.from_default_config()`：读取 `models.yaml`。
 5. `client.chat(messages, config_ref, ...)`：得到 `LLMResponse`。
@@ -46,7 +46,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 - `LLMResponse.model` / `usage` / `latency_ms` 是否可读。
 - `--verbose` 下完整 messages 是否符合预期。
 
-### 02：`prompt_compare.py`
+### Prompt 工程：`prompt_compare.py`
 
 这个脚本用于观察 Prompt 版本化，不用于证明某个 Prompt 是标准答案。
 
@@ -64,9 +64,9 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 - v3 是否更接近 JSON 意图，但仍可能无法稳定解析。
 - `prompt_tokens` 是否随 Prompt 变长而增加。
 
-### 03：`structured_risk.py`
+### 结构化输出：`structured_risk.py`
 
-这个脚本用于观察结构化输出的约束层级。它会消费 05 的 context builder，把静态 evidence 变成带 source id 的 `evidence_block`，但 05 的主观察入口是 [`../02_context_lab/`](../02_context_lab/)。
+这个脚本用于观察结构化输出的约束层级。它会消费 Context Builder，把静态 evidence 变成带 source id 的 `evidence_block`；Context Engineering 的主观察入口是 [`../02_context_lab/`](../02_context_lab/)。
 
 读代码时关注：
 
@@ -168,7 +168,7 @@ uv run python structured_risk.py
 | Prompt 版本找不到 | YAML 内 `prompt_id` / `version`，不是文件名 |
 | v2/v3 没有 evidence | `EVIDENCE_FILE` 是否存在，`evidence_block` 字段是否存在 |
 | `[context] included_sources` 为空 | evidence 文件是否存在；`CONTEXT_TOKEN_BUDGET` 是否太小 |
-| citation 没有对应 source id | 先看 `[context] evidence_block` 是否含 source id；真实 citation 校验在 03_rag |
+| citation 没有对应 source id | 先看 `[context] evidence_block` 是否含 source id；真实 citation 校验在 RAG |
 | 想比较不同 context 策略 | 运行 `source/demos/02_context_lab/context_compare.py` |
 | `json_schema` API 失败 | 当前供应商是否支持该 `response_format` |
 | `error_stage=json` | assistant 是否为合法 JSON、是否被截断或带多余说明 |
@@ -177,6 +177,6 @@ uv run python structured_risk.py
 ## 相关
 
 - Package：[source/packages/llm_core/](../../packages/llm_core/)
-- 01 文档：[course/02_llm/01_model_api_and_provider_abstraction.md](../../../course/02_llm/01_model_api_and_provider_abstraction.md)
-- 02 文档：[course/02_llm/02_prompt_engineering_for_apps.md](../../../course/02_llm/02_prompt_engineering_for_apps.md)
-- 03 文档：[course/02_llm/03_structured_outputs.md](../../../course/02_llm/03_structured_outputs.md)
+- Provider 文档：[模型 API 与 Provider 抽象](../../../course/mechanisms/llm/model-api-and-provider.md)
+- Prompt 文档：[面向应用的 Prompt Engineering](../../../course/mechanisms/llm/prompt-engineering.md)
+- Structured Output 文档：[结构化输出与本地校验](../../../course/mechanisms/llm/structured-output.md)

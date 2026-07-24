@@ -1,6 +1,6 @@
 # 02_llm_streaming_api
 
-`02_llm/04` 的本地 FastAPI SSE 观察入口。它启动一个只在本机运行的轻量服务，把 `llm_core.stream_chat` 产生的统一事件编码成 `text/event-stream`，用于理解 AI 应用前端如何消费模型运行态。
+本地 FastAPI SSE 观察入口。它启动一个只在本机运行的轻量服务，把 `llm_core.stream_chat` 产生的统一事件编码成 `text/event-stream`，用于理解 AI 应用前端如何消费模型运行态。
 
 课程正文负责讲 Streaming / Conversation 的原理；本 README 负责运行、读代码和看输出。
 

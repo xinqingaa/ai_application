@@ -23,6 +23,9 @@ description: >-
 6. 用一句话写出本文核心问题、目标读者和明确非目标。
 7. 先设计解释顺序，再决定标题；不要先套固定章节。
 
+涉及 Agent、Tool、Workflow 或 Multi-Agent 时，另读 `docs/learning-guide.md`
+“Agent、Workflow 与 Multi-Agent 工程规则”，不要自行弱化其中的控制、状态、恢复、评估和安全约束。
+
 若 `course/knowledge-map.md` 或新目录尚未落地，以用户当前目标和 `docs/` 真源为准，不自行创建占位结构。
 
 ## 选择文档类型

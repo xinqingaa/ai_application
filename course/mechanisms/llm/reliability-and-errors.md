@@ -1,12 +1,12 @@
-# 06. Reliability、Errors 与 Degradation
+# Reliability、错误分类与可见降级
 
-> 05 已经回答了“模型调用前，应用应该让模型看到什么”。本篇继续回答：**当上下文、Prompt、Schema 都准备好了，模型调用仍然失败时，应用应该如何分类、重试、降级，并把失败过程解释清楚**。
+> 机制篇：解释模型调用失败如何被分类、有限重试、显式降级，并保留完整 attempt 记录。
 
 ---
 
-## 真实问题
+## 为什么一次失败不能统一重试
 
-05 的 `Context Builder` 让需求评审助手可以把 PRD、业务规则、接口文档和客户端说明装配成可追溯的 Prompt。你已经能看到哪些 source 进了上下文，哪些被丢弃，哪些可以作为 citation。到这一步，很容易产生一种错觉：只要上下文构造正确，模型调用就应该稳定产出结构化结果。
+上下文工程 的 `Context Builder` 让需求评审助手可以把 PRD、业务规则、接口文档和客户端说明装配成可追溯的 Prompt。你已经能看到哪些 source 进了上下文，哪些被丢弃，哪些可以作为 citation。到这一步，很容易产生一种错觉：只要上下文构造正确，模型调用就应该稳定产出结构化结果。
 
 真实项目不会这么听话。一次评审请求可能在任何位置失败：网络抖动导致超时，供应商限流，API key 配错，模型不支持 `json_schema`，响应被截断，返回了自然语言而不是 JSON，Pydantic 解析失败，或者主模型不可用但 fallback 模型还能回答。更麻烦的是，这些失败不能用同一种处理方式。超时可以有限重试；鉴权失败不应该重试；结构化解析失败可能需要换 `structured_mode` 或换模型；高风险评审如果降级到能力更弱的模型，应该让后续 trace 和人工审核知道，而不是伪装成一次普通成功。
 
@@ -76,7 +76,7 @@ retry forever
 
 ---
 
-## 基础原理
+## 分类、重试、降级与报告
 
 ### 本节方案性质
 
@@ -89,14 +89,14 @@ Reliability 也没有唯一标准答案。真实生产系统可能使用 SDK 内
 | **项目取舍** | 本节只做同步调用级 retry / fallback，不引入队列、熔断器和分布式任务状态 |
 | **非目标** | 不做完整生产级限流；不做 Prompt Injection 安全体系；不做成本统计和 trace 平台 |
 
-你可以把本节看成 07 harness、08 cost latency、后续 eval observability 的前置层。没有可靠调用报告，后续就很难判断一次失败是模型能力问题、网络问题、schema 问题，还是 fallback 后质量下降。
+你可以把本节看成 调用 Harness harness、成本治理 cost latency、后续 eval observability 的前置层。没有可靠调用报告，后续就很难判断一次失败是模型能力问题、网络问题、schema 问题，还是 fallback 后质量下降。
 
 ### 先用一个小例子抓住主线
 
 假设系统要调用主模型生成结构化风险列表：
 
 ```text
-输入：已经由 05 构造好的 messages
+输入：已经由 上下文工程 构造好的 messages
 目标：返回 ReviewRiskList
 主模型：chat.dev_chat
 fallback：chat.fallback_chat
@@ -163,13 +163,13 @@ backoff_seconds：两次尝试之间是否等待
 
 本节只实现最小的一种：主模型失败后切到 `chat.fallback_chat`。
 
-关键点是：**降级成功仍然不是普通成功**。如果主模型两次超时后 fallback 成功，最终业务可以继续，但 `ReliableCallReport.degraded` 必须是 `True`。后续 08 统计成本和延迟时要知道它发生过；后续评估时也要知道这条结果来自 fallback。
+关键点是：**降级成功仍然不是普通成功**。如果主模型两次超时后 fallback 成功，最终业务可以继续，但 `ReliableCallReport.degraded` 必须是 `True`。后续 成本治理 统计成本和延迟时要知道它发生过；后续评估时也要知道这条结果来自 fallback。
 
 反例：如果系统悄悄切模型，用户看到的答案也许能用，但 bad case 复盘时无法解释为什么同一类输入昨天好、今天差。
 
 ### 结构化失败也是可靠性问题
 
-03 已经讲过 Structured Outputs：Schema 能让模型输出进入程序。但 03 更多关注“如何定义和解析结构”。06 关注的是：解析失败以后，这次调用算不算成功？
+结构化输出 已经讲过 Structured Outputs：Schema 能让模型输出进入程序。但 结构化输出 更多关注“如何定义和解析结构”。可靠调用 关注的是：解析失败以后，这次调用算不算成功？
 
 答案是：对结构化任务来说，不算。
 
@@ -204,21 +204,21 @@ StructuredParseResult：文本是否能被应用解析为目标 schema
 
 **第 5 步 · ReliableCallReport**
 
-每次 attempt、最终 config、是否 degraded、最终错误都可观察。仍遗留：批量回归、成本统计、P95 延迟进入 07 / 08 / 05_eval_observability。
+每次 attempt、最终 config、是否 degraded、最终错误都可观察。仍遗留：批量回归、成本统计、P95 延迟进入 调用 Harness / 成本治理 / 评估观测。
 
 这条递进和前几节连起来就是：
 
 ```text
-02 Prompt：任务说清楚
-03 Structured Output：输出形状可校验
-04 Streaming：过程可展示
-05 Context：输入可追溯
-06 Reliability：失败可解释、可恢复、可降级
+Prompt：任务说清楚
+Structured Output：输出形状可校验
+流式机制 Streaming：过程可展示
+Context：输入可追溯
+Reliability：失败可解释、可恢复、可降级
 ```
 
 ---
 
-## 最小实现
+## 给真实调用增加有限控制
 
 本节的最小实现守住四个不变量：
 
@@ -227,11 +227,11 @@ StructuredParseResult：文本是否能被应用解析为目标 schema
 3. 结构化解析失败会被转成可靠性错误，而不是被当作普通成功。
 4. 每次 attempt 都进入 `ReliableCallReport`，demo 和后续 trace 都能读取。
 
-完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [call ops lab README](../../source/demos/02_call_ops_lab/README.md)。
+完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [call ops lab README](../../../source/demos/02_call_ops_lab/README.md)。
 
 ### 1. 策略和报告
 
-[`reliability/`](../../source/packages/llm_core/reliability/) 先定义可靠性层的数据契约：
+[`reliability/`](../../../source/packages/llm_core/reliability/) 先定义可靠性层的数据契约：
 
 ```python
 @dataclass(frozen=True)
@@ -258,7 +258,7 @@ class ReliableCallReport:
 
 ### 2. 可靠调用外壳
 
-[`ReliableLLMService`](../../source/packages/llm_core/reliability/) 的主职责是包住 `LLMClient`：
+[`ReliableLLMService`](../../../source/packages/llm_core/reliability/) 的主职责是包住 `LLMClient`：
 
 ```python
 result = service.chat(
@@ -286,11 +286,11 @@ parse.error_stage == "json"   -> schema_parse
 parse.error_stage == "schema" -> schema_parse
 ```
 
-这样 03 的 `parse_risk_list` 不只是本地校验工具，也能进入 06 的 retry / fallback / report 链路。
+这样 结构化输出 的 `parse_risk_list` 不只是本地校验工具，也能进入 可靠调用 的 retry / fallback / report 链路。
 
 ### 4. Demo 默认真实调用，模拟只做失败复现
 
-[`reliability_compare.py`](../../source/demos/02_call_ops_lab/reliability_compare.py) 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt、latency、final config 和错误。真实调用的价值是让你看到供应商、模型能力、API key、网络和 structured mode 等真实工程变量。
+[`reliability_compare.py`](../../../source/demos/02_call_ops_lab/reliability_compare.py) 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt、latency、final config 和错误。真实调用的价值是让你看到供应商、模型能力、API key、网络和 structured mode 等真实工程变量。
 
 但真实模型通常不会稳定触发 timeout、auth、schema failure 或 fallback。为了学习失败路径，脚本保留 `USE_REAL_LLM = False` 的模拟模式，可稳定复现：
 
@@ -305,9 +305,9 @@ schema_failure
 
 ---
 
-## 主流框架实现
+## 重试框架不能替你决定什么
 
-OpenAI SDK、Anthropic SDK 和其他兼容平台都会抛出自己的异常类型，例如 timeout、rate limit、status error。项目里不应该让业务层到处判断供应商异常名，而应在 provider 层先映射为统一的 `LLMErrorCode`。本仓库的 [`OpenAICompatProvider`](../../source/packages/llm_core/providers/openai_compat.py) 已经做了第一层映射。
+OpenAI SDK、Anthropic SDK 和其他兼容平台都会抛出自己的异常类型，例如 timeout、rate limit、status error。项目里不应该让业务层到处判断供应商异常名，而应在 provider 层先映射为统一的 `LLMErrorCode`。本仓库的 [`OpenAICompatProvider`](../../../source/packages/llm_core/providers/openai_compat.py) 已经做了第一层映射。
 
 Tenacity / backoff 这类 Python 库可以帮助实现重试、退避和停止条件。它们适合生产项目，但学习阶段直接写一个小的 `RetryPolicy` 更容易看清机制：哪些错误可重试，最多重试几次，失败记录在哪里。
 
@@ -315,7 +315,7 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 
 ---
 
-## 失败分析与能力边界
+## 可靠性策略本身怎样制造事故
 
 ### 1. 无限重试放大成本和延迟
 
@@ -343,9 +343,9 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 
 ### 5. 降级破坏 citation 和 context 追溯
 
-- **表现**：fallback 结果引用了不存在的 source id，或忽略 05 的 citation candidates。
+- **表现**：fallback 结果引用了不存在的 source id，或忽略 上下文工程 的 citation candidates。
 - **原因**：降级路径没有使用同一份 messages / context report，或 Prompt 约束变弱。
-- **怎么验证**：确认 fallback 调用仍使用 05 构造出的同一份 messages；再检查输出 citation 是否在 candidates 中。完整 citation eval defer 到后续评估课程。
+- **怎么验证**：确认 fallback 调用仍使用 上下文工程 构造出的同一份 messages；再检查输出 citation 是否在 candidates 中。完整 citation eval defer 到后续评估课程。
 
 ### 常见误区
 
@@ -361,15 +361,15 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 
 | 能力 | 目标节 | 当节最小判断 |
 | --- | --- | --- |
-| 批量调用记录与回归集 | 07 | 本节只返回单次调用 report |
-| 成本、延迟 P95、缓存 | 08 | 本节只记录 attempt latency，不做统计面板 |
-| Prompt Injection 和工具权限安全 | 04_agent | 本节只处理模型调用失败，不处理工具安全 |
-| 生产级熔断和任务队列 | 06_ai_native / 07_projects | 本节只做同步调用外壳 |
-| 完整 trace 平台 | 05_eval_observability | 本节 report 是后续 trace 的输入 |
+| 批量调用记录与回归集 | 调用 Harness | 本节只返回单次调用 report |
+| 成本、延迟 P95、缓存 | 成本治理 | 本节只记录 attempt latency，不做统计面板 |
+| Prompt Injection 和工具权限安全 | Agent | 本节只处理模型调用失败，不处理工具安全 |
+| 生产级熔断和任务队列 | AI Native / 项目篇 | 本节只做同步调用外壳 |
+| 完整 trace 平台 | 评估观测 | 本节 report 是后续 trace 的输入 |
 
 ---
 
-## 本节实战
+## 比较直接调用与可靠调用
 
 ### 目标
 
@@ -379,11 +379,11 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 
 关键路径：
 
-- [`source/packages/llm_core/errors/types.py`](../../source/packages/llm_core/errors/types.py)：统一错误码。
-- [`source/packages/llm_core/reliability/`](../../source/packages/llm_core/reliability/)：`RetryPolicy`、`DegradationPolicy`、`ReliableLLMService` 和 report。
-- [`source/packages/llm_core/tests/test_reliability.py`](../../source/packages/llm_core/tests/test_reliability.py)：可靠性单元测试。
-- [`source/demos/02_call_ops_lab/reliability_compare.py`](../../source/demos/02_call_ops_lab/reliability_compare.py)：06 call ops lab 观察入口。
-- [`source/demos/02_call_ops_lab/README.md`](../../source/demos/02_call_ops_lab/README.md)：reliability 与 harness 的输出说明。
+- [`source/packages/llm_core/errors/types.py`](../../../source/packages/llm_core/errors/types.py)：统一错误码。
+- [`source/packages/llm_core/reliability/`](../../../source/packages/llm_core/reliability/)：`RetryPolicy`、`DegradationPolicy`、`ReliableLLMService` 和 report。
+- [`source/packages/llm_core/tests/test_reliability.py`](../../../source/packages/llm_core/tests/test_reliability.py)：可靠性单元测试。
+- [`source/demos/02_call_ops_lab/reliability_compare.py`](../../../source/demos/02_call_ops_lab/reliability_compare.py)：可靠调用 call ops lab 观察入口。
+- [`source/demos/02_call_ops_lab/README.md`](../../../source/demos/02_call_ops_lab/README.md)：reliability 与 harness 的输出说明。
 
 ### 实现步骤
 
@@ -517,7 +517,7 @@ DEFAULT_CASE = "primary_timeout_then_fallback"
 
 ---
 
-## 完成标准
+## 怎样判断失败已可观察、可控制
 
 - 能解释 `timeout`、`rate_limit`、`auth`、`schema_parse` 为什么不能用同一种处理方式。
 - 能说明 retry 适合处理什么，不适合处理什么。
@@ -547,21 +547,21 @@ uv run python source/demos/02_call_ops_lab/reliability_compare.py
 2. 为什么 HTTP 请求成功，但 `parse.ok=False` 时仍应算调用失败？
 3. fallback 成功后，为什么还要保留 `degraded=True`？
 4. 如果某次评审成本突然升高，你会如何从 `ReliableCallReport.attempts` 开始排查？
-5. 如果模型输出缺少 citation，你会先查 05 的 context report，还是 06 的 reliability report？为什么？
+5. 如果模型输出缺少 citation，你会先查 上下文工程 的 context report，还是 可靠调用 的 reliability report？为什么？
 6. 为什么本节不把 retry 逻辑直接写进 `LLMClient.chat()`？
 
 ---
 
-## 本节沉淀
+## 交给项目的可靠调用报告
 
 - `llm_core` 新增 `reliability/`，把单次模型调用升级为可重试、可降级、可诊断的可靠调用。
 - 扩展 `02_call_ops_lab`：默认真实调用观察真实 attempt；模拟 case 仅用于稳定学习 timeout、auth、schema failure 和 fallback。
-- 下一节 07 LLM Calling Harness 将把单次可靠调用扩展为批量样例、调用记录和回归对比。
+- 继续学习 Calling Harness：把单次可靠调用扩展为批量样例、调用记录和回归对比。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 上一篇：[05_context_engineering.md](05_context_engineering.md)
-- 下一篇：[07_llm_calling_harness.md](07_llm_calling_harness.md)
-- 课程大纲：[outline.md](outline.md)
+- 相关前置：[context-engineering.md](context-engineering.md)
+- 继续阅读：[calling-harness-and-regression.md](calling-harness-and-regression.md)
+- 集中知识地图：[集中知识地图](../../knowledge-map.md)

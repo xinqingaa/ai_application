@@ -1,12 +1,12 @@
-# 04. Streaming 与 Conversation
+# Streaming、事件协议与 Conversation
 
-> 前三节已经解决了「能调用模型」「能稳定组织 Prompt」「能把输出变成结构化契约」。本篇回答：**模型生成过程如何变成前端可消费的实时状态**，以及多轮对话里哪些内容应该进入 history，哪些只是一次运行中的中间态。
+> 机制篇：解释模型增量如何变成前端可消费的事件，以及稳定会话历史为什么不能混入一次运行的全部中间态。
 
 ---
 
-## 真实问题
+## 为什么逐字显示不等于流式系统
 
-在 00–03 中，我们主要观察的是一次模型调用的最终结果。`LLMClient.chat` 返回 `LLMResponse`，`chat_structured` 返回 `StructuredLLMResponse`。这对后端验证很方便，但真实 AI 应用不会只在终端里等待最终文本。
+在 SDK 最小调用–结构化输出 中，我们主要观察的是一次模型调用的最终结果。`LLMClient.chat` 返回 `LLMResponse`，`chat_structured` 返回 `StructuredLLMResponse`。这对后端验证很方便，但真实 AI 应用不会只在终端里等待最终文本。
 
 需求评审助手面对的是一个持续运行的任务：用户提交 PRD 后，系统可能需要读材料、分析风险、生成建议、等待人工确认。即使本节还没有接入 RAG、Tool Calling 或 Workflow，前端也已经不能只显示一个 loading 圈，然后等 20 秒把最终回答一次性贴出来。用户需要知道：系统已经开始处理了吗？现在是否有内容生成？失败发生在调用前、生成中，还是生成后？最终进入会话历史的是哪段内容？
 
@@ -61,7 +61,7 @@
 
 ---
 
-## 基础原理
+## 从 Token Stream 到应用事件流
 
 ### 本节方案性质
 
@@ -145,7 +145,7 @@ Token stream 是模型供应商给应用的东西，event stream 是应用给前
 → done：关闭 EventSource，进入 completed 状态
 ```
 
-点击 Stop 时，浏览器侧调用 `EventSource.close()`，前端停止接收后续事件。注意：这只保证**客户端停止消费**。生产级「用户取消后模型调用也立刻停止」还需要服务端检测断连、向 provider 传播取消、记录取消状态，这些属于 06 可靠性与后续产品工程，本节只讲最小边界。
+点击 Stop 时，浏览器侧调用 `EventSource.close()`，前端停止接收后续事件。注意：这只保证**客户端停止消费**。生产级「用户取消后模型调用也立刻停止」还需要服务端检测断连、向 provider 传播取消、记录取消状态，这些属于 可靠调用 可靠性与后续产品工程，本节只讲最小边界。
 
 ### 为什么选择 SSE
 
@@ -228,7 +228,7 @@ Streaming 与 Conversation 的工程设计可以按下面这条链理解：
 
 **第 5 步 · Conversation 边界**
 
-流式展示不等于全部入历史。用户消息立即进入 history，assistant 最终消息在 `message_done` 后进入 history。**仍遗留**：history 太长时如何裁剪、摘要和压缩，放到 05 Context Engineering。
+流式展示不等于全部入历史。用户消息立即进入 history，assistant 最终消息在 `message_done` 后进入 history。**仍遗留**：history 太长时如何裁剪、摘要和压缩，放到 Context Engineering。
 
 这条递进的重点是：不要停在“能流式显示”。真正可维护的 AI 应用，要让前端知道事件状态，让后端知道哪些内容稳定，让后续上下文不被中间过程污染。
 
@@ -250,18 +250,18 @@ Streaming 与 Conversation 的工程设计可以按下面这条链理解：
 
 ---
 
-## 最小实现
+## 用统一事件连接模型与 SSE
 
 本节代码要验证两件事：
 
 1. 模型 chunk 能被翻译成稳定应用事件。
 2. FastAPI 能把这些事件作为 SSE 输出给前端。
 
-正文只保留两个关键片段，完整代码阅读顺序见 [llm_core README](../../source/packages/llm_core/README.md) 和 [SSE app README](../../source/apps/02_llm_streaming_api/README.md)。
+正文只保留两个关键片段，完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [SSE app README](../../../source/apps/02_llm_streaming_api/README.md)。
 
 ### 1. 统一事件对象
 
-[`streaming/events.py`](../../source/packages/llm_core/streaming/events.py)：
+[`streaming/events.py`](../../../source/packages/llm_core/streaming/events.py)：
 
 ```python
 @dataclass(frozen=True)
@@ -288,7 +288,7 @@ class LLMStreamEvent:
 
 ### 2. FastAPI SSE 输出
 
-[`source/apps/02_llm_streaming_api/main.py`](../../source/apps/02_llm_streaming_api/main.py)：
+[`source/apps/02_llm_streaming_api/main.py`](../../../source/apps/02_llm_streaming_api/main.py)：
 
 ```python
 def event_stream() -> Iterator[str]:
@@ -329,7 +329,7 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 
 ---
 
-## 主流框架实现
+## 流式框架与应用状态的分工
 
 | 方式 | 适合场景 | 与本节关系 |
 | --- | --- | --- |
@@ -343,7 +343,7 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 
 ---
 
-## 失败分析与能力边界
+## 从前端现象反查流式链路
 
 ### 1. 前端能看到 token，但最终消息没有保存
 
@@ -373,7 +373,7 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 
 - **表现**：前端关闭页面或取消请求，后端仍然消耗 token。
 - **原因**：取消和断连检测需要额外处理，不能靠最小 SSE 自动完成。
-- **当节最小判断**：知道这是可靠性问题，不把它当成本节已经解决；取消、超时、重试与降级放到 06。
+- **当节最小判断**：知道这是可靠性问题，不把它当成本节已经解决；取消、超时、重试与降级放到 可靠调用。
 
 ### 常见误区
 
@@ -389,16 +389,16 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 
 | 能力 | 目标节 | 当节最小判断 |
 | --- | --- | --- |
-| 上下文预算、历史裁剪、摘要压缩 | 05 | 知道 history 不能无限增长，当前只用 `max_messages` |
-| 超时、取消、重试、降级 | 06 | 能通过 `error` 事件显式暴露失败 |
-| 调用记录落盘与回归对比 | 07 | 当前只观察单次 run 的事件 |
-| RAG 检索进度事件 | 03_rag | 本节只做 LLM message event |
-| Tool / Agent / Workflow 节点事件 | 04_agent | 本节事件协议预留扩展，不实现真实 runtime |
-| 前端完整工作台 | 06_ai_native | 本节只提供可被前端消费的 SSE 接口 |
+| 上下文预算、历史裁剪、摘要压缩 | 上下文工程 | 知道 history 不能无限增长，当前只用 `max_messages` |
+| 超时、取消、重试、降级 | 可靠调用 | 能通过 `error` 事件显式暴露失败 |
+| 调用记录落盘与回归对比 | 调用 Harness | 当前只观察单次 run 的事件 |
+| RAG 检索进度事件 | RAG | 本节只做 LLM message event |
+| Tool / Agent / Workflow 节点事件 | Agent | 本节事件协议预留扩展，不实现真实 runtime |
+| 前端完整工作台 | AI Native | 本节只提供可被前端消费的 SSE 接口 |
 
 ---
 
-## 本节实战
+## 运行并观察 SSE 事件
 
 ### 目标
 
@@ -408,14 +408,14 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 
 关键路径：
 
-- [`source/packages/llm_core/streaming/events.py`](../../source/packages/llm_core/streaming/events.py)：流式事件与 SSE 编码。
-- [`source/packages/llm_core/conversation/buffer.py`](../../source/packages/llm_core/conversation/buffer.py)：最小 Conversation Buffer。
-- [`source/packages/llm_core/client/service.py`](../../source/packages/llm_core/client/service.py)：`LLMClient.stream_chat`。
-- [`source/packages/llm_core/providers/openai_compat.py`](../../source/packages/llm_core/providers/openai_compat.py)：OpenAI-compatible streaming 实现。
-- [`source/apps/02_llm_streaming_api/main.py`](../../source/apps/02_llm_streaming_api/main.py)：FastAPI SSE app。
-- [`source/apps/02_llm_streaming_api/index.html`](../../source/apps/02_llm_streaming_api/index.html)：浏览器打字机观察页面。
+- [`source/packages/llm_core/streaming/events.py`](../../../source/packages/llm_core/streaming/events.py)：流式事件与 SSE 编码。
+- [`source/packages/llm_core/conversation/buffer.py`](../../../source/packages/llm_core/conversation/buffer.py)：最小 Conversation Buffer。
+- [`source/packages/llm_core/client/service.py`](../../../source/packages/llm_core/client/service.py)：`LLMClient.stream_chat`。
+- [`source/packages/llm_core/providers/openai_compat.py`](../../../source/packages/llm_core/providers/openai_compat.py)：OpenAI-compatible streaming 实现。
+- [`source/apps/02_llm_streaming_api/main.py`](../../../source/apps/02_llm_streaming_api/main.py)：FastAPI SSE app。
+- [`source/apps/02_llm_streaming_api/index.html`](../../../source/apps/02_llm_streaming_api/index.html)：浏览器打字机观察页面。
 
-完整运行说明与输出字段见 [SSE app README](../../source/apps/02_llm_streaming_api/README.md)。
+完整运行说明与输出字段见 [SSE app README](../../../source/apps/02_llm_streaming_api/README.md)。
 
 ### 实现步骤
 
@@ -467,7 +467,7 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 
 ---
 
-## 完成标准
+## 怎样判断流式链路可被前端消费
 
 - 能解释 token stream、event stream、SSE 三者的区别。
 - 能说明为什么 `LLMStreamEvent` 需要 `run_id` 和 `sequence`。
@@ -501,16 +501,16 @@ uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --po
 
 ---
 
-## 本节沉淀
+## 交给项目的事件协议
 
-- `llm_core` 新增 `streaming`、`conversation` 与 `LLMClient.stream_chat`，并保留与 01–03 同一套 `config_ref` 调用方式。
+- `llm_core` 新增 `streaming`、`conversation` 与 `LLMClient.stream_chat`，并保留与 Provider 调用层–结构化输出 同一套 `config_ref` 调用方式。
 - 需求评审助手获得一个可运行的 FastAPI SSE 入口，前端可以基于事件协议展示模型运行态。
-- 下一节 [05_context_engineering.md](05_context_engineering.md) 将继续处理 history、需求材料、证据和中间结果如何进入上下文预算。
+- 继续阅读 [context-engineering.md](context-engineering.md) 将继续处理 history、需求材料、证据和中间结果如何进入上下文预算。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 上一篇：[03_structured_outputs.md](03_structured_outputs.md)
-- 下一篇：[05_context_engineering.md](05_context_engineering.md)
-- 课程大纲：[outline.md](outline.md)
+- 相关前置：[structured-output.md](structured-output.md)
+- 继续阅读：[context-engineering.md](context-engineering.md)
+- 集中知识地图：[集中知识地图](../../knowledge-map.md)

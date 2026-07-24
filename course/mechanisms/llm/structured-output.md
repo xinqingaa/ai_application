@@ -1,12 +1,12 @@
-# 03. Structured Outputs
+# Structured Output 与应用侧校验
 
-> 在 02 用 Prompt **描述**「希望输出 JSON」之后，本篇回答：**为什么“像 JSON”还不够，如何把模型输出变成应用可信的数据契约**，以及 `response_format` 与 Pydantic 各自解决哪一层问题。
+> 机制篇：解释为什么“像 JSON”还不够，以及生成约束、JSON 解析、Schema 校验和业务消费如何形成可信输出链路。
 
 ---
 
-## 真实问题
+## 为什么“请输出 JSON”不是数据契约
 
-专题 02 已经把 Prompt 从随手写的提示收敛成 `prompt_id + version + YAML`。风险审查 Prompt v3 也开始用文字要求模型输出 JSON。到这里会自然遇到一个新问题：**Prompt 说“请输出 JSON”，并不等于应用真的拿到了可用数据**。
+Prompt 工程 已经把 Prompt 从随手写的提示收敛成 `prompt_id + version + YAML`。风险审查 Prompt v3 也开始用文字要求模型输出 JSON。到这里会自然遇到一个新问题：**Prompt 说“请输出 JSON”，并不等于应用真的拿到了可用数据**。
 
 Structured Outputs 不是某个 API 参数的别名，也不是为了让终端打印漂亮 JSON。它要解决的是：**模型生成的内容如何进入前端、数据库、评估和后续 Workflow，而不是停留在聊天文本里**。
 
@@ -23,7 +23,7 @@ Structured Outputs 不是某个 API 参数的别名，也不是为了让终端�
 
 ### 产品真实问题
 
-产品同学小周提交 S2 样例 PRD：订单详情页新增「申请售后」按钮，需对接售后接口 v2。评审助手在 02 已经能列出风险，评审负责人希望在会前看到**可筛选、可对比、可入库**的风险卡片，而不是每次复制一大段 Markdown 到会议纪要里。
+产品同学小周提交 S2 样例 PRD：订单详情页新增「申请售后」按钮，需对接售后接口 v2。评审助手在 Prompt 工程 已经能列出风险，评审负责人希望在会前看到**可筛选、可对比、可入库**的风险卡片，而不是每次复制一大段 Markdown 到会议纪要里。
 
 第一次联调时，后端把模型返回的 `assistant` 全文存进数据库，前端直接 `JSON.parse`。某次模型返回：
 
@@ -53,7 +53,7 @@ Structured Outputs 不是某个 API 参数的别名，也不是为了让终端�
 
 ---
 
-## 基础原理
+## 从概率文本到分层校验
 
 ### 本节方案性质
 
@@ -74,7 +74,7 @@ Structured Outputs 也没有唯一标准答案。不同模型、SDK、业务对�
 **输入**：`messages`（含 Prompt 渲染后的任务与材料）+ 可选 `response_format` + 模型参数。  
 **输出（应用可信部分）**：经 Pydantic 校验后的 `list[ReviewRisk]`，或带 `error_stage` 的解析失败结果——**不是**原始的 `assistant` 字符串。
 
-与 02 的区别：02 用 Prompt **描述**希望输出的形状；03 用 Schema **定义**契约，用解析器 **强制执行**，并可选把 Schema 前移到 API 生成阶段。
+与 Prompt 工程 的区别：Prompt 工程 用 Prompt **描述**希望输出的形状；结构化输出 用 Schema **定义**契约，用解析器 **强制执行**，并可选把 Schema 前移到 API 生成阶段。
 
 这里最容易误解的是：Structured Output 不是“让模型听话地返回 JSON”。如果只停在 JSON 语法层，前端仍然可能拿到中文字段、错误枚举、缺失字段或根结构漂移。真正的结构化输出要回答三个问题：
 
@@ -158,7 +158,7 @@ UI、数据库、Workflow 只读校验后的结构；`assistant` 原文仅用于
 
 ### 数据契约：`ReviewRiskList`
 
-真源在 [`schemas/review.py`](../../source/packages/llm_core/schemas/review.py)。Prompt（[`risk_review_v4.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v4.yaml)）的 Output 段、Pydantic、`json_schema` 模式的 API Schema **必须描述同一份字段**。
+真源在 [`schemas/review.py`](../../../source/packages/llm_core/schemas/review.py)。Prompt（[`risk_review_v4.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v4.yaml)）的 Output 段、Pydantic、`json_schema` 模式的 API Schema **必须描述同一份字段**。
 
 **根形态**：v4 要求 JSON 对象且含 `risks` 数组（不能是裸数组——OpenAI Structured Outputs 也要求根为 object）：
 
@@ -168,7 +168,7 @@ UI、数据库、Workflow 只读校验后的结构；`assistant` 原文仅用于
 }
 ```
 
-`parse_risk_list` 为兼容 02 v3，仍接受根为数组的 legacy 形态；**本节契约与 v4 Prompt 均以 `{ "risks": [...] }` 为准**。
+`parse_risk_list` 为兼容 Prompt 工程 v3，仍接受根为数组的 legacy 形态；**本节契约与 v4 Prompt 均以 `{ "risks": [...] }` 为准**。
 
 **单条风险样例**：
 
@@ -206,17 +206,17 @@ UI、数据库、Workflow 只读校验后的结构；`assistant` 原文仅用于
 
 这份契约刻意不追求复杂。初学结构化输出时，最重要的是把根形态、字段名、枚举和失败分层跑通，而不是一开始设计完整 `ReviewReport`。`ReviewRiskList` 小到足以观察每个失败点，又贴近需求评审助手的真实业务对象。
 
-### 与 02 的分工
+### 与 Prompt 工程 的分工
 
-| | 02 | 03 |
+| | Prompt 工程 | 结构化输出 |
 | --- | --- | --- |
 | 任务描述 | Prompt 六段式、版本化 | v4 Output 与 Schema 字段一致 |
 | 输出形态 | v3 文字要求 JSON | 契约 + 校验 + 可选 API 约束 |
 | 应用侧类型 | 无 | `list[ReviewRisk]` |
 
-02 和 03 的边界也可以这样理解：02 让模型“尽量按约定说话”，03 让应用“只接受符合契约的话”。这两个动作缺一不可。
+Prompt 工程 和 结构化输出 的边界也可以这样理解：Prompt 工程 让模型“尽量按约定说话”，结构化输出 让应用“只接受符合契约的话”。这两个动作缺一不可。
 
-如果只有 02，没有 03，模型可能大多数时候返回看起来正确的 JSON，但一旦字段漂移，前端和数据库会在更远的位置失败。如果只有 03，没有 02，模型完全不知道要输出哪些字段，解析失败会非常频繁。Prompt 和 Schema 的关系不是替代，而是前后两道门：Prompt 在生成前对齐意图，Schema 在生成后确认结果。
+如果只有 Prompt 工程，没有 结构化输出，模型可能大多数时候返回看起来正确的 JSON，但一旦字段漂移，前端和数据库会在更远的位置失败。如果只有 结构化输出，没有 Prompt 工程，模型完全不知道要输出哪些字段，解析失败会非常频繁。Prompt 和 Schema 的关系不是替代，而是前后两道门：Prompt 在生成前对齐意图，Schema 在生成后确认结果。
 
 ### 四类失败案例
 
@@ -242,7 +242,7 @@ JSON 语法合法，但字段不符合契约。比如 `category` 写成中文「
 
 ### `chat_structured` 即本项目的「提取器」
 
-旧式教学常单独讲「通用提取器」脚本。在本项目里，`LLMClient.chat_structured` + `response_model` + `parse_risk_list` **就是**提取器抽象：一次调用返回 `StructuredLLMResponse`（含 `llm`、`parse`、`request_params`）。批量跑样例、harness 落盘在专题 07 深化；本节先学会单次调用的判层与校验。
+旧式教学常单独讲「通用提取器」脚本。在本项目里，`LLMClient.chat_structured` + `response_model` + `parse_risk_list` **就是**提取器抽象：一次调用返回 `StructuredLLMResponse`（含 `llm`、`parse`、`request_params`）。批量跑样例、harness 落盘在调用 Harness 深化；本节先学会单次调用的判层与校验。
 
 这也是本轮课程组织和旧脚本模式的差异：我们不再为“JSON Mode”“Pydantic”“Retry”“Extractor”各写一组孤立脚本，而是在 `llm_core` 里把结构化调用收成一个可复用能力。后续需求评审助手要生成风险卡片、测试点、追问列表或报告摘要，都应该复用同一套“调用 → 解析 → 判层”的模式。
 
@@ -250,13 +250,13 @@ JSON 语法合法，但字段不符合契约。比如 `category` 写成中文「
 
 ---
 
-## 最小实现
+## 建立 Schema、调用与解析闭环
 
 本节最小实现要验证一件事：模型返回文本后，应用能不能稳定判断「是否可用」以及「不可用时错在哪一层」。因此正文只保留两个关键片段：Schema 真源与解析判层。`response_format` 和 `chat_structured` 是把这两者接进请求流程的胶水，理解职责即可。
 
 ### 1. Schema 真源
 
-[`schemas/review.py`](../../source/packages/llm_core/schemas/review.py)：
+[`schemas/review.py`](../../../source/packages/llm_core/schemas/review.py)：
 
 ```python
 class ReviewRisk(BaseModel):
@@ -274,7 +274,7 @@ class ReviewRiskList(BaseModel):
 
 ### 2. 构建 `response_format`
 
-[`structured/response.py`](../../source/packages/llm_core/structured/response.py) 根据 `structured_mode` 决定是否给 API 传 `response_format`：
+[`structured/response.py`](../../../source/packages/llm_core/structured/response.py) 根据 `structured_mode` 决定是否给 API 传 `response_format`：
 
 - `none`：不传，让 Prompt 自己约束输出。
 - `json_object`：传 JSON Mode，约束格式层。
@@ -284,13 +284,13 @@ class ReviewRiskList(BaseModel):
 
 ### 3. 调用与解析合一
 
-[`client/service.py`](../../source/packages/llm_core/client/service.py) 的 `chat_structured` 做三件事：先按 mode 组装 `response_format`，再调用普通 `chat`，最后立刻把 `llm.content` 交给 `parse_structured_content`。它返回的不是单纯文本，而是 `StructuredLLMResponse`：里面同时保留原始模型响应、解析结果和请求参数。
+[`client/service.py`](../../../source/packages/llm_core/client/service.py) 的 `chat_structured` 做三件事：先按 mode 组装 `response_format`，再调用普通 `chat`，最后立刻把 `llm.content` 交给 `parse_structured_content`。它返回的不是单纯文本，而是 `StructuredLLMResponse`：里面同时保留原始模型响应、解析结果和请求参数。
 
 注意顺序：**调用后立刻 parse**。如果先把原始字符串交给 UI 或数据库，再在别处解析，失败就会扩散。结构化输出的工程习惯是：在模型调用边界处就把「可用 / 不可用」判清楚。
 
 ### 4. 解析分层与 `error_stage`
 
-[`schemas/parse.py`](../../source/packages/llm_core/schemas/parse.py)：
+[`schemas/parse.py`](../../../source/packages/llm_core/schemas/parse.py)：
 
 ```python
 def parse_risk_list(content: str) -> StructuredParseResult:
@@ -340,7 +340,7 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 - `API_ERROR`：提示“模型能力或供应商调用失败”，可换配置或降级。
 - `parse.ok=True` 但 citation 待校验：展示风险卡片，但把引用可信度交给后续 RAG 校验。
 
-这类状态设计会在 06_ai_native 和 07_projects 里进一步进入工作台体验。本节先把后端结果分层做好，前端未来才有条件展示“AI 到底卡在哪一步”。
+这类状态设计会在 AI Native 和 项目篇 里进一步进入工作台体验。本节先把后端结果分层做好，前端未来才有条件展示“AI 到底卡在哪一步”。
 
 ### 为什么本节不做自动重试
 
@@ -348,11 +348,11 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 如果失败来自供应商不支持 `json_schema`，重试同一个请求大概率还是失败；应该降级到 `json_object` 或换模型。如果失败来自枚举非法，简单重试可能偶尔成功，但更好的做法是把错误反馈给模型或修正 Prompt Output。如果失败来自 citation 不真实，重试不一定解决，需要检索和引用校验。
 
-所以本节只要求你学会读 `error_stage`。自动重试、错误反馈和降级策略放到专题 06，是在判层能力之上继续加工程控制。
+所以本节只要求你学会读 `error_stage`。自动重试、错误反馈和降级策略放到可靠调用机制，是在判层能力之上继续加工程控制。
 
 ---
 
-## 主流框架实现
+## 框架模式与本地校验怎样协作
 
 | 方式 | 与本项目 |
 | --- | --- |
@@ -362,7 +362,7 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 ---
 
-## 失败分析与能力边界
+## 按失败阶段定位结构化问题
 
 ### 排查路径（表现 → 原因 → 怎么验证）
 
@@ -388,7 +388,7 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 - **表现**：`parse.ok` 为真，但 `rationale` 胡编、citation 指向不存在材料。
 - **原因**：Schema 只保证**形状**，不保证**内容真伪**。
-- **当节判断**：记录 bad case；引用是否存在由 `03_rag` 校验；质量统计由专题 07 harness 负责。
+- **当节判断**：记录 bad case；引用是否存在由 RAG 校验；质量统计由调用 Harness harness 负责。
 
 ### 常见误区
 
@@ -396,22 +396,22 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 | --- | --- |
 | 「用了 JSON Mode 就不需要 Pydantic」 | `json_object` 不保证字段契约；Pydantic 始终执行 |
 | 「API_ERROR = 解析写错了」 | 先区分 API 能力层与 `parse` 层 |
-| 「parse 失败就多试几次」 | schema 失败若 Prompt/Schema 未改，重试无效；完整重试环见 06 |
+| 「parse 失败就多试几次」 | schema 失败若 Prompt/Schema 未改，重试无效；完整重试环见 可靠调用 |
 | 「assistant 字符串能 parse 就算成功」 | 必须 `parse.ok`；原文只作日志 |
 
 ### 本节不做（defer）
 
 | 能力 | 目标节 | 当节最小判断 |
 | --- | --- | --- |
-| schema 失败自动重试、错误反馈给模型 | 06 | 会读 `error_stage` / `message` 定位层，不盲目重试 |
-| harness 落盘、字段缺失率统计 | 07 | demo 三 mode 肉眼对比 + 笔记 |
-| citation `source_id` 是否存在 | 03_rag | 只校验 citation **结构**，不校验真伪 |
+| schema 失败自动重试、错误反馈给模型 | 可靠调用 | 会读 `error_stage` / `message` 定位层，不盲目重试 |
+| harness 落盘、字段缺失率统计 | 调用 Harness | demo 三 mode 肉眼对比 + 笔记 |
+| citation `source_id` 是否存在 | RAG | 只校验 citation **结构**，不校验真伪 |
 | 完整 `ReviewReport`、六类评审输出 | 后续专题 | 本节只做 `risks` 列表 |
-| 流式 + 结构化同时 | 04 | 本节假定非流式一次返回 |
+| 流式 + 结构化同时 | 流式机制 | 本节假定非流式一次返回 |
 
 ---
 
-## 本节实战
+## 比较三种结构化模式
 
 ### 目标
 
@@ -421,16 +421,16 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 关键路径：
 
-- [`source/packages/llm_core/schemas/review.py`](../../source/packages/llm_core/schemas/review.py)：风险列表 Schema 真源。
-- [`source/packages/llm_core/schemas/parse.py`](../../source/packages/llm_core/schemas/parse.py)：解析与 `error_stage` 判层。
-- [`source/packages/llm_core/structured/response.py`](../../source/packages/llm_core/structured/response.py)：`response_format` 构建。
-- [`source/demos/02_model_contracts/structured_risk.py`](../../source/demos/02_model_contracts/structured_risk.py)：本节观察入口。
+- [`source/packages/llm_core/schemas/review.py`](../../../source/packages/llm_core/schemas/review.py)：风险列表 Schema 真源。
+- [`source/packages/llm_core/schemas/parse.py`](../../../source/packages/llm_core/schemas/parse.py)：解析与 `error_stage` 判层。
+- [`source/packages/llm_core/structured/response.py`](../../../source/packages/llm_core/structured/response.py)：`response_format` 构建。
+- [`source/demos/02_model_contracts/structured_risk.py`](../../../source/demos/02_model_contracts/structured_risk.py)：本节观察入口。
 
-完整文件说明与参数变体放在 [demo README](../../source/demos/02_model_contracts/README.md)。
+完整文件说明与参数变体放在 [demo README](../../../source/demos/02_model_contracts/README.md)。
 
 ### 实现步骤（与最小实现对照）
 
-1. `get_prompt("review.risk_review", version="4.0.0")` + `render_prompt` → `messages`（与 02 相同变量 `requirement_text`、`evidence_block`）。
+1. `get_prompt("review.risk_review", version="4.0.0")` + `render_prompt` → `messages`（与 Prompt 工程 相同变量 `requirement_text`、`evidence_block`）。
 2. 对每种 demo mode 映射 `structured_mode`：`prompt_only`→`none`，`json_mode`→`json_object`，`json_schema`→`json_schema`。
 3. `client.chat_structured(messages, CONFIG_REF, structured_mode=...)`；捕获 `LLMError` 记 API 失败。
 4. 读 `result.parse.ok`、`error_stage`、`risks`，判断失败层级。
@@ -455,7 +455,7 @@ uv run python structured_risk.py
 
 无论哪种 mode，有文本就必须过 `parse_risk_list`；仅 `result.parse.ok=True` 时可把 `result.parse.risks` 交给下游。
 
-本节最重要的观察不是「哪种 mode 一定最好」，而是你能否说清失败发生在哪一层：没有返回文本、不是合法 JSON、字段不符合 Schema，还是供应商不支持某个 API 参数。这个判层能力会直接服务 06 的重试降级和 07 的 harness 统计。
+本节最重要的观察不是「哪种 mode 一定最好」，而是你能否说清失败发生在哪一层：没有返回文本、不是合法 JSON、字段不符合 Schema，还是供应商不支持某个 API 参数。这个判层能力会直接服务 可靠调用 的重试降级和 调用 Harness 的 harness 统计。
 
 ### 建议观察清单
 
@@ -466,7 +466,7 @@ uv run python structured_risk.py
 
 ---
 
-## 完成标准
+## 怎样判断输出可以进入业务
 
 - 能解释自由文本、Prompt JSON、`json_object`、`json_schema`、Pydantic 各解决哪一层遗留问题。
 - 能说出 `ReviewRisk` / `ReviewRiskList` 根形态与主要字段枚举。
@@ -492,16 +492,16 @@ uv run python structured_risk.py
 
 ---
 
-## 本节沉淀
+## 交给项目的结果契约
 
 - `llm_core.schemas`、`parse_risk_list`、`build_response_format`、`chat_structured`、`risk_review_v4.yaml`。
 - 需求评审助手具备：**结构化风险列表契约 + 分层解析 + 三 mode 可观测**。
-- 下一节 [04_streaming_and_conversation.md](04_streaming_and_conversation.md) 在保持结构化契约下讨论流式与对话状态。
+- 继续阅读 [streaming-and-conversation.md](streaming-and-conversation.md) 在保持结构化契约下讨论流式与对话状态。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 上一篇：[02_prompt_engineering_for_apps.md](02_prompt_engineering_for_apps.md)
-- 下一篇：[04_streaming_and_conversation.md](04_streaming_and_conversation.md)
-- 课程大纲：[outline.md](outline.md)
+- 相关前置：[prompt-engineering.md](prompt-engineering.md)
+- 继续阅读：[streaming-and-conversation.md](streaming-and-conversation.md)
+- 集中知识地图：[集中知识地图](../../knowledge-map.md)

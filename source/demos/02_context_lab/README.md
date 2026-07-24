@@ -1,12 +1,12 @@
 # 02_context_lab
 
-`02_llm/05` 的上下文工程观察 demo。它不是新的业务实现，也不承载核心算法；核心逻辑在 [`llm_core.context`](../../packages/llm_core/context/)，本 demo 只加载样例、选择策略、调用 package API 并打印诊断报告。
+Context Engineering 观察 demo。它不是新的业务实现，也不承载核心算法；核心逻辑在 [`llm_core.context`](../../packages/llm_core/context/)，本 demo 只加载样例、选择策略、调用 package API 并打印诊断报告。
 
 课程正文负责解释 Context Engineering 的机制；本 README 负责说明怎么跑、怎么看输出、如何定位 bad case。
 
 ## 为什么单独建 demo
 
-05 的观察维度不是“模型是否返回 JSON”，而是：
+这里的观察维度不是“模型是否返回 JSON”，而是：
 
 - 候选材料如何进入材料池。
 - 不同策略如何分配 section budget。
@@ -15,7 +15,7 @@
 - Prompt 预览是否符合预期。
 - bad case 应该查预算、排序、压缩、Prompt，还是模型。
 
-这些维度如果继续塞进 `02_model_contracts/structured_risk.py`，会把 03 Structured Outputs 与 05 Context Engineering 混在一起。因此本节单独建 demo，但仍复用同一个 `llm_core` package。
+这些维度如果继续塞进 `02_model_contracts/structured_risk.py`，会把 Structured Outputs 与 Context Engineering 混在一起。因此单独保留这个观察入口，但仍复用同一个 `llm_core` package。
 
 ## 文件
 
@@ -183,7 +183,7 @@ no_evidence_included
 | `tight_budget` 下内容断裂 | 看 `[compressed_sources]` 与 `prompt_preview`，确认 source id 是否仍保留 |
 | 无 evidence 仍生成确定结论 | `[warnings] no_evidence_included`；Prompt 或调用层应提示依据不足 |
 
-## 与 03 demo 的关系
+## 与 结构化输出 demo 的关系
 
 - `02_model_contracts/structured_risk.py`：观察 structured output 三种 mode。
 - `02_context_lab/context_compare.py`：观察 context builder 策略和诊断。

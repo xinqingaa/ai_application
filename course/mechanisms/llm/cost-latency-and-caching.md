@@ -1,10 +1,10 @@
-# 08. Cost、Latency 与 Caching
+# Token、成本、延迟与缓存边界
 
-> 07 已经让同一批需求评审 case 可以被 harness 批量运行，并记录成功、失败、parse、fallback 和 attempt。本节继续回答：**当模型调用从“能回归”进入“要长期可用”后，应用如何看懂 token、成本、延迟和缓存边界，避免 AI 链路越做越慢、越做越贵、越做越不可控**。
+> 机制篇：解释 usage、价格、延迟与缓存键如何形成可观察的调用治理，而不是把一次成功响应误认为长期可用。
 
 ---
 
-## 真实问题
+## 为什么 usage 数字还不是成本治理
 
 前面几节已经把需求评审助手的 LLM 调用做成了一个比较像应用底座的形态：有 provider 抽象，有 Prompt 版本，有结构化输出，有上下文装配，有可靠调用，也有 harness。到这里，你已经不只是“调一次模型接口”，而是在逐步构建后续 RAG、Agent、Workflow 都会复用的模型调用层。
 
@@ -39,7 +39,7 @@ HarnessRunRecord
 
 ---
 
-## 基础原理
+## 成本、延迟与缓存怎样相互影响
 
 ### Usage 是事实，价格是配置，账单是外部系统
 
@@ -61,15 +61,15 @@ HarnessRunRecord
 
 ### 延迟不只是一段等待时间
 
-07 的 harness 已经记录了 `latency_ms`。08 要继续把它放进批量视角里看：
+调用 Harness 的 harness 已经记录了 `latency_ms`。成本治理 要继续把它放进批量视角里看：
 
 - 单条调用 latency：这一次模型响应花多久。
 - average latency：一批 case 的平均耗时。
 - max latency：最慢的一条 case。
-- retry / fallback 隐含耗时：06 的 attempt report 能告诉你是不是重试放大了延迟。
+- retry / fallback 隐含耗时：可靠调用 的 attempt report 能告诉你是不是重试放大了延迟。
 - cache hit 节省耗时：重复输入命中缓存时，理论上可以少等一次模型调用。
 
-流式首 token 时间已经在 04 建立概念；本节重点放在非流式结构化调用和 batch harness 的成本延迟基线上。
+流式首 token 时间已经在 流式机制 建立概念；本节重点放在非流式结构化调用和 batch harness 的成本延迟基线上。
 
 ### 缓存不是“把问题和答案存起来”
 
@@ -102,9 +102,9 @@ HarnessRunRecord
 | 记录 usage / latency | 知道单次调用事实 | 不知道一批 case 的总成本 |
 | 汇总 harness summary | 知道批量基线 | 不知道重复调用能否复用 |
 | exact-match cache | 避免同配置同上下文重复调用 | 不能处理语义相似、权限变化、证据变化 |
-| 后续 eval / observability | 判断质量、成本和线上趋势 | 进入 05_eval_observability |
+| 后续 eval / observability | 判断质量、成本和线上趋势 | 进入 评估观测 |
 
-本节只做到第四步。语义缓存、分布式缓存、预算告警和线上成本面板都不是 02_llm 的目标。
+本节只做到第四步。语义缓存、分布式缓存、预算告警和线上成本面板都不是 LLM 机制 的目标。
 
 ### 方案性质说明
 
@@ -117,13 +117,13 @@ HarnessRunRecord
 
 ---
 
-## 最小实现
+## 把调用事实接入估算和缓存键
 
 本节的最小实现遵守一个原则：**成本和缓存进入 `llm_core`，demo 只负责观察**。
 
 ### 成本估算为什么独立成 `costing`
 
-[`costing/estimate.py`](../../source/packages/llm_core/costing/estimate.py) 接收 `TokenUsage`，输出一个 `CostEstimate`。usage 缺失时，它不会抛错，而是返回 unknown。
+[`costing/estimate.py`](../../../source/packages/llm_core/costing/estimate.py) 接收 `TokenUsage`，输出一个 `CostEstimate`。usage 缺失时，它不会抛错，而是返回 unknown。
 
 ```python
 def estimate_usage_cost(
@@ -146,11 +146,11 @@ def estimate_usage_cost(
 
 这样设计是为了避免把“供应商没有返回 usage”误处理成应用崩溃。对学习 demo 来说，unknown 比报错更有价值：它提醒你这条调用缺少成本事实，后续不能拿它做预算判断。
 
-价格表放在 [`costing/pricing.py`](../../source/packages/llm_core/costing/pricing.py)，并明确标记为 `learning_estimate`。这不是最新官方价格，也不是账单真源。
+价格表放在 [`costing/pricing.py`](../../../source/packages/llm_core/costing/pricing.py)，并明确标记为 `learning_estimate`。这不是最新官方价格，也不是账单真源。
 
 ### Harness record 如何接入成本字段
 
-07 的 `HarnessRunRecord` 已经记录了 `total_tokens` 和 `latency_ms`。08 在 [`harness/records.py`](../../source/packages/llm_core/harness/records.py) 中继续补充：
+调用 Harness 的 `HarnessRunRecord` 已经记录了 `total_tokens` 和 `latency_ms`。成本治理 在 [`harness/records.py`](../../../source/packages/llm_core/harness/records.py) 中继续补充：
 
 - `prompt_tokens`
 - `completion_tokens`
@@ -171,7 +171,7 @@ def estimate_usage_cost(
 
 ### Cache key 为什么必须显式构造
 
-[`cache/keys.py`](../../source/packages/llm_core/cache/keys.py) 中的 `CacheKeyParts` 把影响模型结果的因素显式列出来：
+[`cache/keys.py`](../../../source/packages/llm_core/cache/keys.py) 中的 `CacheKeyParts` 把影响模型结果的因素显式列出来：
 
 ```python
 @dataclass(frozen=True)
@@ -191,7 +191,7 @@ class CacheKeyParts:
 
 ### Demo 如何验证这个机制
 
-[`cost_latency_cache.py`](../../source/demos/02_call_ops_lab/cost_latency_cache.py) 做三轮观察：
+[`cost_latency_cache.py`](../../../source/demos/02_call_ops_lab/cost_latency_cache.py) 做三轮观察：
 
 ```text
 cold：第一次运行，同一批 case 全部 miss，产生 token / cost / latency。
@@ -203,11 +203,11 @@ changed_context：只改 context_fingerprint，必须全部 miss。
 
 ---
 
-## 主流框架实现
+## 观测平台能补充什么
 
 OpenAI 兼容 SDK 会返回 `usage` 字段，但它不负责你的业务预算。应用侧仍然要决定：一次任务有几次调用、调用属于哪个步骤、失败后是否重试、fallback 是否可接受、价格如何配置。
 
-LangChain / LangSmith 可以把 run、token、latency、cache 和 trace 组织成更完整的观测系统。它们适合后续做 eval 和 observability，但本节不把 `llm_core` 迁移到框架。原因很简单：02_llm 的目标是先理解调用治理的最小对象，而不是把问题交给平台隐藏起来。
+LangChain / LangSmith 可以把 run、token、latency、cache 和 trace 组织成更完整的观测系统。它们适合后续做 eval 和 observability，但本节不把 `llm_core` 迁移到框架。原因很简单：LLM 机制 的目标是先理解调用治理的最小对象，而不是把问题交给平台隐藏起来。
 
 Redis 或其他分布式缓存解决的是生产部署问题：跨进程共享、TTL、命名空间、权限隔离、失效策略和容量管理。本节只做 in-memory cache。它一重启就消失，正好适合作为学习实验。
 
@@ -228,11 +228,11 @@ Provider-side prompt caching 也只做认知。供应商缓存能降低某些重
 
 ### 情况 1：`total_tokens` 增长
 
-先回到 05 的 context report，看 `section_tokens`、`included_sources`、`compressed_sources` 和 `dropped_sources`。如果 evidence 变多但没有提升引用质量，问题可能不是模型，而是 context policy 太宽。如果 completion tokens 增长，检查 Prompt 是否要求模型输出过长解释，或者 schema 是否允许无边界的长字段。
+先回到 上下文工程 的 context report，看 `section_tokens`、`included_sources`、`compressed_sources` 和 `dropped_sources`。如果 evidence 变多但没有提升引用质量，问题可能不是模型，而是 context policy 太宽。如果 completion tokens 增长，检查 Prompt 是否要求模型输出过长解释，或者 schema 是否允许无边界的长字段。
 
 ### 情况 2：`latency_ms` 增长，但 tokens 没明显变
 
-先看 06 的 `attempt_count` 和 `degraded`。如果 retry 增加，说明供应商、网络或能力兼容性可能不稳定；如果 fallback 增加，说明主模型路径正在退化。此时不要只看最终 `success`，因为成功可能是“慢慢恢复后的成功”。
+先看 可靠调用 的 `attempt_count` 和 `degraded`。如果 retry 增加，说明供应商、网络或能力兼容性可能不稳定；如果 fallback 增加，说明主模型路径正在退化。此时不要只看最终 `success`，因为成功可能是“慢慢恢复后的成功”。
 
 ### 情况 3：cache hit rate 降低
 
@@ -240,11 +240,11 @@ Provider-side prompt caching 也只做认知。供应商缓存能降低某些重
 
 ### 情况 4：成本下降但人工感觉答案变差
 
-这通常不是 08 能单独解决的问题。08 只能告诉你更省了，不能告诉你更好。下一步要把同一批 records 进入 eval，检查风险识别完整性、引用正确性、拒答合理性和人工可用性。成本优化必须和质量评估一起看，否则很容易把系统优化成“便宜但不可用”。
+这通常不是 成本治理 能单独解决的问题。成本治理 只能告诉你更省了，不能告诉你更好。下一步要把同一批 records 进入 eval，检查风险识别完整性、引用正确性、拒答合理性和人工可用性。成本优化必须和质量评估一起看，否则很容易把系统优化成“便宜但不可用”。
 
 ---
 
-## 失败分析与能力边界
+## 优化策略怎样伤害正确性
 
 ### 失败 1：缓存返回了旧结论
 
@@ -268,7 +268,7 @@ Provider-side prompt caching 也只做认知。供应商缓存能降低某些重
 
 原因：可能是 Prompt 变长、context 变多、retry / fallback 增加，或者 multi-step 链路多调了几次模型。
 
-怎么验证：先看 `total_tokens`，再看 06 的 attempt report 和 `degraded`，最后回到 context builder 看哪些证据进入了 Prompt。
+怎么验证：先看 `total_tokens`，再看 可靠调用 的 attempt report 和 `degraded`，最后回到 context builder 看哪些证据进入了 Prompt。
 
 ### 本节不做
 
@@ -281,7 +281,7 @@ Provider-side prompt caching 也只做认知。供应商缓存能降低某些重
 
 ---
 
-## 本节实战
+## 观察成本估算与缓存命中
 
 ### 目标
 
@@ -289,11 +289,11 @@ Provider-side prompt caching 也只做认知。供应商缓存能降低某些重
 
 ### 涉及文件
 
-- [`source/packages/llm_core/costing/`](../../source/packages/llm_core/costing/)：学习用价格表与成本估算。
-- [`source/packages/llm_core/cache/`](../../source/packages/llm_core/cache/)：cache key、进程内 cache、cache event / stats。
-- [`source/packages/llm_core/harness/records.py`](../../source/packages/llm_core/harness/records.py)：record / summary 增加成本延迟字段。
-- [`source/demos/02_call_ops_lab/cost_latency_cache.py`](../../source/demos/02_call_ops_lab/cost_latency_cache.py)：08 观察入口。
-- [`source/demos/02_call_ops_lab/README.md`](../../source/demos/02_call_ops_lab/README.md)：输出解读。
+- [`source/packages/llm_core/costing/`](../../../source/packages/llm_core/costing/)：学习用价格表与成本估算。
+- [`source/packages/llm_core/cache/`](../../../source/packages/llm_core/cache/)：cache key、进程内 cache、cache event / stats。
+- [`source/packages/llm_core/harness/records.py`](../../../source/packages/llm_core/harness/records.py)：record / summary 增加成本延迟字段。
+- [`source/demos/02_call_ops_lab/cost_latency_cache.py`](../../../source/demos/02_call_ops_lab/cost_latency_cache.py)：成本治理 观察入口。
+- [`source/demos/02_call_ops_lab/README.md`](../../../source/demos/02_call_ops_lab/README.md)：输出解读。
 
 ### 运行方式
 
@@ -348,7 +348,7 @@ changed_context: hit_rate=0%
 
 ---
 
-## 完成标准
+## 怎样判断优化没有掩盖质量
 
 ### 能解释
 
@@ -389,16 +389,16 @@ uv run python source/demos/02_call_ops_lab/cost_latency_cache.py
 
 ---
 
-## 本节沉淀
+## 交给项目的运行预算事实
 
 本节新增 `llm_core.costing` 与 `llm_core.cache`，并让 harness summary 具备 token、估算成本、延迟和 cache hit 视角。
 
 对需求评审助手来说，这意味着模型调用底座不只会“生成结果”，还开始能回答：这一批评审调用是否可承受、重复调用是否可节省、哪些缓存必须失效。
 
-下一节进入 Function Calling API 边界；工具运行时、权限、审计和 Agent loop 仍然放到 `04_agent` 系统学习。
+Function Calling API 边界与工具运行时、权限、审计、Agent loop 统一进入 Agent 机制学习，不在成本治理中展开。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- [07. LLM Calling Harness](07_llm_calling_harness.md)
+- [Calling Harness 与回归](calling-harness-and-regression.md)

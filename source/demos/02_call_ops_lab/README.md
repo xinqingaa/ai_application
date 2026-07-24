@@ -1,10 +1,10 @@
-# 02 Call Ops Lab
+# Call Ops Lab
 
-这个 lab 承载 `02_llm` 后半段的调用治理实验，不再按“一节一个 demo”继续拆目录。
+这个 lab 集中承载可靠调用、回归 Harness、成本与缓存实验，不按“一节一个 demo”继续拆目录。
 
-- `reliability_compare.py`：对应 06，观察 retry、fallback、schema failure 和 attempt report。
-- `harness_compare.py`：对应 07，观察一组 case 如何批量运行、记录、汇总。
-- `cost_latency_cache.py`：对应 08，观察 token、估算成本、延迟和 exact-match cache 边界。
+- `reliability_compare.py`：观察 retry、fallback、schema failure 和 attempt report。
+- `harness_compare.py`：观察一组 case 如何批量运行、记录、汇总。
+- `cost_latency_cache.py`：观察 token、估算成本、延迟和 exact-match cache 边界。
 
 三个入口默认都调用真实模型，不保存任何文件。需要离线排查或稳定复现 timeout、schema failure、fallback、cache hit / miss 时，在脚本顶部把对应 `USE_REAL_LLM` 改为 `False`。
 

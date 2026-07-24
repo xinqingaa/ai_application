@@ -1,8 +1,8 @@
 # 02_llm_basics
 
-`02_llm/00` 第一个可运行 demo：用 OpenAI SDK 发起一次最小 chat，打印 `usage` 与 `latency_ms`。
+模型最小调用观察 demo：用 OpenAI SDK 发起一次真实 chat，打印 `usage` 与 `latency_ms`。
 
-Provider 抽象与 `LLMClient` 见专题 01（`source/demos/02_model_contracts/`）。
+Provider 抽象与 `LLMClient` 见 `source/demos/02_model_contracts/`。
 
 ## 前置
 
@@ -62,9 +62,9 @@ uv run python first_chat.py --temperature 0.7
 
 ## 样例集
 
-[`samples.json`](samples.json) 对应 [00 文档最小调用样例集](../../../course/02_llm/00_llm_problem_space.md#最小调用样例集建议先收-5-条)（S1–S5），供后续 harness（专题 07）复用。
+[`samples.json`](samples.json) 对应 [LLM 概念篇的最小调用样例集](../../../course/concepts/llm-in-ai-applications.md#最小调用样例集建议先收-5-条)（S1–S5），供调用 Harness 复用。
 
 ## 相关
 
 - Package 壳：[source/packages/llm_core/](../../packages/llm_core/)
-- 学习文档：[course/02_llm/00_llm_problem_space.md](../../../course/02_llm/00_llm_problem_space.md)
+- 学习文档：[LLM 在 AI 应用中的位置与边界](../../../course/concepts/llm-in-ai-applications.md)

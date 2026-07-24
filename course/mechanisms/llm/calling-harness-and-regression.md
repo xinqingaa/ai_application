@@ -1,12 +1,12 @@
-# 07. LLM Calling Harness
+# LLM Calling Harness 与最小回归
 
-> 06 已经让一次模型调用具备错误分类、有限重试、fallback 和 attempt report。本篇继续回答：**当 LLM 调用从“能跑一次”进入“持续迭代”后，应用如何建立最小实验闭环，让 Prompt、模型、Schema、Context 和 Reliability 的改动可以被同一批业务样例反复验证**。
+> 机制篇：解释如何用固定业务样例和调用记录，让 Prompt、模型、Schema、Context 与可靠性改动可以重复比较。
 
 ---
 
-## 真实问题
+## 为什么单次成功无法支持持续迭代
 
-前面几节已经把一次 LLM 调用拆成了比较完整的应用链路：01 负责 provider 和 `config_ref`，02 负责 Prompt 版本，03 负责结构化输出，05 负责上下文装配，06 负责错误、重试和降级。到这里，需求评审助手不再是“发一段文本给模型，看它回什么”的小脚本。
+前面几节已经把一次 LLM 调用拆成了比较完整的应用链路：Provider 调用层 负责 provider 和 `config_ref`，Prompt 工程 负责 Prompt 版本，结构化输出 负责结构化输出，上下文工程 负责上下文装配，可靠调用 负责错误、重试和降级。到这里，需求评审助手不再是“发一段文本给模型，看它回什么”的小脚本。
 
 但新的问题马上出现：你开始频繁改东西，却不知道改动有没有让系统退化。
 
@@ -29,7 +29,7 @@
 
 如果你有前端、Flutter 或客户端经验，可以把 harness 类比成“组件样例集 + 回归检查”。你不会只打开一个页面点一次按钮，就判断某个复杂组件没有问题。你会准备：空数据、长文本、异常状态、权限不足、弱网重试、深色模式、不同屏幕尺寸。每次改组件，都用同一批输入再看一遍。
 
-LLM 调用也一样。区别在于，LLM 输出不是固定字符串，不能简单断言“必须等于某段文本”。所以 07 先不做完整评分，而是先记录调用事实：
+LLM 调用也一样。区别在于，LLM 输出不是固定字符串，不能简单断言“必须等于某段文本”。所以 调用 Harness 先不做完整评分，而是先记录调用事实：
 
 - 这次跑了哪条业务 case。
 - 本次变量是什么：模型、Prompt、structured mode、temperature、retry / fallback 策略。
@@ -77,7 +77,7 @@ LLM 调用也一样。区别在于，LLM 输出不是固定字符串，不能简
 
 ---
 
-## 基础原理
+## Harness 如何控制变量并留下事实
 
 ### Harness 是实验装置，不是评估系统
 
@@ -108,7 +108,7 @@ Eval 回答的是另一个问题：
 - 是否关注 H5 / Flutter / 原生入口一致性。
 - 是否在材料不足时保守表达。
 
-所以 `HarnessCase` 里除了 `messages`，还保留 `case_id`、`title`、`expected_focus`、`tags`。07 不用 `expected_focus` 自动打分，但它给后续 eval 留下“这条样例本来要看什么”的业务入口。
+所以 `HarnessCase` 里除了 `messages`，还保留 `case_id`、`title`、`expected_focus`、`tags`。调用 Harness 不用 `expected_focus` 自动打分，但它给后续 eval 留下“这条样例本来要看什么”的业务入口。
 
 ### Run Config 是变量控制
 
@@ -144,9 +144,9 @@ degraded
 
 - `status=failed`：先看 `error_code`。
 - `parse_ok=False`：先看 structured output 和 schema。
-- `attempt_count` 变多：先看 06 reliability report。
+- `attempt_count` 变多：先看 可靠调用 reliability report。
 - `degraded=True`：先确认结果是否来自 fallback。
-- `latency_ms` / `total_tokens` 变高：08 再继续做成本和延迟分析。
+- `latency_ms` / `total_tokens` 变高：成本治理 再继续做成本和延迟分析。
 
 Record 不负责判断“答案好不好”。它负责让你知道“发生了什么”。
 
@@ -161,7 +161,7 @@ Record 不负责判断“答案好不好”。它负责让你知道“发生了�
 - 平均耗时。
 - 错误分布。
 
-它的作用是快速提醒“这次 run 是否值得继续看”。如果 parse 成功率突然下降，说明 Prompt、schema 或模型能力可能出问题；如果 degraded 数量突然上升，说明主模型或网络路径可能不稳定；如果平均耗时上升，08 要继续看 token 和 latency。
+它的作用是快速提醒“这次 run 是否值得继续看”。如果 parse 成功率突然下降，说明 Prompt、schema 或模型能力可能出问题；如果 degraded 数量突然上升，说明主模型或网络路径可能不稳定；如果平均耗时上升，成本治理 要继续看 token 和 latency。
 
 但 summary 仍然不是质量评分。它只能告诉你“工程表现是否异常”，不能告诉你“风险识别是否准确”。
 
@@ -185,17 +185,17 @@ Record 不负责判断“答案好不好”。它负责让你知道“发生了�
 
 **第 5 步：生成 summary**
 
-解决“这一批 run 的健康信号是什么”。遗留问题：答案是否准确、引用是否正确、拒答是否合理，进入后续 `05_eval_observability`。
+解决“这一批 run 的健康信号是什么”。遗留问题：答案是否准确、引用是否正确、拒答是否合理，进入后续 评估观测。
 
 ---
 
-## 最小实现
+## 建立最小可回归调用链
 
 本节的最小实现遵守一个原则：**核心能力进 `llm_core.harness`，demo 只负责观察**。
 
 ### 为什么要有 HarnessCase
 
-[`harness/cases.py`](../../source/packages/llm_core/harness/cases.py) 中的 `HarnessCase` 不是为了包装一层对象，而是为了让业务样例离开 demo 脚本，成为后续可以复用、筛选、标注和扩展的输入单位。
+[`harness/cases.py`](../../../source/packages/llm_core/harness/cases.py) 中的 `HarnessCase` 不是为了包装一层对象，而是为了让业务样例离开 demo 脚本，成为后续可以复用、筛选、标注和扩展的输入单位。
 
 ```python
 @dataclass(frozen=True)
@@ -227,7 +227,7 @@ class HarnessRunConfig:
 
 ### 为什么 record 要接住 reliability report
 
-[`harness/runner.py`](../../source/packages/llm_core/harness/runner.py) 没有直接调用 provider，而是复用 06 的 `ReliableLLMService`：
+[`harness/runner.py`](../../../source/packages/llm_core/harness/runner.py) 没有直接调用 provider，而是复用 可靠调用 的 `ReliableLLMService`：
 
 ```python
 records, summary = LLMCallingHarness(service).run_cases(
@@ -259,7 +259,7 @@ records, summary = LLMCallingHarness(service).run_cases(
 
 单元测试必须 fake，否则测试不稳定、受供应商影响。学习 demo 则默认真实模型，因为 harness 的核心价值正是观察同一批 case 在当前真实模型下 parse 是否通过、耗时多少、是否触发 fallback、错误分布是什么。
 
-[`harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py) 顶部提供：
+[`harness_compare.py`](../../../source/demos/02_call_ops_lab/harness_compare.py) 顶部提供：
 
 ```python
 USE_REAL_LLM = True
@@ -269,17 +269,17 @@ USE_REAL_LLM = True
 
 ---
 
-## 主流框架实现
+## Harness 与评估平台的责任边界
 
 `pytest.mark.parametrize` 可以把 case 集变成测试输入，适合验证确定性行为：例如 parse 必须成功、schema failure 必须归类为 `schema_parse`、fallback 后 `degraded=True`。本节的 `test_harness.py` 就用 fake client 验证 harness 的结构，不依赖真实模型。
 
 LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、trace、annotation、dashboard 串起来。它们比本节完整得多，但底层思路相同：固定输入、记录配置、保存输出、对比版本、回流 bad case。
 
-本仓库现在不接这些平台，是因为还没有到完整评估观测阶段。07 先把 record 形状、run 边界和调用事实整理清楚，后续接平台才不会变成只会上传一段文本。
+本仓库现在不接这些平台，是因为还没有到完整评估观测阶段。调用 Harness 先把 record 形状、run 边界和调用事实整理清楚，后续接平台才不会变成只会上传一段文本。
 
 ---
 
-## 失败分析与能力边界
+## 回归实验最容易得出的错误结论
 
 ### 1. Case 集太少导致虚假信心
 
@@ -291,13 +291,13 @@ LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、tra
 
 - **表现**：summary 里 parse 成功率很高，但人工看结果发现风险漏了。
 - **原因**：schema 只校验形状，不校验事实完整性。
-- **怎么验证**：把 `parse_ok` 当工程事实；准确性、引用正确性、拒答合理性进入 `05_eval_observability`。
+- **怎么验证**：把 `parse_ok` 当工程事实；准确性、引用正确性、拒答合理性进入 评估观测。
 
 ### 3. 只看最终 success，忽略 degraded
 
 - **表现**：成功率没有下降，但回答质量变弱、耗时异常。
 - **原因**：大量 case 是 fallback 成功，不是主路径成功。
-- **怎么验证**：看 `degraded_count`、`attempt_count` 和 `final_config_ref`。如果降级上升，要回到 06 查 reliability。
+- **怎么验证**：看 `degraded_count`、`attempt_count` 和 `final_config_ref`。如果降级上升，要回到 可靠调用 查 reliability。
 
 ### 4. 真实 LLM 路径没有固定变量
 
@@ -309,16 +309,16 @@ LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、tra
 
 | 能力 | 目标阶段 | 当节最小判断 |
 | --- | --- | --- |
-| 准确性、引用正确性、拒答评分 | `05_eval_observability` | 07 只记录可评分所需事实 |
-| LangSmith / trace 平台接入 | `05_eval_observability` | 07 先保证 record 结构清楚 |
-| 数据库存储与 run 版本管理 | `05_eval_observability` / `07_projects` | 07 默认只打印，不落盘 |
-| Web dashboard | `06_ai_native` / `07_projects` | 07 先用终端表格观察 |
-| CI 质量门禁 | 项目工程化后段 | 07 先建立可批量运行入口 |
-| 成本、缓存优化 | `02_llm/08` | 07 只记录 token / latency 字段 |
+| 准确性、引用正确性、拒答评分 | 评估观测 | 调用 Harness 只记录可评分所需事实 |
+| LangSmith / trace 平台接入 | 评估观测 | 调用 Harness 先保证 record 结构清楚 |
+| 数据库存储与 run 版本管理 | 评估观测 / 项目篇 | 调用 Harness 默认只打印，不落盘 |
+| Web dashboard | AI Native / 项目篇 | 调用 Harness 先用终端表格观察 |
+| CI 质量门禁 | 项目工程化后段 | 调用 Harness 先建立可批量运行入口 |
+| 成本、缓存优化 | 成本与缓存机制 | 调用 Harness 只记录 token / latency 字段 |
 
 ---
 
-## 本节实战
+## 运行一轮可比较 Harness
 
 ### 目标
 
@@ -326,10 +326,10 @@ LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、tra
 
 ### 涉及文件
 
-- [`source/packages/llm_core/harness/`](../../source/packages/llm_core/harness/)：harness 核心对象与 runner。
-- [`source/packages/llm_core/tests/test_harness.py`](../../source/packages/llm_core/tests/test_harness.py)：fake client 单元测试。
-- [`source/demos/02_call_ops_lab/harness_compare.py`](../../source/demos/02_call_ops_lab/harness_compare.py)：07 观察入口，默认真实 LLM，支持 fake 对照路径。
-- [`source/demos/02_call_ops_lab/README.md`](../../source/demos/02_call_ops_lab/README.md)：call ops lab 输出说明。
+- [`source/packages/llm_core/harness/`](../../../source/packages/llm_core/harness/)：harness 核心对象与 runner。
+- [`source/packages/llm_core/tests/test_harness.py`](../../../source/packages/llm_core/tests/test_harness.py)：fake client 单元测试。
+- [`source/demos/02_call_ops_lab/harness_compare.py`](../../../source/demos/02_call_ops_lab/harness_compare.py)：调用 Harness 观察入口，默认真实 LLM，支持 fake 对照路径。
+- [`source/demos/02_call_ops_lab/README.md`](../../../source/demos/02_call_ops_lab/README.md)：call ops lab 输出说明。
 
 ### 运行方式
 
@@ -380,11 +380,11 @@ degraded: 2
 errors: schema_parse=1
 ```
 
-最后再看 `[detail]`。detail 只是内容预览，不是最终评估结论。07 的阅读顺序必须是：先看 record 和 summary，再看文本内容。
+最后再看 `[detail]`。detail 只是内容预览，不是最终评估结论。调用 Harness 的阅读顺序必须是：先看 record 和 summary，再看文本内容。
 
 ---
 
-## 完成标准
+## 怎样判断已经建立回归能力
 
 - 能解释 Harness、Eval、Reliability 三者的区别。
 - 能说明为什么同一批 case 比单次 demo 更适合回归。
@@ -393,7 +393,7 @@ errors: schema_parse=1
 - 能运行 `harness_compare.py`，读懂 `[records]` 与 `[summary]`。
 - 能用默认 `USE_REAL_LLM=True` 跑真实模型，并说明真实路径观察什么、不保证什么。
 - 能把 `USE_REAL_LLM=False` 作为对照，说明模拟路径只用于失败复现。
-- 能说明 07 为什么不做数据库、dashboard、LangSmith 和完整 eval 打分。
+- 能说明 调用 Harness 为什么不做数据库、dashboard、LangSmith 和完整 eval 打分。
 
 ### 运行与观察
 
@@ -414,23 +414,23 @@ uv run python source/demos/02_call_ops_lab/harness_compare.py
 
 1. 为什么 harness 不应该只记录最终文本？
 2. 为什么 `parse_ok=True` 不等于答案质量正确？
-3. 为什么 07 要复用 `ReliableLLMService`，而不是直接调用 `LLMClient`？
+3. 为什么 调用 Harness 要复用 `ReliableLLMService`，而不是直接调用 `LLMClient`？
 4. 如果一次 Prompt 修改后 `success_count` 不变，但 `degraded_count` 上升，你会怎么判断风险？
 5. 为什么学习 demo 默认用真实 LLM，但单元测试仍然用 fake？
-6. 07 的 record 到后续 eval 平台还缺哪些信息？
+6. 调用 Harness 的 record 到后续 eval 平台还缺哪些信息？
 
 ---
 
-## 本节沉淀
+## 交给评估系统的调用事实
 
 - `llm_core.harness` 把批量 case、run config、record 和 summary 沉淀为正式 package 能力。
-- `02_call_ops_lab` 继续承载调用治理实验，07 不再创建孤立 demo。
-- 下一节 08 会在 harness record 基础上继续观察成本、延迟和缓存边界。
+- `02_call_ops_lab` 继续承载调用治理实验，调用 Harness 不再创建孤立 demo。
+- 成本、延迟与缓存机制会继续消费 harness record。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 上一篇：[06_reliability_errors_and_degradation.md](06_reliability_errors_and_degradation.md)
-- 下一篇：08 Cost、Latency 与 Caching（待落地）
-- 课程大纲：[outline.md](outline.md)
+- 相关前置：[reliability-and-errors.md](reliability-and-errors.md)
+- 继续阅读：[Cost、Latency 与 Caching](cost-latency-and-caching.md)
+- 集中知识地图：[集中知识地图](../../knowledge-map.md)

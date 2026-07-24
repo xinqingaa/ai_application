@@ -1,12 +1,12 @@
-# 02. 面向应用的 Prompt Engineering
+# 面向应用的 Prompt Engineering
 
-> 在 01 学会用 `LLMClient` 调模型之后，本篇回答：**messages 里的任务描述从哪来、怎么版本化、怎么与 Schema / 检索证据分工**——把 Prompt 当作需求评审助手与模型之间的**任务协议**，而不是聊天框里随手多打几句话。
+> 机制篇：解释任务描述如何成为可命名、可版本化、可回归的 Prompt 协议，以及它如何与 Schema 和检索证据分工。
 
 ---
 
-## 真实问题
+## 为什么随手写 Prompt 无法持续迭代
 
-专题 01 解决了「用 `config_ref` 调哪台引擎」。但同一引擎上，**你塞给模型的文字不同，输出可以天差地别**。需求评审助手不是单一聊天任务：既要读 PRD、又要找风险、又要追问缺失、最后还要汇总报告——如果所有场景共用一段 system prompt，或把约束散落在业务代码字符串里，产品会很快失控。
+模型 API 与 Provider 抽象 解决了「用 `config_ref` 调哪台引擎」。但同一引擎上，**你塞给模型的文字不同，输出可以天差地别**。需求评审助手不是单一聊天任务：既要读 PRD、又要找风险、又要追问缺失、最后还要汇总报告——如果所有场景共用一段 system prompt，或把约束散落在业务代码字符串里，产品会很快失控。
 
 ### 学习者真实问题
 
@@ -17,14 +17,14 @@
   常见约定：`system` 放角色与长期约束；`user` 放**本次任务**、材料占位（PRD、证据块）、输出要求。要有稳定模板，便于回归对比。
 
 - **改了一个词的 Prompt，怎么知道变好还是变坏？**  
-  需要 `prompt_id + version`、固定样例（S2）、固定 `temperature`，对比输出——本节用三版 `review.risk_review` 练这件事；系统化 harness 在专题 07。
+  需要 `prompt_id + version`、固定样例（S2）、固定 `temperature`，对比输出——本节用三版 `review.risk_review` 练这件事；系统化 harness 在调用 Harness。
 
 - **模型输出的 JSON 字段名谁定？**  
-  **Prompt** 描述「希望长什么样」；**Schema（专题 03）** 用 Pydantic 约束字段与枚举。本节 v3 只在 Prompt 里**文字要求** JSON，不做校验。
+  **Prompt** 描述「希望长什么样」；**Schema（结构化输出机制）** 用 Pydantic 约束字段与枚举。本节 v3 只在 Prompt 里**文字要求** JSON，不做校验。
 
 ### 产品真实问题
 
-继续小周团队的售后 PRD。01 上线后，`provider_switching.py` 里写死了 `SYSTEM_PROMPT` + 把 PRD 塞进 user，评审会上「能出结果」。但第二轮评审很快暴露问题：
+继续小周团队的售后 PRD。Provider 调用层 上线后，`provider_switching.py` 里写死了 `SYSTEM_PROMPT` + 把 PRD 塞进 user，评审会上「能出结果」。但第二轮评审很快暴露问题：
 
 评审负责人发现，同一份 S2 PRD，周一和周三各跑一次，风险列表**维度完全不同**——不是模型随机性 alone，而是有人为了「让输出短一点」在代码里删了两句约束，还有人把摘要任务的「尽量简短」和风险任务的「列全维度」写进了**同一段** system 字符串。更糟的是，后端日志只有 `model` 和 `latency`，**看不出当时用的是哪版任务描述**；出问题时只能猜「是不是 Prompt 又被谁改了」。
 
@@ -46,15 +46,15 @@
 | --- | --- | --- |
 | Prompt 与调用耦合 | `chat` 前硬编码 system 字符串 | `get_prompt` + `render_prompt` |
 | 无版本 | 「上周那版比较好」但找不到 | YAML 内 `version: "2.0.0"` |
-| 与 RAG 职责混淆 | Prompt 里塞编造的公司规章 | `evidence_block` 变量；真检索在 03_rag |
-| 与 Schema 职责混淆 | 只说「输出 JSON」却不校验 | v3 练格式；03 做 Pydantic |
-| 观测缺失 | 不知生产用了哪版 Prompt | 日志带 `prompt_id@version`；07 harness |
+| 与 RAG 职责混淆 | Prompt 里塞编造的公司规章 | `evidence_block` 变量；真检索在 RAG |
+| 与 Schema 职责混淆 | 只说「输出 JSON」却不校验 | v3 练格式；结构化输出 做 Pydantic |
+| 观测缺失 | 不知生产用了哪版 Prompt | 日志带 `prompt_id@version`；调用 Harness harness |
 
 本篇在 `llm_core.prompts` 沉淀 **YAML 真源 + 渲染为 messages**，demo 对**同一 PRD 样例**对比三版风险审查 Prompt。
 
 ---
 
-## 基础原理
+## 把 Prompt 变成任务协议
 
 ### 本节方案性质
 
@@ -78,7 +78,7 @@ messages = 任务协议（Prompt 模板 + 变量）
          + 引擎（config_ref）
 ```
 
-**Prompt 不负责选模型**（01），**不负责检索**（03_rag），**不负责工具**（04_agent）。它负责：角色、任务、材料边界、约束、（可选）示例、输出形态。
+**Prompt 不负责选模型**（Provider 调用层），**不负责检索**（RAG），**不负责工具**（Agent）。它负责：角色、任务、材料边界、约束、（可选）示例、输出形态。
 
 把 Prompt 看成「任务协议」之后，写法会发生一个明显变化：你不再追求某一句神奇提示词，而是把模型这一轮必须完成的工作拆成可检查的组成部分。协议里要写清楚：模型扮演什么角色、只处理什么材料、产出什么、不能做什么、结果如何被后续程序消费。
 
@@ -88,7 +88,7 @@ messages = 任务协议（Prompt 模板 + 变量）
 
 ### 从硬编码到可回归：机制递进
 
-**第 1 步 · 代码里写死字符串（01 `provider_switching` 顶部）**
+**第 1 步 · 代码里写死字符串（Provider 调用层 `provider_switching` 顶部）**
 
 ```python
 SYSTEM_PROMPT = "你是需求评审助手。只根据用户材料分析..."
@@ -115,7 +115,7 @@ user = f"【PRD】\n{prd}\n【证据】\n{evidence}"
 
 **第 5 步 · 受控对比（`prompt_compare.py`）**
 
-固定 `SAMPLE_ID`、`TEMPERATURE`、`config_ref`，只扫 `PROMPT_VERSIONS`——这是 Prompt 工程里最小的「科学方法」，完整 harness 在 07。
+固定 `SAMPLE_ID`、`TEMPERATURE`、`config_ref`，只扫 `PROMPT_VERSIONS`——这是 Prompt 工程里最小的「科学方法」，完整 harness 在 调用 Harness。
 
 ```text
 硬编码 → 拼字符串 → YAML 模板 → prompt_id@version → 固定样例对比
@@ -149,7 +149,7 @@ v3 的 Example 段写法要点：
 
 - 只示范**结构与表述深度**，并写明「勿照搬内容」；
 - 示例进 YAML 与 **version** 一起管理，过时则升版本或删示例；
-- 系统化淘汰靠 07 eval，本节用肉眼对比 v2 vs v3 即可。
+- 系统化淘汰靠 调用 Harness eval，本节用肉眼对比 v2 vs v3 即可。
 
 **反例**：示例里写死「接口必须走 v1」，PRD 已改 v2，模型仍反复强调 v1——这是 **Few-shot 污染**，不是模型「笨」。
 
@@ -170,24 +170,24 @@ Few-shot 的本质不是“给模型更多材料”，而是“用样例定义�
 | 层 | 谁定义 | 做什么 | 本节 |
 | --- | --- | --- | --- |
 | Prompt | 产品 / 提示工程师 | 任务目标、材料边界、输出**描述** | v3 文字要求 JSON 字段 |
-| Schema | 应用 / 后端 | 字段名、类型、枚举、必填 | **03** 实现 `ReviewRisk` 等 |
-| 校验器 | 应用 | `model_validate`、业务规则、citation 检查 | **03** |
+| Schema | 应用 / 后端 | 字段名、类型、枚举、必填 | **结构化输出** 实现 `ReviewRisk` 等 |
+| 校验器 | 应用 | `model_validate`、业务规则、citation 检查 | **结构化输出** |
 
-类比：Prompt 像「请按报名表填写」；Schema 像「报名表表格本身」。只改 Prompt 而不做 Schema，模型仍可能字段漂移——v3 你会看到「像 JSON 但不一定能 `json.loads` / 字段不全」，这正是 03 存在的理由。
+类比：Prompt 像「请按报名表填写」；Schema 像「报名表表格本身」。只改 Prompt 而不做 Schema，模型仍可能字段漂移——v3 你会看到「像 JSON 但不一定能 `json.loads` / 字段不全」，这正是 结构化输出 存在的理由。
 
 ### Prompt 与 RAG 证据的分工
 
 | 层 | 职责 |
 | --- | --- |
-| **RAG（03_rag）** | 从知识库检索，格式化出带 `source_id` 的片段 |
+| **RAG（RAG）** | 从知识库检索，格式化出带 `source_id` 的片段 |
 | **Prompt** | 通过 `{{evidence_block}}` 接收片段，并要求结论绑定材料、证据不足时拒答或追问 |
-| **应用** | 校验 citation 是否指向真实 source（03_rag / 03 结构化课深化） |
+| **应用** | 校验 citation 是否指向真实 source（RAG / 结构化输出 结构化课深化） |
 
-本节使用静态文件 [`evidence_s2.json`](../../source/demos/02_model_contracts/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
+本节使用静态文件 [`evidence_s2.json`](../../../source/demos/02_model_contracts/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
 
 这里有一个常见误区：在 Prompt 里写“请依据公司规范回答”，并不等于模型真的拥有公司规范。Prompt 只能规定“如果有证据，应该如何使用证据；如果没有证据，应该如何拒答或追问”。证据从哪里来，是 RAG 的职责。
 
-所以本节的 `evidence_block` 是一个过渡设计。它让你提前感受“把证据显式放进上下文后，Prompt 应该如何约束模型使用证据”，但它不是知识库。到 03_rag 时，`evidence_block` 会从静态 JSON 变成检索结果；到结构化输出和评估阶段，还要检查引用是否真的存在。
+所以本节的 `evidence_block` 是一个过渡设计。它让你提前感受“把证据显式放进上下文后，Prompt 应该如何约束模型使用证据”，但它不是知识库。到 RAG 时，`evidence_block` 会从静态 JSON 变成检索结果；到结构化输出和评估阶段，还要检查引用是否真的存在。
 
 对前端体验来说，这个分工也很关键。用户最终看到的不应该只是“模型说有风险”，而应该能看到风险背后的证据来源。Prompt 负责要求模型绑定证据，RAG 负责提供证据，应用负责校验证据和展示证据。
 
@@ -200,9 +200,9 @@ Few-shot 的本质不是“给模型更多材料”，而是“用样例定义�
 | `requirement_text` | 用户 PRD / 需求描述 | `samples.json` 样例 `user_content` |
 | `evidence_block` | 检索到的证据格式化文本 | `evidence_s2.json`（静态） |
 | `review_dimensions` | 可选维度标签 | 后续 workflow 用 |
-| `previous_summary` | 多步工作流上游摘要 | 04_agent / workflow 用 |
+| `previous_summary` | 多步工作流上游摘要 | Agent / workflow 用 |
 
-渲染规则（实现见 [`registry.py`](../../source/packages/llm_core/prompts/registry.py)）：
+渲染规则（实现见 [`registry.py`](../../../source/packages/llm_core/prompts/registry.py)）：
 
 - YAML 中 `system` / `user` 字符串里的 `{{variable}}` 由 `render_prompt(template, variables)` 替换。
 - 未提供的占位符替换为空字符串（应避免漏传关键变量）。
@@ -220,17 +220,17 @@ model_config_ref: chat.dev_chat
 
 - **`prompt_id`**：逻辑名，业务代码只引用它。
 - **`version`**：语义化版本字符串；改约束或示例应**升版本**，便于对比与回滚。
-- **`model_config_ref`**：该 Prompt **默认**用哪条模型配置（可与 01 的 `chat.dev_chat` 对齐）。
+- **`model_config_ref`**：该 Prompt **默认**用哪条模型配置（可与 Provider 调用层 的 `chat.dev_chat` 对齐）。
 
 **加载规则（`get_prompt`）**：扫描 `llm_core/prompts/` 下各子目录中的 `*.yaml`，用文件内的 **`prompt_id` + `version` 字段** 定位模板——**不是**用文件名。`risk_review_v1.yaml` 只是人工命名习惯；即便改名，只要 yaml 里仍是 `version: "1.0.0"`，`get_prompt(..., "1.0.0")` 就能找到。
 
-约定：同一 `(prompt_id, version)` 只对应**一个** yaml 文件，避免重复注册。未来 harness（07）会把样例绑定到 `prompt_id@version`；本节在笔记里手动记录即可。
+约定：同一 `(prompt_id, version)` 只对应**一个** yaml 文件，避免重复注册。未来 harness（调用 Harness）会把样例绑定到 `prompt_id@version`；本节在笔记里手动记录即可。
 
 版本管理真正解决的是「可讨论」。如果评审负责人说「上周那版更稳」，你需要能回答：上周是哪个 `prompt_id@version`、用的哪条样例、温度是多少、证据块是否相同、模型有没有变。如果这些变量都不可见，Prompt 调优就会变成凭感觉改句子。
 
-本节只做最小版本管理：YAML 存正文，`version` 标记变化，demo 固定样例做对比。后续专题 07 会把它扩展成 harness：把样例、Prompt 版本、模型配置、token、延迟和人工观察一起记录。
+本节只做最小版本管理：YAML 存正文，`version` 标记变化，demo 固定样例做对比。后续调用 Harness 会把它扩展成 harness：把样例、Prompt 版本、模型配置、token、延迟和人工观察一起记录。
 
-[`registry.py`](../../source/packages/llm_core/prompts/registry.py) 核心查找逻辑：
+[`registry.py`](../../../source/packages/llm_core/prompts/registry.py) 核心查找逻辑：
 
 ```python
 def get_prompt(prompt_id: str, version: Optional[str] = None) -> PromptTemplate:
@@ -247,11 +247,11 @@ def get_prompt(prompt_id: str, version: Optional[str] = None) -> PromptTemplate:
             return tpl
 ```
 
-[`render_prompt`](../../source/packages/llm_core/prompts/registry.py) 把 `{{variable}}` 替换后输出 messages。未提供的占位符变为空字符串——**漏传 `evidence_block` 会导致 Evidence 段为空**，这是常见配置错误。
+[`render_prompt`](../../../source/packages/llm_core/prompts/registry.py) 把 `{{variable}}` 替换后输出 messages。未提供的占位符变为空字符串——**漏传 `evidence_block` 会导致 Evidence 段为空**，这是常见配置错误。
 
 这段代码只展示两个机制：**按逻辑名找模板**，以及**把变量渲染成 messages**。不要把学习重点放在扫描文件的细节上；真正要掌握的是：Prompt 真源从业务代码里移出来以后，调用方仍然可以用稳定的 `prompt_id@version` 得到一组可复现的 `messages`。
 
-### 从 01 的硬编码到 02 的模板：数据流
+### 从 Provider 调用层 的硬编码到 Prompt 工程 的模板：数据流
 
 ```text
 prompt_compare.py（实验配置：样例 id、版本列表、temperature）
@@ -272,7 +272,7 @@ LLMClient.chat(messages, tpl.model_config_ref, temperature=0)
 对比表：v1 / v2 / v3 的 latency、tokens、content 预览
 ```
 
-01 里写在 `provider_switching.py` 顶部的 `SYSTEM_PROMPT`，在 02 之后应逐步消失——**任务描述进 YAML**，Python 只负责选版本、灌变量、调用客户端。
+Provider 调用层 里写在 `provider_switching.py` 顶部的 `SYSTEM_PROMPT`，在 Prompt 工程 之后应逐步消失——**任务描述进 YAML**，Python 只负责选版本、灌变量、调用客户端。
 
 ### 如何判断 Prompt 真的变好了
 
@@ -328,7 +328,7 @@ LLMClient.chat(messages, tpl.model_config_ref, temperature=0)
 输出：按风险类别、等级、理由和依据组织。
 ```
 
-这版仍然不是最终结构化输出，但它已经具备工程形态：变量边界清楚，任务目标单一，失败更容易归因。若模型仍然编造接口，就优先检查 Evidence 是否为空、constraints 是否被渲染进 messages；若输出字段漂移，就知道下一节该用 Schema，而不是继续在 Prompt 里堆“请严格输出”。
+这版仍然不是最终结构化输出，但它已经具备工程形态：变量边界清楚，任务目标单一，失败更容易归因。若模型仍然编造接口，就优先检查 Evidence 是否为空、constraints 是否被渲染进 messages；若输出字段漂移，就应该进入 Schema 机制，而不是继续在 Prompt 里堆“请严格输出”。
 
 ### Prompt 调优与产品判断
 
@@ -350,14 +350,14 @@ Prompt Engineering 不只是技术动作，也包含产品判断。需求评审�
 - 这个 role 限制了模型的哪个视角？
 - 这个 constraint 在防哪类失败？
 - 这个 example 是否可能过期或污染？
-- 这个 output_format 是给人读，还是给 03 的 Schema 铺路？
+- 这个 output_format 是给人读，还是给 结构化输出 的 Schema 铺路？
 - 改这一行后，应该用哪条样例验证？
 
 如果这些问题答不上来，就算 Prompt 现在效果不错，也还没有形成代码所有权。后续进入 RAG 和 Agent 后，Prompt 会更多、更分散，更需要这种解释能力。
 
 ---
 
-## 最小实现
+## 用三版 Prompt 控制一个变量
 
 ### 三版 `review.risk_review` 的设计意图
 
@@ -365,9 +365,9 @@ Prompt Engineering 不只是技术动作，也包含产品判断。需求评审�
 
 | 版本 | 文件 | 刻意差异 | 观察重点 |
 | --- | --- | --- | --- |
-| **v1.0.0** | [`risk_review_v1.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v1.yaml) | 短 system + 直接把 PRD 当 user | 是否空泛、是否编造接口细节 |
-| **v2.0.0** | [`risk_review_v2.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v2.yaml) | + Task / Evidence / Constraints / 维度 checklist | 是否更贴材料、少幻觉 |
-| **v3.0.0** | [`risk_review_v3.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v3.yaml) | v2 + 1 条 example + **要求 JSON 字段** | 结构是否更稳；JSON 是否可解析（仍可能失败） |
+| **v1.0.0** | [`risk_review_v1.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v1.yaml) | 短 system + 直接把 PRD 当 user | 是否空泛、是否编造接口细节 |
+| **v2.0.0** | [`risk_review_v2.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v2.yaml) | + Task / Evidence / Constraints / 维度 checklist | 是否更贴材料、少幻觉 |
+| **v3.0.0** | [`risk_review_v3.yaml`](../../../source/packages/llm_core/prompts/review/risk_review_v3.yaml) | v2 + 1 条 example + **要求 JSON 字段** | 结构是否更稳；JSON 是否可解析（仍可能失败） |
 
 ### 核心 API（真实代码）
 
@@ -383,9 +383,9 @@ messages = render_prompt(tpl, {
 resp = client.chat(messages, tpl.model_config_ref, temperature=0)
 ```
 
-`get_prompt` 在 [`prompts/registry.py`](../../source/packages/llm_core/prompts/registry.py) 扫描 `prompts/review/*.yaml`；`PromptTemplate` 定义在 [`prompts/template.py`](../../source/packages/llm_core/prompts/template.py)。`PromptTemplate.ref` 即 `review.risk_review@2.0.0`，应写入实验笔记与后续日志。
+`get_prompt` 在 [`prompts/registry.py`](../../../source/packages/llm_core/prompts/registry.py) 扫描 `prompts/review/*.yaml`；`PromptTemplate` 定义在 [`prompts/template.py`](../../../source/packages/llm_core/prompts/template.py)。`PromptTemplate.ref` 即 `review.risk_review@2.0.0`，应写入实验笔记与后续日志。
 
-这段代码足够说明本节最小闭环：业务不再拼长字符串，而是加载一份命名 Prompt、注入变量、得到 `messages`，再交给 01 的 `LLMClient`。正文不需要展开 registry 的所有文件扫描细节；学习重点是 **Prompt 真源外置以后，业务仍能稳定复现某个任务版本**。
+这段代码足够说明本节最小闭环：业务不再拼长字符串，而是加载一份命名 Prompt、注入变量、得到 `messages`，再交给 Provider 调用层 的 `LLMClient`。正文不需要展开 registry 的所有文件扫描细节；学习重点是 **Prompt 真源外置以后，业务仍能稳定复现某个任务版本**。
 
 ### v1 YAML 片段（极简对照）
 
@@ -403,26 +403,26 @@ v2 的 user 模板显式分出 `## Task`、`## Requirement`、`## Evidence`、`#
 ### v3 为何加 Example + JSON 文字
 
 - **Example**：few-shot 只给**风格**，并注明「勿照搬」，降低过时业务规则污染（见失败分析）。
-- **JSON output_format**：为 03 结构化输出做铺垫——本节**不**做 `json.loads` 成功率统计，只在笔记里肉眼看是否多出 Markdown 包裹、字段是否齐全。
+- **JSON output_format**：为 结构化输出 结构化输出做铺垫——本节**不**做 `json.loads` 成功率统计，只在笔记里肉眼看是否多出 Markdown 包裹、字段是否齐全。
 
 v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只改一个方向」：v1 观察没有约束时会怎样，v2 观察 Evidence 和 constraints 能否减少幻觉，v3 观察 example 与 JSON 意图是否让输出更接近程序接口。若一口气加入十几个技巧，就很难解释到底是哪一个在起作用。
 
 ---
 
-## 主流框架实现
+## 模板框架的价值与边界
 
 | 方式 | 做什么 | 与本项目关系 |
 | --- | --- | --- |
 | **字符串 + `.format` / `{{}}` 替换** | 模板与数据分离 | `llm_core.prompts` 当前实现 |
 | **Jinja2** | 条件、循环、包含 | 未引入；任务协议复杂后再考虑 |
-| **LangChain `ChatPromptTemplate`** | 把 template 包成 Runnable | `03_rag` 链可读取**同一 YAML 真源**，避免两套 Prompt |
+| **LangChain `ChatPromptTemplate`** | 把 template 包成 Runnable | RAG 链可读取**同一 YAML 真源**，避免两套 Prompt |
 | **厂商 Prompt 管理后台** | 云端版本、A/B | 认知即可；本仓库 YAML + Git 便于学习与 diff |
 
 原则：**配置真源在仓库**（YAML + 变量契约），框架只是消费方。不要在 LangChain 里再写一份与 YAML 不同步的长字符串。
 
 ---
 
-## 失败分析与能力边界
+## Prompt 失败时先检查什么
 
 ### 排查路径（表现 → 原因 → 怎么验证）
 
@@ -442,13 +442,13 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 - **表现**：模型反复强调示例里的旧业务规则，与当前 PRD 不符。
 - **原因**：Example 含具体过期规则且未标注勿照搬。
-- **验证**：临时去掉 Example 段升小版本对比；07 用 bad case 淘汰。
+- **验证**：临时去掉 Example 段升小版本对比；调用 Harness 用 bad case 淘汰。
 
 **4. v3「像 JSON」但程序接不住**
 
 - **表现**：肉眼是 JSON，但有 ` ```json ` 围栏、中文 key、缺字段。
-- **原因**：只有 Prompt 软约束，无 Schema（03 职责）。
-- **验证**：`json.loads` 试一次；记失败形态，03 用 Pydantic 判层。
+- **原因**：只有 Prompt 软约束，无 Schema（结构化输出 职责）。
+- **验证**：`json.loads` 试一次；记失败形态，结构化输出 用 Pydantic 判层。
 
 **5. 对比实验结论不可信**
 
@@ -458,22 +458,22 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ### Prompt 不能替代什么
 
-检索命中、引用真伪、工具调用、权限审批、统计化 eval——分属 RAG、Agent、业务服务、05/07。Prompt 只定义**任务与边界**。
+检索命中、引用真伪、工具调用、权限审批、统计化 eval——分属 RAG、Agent、业务服务、上下文工程/调用 Harness。Prompt 只定义**任务与边界**。
 
 ### 本节不做（defer）
 
 | 能力 | 目标节 | 当节最小判断 |
 | --- | --- | --- |
-| Pydantic、`response_format`、parse 判层 | 03 | 知 v3 JSON 意图与 Schema 分工 |
-| 真实向量检索 | 03_rag | 会用静态 `evidence_block` 变量 |
-| 上下文预算、超长 PRD 裁剪 | 05 | 知 Prompt 变长即 token 成本 |
-| harness 落盘、字段缺失率 | 07 | 手写对比表 + 观察清单 |
+| Pydantic、`response_format`、parse 判层 | 结构化输出 | 知 v3 JSON 意图与 Schema 分工 |
+| 真实向量检索 | RAG | 会用静态 `evidence_block` 变量 |
+| 上下文预算、超长 PRD 裁剪 | 上下文工程 | 知 Prompt 变长即 token 成本 |
+| harness 落盘、字段缺失率 | 调用 Harness | 手写对比表 + 观察清单 |
 | 六份完整 Prompt YAML | 规划 | 只落地 `review.risk_review` 三版 |
-| Prompt 调试八步法、大规模 A/B | 07 / 05 | 本节四步受控对比即可 |
+| Prompt 调试八步法、大规模 A/B | 调用 Harness / 上下文工程 | 本节四步受控对比即可 |
 
 ### 需求评审助手 Prompt 集（规划表，非本节代码）
 
-| prompt_id | 适用场景 | 主要变量 | 输出（03 深化） |
+| prompt_id | 适用场景 | 主要变量 | 输出（结构化输出 深化） |
 | --- | --- | --- | --- |
 | `review.requirement_summary` | 评审入口压缩材料 | `requirement_text` | 短摘要 |
 | **`review.risk_review`** | **风险识别（本节实现）** | `requirement_text`, `evidence_block` | 风险列表 / JSON |
@@ -484,7 +484,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ---
 
-## 本节实战
+## 运行 Prompt 版本对比
 
 ### 目标
 
@@ -494,22 +494,22 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 关键路径：
 
-- [`source/packages/llm_core/prompts/registry.py`](../../source/packages/llm_core/prompts/registry.py)：加载与渲染 Prompt。
-- [`source/packages/llm_core/prompts/review/`](../../source/packages/llm_core/prompts/review/)：三版 `review.risk_review`。
-- [`source/demos/02_model_contracts/prompt_compare.py`](../../source/demos/02_model_contracts/prompt_compare.py)：本节观察入口。
+- [`source/packages/llm_core/prompts/registry.py`](../../../source/packages/llm_core/prompts/registry.py)：加载与渲染 Prompt。
+- [`source/packages/llm_core/prompts/review/`](../../../source/packages/llm_core/prompts/review/)：三版 `review.risk_review`。
+- [`source/demos/02_model_contracts/prompt_compare.py`](../../../source/demos/02_model_contracts/prompt_compare.py)：本节观察入口。
 
-完整参数说明、样例列表和命令变体放在 [demo README](../../source/demos/02_model_contracts/README.md)。
+完整参数说明、样例列表和命令变体放在 [demo README](../../../source/demos/02_model_contracts/README.md)。
 
 ### 实现步骤
 
 1. **阅读三份 YAML**，标出 v1→v2→v3 各多了哪一段语义（constraints / evidence / example / JSON）。
 2. **打开 `prompt_compare.py` 顶部实验配置**，确认样例、版本列表和温度。
-3. **配置 `.env`**（与 01 相同，`OPENAI_API_KEY`；DeepSeek 用户同步改 `OPENAI_MODEL` 等）。
+3. **配置 `.env`**（与 Provider 调用层 相同，`OPENAI_API_KEY`；DeepSeek 用户同步改 `OPENAI_MODEL` 等）。
 4. **运行对比**，只观察 Prompt 版本变化带来的输出差异。
 
 ### 核心实验变量
 
-入口文件是 [`prompt_compare.py`](../../source/demos/02_model_contracts/prompt_compare.py)。正文只保留本节必须理解的实验变量：
+入口文件是 [`prompt_compare.py`](../../../source/demos/02_model_contracts/prompt_compare.py)。正文只保留本节必须理解的实验变量：
 
 - `SAMPLE_ID`：默认 S2，表示同一份售后 PRD。
 - `PROMPT_VERSIONS`：默认 v1 / v2 / v3，表示只换 Prompt 版本。
@@ -556,7 +556,7 @@ uv run python prompt_compare.py
 
 ---
 
-## 完成标准
+## 怎样判断 Prompt 可被项目维护
 
 - **能解释**：六段式协议；Prompt 与 Schema、RAG 的边界；Few-shot 何时有用。  
 - **能说明**：硬编码 → YAML → `prompt_id@version` 的递进各解决什么。  
@@ -571,13 +571,13 @@ cd source/demos/02_model_contracts
 uv run python prompt_compare.py
 ```
 
-详见 [demo README](../../source/demos/02_model_contracts/README.md)。
+详见 [demo README](../../../source/demos/02_model_contracts/README.md)。
 
 ### 自检题（不看正文能否答）
 
 1. `requirement_text` 和 `evidence_block` 在真实产品里分别通常由谁提供？  
 2. 为什么 v1 往往比 v2 更容易编造？  
-3. v3 要求 JSON 字段与 03 Pydantic Schema 还有什么差别？  
+3. v3 要求 JSON 字段与 结构化输出 Pydantic Schema 还有什么差别？  
 4. 对比 Prompt 版本时为什么要固定 `temperature` 和样例？  
 5. 为什么 Prompt 放在 YAML 而不是 `provider_switching.py`？  
 6. `PROMPT_VERSIONS` 与 `risk_review_v1.yaml` 文件名是什么关系？  
@@ -585,16 +585,16 @@ uv run python prompt_compare.py
 
 ---
 
-## 本节沉淀
+## 交给项目的 Prompt 真源
 
 - 新增 `llm_core.prompts`（`get_prompt`、`render_prompt`、三份 `review.risk_review` YAML）与 `prompt_compare.py`。  
 - 需求评审助手具备：**按任务版本渲染 messages、与 `LLMClient` 衔接**；风险审查可在固定样例上受控对比。  
-- 下一节 [03_structured_outputs.md](03_structured_outputs.md) 在 v3 的 JSON 意图之上落地 Pydantic、`response_format` 与 `parse_risk_list`。
+- 继续阅读 [structured-output.md](structured-output.md) 在 v3 的 JSON 意图之上落地 Pydantic、`response_format` 与 `parse_risk_list`。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 上一篇：[01_model_api_and_provider_abstraction.md](01_model_api_and_provider_abstraction.md)  
-- 下一篇：[03_structured_outputs.md](03_structured_outputs.md)  
-- 课程大纲：[outline.md](outline.md)
+- 相关前置：[model-api-and-provider.md](model-api-and-provider.md)  
+- 继续阅读：[structured-output.md](structured-output.md)  
+- 集中知识地图：[集中知识地图](../../knowledge-map.md)

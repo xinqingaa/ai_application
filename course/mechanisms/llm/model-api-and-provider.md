@@ -1,12 +1,12 @@
-# 01. Model API 与 Provider 抽象
+# Model API、调用生命周期与 Provider 抽象
 
-> 在 00 跑通「一次最小 chat」之后，学会用 **统一客户端 + 配置文件** 接模型、切换供应商、读懂请求/响应，并为后续 RAG / Agent 复用同一套调用方式。
+> 机制篇：观察一次真实模型调用如何从业务配置进入 Provider、返回统一响应并暴露供应商差异。
 
 ---
 
-## 真实问题
+## 为什么业务代码不能直接绑定 SDK
 
-专题 00 建立了问题空间：需求评审助手需要稳定的 LLM 层。本篇回答：**具体怎么接模型，业务代码才不写死** `model="gpt-4o"`，以及一次 Chat 调用在工程上到底经过哪些环节。
+LLM 应用问题空间 建立了问题空间：需求评审助手需要稳定的 LLM 层。本篇回答：**具体怎么接模型，业务代码才不写死** `model="gpt-4o"`，以及一次 Chat 调用在工程上到底经过哪些环节。
 
 ### 学习者真实问题
 
@@ -17,7 +17,7 @@
 
 ### 产品真实问题
 
-继续小周团队的售后 PRD 场景。00 用 `first_chat.py` 直连 OpenAI SDK 已经能打出风险预览，团队很高兴。两周后要做三件事：
+继续小周团队的售后 PRD 场景。SDK 最小调用 用 `first_chat.py` 直连 OpenAI SDK 已经能打出风险预览，团队很高兴。两周后要做三件事：
 
 1. **开发用便宜模型、演示用强模型**——若 `model="gpt-4o"` 写死在业务里，每个脚本都要改。
 2. **接入 DeepSeek 降本**——若 Key、`base_url` 散落在五个文件里，换一次供应商要全库搜索。
@@ -33,21 +33,21 @@
 | --- | --- | --- |
 | 直接依赖 SDK 原始对象 | 日志字段不一致，eval 难汇总 | 统一 `LLMResponse` |
 | 写死 model 字符串 | 换阶段 / 换供应商改多处 | `config_ref` + `models.yaml` |
-| 假设「兼容 OpenAI = 所有参数都能用」 | structured / tool call 在部分平台失败 | `capabilities` 认知；03 起实测 |
+| 假设「兼容 OpenAI = 所有参数都能用」 | structured / tool call 在部分平台失败 | `capabilities` 认知；结构化输出 起实测 |
 | 错误全部 `except Exception` | 429 与 Key 错误混在一起 | `LLMError` + `LLMErrorCode` 分类 |
 
-本篇在 `llm_core` 建立 **`LLMClient` + `models.yaml` + `LLMResponse`**，把调用与可观测收敛到一层。00 的 `02_llm_basics` 保留作 SDK 直调对照，本篇是项目内的标准入口。
+本篇在 `llm_core` 建立 **`LLMClient` + `models.yaml` + `LLMResponse`**，把调用与可观测收敛到一层。SDK 最小调用 的 `02_llm_basics` 保留作 SDK 直调对照，本篇是项目内的标准入口。
 
 ---
 
-## 基础原理
+## 一次模型调用的完整生命周期
 
 ### 一次 Chat 调用是什么
 
 **输入**：`messages`（`system` / `user` / `assistant` 角色文本）+ 模型参数（`temperature`、`max_tokens` 等）+ 选哪条模型配置（`config_ref`）。  
 **输出**：`LLMResponse`——至少包含 `content`、`usage`、`latency_ms`、`model`、`config_ref`；`raw_response` 仅供调试。
 
-与 00 SDK 直调的区别：00 证明「能通」；01 证明「能换、能记、能统一」。
+与 SDK 最小调用 SDK 直调的区别：SDK 最小调用 证明「能通」；Provider 调用层 证明「能换、能记、能统一」。
 
 这里要先建立一个很重要的心智模型：**模型 API 调用不是业务逻辑本身，而是业务逻辑依赖的一层外部能力**。需求评审助手真正关心的是「这份 PRD 有哪些研发风险」「依据是什么」「能不能进入前端卡片和后续评估」，而不是某个页面、某个 Agent、某个 RAG 链路各自知道 OpenAI SDK 的初始化方式。
 
@@ -59,7 +59,7 @@
 
 下面这条链是本章认知主线。每一步解决上一步的遗留问题；**不能跳过**理解最终为什么要 `config_ref`。
 
-**第 1 步 · SDK 直调（00 `first_chat`）**
+**第 1 步 · SDK 直调（SDK 最小调用 `first_chat`）**
 
 ```python
 client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
@@ -87,7 +87,7 @@ text = resp.choices[0].message.content
 **第 5 步 · `LLMClient` + `LLMResponse`**
 
 `LLMClient.chat(messages, config_ref)` 完成：查配置 → 选 Provider → 发请求 → 包装 `LLMResponse`；可选 `debug=True` 打印完整日志。  
-RAG、Agent、结构化输出（03）都通过同一入口扩展，而不是再 copy 一份 `OpenAI()`。
+RAG、Agent、结构化输出（结构化输出）都通过同一入口扩展，而不是再 copy 一份 `OpenAI()`。
 
 ```text
 first_chat 直调 → .env 密钥 → models.yaml → config_ref → LLMClient / LLMResponse
@@ -142,15 +142,15 @@ first_chat 直调 → .env 密钥 → models.yaml → config_ref → LLMClient /
 
 本节没有把 `LLMClient` 做成一个大而全的服务层。它暂时不负责完整重试、限流、缓存、成本统计、harness 落盘，也不直接处理 streaming、tool calling 或 embedding 请求。这样设计是刻意的。
 
-如果 01 一开始就搭完整 LLM service，学习者会被大量工程设施淹没，反而看不清最核心的三件事：配置如何集中、调用如何统一、响应如何可观测。后续每个能力进入课程时，再把对应职责加厚到同一个 `llm_core`，比一开始预建所有模块更符合项目式学习节奏。
+如果 Provider 调用层 一开始就搭完整 LLM service，学习者会被大量工程设施淹没，反而看不清最核心的三件事：配置如何集中、调用如何统一、响应如何可观测。后续每个能力进入课程时，再把对应职责加厚到同一个 `llm_core`，比一开始预建所有模块更符合项目式学习节奏。
 
 因此本节完成后，你不需要觉得“LLM 调用层已经生产级完整”。更准确的说法是：你已经建立了一个能被后续课程继续加厚的调用底座。
 
 ### 什么时候不用做复杂抽象
 
-抽象不是越早越好。若你只是写一个一次性脚本，目标是验证某个模型是否能回答一个问题，00 的 SDK 直调就够了。把一次性脚本也拆 Provider、Registry、Response，只会增加阅读负担。
+抽象不是越早越好。若你只是写一个一次性脚本，目标是验证某个模型是否能回答一个问题，SDK 最小调用 的 SDK 直调就够了。把一次性脚本也拆 Provider、Registry、Response，只会增加阅读负担。
 
-但本仓库的主线不是一次性脚本，而是需求评审助手会持续演进：02 做 Prompt，03 做结构化输出，后续 RAG 要调用 Chat 和 Embedding，Agent 要调用模型和工具，Eval 要记录每次调用。只要同一套模型调用会被多个能力复用，抽象层就开始有价值。
+但本仓库的主线不是一次性脚本，而是需求评审助手会持续演进：Prompt 工程 做 Prompt，结构化输出 做结构化输出，后续 RAG 要调用 Chat 和 Embedding，Agent 要调用模型和工具，Eval 要记录每次调用。只要同一套模型调用会被多个能力复用，抽象层就开始有价值。
 
 因此本节的判断标准是：**这个抽象是否吸收了真实变化点**。模型供应商会变、模型角色会变、默认参数会变、能力支持会变、日志字段需要统一，这些都是已知变化点，所以 `LLMClient + config_ref + LLMResponse` 是合理的最小抽象。
 
@@ -177,7 +177,7 @@ LLMResponse（content, usage, latency_ms, model, config_ref, …）
 | `user` | 用户或程序 | PRD 片段、问题 |
 | `assistant` | 模型（历史轮） | 多轮对话中上一轮的模型回复 |
 
-多轮时**历史存在应用的 `messages` 列表里**，API 没有 `session_id`。专题 04 会讲对话状态管理；当节只需知道：多轮 = 每次请求把历史 messages 一并传入。
+多轮时**历史存在应用的 `messages` 列表里**，API 没有 `session_id`。流式与对话机制 会讲对话状态管理；当节只需知道：多轮 = 每次请求把历史 messages 一并传入。
 
 ```json
 [
@@ -196,11 +196,11 @@ LLMResponse（content, usage, latency_ms, model, config_ref, …）
 | `max_tokens` | 限制**生成**的最大 token 数 | 输出变短时检查是否触顶 |
 | `model` | 供应商侧模型 id | 由 `models.yaml` 配置，业务用 `config_ref` |
 
-默认值在 [`config/models.yaml`](../../source/packages/llm_core/config/models.yaml) 的 `default_params`；调用时可覆盖。
+默认值在 [`config/models.yaml`](../../../source/packages/llm_core/config/models.yaml) 的 `default_params`；调用时可覆盖。
 
 ### Provider、ModelConfig、config_ref
 
-- **Provider**：适配某一类 API（01 实现 `openai_compat`）。
+- **Provider**：适配某一类 API（Provider 调用层 实现 `openai_compat`）。
 - **ModelConfig**：一条具体配置（model、base_url、默认参数、能力标签 `capabilities`）。
 - **config_ref**：点分别名，如 `chat.dev_chat`；由 YAML 的 section + name 自动生成。
 
@@ -214,10 +214,10 @@ LLMResponse（content, usage, latency_ms, model, config_ref, …）
 
 ### 三类模型角色（配置分离）
 
-| 角色 | 输入 | 输出 | 01 是否调用 |
+| 角色 | 输入 | 输出 | Provider 调用层 是否调用 |
 | --- | --- | --- | --- |
 | Chat | messages | 文本 | 是（`LLMClient.chat`） |
-| Embedding | 文本 | 向量 | 否（YAML 预置，`03_rag` 用） |
+| Embedding | 文本 | 向量 | 否（YAML 预置，RAG 用） |
 | Rerank | query + 文档 | 分数 | 否（后续可选） |
 
 对 `embedding.default_embed` 调 `chat` 会触发 `LLMErrorCode.CAPABILITY_MISMATCH`——这是刻意的角色守卫，避免 Chat 与 Embedding 混用。
@@ -230,11 +230,11 @@ OpenAI-compatible 的意思是：很多平台愿意用近似 OpenAI Chat Complet
 
 本节只要求普通 chat 调用可切换。后续 Structured Outputs、Tool Calling、Streaming、Context length、计费字段、错误码细节，都可能因供应商不同而不同。因此 `models.yaml` 中的 `capabilities` 更像一份能力说明，而不是魔法开关。看到某平台普通 chat 正常，不要自动推断它支持 `json_schema`、tool call 或流式事件。
 
-这个边界意识很重要。否则后续遇到 `json_schema` 报错时，你可能会先怀疑 Prompt 或 Pydantic；但真正原因可能只是当前供应商不支持这个 `response_format`。01 先建立这个心智模型，03 才能正确判断结构化输出失败属于哪一层。
+这个边界意识很重要。否则后续遇到 `json_schema` 报错时，你可能会先怀疑 Prompt 或 Pydantic；但真正原因可能只是当前供应商不支持这个 `response_format`。Provider 调用层 先建立这个心智模型，结构化输出 才能正确判断结构化输出失败属于哪一层。
 
 ---
 
-## 最小实现
+## 收敛为唯一模型调用入口
 
 本节最小实现要验证的不是「能否把 SDK 包一层」，而是这条链路是否成立：
 
@@ -249,7 +249,7 @@ OpenAI-compatible 的意思是：很多平台愿意用近似 OpenAI Chat Complet
 
 ### 1. `LLMClient.chat`：业务层唯一入口
 
-[`client/service.py`](../../source/packages/llm_core/client/service.py)：
+[`client/service.py`](../../../source/packages/llm_core/client/service.py)：
 
 ```python
 config = self._registry.get_config(config_ref)
@@ -270,7 +270,7 @@ return response
 
 ### 2. `LLMResponse`：统一业务可读的输出
 
-Provider 发回来的 SDK 原始对象不应该直接扩散到业务层。业务层需要的是稳定字段：文本、token、耗时、模型、配置引用。[`config/types.py`](../../source/packages/llm_core/config/types.py) 中的 `LLMResponse` 就是这层统一形状：
+Provider 发回来的 SDK 原始对象不应该直接扩散到业务层。业务层需要的是稳定字段：文本、token、耗时、模型、配置引用。[`config/types.py`](../../../source/packages/llm_core/config/types.py) 中的 `LLMResponse` 就是这层统一形状：
 
 ```python
 @dataclass(frozen=True)
@@ -312,7 +312,7 @@ class LLMResponse:
 
 ---
 
-## 主流框架实现
+## 框架封装了什么、没有解决什么
 
 | 方式 | 与本项目 |
 | --- | --- |
@@ -324,7 +324,7 @@ class LLMResponse:
 
 ---
 
-## 失败分析与能力边界
+## 沿调用链定位 Provider 问题
 
 ### 排查路径（表现 → 原因 → 怎么验证）
 
@@ -338,7 +338,7 @@ class LLMResponse:
 
 - **表现**：`rate_limit`，有时重试又好。
 - **原因**：供应商 QPS / 配额；开发环境多人共用一个 Key。
-- **验证**：换 `chat.fallback_chat` 对比；记录 `latency_ms` 与发生时段；完整重试策略在专题 06，**当节**会换 config_ref 即可。
+- **验证**：换 `chat.fallback_chat` 对比；记录 `latency_ms` 与发生时段；完整重试策略在可靠调用机制，**当节**会换 config_ref 即可。
 
 **3. `capability_mismatch`：配置条目用错角色**
 
@@ -348,9 +348,9 @@ class LLMResponse:
 
 **4. 兼容平台「能 chat 但不能 structured / tool」**
 
-- **表现**：普通 `chat` 正常，03 的 `json_schema` 报 `API_ERROR`。
+- **表现**：普通 `chat` 正常，结构化输出 的 `json_schema` 报 `API_ERROR`。
 - **原因**：OpenAI 兼容 ≠ 全功能兼容；`capabilities.structured_output` 仅为文档性标签，不自动降级。
-- **验证**：对比 `chat.dev_chat` 与 `chat.structured_chat`；结构化细节在专题 03。
+- **验证**：对比 `chat.dev_chat` 与 `chat.structured_chat`；结构化细节在结构化输出机制。
 
 ### 常见误区
 
@@ -359,22 +359,22 @@ class LLMResponse:
 | 「有 `base_url` 就等于 OpenAI」 | 参数支持与限额因平台而异 |
 | 「`config_ref` 可以随意命名」 | 必须与 YAML section.name 一致，否则 `KeyError` |
 | 「多轮对话 API 会记住」 | 历史由应用拼进 `messages` |
-| 「`usage` 可省略」 | 成本与上下文问题靠 usage 发现；08 专讲成本 |
+| 「`usage` 可省略」 | 成本与上下文问题靠 usage 发现；成本治理 专讲成本 |
 
 ### 本节不做（defer）
 
 | 能力 | 目标节 | 当节最小判断 |
 | --- | --- | --- |
-| 流式输出 | 04 | 知道非流式一次返回 `content` 即可 |
-| 完整重试 / 熔断 | 06 | 会用 `LLMErrorCode` 分类，遇 429 知换 `fallback` |
-| Structured Outputs | 03 | 知 `chat.structured_chat` 预留给结构化任务 |
-| 实际调用 embedding | 03_rag | 知 YAML 里已有 `embedding.default_embed`，01 不调 |
-| harness 落盘 | 07 | demo 对比 + 笔记记录 token/latency |
-| 多轮会话持久化 | 04 | 知历史在 `messages`，不由 API 保存 |
+| 流式输出 | 流式机制 | 知道非流式一次返回 `content` 即可 |
+| 完整重试 / 熔断 | 可靠调用 | 会用 `LLMErrorCode` 分类，遇 429 知换 `fallback` |
+| Structured Outputs | 结构化输出 | 知 `chat.structured_chat` 预留给结构化任务 |
+| 实际调用 embedding | RAG | 知 YAML 里已有 `embedding.default_embed`，Provider 调用层 不调 |
+| harness 落盘 | 调用 Harness | demo 对比 + 笔记记录 token/latency |
+| 多轮会话持久化 | 流式机制 | 知历史在 `messages`，不由 API 保存 |
 
 ---
 
-## 本节实战
+## 对比两个真实模型配置
 
 ### 目标
 
@@ -384,12 +384,12 @@ class LLMResponse:
 
 关键路径：
 
-- [`source/packages/llm_core/client/service.py`](../../source/packages/llm_core/client/service.py)：统一调用入口。
-- [`source/packages/llm_core/config/types.py`](../../source/packages/llm_core/config/types.py)：`ModelConfig`、`LLMResponse` 等数据结构。
-- [`source/packages/llm_core/config/models.yaml`](../../source/packages/llm_core/config/models.yaml)：模型配置真源。
-- [`source/demos/02_model_contracts/provider_switching.py`](../../source/demos/02_model_contracts/provider_switching.py)：本节观察入口。
+- [`source/packages/llm_core/client/service.py`](../../../source/packages/llm_core/client/service.py)：统一调用入口。
+- [`source/packages/llm_core/config/types.py`](../../../source/packages/llm_core/config/types.py)：`ModelConfig`、`LLMResponse` 等数据结构。
+- [`source/packages/llm_core/config/models.yaml`](../../../source/packages/llm_core/config/models.yaml)：模型配置真源。
+- [`source/demos/02_model_contracts/provider_switching.py`](../../../source/demos/02_model_contracts/provider_switching.py)：本节观察入口。
 
-完整文件说明和命令变体放在 [demo README](../../source/demos/02_model_contracts/README.md)。
+完整文件说明和命令变体放在 [demo README](../../../source/demos/02_model_contracts/README.md)。
 
 ### 实现步骤（与最小实现对照）
 
@@ -423,11 +423,11 @@ uv run python provider_switching.py
 - [ ] `usage` 是否随 Prompt 长度变化（体会 token 与成本）
 - [ ] `--verbose` 能否看清完整 `messages` 传给云端的内容（命令见 README）
 
-本节不是要证明哪个模型最好，而是训练一种观察方法：固定样例，只变一个配置点，再看 `LLMResponse` 中的 model、usage、latency 和输出内容如何变化。系统化落盘会在专题 07 进入 harness。
+本节不是要证明哪个模型最好，而是训练一种观察方法：固定样例，只变一个配置点，再看 `LLMResponse` 中的 model、usage、latency 和输出内容如何变化。系统化落盘会在调用 Harness 进入 harness。
 
 ---
 
-## 完成标准
+## 怎样判断调用层已经可复用
 
 - **能解释**：一次 Chat 的输入（messages、config_ref、参数）与输出（`LLMResponse` 各字段）。
 - **能说明**：`temperature` / `max_tokens` 对输出的影响。
@@ -444,7 +444,7 @@ uv run python provider_switching.py
 uv run python provider_switching.py --verbose
 ```
 
-应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../source/demos/02_model_contracts/README.md)。
+应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../../source/demos/02_model_contracts/README.md)。
 
 ### 自检题
 
@@ -457,16 +457,16 @@ uv run python provider_switching.py --verbose
 
 ---
 
-## 本节沉淀
+## 交给项目的调用契约
 
 - 新增 `llm_core` 调用层（`LLMClient`、`models.yaml`、`ConfigRegistry`、`LLMResponse`、`LLMError`）与 `02_model_contracts` demo。
-- 需求评审助手具备：**按任务切换模型配置、统一响应结构与可观测日志**；00 的 `02_llm_basics` 保留作 SDK 直调对照。
-- 下一节 [02_prompt_engineering_for_apps.md](02_prompt_engineering_for_apps.md) 在同一 `LLMClient` 上叠加 Prompt 模板。
+- 需求评审助手具备：**按任务切换模型配置、统一响应结构与可观测日志**；SDK 最小调用 的 `02_llm_basics` 保留作 SDK 直调对照。
+- 继续阅读 [prompt-engineering.md](prompt-engineering.md) 在同一 `LLMClient` 上叠加 Prompt 模板。
 
 ---
 
-## 相关专题
+## 继续学习
 
-- 上一篇：[00_llm_problem_space.md](00_llm_problem_space.md)
-- 下一篇：[02_prompt_engineering_for_apps.md](02_prompt_engineering_for_apps.md)
-- 课程大纲：[outline.md](outline.md)
+- 相关前置：[00_llm_problem_space.md](../../concepts/llm-in-ai-applications.md)
+- 继续阅读：[prompt-engineering.md](prompt-engineering.md)
+- 集中知识地图：[集中知识地图](../../knowledge-map.md)
