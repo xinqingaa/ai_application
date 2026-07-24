@@ -214,23 +214,15 @@ RAG 和 Agent 不应该被理解成完全割裂的两门课。
 
 例如 context builder 的 `[context_build]` 是装配诊断，`[llm_result]` 才是模型输出；reliability demo 的 `[attempts]` 是调用过程，`[final]` 才是本次结果。
 
-**学习型运行入口配置方式**：
+**学习型 demo 配置方式**：
 
-学习阶段的运行入口包括 demo、app、CLI 脚本、API 服务、workflow runner、eval runner、notebook / one-off 脚本等。主路径优先使用「一条短命令 + 文件顶部中文配置开关」。CLI 参数可以保留给少数批处理或自动化场景，但不应把主要学习路径设计成一串很长的命令参数。
+学习阶段的 demo 优先使用「一条短命令 + 文件顶部中文配置开关」。CLI 参数可以保留给少数批处理或自动化场景，但不应把主要学习路径设计成一串很长的命令参数。
 
 顶部配置开关必须说明含义、推荐组合和默认行为。默认运行不应把结果写入 `/tmp` 或项目外路径；确需导出时，应使用显式开关，并写入被 Git 忽略的本地输出目录。
 
-**真实模型与真实服务优先（硬规则）**：
+**真实模型优先（硬规则）**：
 
-LLM / RAG / Agent / Workflow / Eval / AI Native / Project 的课程与项目主路径，默认调用真实模型、真实外部服务或真实本地服务。成本、额度消耗、延迟、供应商差异、配置错误和服务异常都是学习真实工程的一部分，不能为了“默认不花钱”把课程长期降级成 fake / mock / simulation。
-
-这条规则适用于所有学习和项目运行入口，不只适用于 demo：
-
-- `source/demos/` 下的学习 lab。
-- `source/apps/` 下的学习期 app。
-- 根目录 `review_assistant/` 的产品化入口。
-- CLI / API / FastAPI / SSE / workflow runner / eval runner。
-- 文档中要求读者运行的任何脚本、服务或批处理入口。
+LLM / RAG / Agent / Eval 课程的学习主路径默认调用真实模型或真实外部服务。成本和额度消耗是学习真实工程的一部分，不能为了“默认不花钱”把课程长期降级成 fake / mock / simulation。
 
 允许使用 fake / mock / simulation 的场景仅限：
 
@@ -239,7 +231,7 @@ LLM / RAG / Agent / Workflow / Eval / AI Native / Project 的课程与项目主�
 - 稳定复现 timeout、rate limit、schema failure、fallback、cache hit / miss 等失败路径。
 - 和真实模型结果做对照，并在正文、README 或输出中明确标注「模拟结果，不代表真实模型表现」。
 
-因此，所有课程和项目运行入口的默认配置应优先是 `USE_REAL_LLM = True`、`CALL_LLM = True`、连接真实服务，或等价真实调用路径。若某个入口因教学目的默认使用模拟，必须在正文和 README 中解释原因，并提供同一条命令切换到真实模型 / 真实服务的方式；这种例外不能成为课程或项目主路径。
+因此，学习 demo 的默认配置应优先是 `USE_REAL_LLM = True`、`CALL_LLM = True` 或等价真实调用路径。若某个 demo 因教学目的默认使用模拟，必须在正文和 README 中解释原因，并提供同一条命令切换到真实模型的方式；这种例外不能成为课程主路径。
 
 真实调用失败时，不应静默 fallback 到 fake。应让缺少 API key、模型能力不支持、供应商返回异常等问题以清晰错误暴露出来，因为这些正是真实 AI 应用工程需要学习和排查的内容。
 

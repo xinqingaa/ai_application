@@ -69,7 +69,7 @@ AI Agent 在处理本仓库任务前，优先阅读：
 - 可以有多个 package，但每个 package 必须有清晰职责、单一实例。
 - 必须明确入口、运行方式、完成标准和能力边界。
 - 不为了章节完整性硬造脚本。
-- LLM / RAG / Agent / Workflow / Eval / AI Native / Project 的课程和项目运行入口默认走真实模型、真实外部服务或真实本地服务；fake / mock / simulation 仅用于单元测试、离线排查、稳定复现失败路径或明确标注的对照实验，不能作为课程或项目主路径。
+- LLM / RAG / Agent / Eval 学习 demo 默认走真实模型或真实外部服务；fake / mock / simulation 仅用于单元测试、离线排查、稳定复现失败路径或明确标注的对照实验，不能作为课程主路径。
 - 缺少 API key、模型能力不支持或供应商异常时，应清晰暴露真实工程错误，不应静默退回模拟结果。
 - 全仓库默认使用 uv 管理根目录一个 Python 虚拟环境；`.venv/` 由 `uv sync` 生成，可删除重建，不提交。
 - Python 依赖统一维护在根目录 `pyproject.toml`，精确版本锁定在根目录 `uv.lock`，不在每个 package / demo / app 下维护独立依赖文件。
