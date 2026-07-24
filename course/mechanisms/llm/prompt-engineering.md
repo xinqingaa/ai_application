@@ -2,7 +2,7 @@
 
 > 机制篇：解释任务描述如何成为可命名、可版本化、可回归的 Prompt 协议，以及它如何与 Schema 和检索证据分工。
 >
-> 阅读前提：[模型输入输出契约](../../concepts/model-input-output-contracts.md)和 [模型 API 与 Provider](model-api-and-provider.md)。本文先把任务协议稳定下来，再进入 [Structured Output](structured-output.md)建立应用侧结果契约。
+> 课程位置：[标准学习路径](../../learning-path.md) V0 第四步。必要前置是 [模型输入输出契约](../../concepts/model-input-output-contracts.md)和 [模型 API 与 Provider](model-api-and-provider.md)；本文交付可命名、可版本化、可比较的任务协议。
 
 ---
 
@@ -159,7 +159,7 @@ Few-shot 的本质不是“给模型更多材料”，而是“用样例定义�
 | **Prompt** | 通过 `{{evidence_block}}` 接收片段，并要求结论绑定材料、证据不足时拒答或追问 |
 | **应用** | 校验 citation 是否指向真实 source（RAG / 结构化输出 结构化课深化） |
 
-本节使用静态文件 [`evidence_s2.json`](../../../source/demos/02_model_contracts/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
+本节使用静态文件 [`evidence_s2.json`](../../../source/demos/model_contract_lab/evidence_s2.json) 模拟检索结果，观察 **有 Evidence 约束时输出如何变化**——不实现向量检索。
 
 这里有一个常见误区：在 Prompt 里写“请依据公司规范回答”，并不等于模型真的拥有公司规范。Prompt 只能规定“如果有证据，应该如何使用证据；如果没有证据，应该如何拒答或追问”。证据从哪里来，是 RAG 的职责。
 
@@ -424,7 +424,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 - **表现**：肉眼是 JSON，但有 ` ```json ` 围栏、中文 key、缺字段。
 - **原因**：只有 Prompt 软约束，无 Schema（结构化输出 职责）。
-- **验证**：用 `json.loads` 初步检查并记录失败形态；下一篇再用 Pydantic 区分具体失败层级。
+- **验证**：用 `json.loads` 初步检查并记录失败形态；Structured Output 机制再用 Pydantic 区分具体失败层级。
 
 **5. 对比实验结论不可信**
 
@@ -472,9 +472,9 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 - [`source/packages/llm_core/prompts/registry.py`](../../../source/packages/llm_core/prompts/registry.py)：加载与渲染 Prompt。
 - [`source/packages/llm_core/prompts/review/`](../../../source/packages/llm_core/prompts/review/)：三版 `review.risk_review`。
-- [`source/demos/02_model_contracts/prompt_compare.py`](../../../source/demos/02_model_contracts/prompt_compare.py)：本节观察入口。
+- [`source/demos/model_contract_lab/prompt_compare.py`](../../../source/demos/model_contract_lab/prompt_compare.py)：本节观察入口。
 
-完整参数说明、样例列表和命令变体放在 [demo README](../../../source/demos/02_model_contracts/README.md)。
+完整参数说明、样例列表和命令变体放在 [demo README](../../../source/demos/model_contract_lab/README.md)。
 
 ### 实现步骤
 
@@ -485,7 +485,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ### 核心实验变量
 
-入口文件是 [`prompt_compare.py`](../../../source/demos/02_model_contracts/prompt_compare.py)。正文只保留本节必须理解的实验变量：
+入口文件是 [`prompt_compare.py`](../../../source/demos/model_contract_lab/prompt_compare.py)。正文只保留本节必须理解的实验变量：
 
 - `SAMPLE_ID`：默认 S2，表示同一份售后 PRD。
 - `PROMPT_VERSIONS`：默认 v1 / v2 / v3，表示只换 Prompt 版本。
@@ -498,7 +498,7 @@ v1、v2、v3 的差异刻意保持很少。这样做是为了训练「一次只�
 
 ```bash
 uv sync
-cd source/demos/02_model_contracts
+cd source/demos/model_contract_lab
 uv run python prompt_compare.py
 ```
 
@@ -557,11 +557,11 @@ uv run python prompt_compare.py
 ### 运行与观察
 
 ```bash
-cd source/demos/02_model_contracts
+cd source/demos/model_contract_lab
 uv run python prompt_compare.py
 ```
 
-详见 [demo README](../../../source/demos/02_model_contracts/README.md)。
+详见 [demo README](../../../source/demos/model_contract_lab/README.md)。
 
 ### 自检题（不看正文能否答）
 
@@ -579,12 +579,6 @@ uv run python prompt_compare.py
 
 - 新增 `llm_core.prompts`（`get_prompt`、`render_prompt`、三份 `review.risk_review` YAML）与 `prompt_compare.py`。  
 - 需求评审助手具备：**按任务版本渲染 messages、与 `LLMClient` 衔接**；风险审查可在固定样例上受控对比。  
-- 继续阅读 [structured-output.md](structured-output.md) 在 v3 的 JSON 意图之上落地 Pydantic、`response_format` 与 `parse_risk_list`。
+- Structured Output 会继续消费这里的 Prompt 协议，但它不是由本页自行指定的“下一课”。
 
----
-
-## 继续学习
-
-- 相关前置：[model-api-and-provider.md](model-api-and-provider.md)  
-- 继续阅读：[structured-output.md](structured-output.md)  
-- 集中知识地图：[集中知识地图](../../knowledge-map.md)
+完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。

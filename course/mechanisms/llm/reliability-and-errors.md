@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型调用失败如何被分类、有限重试、显式降级，并保留完整 attempt 记录。
 >
-> 阅读前提：[模型 API 与 Provider](model-api-and-provider.md)和 [Structured Output](structured-output.md)。本文不要求先学完 RAG；它先建立真实调用的失败边界，后续由 Context、RAG Pipeline 和 Calling Harness 共同复用。
+> 课程位置：[标准学习路径](../../learning-path.md) V0 第六步。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)和 [Structured Output](structured-output.md)；本文交付错误分类、有限重试、显式降级和 Attempt Report。
 
 ---
 
@@ -44,7 +44,7 @@ Reliability 也没有唯一标准答案。真实生产系统可能使用 SDK 内
 假设系统要调用主模型生成结构化风险列表：
 
 ```text
-输入：已经由 Context Builder 构造好的 messages
+输入：由固定 PRD 和静态 evidence 渲染出的 messages
 目标：返回 ReviewRiskList
 主模型：chat.dev_chat
 fallback：chat.fallback_chat
@@ -154,15 +154,15 @@ StructuredParseResult：文本是否能被应用解析为目标 schema
 
 每次 attempt、最终 config、是否 degraded、最终错误都可观察。仍遗留：批量回归、成本统计、P95 延迟进入 调用 Harness / 成本治理 / 评估观测。
 
-这条递进和前几节连起来就是：
+这条递进和当前已经完成的机制连起来就是：
 
 ```text
 Prompt：任务说清楚
 Structured Output：输出形状可校验
-流式机制 Streaming：过程可展示
-Context：输入可追溯
 Reliability：失败可解释、可恢复、可降级
 ```
+
+后续 Context、RAG、Streaming 和 Harness 会从不同方向复用这份可靠调用结果，但它们不是理解本文的前置。
 
 ---
 
@@ -175,7 +175,7 @@ Reliability：失败可解释、可恢复、可降级
 3. 结构化解析失败会被转成可靠性错误，而不是被当作普通成功。
 4. 每次 attempt 都进入 `ReliableCallReport`，demo 和后续 trace 都能读取。
 
-完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [call ops lab README](../../../source/demos/02_call_ops_lab/README.md)。
+完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [call ops lab README](../../../source/demos/llm_call_ops_lab/README.md)。
 
 ### 1. 策略和报告
 
@@ -238,7 +238,7 @@ parse.error_stage == "schema" -> schema_parse
 
 ### 4. Demo 默认真实调用，模拟只做失败复现
 
-[`reliability_compare.py`](../../../source/demos/02_call_ops_lab/reliability_compare.py) 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt、latency、final config 和错误。真实调用的价值是让你看到供应商、模型能力、API key、网络和 structured mode 等真实工程变量。
+[`reliability_compare.py`](../../../source/demos/llm_call_ops_lab/reliability_compare.py) 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt、latency、final config 和错误。真实调用的价值是让你看到供应商、模型能力、API key、网络和 structured mode 等真实工程变量。
 
 但真实模型通常不会稳定触发 timeout、auth、schema failure 或 fallback。为了学习失败路径，脚本保留 `USE_REAL_LLM = False` 的模拟模式，可稳定复现：
 
@@ -330,8 +330,8 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 - [`source/packages/llm_core/errors/types.py`](../../../source/packages/llm_core/errors/types.py)：统一错误码。
 - [`source/packages/llm_core/reliability/`](../../../source/packages/llm_core/reliability/)：`RetryPolicy`、`DegradationPolicy`、`ReliableLLMService` 和 report。
 - [`source/packages/llm_core/tests/test_reliability.py`](../../../source/packages/llm_core/tests/test_reliability.py)：可靠性单元测试。
-- [`source/demos/02_call_ops_lab/reliability_compare.py`](../../../source/demos/02_call_ops_lab/reliability_compare.py)：可靠调用 call ops lab 观察入口。
-- [`source/demos/02_call_ops_lab/README.md`](../../../source/demos/02_call_ops_lab/README.md)：reliability 与 harness 的输出说明。
+- [`source/demos/llm_call_ops_lab/reliability_compare.py`](../../../source/demos/llm_call_ops_lab/reliability_compare.py)：可靠调用 call ops lab 观察入口。
+- [`source/demos/llm_call_ops_lab/README.md`](../../../source/demos/llm_call_ops_lab/README.md)：reliability 与 harness 的输出说明。
 
 ### 实现步骤
 
@@ -353,7 +353,7 @@ uv run pytest source/packages/llm_core/tests/test_reliability.py
 demo：
 
 ```bash
-uv run python source/demos/02_call_ops_lab/reliability_compare.py
+uv run python source/demos/llm_call_ops_lab/reliability_compare.py
 ```
 
 `reliability_compare.py` 顶部提供学习期实验开关：
@@ -490,7 +490,7 @@ DEFAULT_CASE = "primary_timeout_then_fallback"
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_reliability.py
-uv run python source/demos/02_call_ops_lab/reliability_compare.py
+uv run python source/demos/llm_call_ops_lab/reliability_compare.py
 ```
 
 观察点：
@@ -507,7 +507,7 @@ uv run python source/demos/02_call_ops_lab/reliability_compare.py
 2. 为什么 HTTP 请求成功，但 `parse.ok=False` 时仍应算调用失败？
 3. fallback 成功后，为什么还要保留 `degraded=True`？
 4. 如果某次评审成本突然升高，你会如何从 `ReliableCallReport.attempts` 开始排查？
-5. 如果模型输出缺少 citation，你会先查 Context Report，还是 Reliability Report？为什么？
+5. 未来接入 RAG 后，如果模型输出缺少 citation，你会先查 Context Report，还是 Reliability Report？为什么？
 6. 为什么本节不把 retry 逻辑直接写进 `LLMClient.chat()`？
 
 ---
@@ -515,13 +515,7 @@ uv run python source/demos/02_call_ops_lab/reliability_compare.py
 ## 交给项目的可靠调用报告
 
 - `llm_core` 新增 `reliability/`，把单次模型调用升级为可重试、可降级、可诊断的可靠调用。
-- 扩展 `02_call_ops_lab`：默认真实调用观察真实 attempt；模拟 case 仅用于稳定学习 timeout、auth、schema failure 和 fallback。
-- 继续学习 Calling Harness：把单次可靠调用扩展为批量样例、调用记录和回归对比。
+- 扩展 `llm_call_ops_lab`：默认真实调用观察真实 attempt；模拟 case 仅用于稳定学习 timeout、auth、schema failure 和 fallback。
+- Context、RAG Pipeline 和 Calling Harness 后续都可以携带这里的可靠调用报告，但 Context 不是本文前置。
 
----
-
-## 继续学习
-
-- 相关前置：[context-engineering.md](context-engineering.md)
-- 继续阅读：[calling-harness-and-regression.md](calling-harness-and-regression.md)
-- 集中知识地图：[集中知识地图](../../knowledge-map.md)
+完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。

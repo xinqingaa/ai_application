@@ -2,7 +2,7 @@
 
 > 概念篇：建立一条统一主线，理解应用如何把“希望模型完成什么、允许模型依据什么、程序最终接受什么”变成可验证契约。
 >
-> 阅读前提：先理解 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)。本文建立 Provider、Prompt、Structured Output、Context 和可靠调用都会复用的契约心智；读完后进入 [模型 API 与 Provider](../mechanisms/llm/model-api-and-provider.md)。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第二步。必要前置是 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)；本文交付 Prompt、Context 与 Schema 的统一契约心智。
 
 ---
 
@@ -341,8 +341,10 @@ Schema 回答：
 - 如果模型返回合法结构但引用不存在，应修改哪一层？
 - Agent 调用 Tool 时，这套契约思想如何继续使用？
 
-对应机制篇：
+这些契约分别会在不同机制篇中展开，它们是相关知识入口，不代表阅读顺序：
 
 - [Prompt Engineering](../mechanisms/llm/prompt-engineering.md)
 - [Structured Output](../mechanisms/llm/structured-output.md)
 - [Context Engineering](../mechanisms/llm/context-engineering.md)
+
+完成后回到 [标准学习路径](../learning-path.md)。

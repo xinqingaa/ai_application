@@ -1,4 +1,4 @@
-# 02_model_contracts
+# model_contract_lab
 
 Provider、Prompt 与结构化输出的观察 demo。这里不是三套独立小项目，而是在同一个 `llm_core` 底座上逐步观察：
 
@@ -14,9 +14,9 @@ Structured    structured_mode → response_format → parse_risk_list
 | --- | --- | --- |
 | `provider_switching.py` | Provider / `config_ref` | `uv run python provider_switching.py` |
 | `prompt_compare.py` | Prompt 三版对比 | `uv run python prompt_compare.py` |
-| `structured_risk.py` | Structured Outputs（同时消费 Context Builder） | `uv run python structured_risk.py` |
+| `structured_risk.py` | Structured Outputs（使用固定 evidence，只比较输出约束） | `uv run python structured_risk.py` |
 
-[`02_llm_basics`](../02_llm_basics/) 保留直调 OpenAI SDK，用于对照抽象前后的差异。
+[`llm_api_smoke`](../llm_api_smoke/) 保留直调 OpenAI SDK，用于对照抽象前后的差异。
 
 ## 前置
 
@@ -66,19 +66,18 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 
 ### 结构化输出：`structured_risk.py`
 
-这个脚本用于观察结构化输出的约束层级。它会消费 Context Builder，把静态 evidence 变成带 source id 的 `evidence_block`；Context Engineering 的主观察入口是 [`../02_context_lab/`](../02_context_lab/)。
+这个脚本只观察结构化输出的约束层级。PRD 和静态 evidence 直接作为固定 Prompt 变量，不调用 Context Builder，避免在学习 Structured Output 时提前引入候选材料选择、预算和压缩。
 
 读代码时关注：
 
 1. `PROMPT_VERSION = "4.0.0"`：三种 mode 共用同一 Prompt。
-2. `ContextSource` + `build_review_context(...)`：静态 evidence 如何变成带 source id 的 `evidence_block`。
+2. `variables`：固定 `requirement_text` 和 `evidence_block`，三种模式保持完全一致。
 3. `MODES`：`prompt_only` / `json_mode` / `json_schema`。
 4. `client.chat_structured(...)`：调用后立刻 parse。
 5. `result.parse.ok` / `error_stage`：判断输出是否可被业务消费。
 
 观察重点：
 
-- `[context]` 中的 `token_budget`、`estimated_tokens`、`included_sources`、`dropped_sources` 是否符合预期。
 - `prompt_only` 是否出现围栏、裸数组或字段漂移。
 - `json_mode` 是否减少 JSON 格式层失败。
 - `json_schema` 是成功、parse 失败，还是供应商 `API_ERROR`。
@@ -87,7 +86,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 ## 运行命令
 
 ```bash
-cd source/demos/02_model_contracts
+cd source/demos/model_contract_lab
 
 uv run python provider_switching.py
 uv run python provider_switching.py --verbose
@@ -138,7 +137,6 @@ uv run python structured_risk.py
 | `VERBOSE` | 是否输出完整日志 | `False` |
 | `TEMPERATURE` | 采样温度 | `0` |
 | `EVIDENCE_FILE` | 静态 evidence 文件 | `evidence_s2.json` |
-| `CONTEXT_TOKEN_BUDGET` | 传给 `build_review_context` 的材料预算 | `900` |
 
 对照原则：固定 Prompt、`config_ref`、temperature，**只换** `structured_mode`。
 
@@ -149,7 +147,6 @@ uv run python structured_risk.py
 | tag / 字段 | 含义 |
 | --- | --- |
 | `[experiment]` | 当前样例、配置、版本或 mode |
-| `[context]` | 结构化调用前的最小 context 诊断；完整策略对比见 `02_context_lab` |
 | `[content]` | 模型正文输出 |
 | `[call_detail]` | verbose 下的 messages、params、assistant、usage |
 | `model` | 实际命中的模型 |
@@ -167,9 +164,8 @@ uv run python structured_risk.py
 | `config_ref` 找不到 | `llm_core/config/models.yaml` 是否有对应 section.name |
 | Prompt 版本找不到 | YAML 内 `prompt_id` / `version`，不是文件名 |
 | v2/v3 没有 evidence | `EVIDENCE_FILE` 是否存在，`evidence_block` 字段是否存在 |
-| `[context] included_sources` 为空 | evidence 文件是否存在；`CONTEXT_TOKEN_BUDGET` 是否太小 |
-| citation 没有对应 source id | 先看 `[context] evidence_block` 是否含 source id；真实 citation 校验在 RAG |
-| 想比较不同 context 策略 | 运行 `source/demos/02_context_lab/context_compare.py` |
+| citation 没有对应 source id | 检查静态 `evidence_block` 是否包含来源标识；真实 Citation 校验在 RAG |
+| 想比较候选材料选择和预算 | 完成 RAG 前置后再运行 `source/demos/context_assembly_lab/context_compare.py` |
 | `json_schema` API 失败 | 当前供应商是否支持该 `response_format` |
 | `error_stage=json` | assistant 是否为合法 JSON、是否被截断或带多余说明 |
 | `error_stage=schema` | 字段名、枚举值、根形态是否符合 `ReviewRiskList` |

@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型调用前，应用如何把任务、证据、历史和中间结果装配成可追溯、可预算、可诊断的上下文。
 >
-> 阅读前提：[模型输入输出契约](../../concepts/model-input-output-contracts.md)；在 V0 主线中，应先理解文档、Chunk 和 Retriever 怎样产生候选证据。本文负责候选材料进入模型前的选择与装配，读完后进入可信生成和 RAG 组合。
+> 课程位置：[标准学习路径](../../learning-path.md) V0 第十二步，当前正文存在但应等待 RAG 前置。必要前提是 [模型输入输出契约](../../concepts/model-input-output-contracts.md)，以及文档、Chunk、Metadata 与 Retriever 怎样产生候选证据；本文交付候选材料进入模型前的选择、预算和诊断。
 
 ---
 
@@ -261,7 +261,7 @@ source 可被压缩，合法引用候选可被列出，drop / warning 可被诊�
 4. 被压缩、被去重、被预算丢弃的 source 必须出现在 report 里。
 5. demo 不能实现核心排序、压缩、引用映射逻辑，只能加载样例、选择策略、打印结果。
 
-完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [context demo README](../../../source/demos/02_context_lab/README.md)。
+完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [context demo README](../../../source/demos/context_assembly_lab/README.md)。
 
 ### 1. 候选材料与策略
 
@@ -331,7 +331,7 @@ ContextSource[]
 
 ### 3. Demo 只调用 package API
 
-[`context_compare.py`](../../../source/demos/02_context_lab/context_compare.py)：
+[`context_compare.py`](../../../source/demos/context_assembly_lab/context_compare.py)：
 
 ```python
 policy = get_context_policy(strategy)
@@ -444,9 +444,9 @@ Document / Memory / State / Tool Result
 - [`source/packages/llm_core/context/builder.py`](../../../source/packages/llm_core/context/builder.py)：上下文装配主流程。
 - [`source/packages/llm_core/context/policies.py`](../../../source/packages/llm_core/context/policies.py)：`minimal`、`balanced`、`evidence_first`、`tight_budget` 等策略预设。
 - [`source/packages/llm_core/tests/test_context.py`](../../../source/packages/llm_core/tests/test_context.py)：策略、压缩、引用映射和诊断测试。
-- [`source/demos/02_context_lab/context_compare.py`](../../../source/demos/02_context_lab/context_compare.py)：上下文工程 context lab 观察入口，只调用 package API。
-- [`source/demos/02_context_lab/context_cases.json`](../../../source/demos/02_context_lab/context_cases.json)：需求评审材料池样例。
-- [`source/demos/02_context_lab/README.md`](../../../source/demos/02_context_lab/README.md)：demo 运行与输出说明。
+- [`source/demos/context_assembly_lab/context_compare.py`](../../../source/demos/context_assembly_lab/context_compare.py)：上下文工程 context lab 观察入口，只调用 package API。
+- [`source/demos/context_assembly_lab/context_cases.json`](../../../source/demos/context_assembly_lab/context_cases.json)：需求评审材料池样例。
+- [`source/demos/context_assembly_lab/README.md`](../../../source/demos/context_assembly_lab/README.md)：demo 运行与输出说明。
 
 ### 实现步骤
 
@@ -467,7 +467,7 @@ uv run pytest source/packages/llm_core/tests/test_context.py
 策略对比：
 
 ```bash
-uv run python source/demos/02_context_lab/context_compare.py
+uv run python source/demos/context_assembly_lab/context_compare.py
 ```
 
 `context_compare.py` 顶部提供学习期实验开关，改完后仍运行上面这一条短命令：
@@ -650,7 +650,7 @@ NOISE-OLD-V1 reason=token_budget_exceeded
 
 ```bash
 uv run pytest source/packages/llm_core/tests/test_context.py
-uv run python source/demos/02_context_lab/context_compare.py
+uv run python source/demos/context_assembly_lab/context_compare.py
 ```
 
 观察点：
@@ -675,13 +675,7 @@ uv run python source/demos/02_context_lab/context_compare.py
 ## 交给 RAG 与 Agent 的上下文入口
 
 - `llm_core.context` 从简单 evidence formatter 升级为策略化 Context Builder，包含 source、policy、section、report、citation candidates 和确定性压缩。
-- `02_context_lab` 作为 context 观察 lab，用独立入口比较不同 context 策略，避免和 Structured Outputs demo 耦合。
-- 继续学习可靠调用：模型调用失败、结构化失败、超时和降级会消费这里的 context report，并把它带入后续 harness / eval 诊断。
+- `context_assembly_lab` 作为 context 观察 lab，用独立入口比较不同 context 策略，避免和 Structured Outputs demo 耦合。
+- 可靠调用、Harness 和 Eval 可以携带这里的 Context Report；Streaming 不是本文前置。
 
----
-
-## 继续学习
-
-- 相关前置：[streaming-and-conversation.md](streaming-and-conversation.md)
-- 继续阅读：[reliability-and-errors.md](reliability-and-errors.md)
-- 集中知识地图：[集中知识地图](../../knowledge-map.md)
+完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。

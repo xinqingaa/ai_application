@@ -18,7 +18,7 @@
 → AI Native 工作台与产品化
 ```
 
-两个阶段和 V0–V6 的定义见 [docs/strategy.md](../docs/strategy.md)。
+两个阶段怎样进入学习与项目实现，见 [标准学习路径](../course/learning-path.md)。
 
 ## 与课程的边界
 
@@ -36,7 +36,7 @@ review_assistant/     产品真源：代码、API、测试、配置、运行和�
 - 当前实现具备哪些实际能力。
 - 常见运行失败如何排查。
 
-课程原理、设计题和学习自检不在这里重复维护。详细边界见 [docs/learning-guide.md](../docs/learning-guide.md)。
+课程原理、设计题和学习自检不在这里重复维护；学习者从 [课程首页](../course/README.md) 进入。
 
 ## 代码关系
 
@@ -66,7 +66,7 @@ review_assistant/
 
 - `source/packages/llm_core/`
 - `source/demos/`
-- `source/apps/02_llm_streaming_api/`
+- `source/apps/llm_streaming_api/`
 
 产品入口落地后，本节应替换为真实的安装、配置、启动、测试和验证命令，不保留占位命令或模拟成功结果。
 

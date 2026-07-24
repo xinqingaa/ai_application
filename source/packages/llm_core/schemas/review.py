@@ -24,7 +24,7 @@ class RiskCategory(str, Enum):
 
 
 class Citation(BaseModel):
-    """Reference to evidence; source_id validity is checked in 03_rag."""
+    """Reference to evidence; source_id validity is checked by the RAG evidence layer."""
 
     source_id: str = Field(..., description="Evidence chunk id from context / RAG")
     excerpt: Optional[str] = Field(None, description="Short quote from the source")

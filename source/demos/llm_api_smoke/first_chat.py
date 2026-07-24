@@ -1,5 +1,5 @@
 """
-02_llm_basics — 02_llm/00 最小 chat 调用。
+llm_api_smoke — 最小真实 Chat 调用。
 
 运行：
     python first_chat.py
@@ -64,7 +64,7 @@ def build_messages(user_content: str) -> list[dict[str, str]]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="02_llm/00 最小 chat 调用")
+    parser = argparse.ArgumentParser(description="最小真实 Chat 调用")
     parser.add_argument(
         "--sample",
         default="S2",

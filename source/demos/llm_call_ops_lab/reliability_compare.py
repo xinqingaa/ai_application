@@ -1,7 +1,7 @@
-"""Compare retry and fallback behavior for 02_llm/06.
+"""Compare retry and fallback behavior for the Reliability mechanism.
 
 运行方式：
-    uv run python source/demos/02_call_ops_lab/reliability_compare.py
+    uv run python source/demos/llm_call_ops_lab/reliability_compare.py
 
 本 demo 默认调用真实模型，观察可靠调用外壳如何记录真实 attempt。
 若需要稳定复现 timeout、fallback、auth 或 schema failure，把 USE_REAL_LLM 改为 False。

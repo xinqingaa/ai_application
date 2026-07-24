@@ -1,5 +1,5 @@
 """
-03_structured_risk — 02_llm/03 结构化风险列表：固定 Prompt + config，只换 structured_mode。
+structured_risk — 固定 Prompt 和 evidence，只切换 structured_mode。
 
 运行（改下方「实验配置」）：
     python structured_risk.py
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from llm_core import BuiltContext, ContextSource, LLMClient, build_review_context
+from llm_core import LLMClient
 from llm_core.errors import LLMError
 from llm_core.observability import demo_log, render_experiment_messages_once
 from llm_core.prompts import get_prompt, render_prompt
@@ -28,7 +28,7 @@ from _shared import (
 
 StructuredRiskMode = Literal["prompt_only", "json_mode", "json_schema"]
 
-# --- 实验配置（逐项说明见 README 与 course/02_llm/03 正文）---
+# --- 实验配置（逐项说明见本目录 README 与 Structured Output 机制篇）---
 SAMPLE_ID = "S2"
 PROMPT_ID = "review.risk_review"
 PROMPT_VERSION = "4.0.0"
@@ -37,7 +37,6 @@ MODES: tuple[StructuredRiskMode, ...] = ("prompt_only", "json_mode", "json_schem
 VERBOSE = False
 TEMPERATURE = 0
 EVIDENCE_FILE = DEMO_DIR / "evidence_s2.json"
-CONTEXT_TOKEN_BUDGET = 900
 # -----------------------------------------------------------
 
 _MODE_TO_STRUCTURED: dict[StructuredRiskMode, StructuredMode] = {
@@ -68,23 +67,6 @@ def _request_params_for_mode(
     return merge_chat_request_params(config, call_params)
 
 
-def _log_context(context: BuiltContext) -> None:
-    demo_log.section("context")
-    demo_log.field("token_budget", context.token_budget, indent=1)
-    demo_log.field("estimated_tokens", context.estimated_tokens, indent=1)
-    demo_log.field(
-        "included_sources",
-        ", ".join(context.included_source_ids) or "—",
-        indent=1,
-    )
-    demo_log.field(
-        "dropped_sources",
-        ", ".join(context.dropped_source_ids) or "—",
-        indent=1,
-    )
-    demo_log.blank()
-
-
 def main() -> None:
     find_and_load_env()
     require_api_key(demo_log)
@@ -94,25 +76,11 @@ def main() -> None:
     config = client.get_config(CONFIG_REF)
     chat_kwargs = {"temperature": TEMPERATURE}
 
-    evidence_sources: list[ContextSource] = []
-    if EVIDENCE_FILE.is_file():
-        evidence_sources.append(
-            ContextSource(
-                source_id=f"{SAMPLE_ID}.evidence.after_sale_api_v2",
-                source_type="evidence",
-                title="内部接口说明摘录",
-                content=load_evidence_block(EVIDENCE_FILE),
-                priority=80,
-                metadata={"sample_id": SAMPLE_ID},
-            )
-        )
-    context = build_review_context(
-        requirement_text=sample["user_content"],
-        sources=evidence_sources,
-        token_budget=CONTEXT_TOKEN_BUDGET,
-        model=config.model,
-    )
-    variables = context.to_prompt_variables()
+    evidence_block = load_evidence_block(EVIDENCE_FILE) if EVIDENCE_FILE.is_file() else ""
+    variables = {
+        "requirement_text": sample["user_content"],
+        "evidence_block": evidence_block,
+    }
 
     tpl = get_prompt(PROMPT_ID, version=PROMPT_VERSION)
     messages = render_prompt(tpl, variables)
@@ -127,8 +95,6 @@ def main() -> None:
         temperature=TEMPERATURE,
         evidence_file=EVIDENCE_FILE,
     )
-    _log_context(context)
-
     if VERBOSE:
         render_experiment_messages_once(demo_log, messages)
 

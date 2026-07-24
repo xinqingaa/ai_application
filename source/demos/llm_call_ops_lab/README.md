@@ -1,4 +1,4 @@
-# Call Ops Lab
+# llm_call_ops_lab
 
 这个 lab 集中承载可靠调用、回归 Harness、成本与缓存实验，不按“一节一个 demo”继续拆目录。
 
@@ -13,9 +13,9 @@
 ## 运行
 
 ```bash
-uv run python source/demos/02_call_ops_lab/reliability_compare.py
-uv run python source/demos/02_call_ops_lab/harness_compare.py
-uv run python source/demos/02_call_ops_lab/cost_latency_cache.py
+uv run python source/demos/llm_call_ops_lab/reliability_compare.py
+uv run python source/demos/llm_call_ops_lab/harness_compare.py
+uv run python source/demos/llm_call_ops_lab/cost_latency_cache.py
 ```
 
 ## reliability 输出怎么看

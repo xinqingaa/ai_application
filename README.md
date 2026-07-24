@@ -13,15 +13,15 @@
 1. 可信 RAG + 单 Agent：先完成可用、可信、可评估的需求评审助手。
 2. Workflow + 多 Agent：再增加显式流程、人工介入、多角色协作和产品化能力。
 
-V0–V6 是唯一项目里程碑。完整定义见 [docs/strategy.md](docs/strategy.md)。
+V0–V6 是唯一项目里程碑，学习时由 [标准学习路径](course/learning-path.md) 依次接入。
 
 ## 学习方式
 
-学习由项目版本反推，不要求依次学完 LLM、RAG、Agent 等能力域：
+课程内容由项目版本反推，学习者则按照标准学习路径正向进入，不从项目规格倒着读，也不按 LLM、RAG、Agent 目录机械通关：
 
 ```text
-当前项目版本提出问题
-→ 按需阅读概念篇与机制篇                                             
+项目愿景建立方向
+→ 按认知前置阅读概念篇与机制篇
 → 通过真实实验观察机制
 → 将能力组合进项目
 → 主动制造失败并定位
@@ -37,7 +37,7 @@ V0–V6 是唯一项目里程碑。完整定义见 [docs/strategy.md](docs/strat
 
 “真实问题 → 基础原理 → 最小实现 → 主流框架 → 失败边界”是全课程的认知方法，不是每篇文档的固定模板。
 
-详细规则见 [docs/learning-guide.md](docs/learning-guide.md)。
+开始学习时不需要先读仓库设计规范，直接进入 [课程首页](course/README.md)。
 
 ## 目录职责
 
@@ -66,15 +66,15 @@ review_assistant/     产品真源：安装、运行、测试、API 和部署
 
 通用能力沉淀到 `source/packages/`，产品通过 import 复用，不复制平行实现。
 
-## 阅读顺序
+## 学习入口
 
-1. [docs/strategy.md](docs/strategy.md)：目标、阶段和 V0–V6。
-2. [docs/learning-guide.md](docs/learning-guide.md)：学习、文档、代码和运行规则。
-3. [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md)：怎样判断真正掌握。
-4. [course/README.md](course/README.md)：从概念、机制和小实验开始的当前正向学习路线。
-5. 完成核心前置后进入当前项目篇，再阅读对应 package README 和产品 README。
+1. [课程首页](course/README.md)：先理解项目目标、文档和代码分别负责什么。
+2. [标准学习路径](course/learning-path.md)：按照唯一课表进入概念、机制、实验和项目。
+3. 完成核心前置后进入当前项目篇，再阅读对应 package README 和产品 README。
 
-AI Agent 协作规则见 [AGENTS.md](AGENTS.md) 和 [docs/agent-skill.md](docs/agent-skill.md)。
+## 维护与 AI 协作
+
+`docs/`、[AGENTS.md](AGENTS.md) 和 `skills/` 面向课程维护者与 AI Agent，规定长期定位、写作规范、代码组织和协作边界，不是学习者的课程前置。
 
 ## 真实调用规则
 
@@ -84,4 +84,3 @@ LLM、RAG、Agent 和 Eval 的学习主路径使用真实模型或真实外部�
 - 不在真实调用失败后静默返回 fake 或 mock 结果。
 - Mock 仅用于单元测试、离线排查、稳定失败复现或明确标注的对照实验。
 - Mock 结果不能作为真实模型质量或项目效果的主要证据。
-

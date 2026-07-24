@@ -1,4 +1,4 @@
-"""FastAPI SSE demo for 02_llm/04."""
+"""FastAPI SSE app for the optional Streaming and Conversation mechanism."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from llm_core import ConversationBuffer, LLMClient, encode_sse
 
 APP_DIR = Path(__file__).resolve().parent
 REPO_ROOT = APP_DIR.parents[2]
-SAMPLES_PATH = REPO_ROOT / "source" / "demos" / "02_llm_basics" / "samples.json"
+SAMPLES_PATH = REPO_ROOT / "source" / "demos" / "llm_api_smoke" / "samples.json"
 INDEX_PATH = APP_DIR / "index.html"
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -25,7 +25,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "用简洁中文输出研发风险、需要补充的信息和下一步建议。"
 )
 
-app = FastAPI(title="02 LLM Streaming API", version="0.1.0")
+app = FastAPI(title="LLM Streaming API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -68,7 +68,7 @@ def _conversation_for(session_id: str) -> ConversationBuffer:
 
 @app.get("/health")
 def health() -> JSONResponse:
-    return JSONResponse({"ok": True, "app": "02_llm_streaming_api"})
+    return JSONResponse({"ok": True, "app": "llm_streaming_api"})
 
 
 @app.get("/", include_in_schema=False)

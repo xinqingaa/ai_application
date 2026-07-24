@@ -1,5 +1,5 @@
 """
-02_prompt_compare — 02_llm/02 同一任务三版 Prompt 对比。
+prompt_compare — 同一任务的多版 Prompt 对比实验。
 
 运行（无需命令行参数，改下方「实验配置」即可）：
     python prompt_compare.py

@@ -1,5 +1,5 @@
 """
-02_model_contracts — 02_llm/01 切换 config_ref 对比 demo。
+model_contract_lab — 切换 config_ref 的真实对比实验。
 
 运行：
     python provider_switching.py
@@ -38,7 +38,7 @@ def build_messages(user_content: str) -> list[dict[str, str]]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="02_llm/01 Provider / config_ref 对比")
+    parser = argparse.ArgumentParser(description="Provider / config_ref 对比")
     parser.add_argument("--sample", default="S2", help="samples.json 中的样例 id")
     parser.add_argument(
         "--configs",

@@ -11,16 +11,16 @@ source/
 ├── packages/
 │   └── llm_core/              # 模型调用、契约、上下文与调用治理
 ├── demos/
-│   ├── 02_llm_basics/         # 真实模型最小调用
-│   ├── 02_model_contracts/    # Provider、Prompt 与 Structured Output
-│   ├── 02_context_lab/        # Context Builder 观察
-│   └── 02_call_ops_lab/       # Reliability、Harness、成本与缓存实验
+│   ├── llm_api_smoke/         # 真实模型最小调用
+│   ├── model_contract_lab/    # Provider、Prompt 与 Structured Output
+│   ├── context_assembly_lab/   # Context Builder 观察
+│   └── llm_call_ops_lab/       # Reliability、Harness、成本与缓存实验
 ├── apps/
-│   └── 02_llm_streaming_api/  # FastAPI + SSE 学习期组合入口
+│   └── llm_streaming_api/      # FastAPI + SSE 学习期组合入口
 └── python_base/               # 已完成的 Python 基础练习
 ```
 
-现有目录名保留当前实物事实，但新增能力不再按课程编号或文档编号机械创建目录。
+demo 和 app 使用语义名称，不携带课程章节编号；新增能力也不按文档数量机械创建目录。
 
 ## 目录职责
 
@@ -75,4 +75,4 @@ uv run ...
 
 依赖只维护在根 `pyproject.toml` 和 `uv.lock`。具体 package、demo 和 app 的入口、配置与观察方式由各自 README 维护。
 
-详细规则见 [docs/learning-guide.md](../docs/learning-guide.md)。
+学习者先按 [标准学习路径](../course/learning-path.md) 确定当前机制，再进入对应 package、demo 或 app README。

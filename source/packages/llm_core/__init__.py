@@ -1,12 +1,9 @@
-"""需求评审助手的 LLM 调用底座（02_llm）。
+"""需求评审助手共享的 LLM 模型交互底座。
 
-01 起提供 LLMClient、models.yaml 与统一可观测日志。
-02 起提供命名 Prompt 模板（YAML 真源）与 render 能力。
-03 起提供 Pydantic Schema、结构化解析与 chat_structured。
-04 起提供流式事件、SSE 编码与最小 Conversation Buffer。
-05 起提供上下文构造、证据编号与预算诊断。
-06 起提供可靠调用外壳：重试、降级与尝试报告。
-08 起提供成本估算与本地缓存诊断。
+模块覆盖 Provider、Prompt、Structured Output、Reliability、Context、
+Calling Harness、Streaming、Conversation、成本与缓存。模块存在不代表
+产品自动启用；demo、app 和产品 Pipeline 通过显式调用选择所需能力。
+课程阅读顺序以 course/learning-path.md 为准。
 """
 
 from llm_core.cache import CacheEvent, CacheKeyParts, CacheStats, InMemoryLLMCache, build_cache_key

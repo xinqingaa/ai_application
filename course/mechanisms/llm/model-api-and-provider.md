@@ -2,7 +2,7 @@
 
 > 机制篇：观察一次真实模型调用如何从业务配置进入 Provider、返回统一响应并暴露供应商差异。
 >
-> 阅读前提：[模型输入输出契约](../../concepts/model-input-output-contracts.md)。本文负责把真实模型调用收敛成统一入口；跑通实验后继续 [Prompt Engineering](prompt-engineering.md)。
+> 课程位置：[标准学习路径](../../learning-path.md) V0 第三步。必要前置是 [模型输入输出契约](../../concepts/model-input-output-contracts.md)；本文交付可运行、可切换、可观察的真实模型调用入口。
 
 ---
 
@@ -379,9 +379,9 @@ class LLMResponse:
 - [`source/packages/llm_core/client/service.py`](../../../source/packages/llm_core/client/service.py)：统一调用入口。
 - [`source/packages/llm_core/config/types.py`](../../../source/packages/llm_core/config/types.py)：`ModelConfig`、`LLMResponse` 等数据结构。
 - [`source/packages/llm_core/config/models.yaml`](../../../source/packages/llm_core/config/models.yaml)：模型配置真源。
-- [`source/demos/02_model_contracts/provider_switching.py`](../../../source/demos/02_model_contracts/provider_switching.py)：本节观察入口。
+- [`source/demos/model_contract_lab/provider_switching.py`](../../../source/demos/model_contract_lab/provider_switching.py)：本节观察入口。
 
-完整文件说明和命令变体放在 [demo README](../../../source/demos/02_model_contracts/README.md)。
+完整文件说明和命令变体放在 [demo README](../../../source/demos/model_contract_lab/README.md)。
 
 ### 实现步骤（与最小实现对照）
 
@@ -404,7 +404,7 @@ DeepSeek 等 OpenAI-compatible 平台可通过 `.env` 切换 `OPENAI_BASE_URL` /
 ### 步骤 2：运行对比 demo
 
 ```bash
-cd source/demos/02_model_contracts
+cd source/demos/model_contract_lab
 uv run python provider_switching.py
 ```
 
@@ -443,12 +443,12 @@ uv run python provider_switching.py
 ### 运行与观察
 
 ```bash
-cd source/demos/02_model_contracts
+cd source/demos/model_contract_lab
 uv run python provider_switching.py
 uv run python provider_switching.py --verbose
 ```
 
-应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../../source/demos/02_model_contracts/README.md)。
+应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../../source/demos/model_contract_lab/README.md)。
 
 ### 自检题
 
@@ -463,14 +463,8 @@ uv run python provider_switching.py --verbose
 
 ## 交给项目的调用契约
 
-- 新增 `llm_core` 调用层（`LLMClient`、`models.yaml`、`ConfigRegistry`、`LLMResponse`、`LLMError`）与 `02_model_contracts` demo。
-- 需求评审助手具备：**按任务切换模型配置、统一响应结构与可观测日志**；SDK 最小调用 的 `02_llm_basics` 保留作 SDK 直调对照。
-- 继续阅读 [prompt-engineering.md](prompt-engineering.md) 在同一 `LLMClient` 上叠加 Prompt 模板。
+- 新增 `llm_core` 调用层（`LLMClient`、`models.yaml`、`ConfigRegistry`、`LLMResponse`、`LLMError`）与 `model_contract_lab` demo。
+- 需求评审助手具备：**按任务切换模型配置、统一响应结构与可观测日志**；SDK 最小调用 的 `llm_api_smoke` 保留作 SDK 直调对照。
+- 后续 Prompt、Structured Output、Reliability 和按需 Streaming 都复用同一个 `LLMClient`，但进入顺序只由标准学习路径规定。
 
----
-
-## 继续学习
-
-- 相关前置：[LLM 在 AI 应用中的位置与边界](../../concepts/llm-in-ai-applications.md)
-- 继续阅读：[prompt-engineering.md](prompt-engineering.md)
-- 集中知识地图：[集中知识地图](../../knowledge-map.md)
+完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。

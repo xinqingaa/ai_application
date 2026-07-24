@@ -10,13 +10,13 @@
 - 它最早在哪个项目版本进入。
 - 对应正文和代码在哪里。
 
-它不安排当前阅读顺序，也不承担项目任务。现在应该读什么，以 [课程入口](README.md) 的正向学习路线为准；什么时候把能力组合成产品，以对应项目篇为准。
+它不安排阅读顺序，也不承担项目任务。现在应该读什么，以 [标准学习路径](learning-path.md) 为准；什么时候把能力组合成产品，以对应项目篇为准。
 
 ## 怎样使用
 
 ### 想开始学习
 
-不要从这张表逐行阅读。回到 [课程入口](README.md)，按当前路线从概念、机制和小实验开始。
+不要从这张表逐行阅读。回到 [标准学习路径](learning-path.md)，按认知前置从概念、机制和小实验开始。
 
 ### 想查完整知识体系
 
@@ -52,7 +52,7 @@
 
 | 知识 | 类型 | 定位 | 最早进入 | 理解前提 | 文档入口 | 代码入口 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| LLM 应用问题空间与能力边界 | 概念 | 主线 | V0 | 无 | [阅读正文](concepts/llm-in-ai-applications.md) | `source/demos/02_llm_basics/` | 已落地 |
+| LLM 应用问题空间与能力边界 | 概念 | 主线 | V0 | 无 | [阅读正文](concepts/llm-in-ai-applications.md) | `source/demos/llm_api_smoke/` | 已落地 |
 | 一次模型调用的生命周期 | 概念+机制 | 主线 | V0 | LLM 应用问题空间与能力边界 | [阅读正文](mechanisms/llm/model-api-and-provider.md) | `llm_core/client` | 已落地 |
 | Provider、模型配置与供应商差异 | 机制 | 主线 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/llm/model-api-and-provider.md) | `llm_core/providers`、`config` | 已落地 |
 | Prompt、Schema、Context 的模型契约 | 概念 | 主线 | V0 | LLM 应用问题空间与能力边界 | [阅读正文](concepts/model-input-output-contracts.md) | `llm_core/prompts`、`schemas`、`context` | 已落地 |
@@ -237,7 +237,7 @@ State / Node / Edge
 
 - 新增知识前先判断能否合并到现有知识。
 - 知识名称必须让学习者直接理解，不使用内部编号或编号范围。
-- 当前正向阅读顺序只维护在 course/README.md。
+- 标准阅读顺序只维护在 `course/learning-path.md`。
 - 项目业务任务、设计选择和验收只维护在 course/project/。
 - 框架映射优先并入对应机制篇，不独立形成第四类文档。
 - 未来认知不创建占位正文、空 package、空 demo 或空 app。

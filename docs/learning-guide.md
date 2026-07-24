@@ -49,15 +49,15 @@
 - 阶段一：可信 RAG + 单 Agent 需求评审助手。
 - 阶段二：Workflow + 多 Agent 评审系统。
 
-### 唯一强顺序
+### 版本顺序与阅读顺序
 
-V0–V6 是唯一项目里程碑和唯一强学习顺序。版本定义以 [strategy.md](strategy.md) 为准。
+V0–V6 是唯一项目里程碑顺序，版本定义以 [strategy.md](strategy.md) 为准。每个版本内部如何从概念、机制和实验进入项目，由 `course/learning-path.md` 唯一定义。
 
 不再建立这些平行顺序：
 
 - 不维护 M0–M6。
 - 不把 LLM、RAG、Agent、Eval 当作必须依次毕业的课程。
-- 不为“概念单元”再维护一套编号课表。
+- 不为“概念单元”再维护一套与标准学习路径竞争的编号课表。
 - 不根据文件名编号推断全局学习顺序。
 
 ### 三类文档
@@ -70,15 +70,16 @@ V0–V6 是唯一项目里程碑和唯一强学习顺序。版本定义以 [stra
 
 三分的是职责，不是篇幅。概念篇和机制篇可以很长、很厚，但必须围绕自己的核心问题展开。
 
-## 3. 唯一阅读入口和阅读路径
+## 3. 课程入口和唯一阅读路径
 
-重构后的课程以 `course/README.md` 为唯一阅读入口。
+`course/README.md` 是学习者首页，`course/learning-path.md` 是阅读顺序的唯一真源。
 
 标准阅读路径：
 
 ```text
 course/README.md
-→ 当前版本的正向学习路线
+→ course/learning-path.md
+→ 当前版本的标准正向路线
 → 概念篇建立判断
 → 机制篇 + 小实验建立实现能力
 → 当前项目版本的项目篇
@@ -94,6 +95,8 @@ course/README.md
 - 不要求先读完某个能力域下的全部机制。
 - 不要求学完所有 LLM 内容才进入 RAG。
 - 与项目暂时关系不大的重要知识，可以作为概念或机制补充，但不进入当前项目验收。
+- 不根据正文页尾、目录排列、文件名或 package 模块顺序推断下一篇。
+- 概念篇、机制篇和项目篇不独立维护平行课表；正文读完后返回 `course/learning-path.md`。
 
 ## 4. 集中知识清单
 
@@ -134,7 +137,8 @@ course/README.md
 
 因此：
 
-- 想知道“现在读什么、下一步是什么”，看 `course/README.md` 的当前正向学习路线。
+- 想知道“现在读什么、下一步是什么”，看 `course/learning-path.md`。
+- 想重新理解课程目标和各入口职责，看 `course/README.md`。
 - 想集中检查“Agent、RAG 或 Eval 有哪些知识、是否遗漏”，看 `course/knowledge-map.md`。
 - 想把已经学过的能力组合成当前版本，进入 `course/project/` 对应项目篇。
 - 想理解知识本身，进入对应概念篇和机制篇。
@@ -145,7 +149,8 @@ course/README.md
 
 | 旧 Outline 中的信息 | 新真源 |
 | --- | --- |
-| 全局学习顺序、当前从哪里开始 | `course/README.md` 的正向学习路线 |
+| 学习者入口与课程概览 | `course/README.md` |
+| 全局学习顺序、当前从哪里开始 | `course/learning-path.md` |
 | 完整知识项、前置、优先级、阶段和状态 | `course/knowledge-map.md` |
 | 是什么、为什么、区别和边界 | `course/concepts/` |
 | 内部机制、实验、框架映射和失败排查 | `course/mechanisms/` |
@@ -159,7 +164,7 @@ course/README.md
 旧 outline 只有在以下条件全部满足后才可以删除：
 
 - 每个有效知识项都已进入集中知识清单。
-- 正向学习顺序已进入 `course/README.md`；项目篇明确进入项目之前应具备的能力。
+- 正向学习顺序已进入 `course/learning-path.md`；项目篇明确进入项目之前应具备的能力。
 - 概念、机制、项目任务和运行说明已有明确真源。
 - 旧 outline 中的独有内容已确认保留、降级或删除原因。
 - 新入口不存在指向旧 outline 的链接。
@@ -283,7 +288,7 @@ course/README.md
 项目篇位于一轮核心概念和机制之后，必须能驱动一次从能力组合到产品验收的完整交付：
 
 ```text
-course/README 定义当前正向学习路线
+course/learning-path 定义当前标准学习路线
 → 概念篇与机制篇建立理解并完成小实验
 → 项目篇定义业务问题、组合任务、输入输出和版本验收
 → source/packages 实现或扩展通用能力

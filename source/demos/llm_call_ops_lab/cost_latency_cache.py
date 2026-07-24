@@ -1,7 +1,7 @@
-"""Observe cost, latency, and cache boundaries for 02_llm/08.
+"""Observe cost, latency, and cache boundaries from Harness records.
 
 运行方式：
-    uv run python source/demos/02_call_ops_lab/cost_latency_cache.py
+    uv run python source/demos/llm_call_ops_lab/cost_latency_cache.py
 
 默认调用真实模型、不写磁盘。这个 demo 的重点不是得到“最便宜”的答案，
 而是看懂真实 usage、估算成本、延迟和缓存 key 如何影响需求评审助手的调用治理。

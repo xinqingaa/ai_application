@@ -1,4 +1,4 @@
-# 02_llm_streaming_api
+# llm_streaming_api
 
 本地 FastAPI SSE 观察入口。它启动一个只在本机运行的轻量服务，把 `llm_core.stream_chat` 产生的统一事件编码成 `text/event-stream`，用于理解 AI 应用前端如何消费模型运行态。
 
@@ -31,7 +31,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 ## 启动
 
 ```bash
-uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/apps/llm_streaming_api --reload --port 8004
 ```
 
 这条命令会在本机启动一个 FastAPI 服务：
@@ -60,7 +60,7 @@ http://127.0.0.1:8004/
 
 自定义 API 地址时，可在控制台设置 `window.__API_BASE__ = "http://127.0.0.1:8004"`（同源访问可设为 `""`）。
 
-点击 `Start` 后，页面会按 `token.delta` 展示打字机效果。点击 `Stop` 会关闭当前 `EventSource`，前端停止接收后续事件；生产级服务端取消、断点恢复和重试治理放到后续可靠性专题。
+点击 `Start` 后，页面会按 `token.delta` 展示打字机效果。点击 `Stop` 会关闭当前 `EventSource`，前端停止接收后续事件；生产级服务端取消、断点恢复和重试治理属于独立的可靠性与运行时机制。
 
 建议同时打开浏览器开发者工具：
 
@@ -135,7 +135,7 @@ source.addEventListener("done", () => {
 });
 ```
 
-开始 = 创建新的 `EventSource`。停止 = 调用 `source.close()`。这能停止前端继续接收；服务端是否能立刻中断模型调用，还需要断连检测、超时和取消传播，后续可靠性专题再展开。
+开始 = 创建新的 `EventSource`。停止 = 调用 `source.close()`。这能停止前端继续接收；服务端是否能立刻中断模型调用，还需要断连检测、超时和取消传播，不能由浏览器关闭连接这一动作自动保证。
 
 ## 常见问题
 

@@ -2,7 +2,7 @@
 
 > 机制篇：解释为什么“像 JSON”还不够，以及生成约束、JSON 解析、Schema 校验和业务消费如何形成可信输出链路。
 >
-> 阅读前提：[Prompt Engineering](prompt-engineering.md)。本文把模型文本变成可接受或拒绝的业务对象；读完后先学习 [可靠调用](reliability-and-errors.md)，当外部知识候选出现后再进入 [Context Engineering](context-engineering.md)。
+> 课程位置：[标准学习路径](../../learning-path.md) V0 第五步。必要前置是 [Prompt Engineering](prompt-engineering.md)；本文交付模型结果的生成约束、解析、Schema 校验和业务接受边界。
 
 ---
 
@@ -402,9 +402,9 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 - [`source/packages/llm_core/schemas/review.py`](../../../source/packages/llm_core/schemas/review.py)：风险列表 Schema 真源。
 - [`source/packages/llm_core/schemas/parse.py`](../../../source/packages/llm_core/schemas/parse.py)：解析与 `error_stage` 判层。
 - [`source/packages/llm_core/structured/response.py`](../../../source/packages/llm_core/structured/response.py)：`response_format` 构建。
-- [`source/demos/02_model_contracts/structured_risk.py`](../../../source/demos/02_model_contracts/structured_risk.py)：本节观察入口。
+- [`source/demos/model_contract_lab/structured_risk.py`](../../../source/demos/model_contract_lab/structured_risk.py)：本节观察入口。
 
-完整文件说明与参数变体放在 [demo README](../../../source/demos/02_model_contracts/README.md)。
+完整文件说明与参数变体放在 [demo README](../../../source/demos/model_contract_lab/README.md)。
 
 ### 实现步骤（与最小实现对照）
 
@@ -419,7 +419,7 @@ demo 默认固定 S2、Prompt v4、`chat.dev_chat` 和 `temperature=0`，只改�
 
 ```bash
 uv sync
-cd source/demos/02_model_contracts
+cd source/demos/model_contract_lab
 uv run python structured_risk.py
 ```
 
@@ -467,7 +467,7 @@ uv run python structured_risk.py
 ### 运行与观察
 
 ```bash
-cd source/demos/02_model_contracts
+cd source/demos/model_contract_lab
 uv run python structured_risk.py
 ```
 
@@ -486,12 +486,6 @@ uv run python structured_risk.py
 
 - `llm_core.schemas`、`parse_risk_list`、`build_response_format`、`chat_structured`、`risk_review_v4.yaml`。
 - 需求评审助手具备：**结构化风险列表契约 + 分层解析 + 三 mode 可观测**。
-- 继续阅读 [streaming-and-conversation.md](streaming-and-conversation.md) 在保持结构化契约下讨论流式与对话状态。
+- Reliability 会复用这里的解析结果判断一次调用是否真正成功；Streaming 则是独立的按需交互支撑。
 
----
-
-## 继续学习
-
-- 相关前置：[prompt-engineering.md](prompt-engineering.md)
-- 继续阅读：[streaming-and-conversation.md](streaming-and-conversation.md)
-- 集中知识地图：[集中知识地图](../../knowledge-map.md)
+完成实验后回到 [标准学习路径](../../learning-path.md)。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。

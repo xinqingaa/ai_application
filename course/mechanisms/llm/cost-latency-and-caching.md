@@ -2,7 +2,7 @@
 
 > 机制篇：解释 usage、价格、延迟与缓存键如何形成可观察的调用治理，而不是把一次成功响应误认为长期可用。
 >
-> 阅读位置：这是运行治理支撑，不是进入 RAG 的前置。先理解 [Calling Harness](calling-harness-and-regression.md)，当项目已经有重复调用记录并需要比较预算时再读本文。
+> 课程位置：[标准学习路径](../../learning-path.md) 中的按需运行治理支撑，不是进入 RAG 的前置。必要前置是 [Calling Harness](calling-harness-and-regression.md)；本文交付 usage、估算价格、延迟和缓存失效的联合诊断。
 
 ---
 
@@ -181,7 +181,7 @@ class CacheKeyParts:
 
 ### Demo 如何验证这个机制
 
-[`cost_latency_cache.py`](../../../source/demos/02_call_ops_lab/cost_latency_cache.py) 做三轮观察：
+[`cost_latency_cache.py`](../../../source/demos/llm_call_ops_lab/cost_latency_cache.py) 做三轮观察：
 
 ```text
 cold：第一次运行，同一批 case 全部 miss，产生 token / cost / latency。
@@ -282,13 +282,13 @@ Provider-side prompt caching 也只做认知。供应商缓存能降低某些重
 - [`source/packages/llm_core/costing/`](../../../source/packages/llm_core/costing/)：学习用价格表与成本估算。
 - [`source/packages/llm_core/cache/`](../../../source/packages/llm_core/cache/)：cache key、进程内 cache、cache event / stats。
 - [`source/packages/llm_core/harness/records.py`](../../../source/packages/llm_core/harness/records.py)：record / summary 增加成本延迟字段。
-- [`source/demos/02_call_ops_lab/cost_latency_cache.py`](../../../source/demos/02_call_ops_lab/cost_latency_cache.py)：成本治理 观察入口。
-- [`source/demos/02_call_ops_lab/README.md`](../../../source/demos/02_call_ops_lab/README.md)：输出解读。
+- [`source/demos/llm_call_ops_lab/cost_latency_cache.py`](../../../source/demos/llm_call_ops_lab/cost_latency_cache.py)：成本治理 观察入口。
+- [`source/demos/llm_call_ops_lab/README.md`](../../../source/demos/llm_call_ops_lab/README.md)：输出解读。
 
 ### 运行方式
 
 ```bash
-uv run python source/demos/02_call_ops_lab/cost_latency_cache.py
+uv run python source/demos/llm_call_ops_lab/cost_latency_cache.py
 ```
 
 默认调用真实模型，不写磁盘。运行前确认根目录 `.env` 已配置 `OPENAI_API_KEY`，以及需要时的 `OPENAI_BASE_URL` / `OPENAI_MODEL`。如果缺 key、模型不支持 structured output 或供应商异常，demo 会把真实错误暴露出来；这不是噪声，而是本节要学习的真实工程边界。
@@ -367,7 +367,7 @@ changed_context: hit_rate=0%
 
 ```bash
 uv run pytest source/packages/llm_core/tests
-uv run python source/demos/02_call_ops_lab/cost_latency_cache.py
+uv run python source/demos/llm_call_ops_lab/cost_latency_cache.py
 ```
 
 应看到：
@@ -399,6 +399,4 @@ Function Calling API 边界与工具运行时、权限、审计、Agent loop 统
 
 ---
 
-## 继续学习
-
-- [Calling Harness 与回归](calling-harness-and-regression.md)
+完成实验后回到 [标准学习路径](../../learning-path.md) 的当前主线。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。

@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型增量如何变成前端可消费的事件，以及稳定会话历史为什么不能混入一次运行的全部中间态。
 >
-> 阅读位置：这是产品交互支撑，不是理解固定 RAG 的前置。先完成 [模型 API 与 Provider](model-api-and-provider.md)；当项目开始提供 SSE、运行进度或浏览器入口时再读本文。
+> 课程位置：[标准学习路径](../../learning-path.md) 中的按需交互支撑，不是固定 RAG 前置。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)；本文交付 Provider Chunk、应用事件、SSE、前端状态和稳定会话之间的边界。
 
 ---
 
@@ -133,7 +133,7 @@ SSE，即 Server-Sent Events，是服务端向客户端持续推送文本事件�
 2. 调用 `LLMClient.stream_chat`，把模型生成过程转成 `LLMStreamEvent`。
 3. 通过 SSE 返回给前端，让前端能按事件更新 UI。
 
-启动 `uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004` 后，本机就多了一个临时服务：
+启动 `uv run uvicorn main:app --app-dir source/apps/llm_streaming_api --reload --port 8004` 后，本机就多了一个临时服务：
 
 | 地址 | 作用 |
 | --- | --- |
@@ -219,7 +219,7 @@ Streaming 与 Conversation 的工程设计可以按下面这条链理解：
 1. 模型 chunk 能被翻译成稳定应用事件。
 2. FastAPI 能把这些事件作为 SSE 输出给前端。
 
-正文只保留两个关键片段，完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [SSE app README](../../../source/apps/02_llm_streaming_api/README.md)。
+正文只保留两个关键片段，完整代码阅读顺序见 [llm_core README](../../../source/packages/llm_core/README.md) 和 [SSE app README](../../../source/apps/llm_streaming_api/README.md)。
 
 ### 1. 统一事件对象
 
@@ -250,7 +250,7 @@ class LLMStreamEvent:
 
 ### 2. FastAPI SSE 输出
 
-[`source/apps/02_llm_streaming_api/main.py`](../../../source/apps/02_llm_streaming_api/main.py)：
+[`source/apps/llm_streaming_api/main.py`](../../../source/apps/llm_streaming_api/main.py)：
 
 ```python
 def event_stream() -> Iterator[str]:
@@ -374,10 +374,10 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 - [`source/packages/llm_core/conversation/buffer.py`](../../../source/packages/llm_core/conversation/buffer.py)：最小 Conversation Buffer。
 - [`source/packages/llm_core/client/service.py`](../../../source/packages/llm_core/client/service.py)：`LLMClient.stream_chat`。
 - [`source/packages/llm_core/providers/openai_compat.py`](../../../source/packages/llm_core/providers/openai_compat.py)：OpenAI-compatible streaming 实现。
-- [`source/apps/02_llm_streaming_api/main.py`](../../../source/apps/02_llm_streaming_api/main.py)：FastAPI SSE app。
-- [`source/apps/02_llm_streaming_api/index.html`](../../../source/apps/02_llm_streaming_api/index.html)：浏览器打字机观察页面。
+- [`source/apps/llm_streaming_api/main.py`](../../../source/apps/llm_streaming_api/main.py)：FastAPI SSE app。
+- [`source/apps/llm_streaming_api/index.html`](../../../source/apps/llm_streaming_api/index.html)：浏览器打字机观察页面。
 
-完整运行说明与输出字段见 [SSE app README](../../../source/apps/02_llm_streaming_api/README.md)。
+完整运行说明与输出字段见 [SSE app README](../../../source/apps/llm_streaming_api/README.md)。
 
 ### 实现步骤
 
@@ -395,7 +395,7 @@ data: {"type":"token","run_id":"demo-S2-a1b2c3d4","sequence":2,"delta":"风险"}
 ```bash
 uv sync
 cp .env.example .env
-uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/apps/llm_streaming_api --reload --port 8004
 ```
 
 然后打开浏览器（推荐，页面与 API 同源）：
@@ -404,7 +404,7 @@ uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --po
 http://127.0.0.1:8004/
 ```
 
-若用 Live Server 打开 `source/apps/02_llm_streaming_api/index.html`，页面通常在 `127.0.0.1:5500`，API 仍在 `8004`，属于跨域。本节 demo 已在 FastAPI 侧为常见 Live Server 端口配置 CORS，前端在非 `8004` 端口时会自动请求 `http://127.0.0.1:8004/api/review/stream`。无论哪种方式，都必须先启动 uvicorn。
+若用 Live Server 打开 `source/apps/llm_streaming_api/index.html`，页面通常在 `127.0.0.1:5500`，API 仍在 `8004`，属于跨域。本节 demo 已在 FastAPI 侧为常见 Live Server 端口配置 CORS，前端在非 `8004` 端口时会自动请求 `http://127.0.0.1:8004/api/review/stream`。无论哪种方式，都必须先启动 uvicorn。
 
 点击 `Start`，页面会展示打字机效果。建议同时打开浏览器开发者工具，在 Network 面板查看 `/api/review/stream?...` 请求，观察响应头 `content-type: text/event-stream` 和持续到达的 `event/data`。Live Server 场景下，该请求的目标主机应是 `8004`，而不是 Live Server 端口。
 
@@ -450,7 +450,7 @@ curl -N "http://127.0.0.1:8004/api/review/stream?sample_id=S2&session_id=demo"
 ### 运行与观察
 
 ```bash
-uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/apps/llm_streaming_api --reload --port 8004
 ```
 
 观察点：
@@ -477,12 +477,6 @@ uv run uvicorn main:app --app-dir source/apps/02_llm_streaming_api --reload --po
 
 - `llm_core` 新增 `streaming`、`conversation` 与 `LLMClient.stream_chat`，并保留与 Provider 调用层–结构化输出 同一套 `config_ref` 调用方式。
 - 需求评审助手获得一个可运行的 FastAPI SSE 入口，前端可以基于事件协议展示模型运行态。
-- 继续阅读 [context-engineering.md](context-engineering.md) 将继续处理 history、需求材料、证据和中间结果如何进入上下文预算。
+- RAG、Agent 和 Workflow 后续可以扩展同一事件协议；Context Engineering 与本文没有固定先后关系。
 
----
-
-## 继续学习
-
-- 相关前置：[structured-output.md](structured-output.md)
-- 继续阅读：[context-engineering.md](context-engineering.md)
-- 集中知识地图：[集中知识地图](../../knowledge-map.md)
+完成实验后回到 [标准学习路径](../../learning-path.md) 的当前主线。需要查完整知识关系时再使用 [知识地图](../../knowledge-map.md)。

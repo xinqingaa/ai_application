@@ -4,7 +4,11 @@
 
 课程正文负责解释为什么这样设计；本 README 负责帮助你读代码、跑 demo、定位模块。
 
-## 当前能力
+## 已实现能力不等于当前学习顺序
+
+`llm_core` 已经包含多个可复用模块，但模块存在不会自动启用功能，也不会自动发起模型请求。真正参与一次运行的能力由 demo、app 或产品代码显式调用。
+
+学习时先由 [标准学习路径](../../../course/learning-path.md) 确定当前机制，再按本 README 阅读对应代码。不要按照下面的模块排列推断课程顺序。
 
 ```text
 Provider 抽象
@@ -25,33 +29,35 @@ messages + structured_mode
 → response_format + parse_risk_list
 → StructuredLLMResponse
 
-Streaming + Conversation
-messages + config_ref
-→ LLMClient.stream_chat
-→ LLMStreamEvent
-→ FastAPI SSE
-
-Context Engineering
-requirement + candidate sources + policy
-→ build_review_context
-→ prompt variables + context report
-
 Reliability + Degradation
 messages + primary config_ref
 → ReliableLLMService
 → retry / fallback / parse validation
 → ReliableCallResult + ReliableCallReport
 
+Context Engineering
+requirement + candidate sources + policy
+→ build_review_context
+→ prompt variables + context report
+
 Calling Harness
 case set + run config
 → LLMCallingHarness
 → HarnessRunRecord + HarnessSummary
+
+按需 Streaming + Conversation
+messages + config_ref
+→ LLMClient.stream_chat
+→ LLMStreamEvent
+→ FastAPI SSE
 
 Cost / Latency / Cache
 harness records + learning price table + cache key
 → cost estimate + cache diagnostics
 → cost / latency baseline
 ```
+
+不使用 `COURSE_STAGE`、`ENABLE_CONTEXT` 一类环境变量隐藏尚未学习的模块。`.env` 只管理密钥、endpoint 和模型选择；项目功能是否启用，应由真实业务 Pipeline 显式组合，而不是由课程进度控制。
 
 ## 模块职责
 
@@ -73,7 +79,9 @@ harness records + learning price table + cache key
 | `cache/` | 本地 exact-match cache key 与命中统计 | `cache/keys.py` |
 | `observability/` | demo 日志格式与调用详情输出 | `observability/demo_log.py` |
 
-## 读代码顺序
+## 按标准学习路径读代码
+
+下面只规定每项能力内部如何读，不建立第二套课程顺序。
 
 ### Provider 抽象
 
@@ -86,7 +94,7 @@ harness records + learning price table + cache key
 
 1. [`prompts/review/risk_review_v1.yaml`](prompts/review/risk_review_v1.yaml) 到 `v4`：Prompt 版本如何演进。
 2. [`prompts/registry.py`](prompts/registry.py)：`get_prompt` / `render_prompt`。
-3. demo [`02_model_contracts/prompt_compare.py`](../../demos/02_model_contracts/prompt_compare.py)：同一样例比较 Prompt 版本。
+3. demo [`model_contract_lab/prompt_compare.py`](../../demos/model_contract_lab/prompt_compare.py)：同一样例比较 Prompt 版本。
 
 ### Structured Outputs
 
@@ -95,27 +103,22 @@ harness records + learning price table + cache key
 3. [`schemas/parse.py`](schemas/parse.py)：`empty`、`json`、`schema` 失败如何判层。
 4. [`client/service.py`](client/service.py)：`chat_structured` 调用后立刻 parse。
 
-### Streaming + Conversation
-
-1. [`streaming/events.py`](streaming/events.py)：`LLMStreamEvent` 与 `encode_sse`。
-2. [`providers/openai_compat.py`](providers/openai_compat.py)：供应商 chunk 如何翻译成事件。
-3. [`conversation/buffer.py`](conversation/buffer.py)：只有稳定消息进入 history。
-4. app [`02_llm_streaming_api`](../../apps/02_llm_streaming_api/)：SSE 如何暴露给前端。
-
-### Context Engineering
-
-1. [`context/types.py`](context/types.py)：`ContextSource`、`ContextBuildPolicy`、`ContextBuildReport`。
-2. [`context/policies.py`](context/policies.py)：`minimal` / `balanced` / `evidence_first` / `tight_budget`。
-3. [`context/builder.py`](context/builder.py)：去重、排序、预算、压缩、引用候选。
-4. demo [`02_context_lab/context_compare.py`](../../demos/02_context_lab/context_compare.py)：观察 context report。
-
 ### Reliability
 
 1. [`errors/types.py`](errors/types.py)：统一错误码。
 2. [`reliability/policies.py`](reliability/policies.py)：`RetryPolicy` / `DegradationPolicy`。
 3. [`reliability/report.py`](reliability/report.py)：attempt、report、result。
 4. [`reliability/service.py`](reliability/service.py)：如何包住 `LLMClient`。
-5. demo [`02_call_ops_lab/reliability_compare.py`](../../demos/02_call_ops_lab/reliability_compare.py)：观察 retry / fallback。
+5. demo [`llm_call_ops_lab/reliability_compare.py`](../../demos/llm_call_ops_lab/reliability_compare.py)：观察 retry / fallback。
+
+### Context Engineering
+
+等标准学习路径完成文档、Chunk 和 Retriever 前置后再进入：
+
+1. [`context/types.py`](context/types.py)：`ContextSource`、`ContextBuildPolicy`、`ContextBuildReport`。
+2. [`context/policies.py`](context/policies.py)：`minimal` / `balanced` / `evidence_first` / `tight_budget`。
+3. [`context/builder.py`](context/builder.py)：去重、排序、预算、压缩、引用候选。
+4. demo [`context_assembly_lab/context_compare.py`](../../demos/context_assembly_lab/context_compare.py)：观察 Context Report。
 
 ### Calling Harness
 
@@ -123,7 +126,16 @@ harness records + learning price table + cache key
 2. [`harness/records.py`](harness/records.py)：`HarnessRunRecord` 与 `HarnessSummary`。
 3. [`harness/runner.py`](harness/runner.py)：批量运行如何复用 `ReliableLLMService`。
 4. [`harness/formatting.py`](harness/formatting.py)：demo 的记录表和汇总输出。
-5. demo [`02_call_ops_lab/harness_compare.py`](../../demos/02_call_ops_lab/harness_compare.py)：观察 case 批量运行。
+5. demo [`llm_call_ops_lab/harness_compare.py`](../../demos/llm_call_ops_lab/harness_compare.py)：观察 case 批量运行。
+
+### 按需 Streaming + Conversation
+
+项目需要 SSE、增量渲染或会话状态时再进入：
+
+1. [`streaming/events.py`](streaming/events.py)：`LLMStreamEvent` 与 `encode_sse`。
+2. [`providers/openai_compat.py`](providers/openai_compat.py)：供应商 chunk 如何翻译成事件。
+3. [`conversation/buffer.py`](conversation/buffer.py)：只有稳定消息进入 history。
+4. app [`llm_streaming_api`](../../apps/llm_streaming_api/)：SSE 如何暴露给前端。
 
 ### Cost / Latency / Cache
 
@@ -131,7 +143,7 @@ harness records + learning price table + cache key
 2. [`costing/estimate.py`](costing/estimate.py)：从 `TokenUsage` 估算输入、输出和总成本。
 3. [`cache/keys.py`](cache/keys.py)：cache key 如何包含模型、Prompt、schema、messages 和 context 指纹。
 4. [`cache/records.py`](cache/records.py)：cache hit / miss 与节省 token、成本、延迟。
-5. demo [`02_call_ops_lab/cost_latency_cache.py`](../../demos/02_call_ops_lab/cost_latency_cache.py)：观察冷启动、重复命中和上下文变化 miss。
+5. demo [`llm_call_ops_lab/cost_latency_cache.py`](../../demos/llm_call_ops_lab/cost_latency_cache.py)：观察冷启动、重复命中和上下文变化 miss。
 
 ## 快速使用
 
@@ -192,11 +204,11 @@ print(summary.success_count, records[0].attempt_count)
 
 ## 对应入口
 
-- SDK 最小调用：[../../demos/02_llm_basics/](../../demos/02_llm_basics/)
-- Provider、Prompt 与 Structured Output：[../../demos/02_model_contracts/](../../demos/02_model_contracts/)
-- Streaming SSE：[../../apps/02_llm_streaming_api/](../../apps/02_llm_streaming_api/)
-- Context lab：[../../demos/02_context_lab/](../../demos/02_context_lab/)
-- Reliability、Harness 与成本实验：[../../demos/02_call_ops_lab/](../../demos/02_call_ops_lab/)
+- SDK 最小调用：[../../demos/llm_api_smoke/](../../demos/llm_api_smoke/)
+- Provider、Prompt 与 Structured Output：[../../demos/model_contract_lab/](../../demos/model_contract_lab/)
+- Streaming SSE：[../../apps/llm_streaming_api/](../../apps/llm_streaming_api/)
+- Context lab：[../../demos/context_assembly_lab/](../../demos/context_assembly_lab/)
+- Reliability、Harness 与成本实验：[../../demos/llm_call_ops_lab/](../../demos/llm_call_ops_lab/)
 
 ## 常见定位
 

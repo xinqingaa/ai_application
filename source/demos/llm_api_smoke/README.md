@@ -1,8 +1,8 @@
-# 02_llm_basics
+# llm_api_smoke
 
 模型最小调用观察 demo：用 OpenAI SDK 发起一次真实 chat，打印 `usage` 与 `latency_ms`。
 
-Provider 抽象与 `LLMClient` 见 `source/demos/02_model_contracts/`。
+Provider 抽象与 `LLMClient` 见 `source/demos/model_contract_lab/`。
 
 ## 前置
 
@@ -23,7 +23,7 @@ Provider 抽象与 `LLMClient` 见 `source/demos/02_model_contracts/`。
 ## 运行
 
 ```bash
-cd source/demos/02_llm_basics
+cd source/demos/llm_api_smoke
 
 # 默认：样例 S2（售后 PRD 风险识别），temperature=0
 uv run python first_chat.py
