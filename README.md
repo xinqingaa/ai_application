@@ -1,73 +1,97 @@
 # AI Application Learning Workspace
 
-这是一个面向前端 / Flutter 开发者的 AI 应用开发学习与项目实践仓库。
+这是一个面向前端、Flutter 和跨端开发者的 AI 应用开发学习与项目实践仓库。
 
-本仓库的核心目标不是转向纯算法、纯 AI Infra 或纯后端平台方向，而是基于已有前端、跨端客户端和复杂业务交付经验，补齐 LLM、RAG、Agent、FastAPI、评估、观测和前端可视化能力，形成 AI Native 前端与 AI 应用闭环能力。
+本仓库不以转向纯算法、纯 AI Infra 或纯后端平台为目标，而是通过唯一主项目“需求评审助手”，补齐 LLM、RAG、Agent、Workflow、FastAPI、评估观测和 AI Native 产品能力，形成完整 AI 应用闭环。
+
+## 唯一主项目
+
+需求评审助手从可信 RAG + 单 Agent 演进为多 Agent + Workflow 评审系统。
+
+项目分为两个阶段：
+
+1. 可信 RAG + 单 Agent：先完成可用、可信、可评估的需求评审助手。
+2. Workflow + 多 Agent：再增加显式流程、人工介入、多角色协作和产品化能力。
+
+V0–V6 是唯一项目里程碑。完整定义见 [docs/strategy.md](docs/strategy.md)。
 
 ## 学习方式
 
-当前学习以真实问题和项目闭环为中心。**学习认知链路**与**单节交付约定**以 [docs/learning-guide.md](docs/learning-guide.md) 为准：
+学习由项目版本反推，不要求依次学完 LLM、RAG、Agent 等能力域：
 
 ```text
-A. 学习认知链路
-真实问题
--> 基础原理
--> 最小实现
--> 主流框架实现
--> 失败分析与能力边界
-
-B. 单节交付约定
--> 本节实战（文档 + 代码）
--> 完成标准（含运行与观察）
--> 本节沉淀
+当前项目版本提出问题
+→ 按需阅读概念篇与机制篇
+→ 通过真实实验观察机制
+→ 将能力组合进项目
+→ 主动制造失败并定位
+→ 用评估证明改动
+→ 完成版本验收
 ```
 
-**两条轴**：`02_llm`–`07_projects` 是**能力路线**（学什么）；需求评审助手 **V0–V6** 是**项目版本**（产品演进到哪），二者相关但不一一对应。
+课程正文分为三类：
 
-学习重点不是机械完成每个章节，而是能解释一个 AI 应用为什么这样设计、如何运行、在哪里失败、怎样被评估，以及如何被做成可交付的产品体验。
+- 概念篇：解释是什么、为什么需要和边界在哪里。
+- 机制篇：解释内部数据流、为什么有效和失败时如何定位。
+- 项目篇：定义当前版本的业务目标、设计选择、实现任务和验收。
 
-文档负责沉淀问题、原理、边界和完成标准；代码通过 **import 复用 `source/packages/`**、逐节增量完善；`07_projects` 在根目录 [review_assistant/](review_assistant/) 作品化。
+“真实问题 → 基础原理 → 最小实现 → 主流框架 → 失败边界”是全课程的认知方法，不是每篇文档的固定模板。
 
-## 目录结构
-
-```text
-.
-├── README.md
-├── AGENTS.md
-├── archive/              # 历史课程代码与文档（主线不依赖）
-├── docs/
-├── course/
-│   ├── python_base/
-│   ├── 02_llm/
-│   ├── 03_rag/
-│   ├── 04_agent/
-│   ├── 05_eval_observability/
-│   ├── 06_ai_native/
-│   └── 07_projects/
-├── review_assistant/       # 07 起完整可部署产品
-├── source/                 # 见 source/README.md（当前实物清单）
-│   ├── packages/
-│   ├── demos/
-│   └── python_base/
-├── pyproject.toml          # uv 依赖真源与 editable package 配置
-└── uv.lock                 # uv 锁文件
-```
+详细规则见 [docs/learning-guide.md](docs/learning-guide.md)。
 
 ## 目录职责
 
-- `docs/`：长期有效的战略、学习设计和 AI Agent 协作规范。
-- `course/`：课程正文、专题文档、项目规划和阶段性学习内容。
-- `source/`：扁平化的共享 package、demo 与 Python 基础练习（规范见 learning-guide §6.4）。
-- `review_assistant/`：`07_projects` 起的可部署产品与作品化入口。
-- `archive/`：历史课程式资料归档，不作为当前主线。
+```text
+.
+├── docs/                 # 长期战略与规范真源
+├── course/               # 概念篇、机制篇、项目篇和集中知识清单
+├── source/
+│   ├── packages/         # 通用能力唯一实现
+│   ├── demos/            # 机制实验、对照和失败复现
+│   ├── apps/             # 学习期组合实验
+│   └── python_base/      # 已完成的 Python 基础练习
+├── review_assistant/     # 从阶段一开始演进的可运行产品真源
+├── other/                # RAGFlow、MaxKB 等项目拆解材料
+├── archive/              # 历史课程资料，当前主线不依赖
+├── pyproject.toml        # Python 依赖和 editable package 真源
+└── uv.lock               # 精确依赖锁定
+```
 
-## 核心文档
+项目相关目录不是重复实现：
 
-- [AGENTS.md](AGENTS.md)：AI Agent 协作规则。
-- [docs/strategy.md](docs/strategy.md)：长期定位、背景、目标和方向。
-- [docs/learning-guide.md](docs/learning-guide.md)：学习方式、课程设计、项目设计、写作与代码规范。
-- [docs/agent-skill.md](docs/agent-skill.md)：AI Agent / Skill 协作指南。
+```text
+course/project/       项目篇教材：为什么做、学什么、怎样判断和验收
+review_assistant/     产品真源：安装、运行、测试、API 和部署
+```
 
-## 说明
+通用能力沉淀到 `source/packages/`，产品通过 import 复用，不复制平行实现。
 
-历史课程式文档和代码在 `archive/`，不作为当前主线；新内容以 `docs/` 下当前规范为准。
+## 阅读顺序
+
+1. [docs/strategy.md](docs/strategy.md)：目标、阶段和 V0–V6。
+2. [docs/learning-guide.md](docs/learning-guide.md)：学习、文档、代码和运行规则。
+3. [docs/ai-coding-mastery.md](docs/ai-coding-mastery.md)：怎样判断真正掌握。
+4. `course/` 的当前项目篇及其链接的概念篇、机制篇。
+5. 对应 package README 和产品 README。
+
+AI Agent 协作规则见 [AGENTS.md](AGENTS.md) 和 [docs/agent-skill.md](docs/agent-skill.md)。
+
+## 真实调用规则
+
+LLM、RAG、Agent 和 Eval 的学习主路径使用真实模型或真实外部服务：
+
+- 缺少 API key、鉴权失败、限流、超时和模型不支持应清晰暴露。
+- 不在真实调用失败后静默返回 fake 或 mock 结果。
+- Mock 仅用于单元测试、离线排查、稳定失败复现或明确标注的对照实验。
+- Mock 结果不能作为真实模型质量或项目效果的主要证据。
+
+## 依赖管理
+
+全仓库统一使用 uv：
+
+```bash
+uv sync
+uv run ...
+```
+
+依赖只维护在根 `pyproject.toml` 和 `uv.lock`。密钥与外部服务配置使用 `.env` / `.env.example`，不提交真实密钥。

@@ -1,31 +1,78 @@
-# source/
+# source
 
-扁平化的学习与共享代码根目录。历史按课程编号镜像的结构已废弃；当前主线按 **package 能力域 + 少量 demo lab + 学习期 app** 组织。
+`source/` 保存可复用 AI 能力、机制实验和学习期组合入口。
 
-## 当前结构（实物清单）
+它不是课程目录的镜像，也不是最终产品的平行实现。
+
+## 当前结构
 
 ```text
 source/
 ├── packages/
-│   └── llm_core/              # 02_llm 的可复用模型调用底座
+│   └── llm_core/              # 模型调用、契约、上下文与调用治理
 ├── demos/
-│   ├── 02_llm_basics/         # 02_llm/00：SDK 最小调用
-│   ├── 02_model_contracts/    # 02_llm/01–03：provider / prompt / structured
-│   ├── 02_context_lab/        # 02_llm/05：context builder 观察
-│   └── 02_call_ops_lab/       # 02_llm/06–08：reliability / harness / cost-latency
+│   ├── 02_llm_basics/         # 真实模型最小调用
+│   ├── 02_model_contracts/    # Provider、Prompt 与 Structured Output
+│   ├── 02_context_lab/        # Context Builder 观察
+│   └── 02_call_ops_lab/       # Reliability、Harness、成本与缓存实验
 ├── apps/
-│   └── 02_llm_streaming_api/  # 02_llm/04：FastAPI SSE
-└── python_base/               # 已完成 Python 基础练习
+│   └── 02_llm_streaming_api/  # FastAPI + SSE 学习期组合入口
+└── python_base/               # 已完成的 Python 基础练习
 ```
 
-可部署产品（`07_projects` 起）在仓库根 [review_assistant/](../review_assistant/)，**import** 本目录 `packages/`，不 copy。
+现有目录名保留当前实物事实，但新增能力不再按课程编号或文档编号机械创建目录。
 
-## 约定
+## 目录职责
 
-- 目录规范与禁止占位：见 [docs/learning-guide.md](../docs/learning-guide.md) §6.4、§10。
-- `source/packages/*_core` 是能力沉淀主战场；同一能力域只维护一个 package 实例。
-- `source/demos` 不按课程节号镜像创建；相近能力合并到已有 lab，只有出现新的观察维度时才新增 lab。
-- package 内能力增长到多个职责时，应目录化为子包，不在 package 根目录持续堆单文件模块。
-- 安装 / 同步：根目录 `uv sync`（见 `pyproject.toml` 与 `uv.lock`）。
+### `packages/`
 
-**本文件**仅在 `source/` 顶层目录或 demo lab 职责变化时更新；各课 `outline.md` 不维护完整文件树。
+- 保存通用能力的唯一实现。
+- 每个能力域全仓库只有一个 package 实例。
+- demo、app 和 `review_assistant/` 都通过 import 复用。
+- 核心算法、数据类型、错误边界和可复用服务进入 package。
+- package 职责增多时按能力子目录组织，不在根目录持续堆单文件。
+
+### `demos/`
+
+- 用于机制实验、策略对照和稳定失败复现。
+- 不承担最终产品逻辑。
+- 优先复用已有 lab；只有新的观察维度确实无法承载时才增加目录。
+- Mock 只允许用于确定性测试或明确标注的故障对照，真实模型仍是主路径。
+
+### `apps/`
+
+- 用于学习期组合多个 package，例如验证 API、SSE 或交互协议。
+- 可以短期承载集成实验，但不能和 `review_assistant/` 长期维护两份产品。
+- 成熟能力进入产品后，产品入口和运行事实以 `review_assistant/` 为准。
+
+### `python_base/`
+
+- 保存已完成的 Python 基础练习。
+- 默认不主动重构，除非用户明确要求。
+
+## 与课程和产品的关系
+
+```text
+course/concepts/      解释概念
+course/mechanisms/    解释机制并引用 package / demo
+course/project/       定义项目版本学习与验收
+source/packages/      实现通用能力
+source/demos/         观察和验证机制
+source/apps/          学习期组合实验
+review_assistant/     组合能力形成可运行产品
+```
+
+课程文档可以引用这里的真实代码，但不要求每篇文档都改变 `source/`。
+
+## 运行与依赖
+
+全仓库统一使用根目录 uv 环境：
+
+```bash
+uv sync
+uv run ...
+```
+
+依赖只维护在根 `pyproject.toml` 和 `uv.lock`。具体 package、demo 和 app 的入口、配置与观察方式由各自 README 维护。
+
+详细规则见 [docs/learning-guide.md](../docs/learning-guide.md)。

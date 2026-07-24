@@ -1,6 +1,6 @@
 # Python 学习大纲
 
-> **定稿说明**：本课程为**已完成的 Python 基础**（`course/python_base` + `source/python_base`），不作为 `02_llm` 之后主线的扩展重点；学习组织方式与 [learning-guide.md](../../docs/learning-guide.md) 中的「一节一交付 / 单包 import」规范**不适用**于本目录（历史练习型结构保留）。主项目学习从 `02_llm` 起按 learning-guide 执行。
+> **定位说明**：本课程为**已完成的 Python 基础**（`course/python_base` + `source/python_base`），保留现有练习型结构，默认不参与需求评审助手主线重组。新的项目驱动学习方式以 [learning-guide.md](../../docs/learning-guide.md) 为准。
 
 > 目标：零基础达到中等深度，为 AI 应用开发做准备
 

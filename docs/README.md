@@ -1,25 +1,54 @@
-# Docs
+# docs
 
-`docs/` 存放仓库长期有效的战略、学习设计和 AI Agent 协作规范。
+`docs/` 保存本仓库长期有效的战略与协作规范。
 
-**唯一真源**：学习设计、课程规范、项目规范与代码组织以 [learning-guide.md](learning-guide.md) 为准；战略与定位为 [strategy.md](strategy.md)。各课 `course/*/outline.md` 为已定稿的备课清单（**暂定**，实施时可微调单节边界）。
+这里不保存课程正文、项目版本任务、产品运行手册、迁移计划或实时学习进度。
 
-## 文档列表
+## 推荐阅读顺序
 
-- [strategy.md](strategy.md)：长期定位、背景、目标和方向。
-- [learning-guide.md](learning-guide.md)：学习方式、课程设计、项目设计、写作与代码规范。
-- [ai-coding-mastery.md](ai-coding-mastery.md)：AI Coding 学习方式、真实掌握标准和代码所有权。
-- [ai-application-platform.md](ai-application-platform.md)：企业级 AI 应用平台能力地图。
-- [agent-skill.md](agent-skill.md)：AI Agent / Skill 协作指南。
+1. [strategy.md](strategy.md)：为什么学习、唯一主项目、两个阶段和 V0–V6。
+2. [learning-guide.md](learning-guide.md)：如何学习、如何阅读、三类文档、代码与项目如何组织。
+3. [ai-coding-mastery.md](ai-coding-mastery.md)：AI Coding 参与下怎样算真正掌握。
+4. [agent-skill.md](agent-skill.md)：AI Agent 如何选择真源、执行任务和避免越界。
+5. [ai-application-platform.md](ai-application-platform.md)：企业 AI 应用的远期能力地图，按需阅读。
 
-## 不放什么
+## 文档职责
 
-`docs/` 不存放：
+| 文档 | 负责 | 不负责 |
+| --- | --- | --- |
+| `strategy.md` | 职业定位、唯一目标、两个阶段、V0–V6、高层边界 | 课程模板、代码目录细节、单版本任务 |
+| `learning-guide.md` | 学习方式、三类文档、阅读路径、知识清单、代码与运行规范 | 职业背景、具体专题清单、产品实现 |
+| `ai-coding-mastery.md` | 掌握标准、代码所有权、调试与迁移能力 | 课程目录、工程依赖规则 |
+| `agent-skill.md` | AI Agent 的读取路由、任务判断和执行边界 | 重复其他文档的完整规范 |
+| `ai-application-platform.md` | 企业平台长期能力和采用边界 | 当前项目待办和验收清单 |
 
-- 课程正文
-- 实时学习进度
-- 阶段性草稿
-- 代码实现细节
-- 临时迁移说明
+## 内容真源
 
-课程正文放在 `course/`；共享 package 与 demo 在 `source/packages/`、`source/demos/`（实物清单见 [source/README.md](../source/README.md)）；`07_projects` 可部署产品在根 `review_assistant/`。
+| 内容 | 真源 |
+| --- | --- |
+| 长期目标和项目阶段 | `strategy.md` |
+| 学习、文档、代码和运行规则 | `learning-guide.md` |
+| AI Coding 掌握判断 | `ai-coding-mastery.md` |
+| 企业平台远期能力 | `ai-application-platform.md` |
+| AI Agent 执行路由 | `agent-skill.md` |
+| 课程正文和知识清单 | `course/` |
+| 项目篇教材 | `course/project/` |
+| 通用能力代码 | `source/packages/` |
+| 可运行产品 | `review_assistant/` |
+
+## 冲突处理
+
+- 长期目标冲突时，以 `strategy.md` 为准。
+- 学习或代码组织冲突时，以 `learning-guide.md` 为准。
+- 掌握标准冲突时，以 `ai-coding-mastery.md` 为准。
+- `ai-application-platform.md` 不能扩大当前项目阶段。
+- `agent-skill.md` 只负责执行路由，不能改写其他真源。
+- 用户当前明确提出的目标和范围优先于仓库默认规则。
+
+## 维护原则
+
+- 同一规则只在一个文档中详细维护。
+- 其他文档通过链接引用，不复制完整内容。
+- 不记录迁移过程、实时进度和临时讨论。
+- 不新增承担相同职责的规划文档。
+- 课程和产品事实发生变化时，修改对应真源，而不是在 `docs/` 中增加补丁说明。
