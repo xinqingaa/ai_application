@@ -36,6 +36,9 @@ AI Agent 按以下顺序处理约束：
 
 - `skills/course-writing/SKILL.md`。
 
+评估新增知识、技术或功能进入概念篇、机制篇、项目篇还是仅保留未来认知时，使用
+[learning-guide.md](learning-guide.md)「知识与功能的分级准入」；其他文档只引用该标准，不复制一套准入规则。
+
 评估平台型能力是否进入项目时，另读：
 
 - `docs/ai-application-platform.md`。

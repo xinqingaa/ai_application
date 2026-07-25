@@ -208,8 +208,8 @@ print(summary.success_count, records[0].attempt_count)
 
 - 步骤 3–5 调用与契约：[../../demos/llm_invoke_lab/](../../demos/llm_invoke_lab/)（含 `first_chat.py` SDK 对照）
 - 步骤 6 Reliability：[../../demos/llm_reliability_lab/](../../demos/llm_reliability_lab/)
-- 步骤 12 Context（等待 RAG）：[../../demos/llm_context_lab/](../../demos/llm_context_lab/)
-- 步骤 17 Harness + 按需 Cost：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
+- 步骤 15 Context（等待 RAG）：[../../demos/llm_context_lab/](../../demos/llm_context_lab/)
+- 步骤 20 Harness + 按需 Cost：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
 - 按需 Streaming SSE：[../../apps/llm_streaming_api/](../../apps/llm_streaming_api/)
 
 ## 常见定位

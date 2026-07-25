@@ -54,7 +54,8 @@
 对当前项目的启发：
 
 - 阶段一必须能区分原始资料、知识文档、Chunk 和检索结果。
-- 检索和 Citation 必须可以观察。
+- V0 使用 PostgreSQL 全文检索、pgvector 和应用侧 RRF 建立多路召回基线，并显式观察 Top-k、阈值、过滤和每路排名。
+- 检索和 Citation 必须可以观察；Reranker 等增强先通过机制实验和固定评估集证明收益，再决定是否进入产品。
 - 复杂解析、连接器生态和完整权限体系按真实需求后置。
 
 ## 4. AI 应用运行时
@@ -124,6 +125,7 @@
 对当前项目的启发：
 
 - 阶段一用固定 RAG 和单 Agent 覆盖主要需求。
+- V3 将短期记忆、长期记忆及其作用域和治理纳入单 Agent 主线；初期优先复用 PostgreSQL / pgvector，不把 Mem0 设为产品前置。
 - 阶段二先建立可控 Workflow，再放入多 Agent。
 - 不强迫所有业务进入可视化编排。
 - 多 Agent 必须证明比单 Agent 基线更有价值。
@@ -228,9 +230,10 @@ MaxKB 更值得学习的是从 RAG 能力到可发布应用的产品化：
 ### 阶段一优先取用
 
 - 文档、Chunk、Metadata 和入库状态。
-- 关键词、向量和必要的混合检索。
+- PostgreSQL 全文检索、pgvector、应用侧 RRF，以及 Top-k、阈值、过滤和 Retrieval 诊断。
 - Sources、Citation、Refusal。
 - 最小评估集、trace 和 bad case。
+- V3 的短期与长期记忆、作用域隔离和记忆治理。
 - 简单 AI 应用入口和可观察交互。
 
 ### 阶段二优先取用

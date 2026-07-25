@@ -1,6 +1,6 @@
 # llm_regression_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 17（Calling Harness，等待 RAG 前置）与按需 Cost。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 20（Calling Harness，等待 RAG 前置）与按需 Cost。
 > **不要在完成步骤 6 后立刻把本 lab 当主线。** Reliability 已独立到 [`llm_reliability_lab`](../llm_reliability_lab/)。
 
 本 lab 观察：同一批 Case 如何批量运行、记录、汇总，以及 token / 成本 / 延迟 / exact-match cache 边界。
@@ -17,7 +17,7 @@
 
 | 顺序 | 脚本 | 课表 | 说明 |
 | --- | --- | --- | --- |
-| 1 | `harness_compare.py` | 步骤 17 | Case 批量运行与汇总 |
+| 1 | `harness_compare.py` | 步骤 20 | Case 批量运行与汇总 |
 | 2 | `cost_latency_cache.py` | 按需支撑 | 依赖 Harness 记录形态；比较预算、延迟、cache hit/miss |
 
 ```bash

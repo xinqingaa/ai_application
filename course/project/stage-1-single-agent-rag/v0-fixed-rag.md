@@ -22,6 +22,8 @@ V0 使用固定 RAG Pipeline，不使用 Agent 动态决策。直接调用 LLM �
 - 一份客户端展示规则。
 - 一份历史需求评审记录。
 
+资料集必须覆盖 TXT 或 Markdown、DOCX 和文本型 PDF，不能只用手写 JSON 或已经整理好的字符串替代真实文档加载。扫描 PDF、OCR、图片、音频和视频不作为 V0 产品输入。
+
 这些资料在 V0–V6 持续复用。后续版本可以增加样例覆盖新问题，但不能通过更换整套案例规避回归比较。
 
 典型评审问题包括：
@@ -52,12 +54,15 @@ V0 需要跑通：
 
 ```text
 固定知识资料
-→ 文档加载与清洗
+→ TXT / Markdown / DOCX / 文本型 PDF 加载与清洗
 → Chunk + Metadata
-→ 建立可检索索引
+→ PostgreSQL 全文索引 + pgvector 向量索引
 → 输入待评审 PRD
 → 固定查询或评审问题
-→ Retriever 返回候选证据
+→ Lexical Retrieval + Dense Retrieval
+→ RRF 融合
+→ Top-k / 阈值 / Metadata Filter
+→ Retriever 返回候选证据和诊断
 → Context Construction
 → 真实 LLM 生成结构化风险结果
 → Review API 返回业务结果与诊断
@@ -87,7 +92,7 @@ V0 的核心不是追求高级检索，而是让每一层都可以观察和替�
 - 稳定 `source_id`
 - 文档名称
 - 文档类型
-- 章节或位置
+- 章节、页码或段落位置
 - 文本内容
 - 版本或更新时间
 
@@ -114,7 +119,9 @@ V0 不从头教授下面这些知识。开始综合实现前，应当已经能�
 - 使用 [Prompt、Context 与 Schema 的模型契约](../../concepts/model-input-output-contracts.md)描述一次评审调用的任务、证据和结果边界。
 - 通过 [模型 API、Provider 与统一调用入口](../../mechanisms/model-api-and-provider.md)运行真实模型。
 - 使用 [面向应用的 Prompt Engineering](../../mechanisms/prompt-engineering.md)和 [Structured Output 与本地校验](../../mechanisms/structured-output.md)生成可被程序消费的风险结果。
-- 解释文档为什么要经过加载、清洗、Chunk、Metadata、Embedding、索引和 Retrieval，能够观察每一步的输入输出。
+- 解释 TXT、Markdown、DOCX 和文本型 PDF 怎样经过加载、清洗、Chunk、Metadata、Embedding、索引和 Retrieval，能够观察每一步的输入输出。
+- 区分 PostgreSQL FTS 的词项排序、BM25 原理、pgvector Dense Retrieval 和 RRF 排名融合，不能把 PostgreSQL 原生全文排序直接称为 BM25。
+- 解释 Top-k、阈值、Metadata Filter 怎样改变候选集，并读懂每路排名、融合排名和淘汰原因。
 - 说明 Retriever 产生候选证据，Context Builder 决定哪些证据真正进入模型，两者不是同一机制。
 - 区分检索失败、上下文失败、模型调用失败和结构化校验失败。
 - 使用固定样例记录检索命中、风险覆盖、无依据结论、Token 和延迟。
@@ -141,7 +148,9 @@ V0 的步骤是已知的：
 
 ### 2. 第一版支持哪些资料
 
-优先支持能稳定解析、能保留来源的 Markdown、TXT 或结构化样例。复杂 PDF、OCR、表格理解属于后续机制，不应阻塞第一条垂直链路。
+V0 必须支持 TXT、Markdown、DOCX 和带文本层的 PDF，并保留文档、章节、页码或段落位置。允许先覆盖项目固定资料中实际出现的 DOCX 和 PDF 结构，不要求建设通用 Office 解析平台。
+
+扫描 PDF、复杂版面、表格语义、图片 OCR/VLM、音频 ASR 和视频理解进入概念或机制实验，不阻塞 V0 产品链路。
 
 ### 3. 怎样比较检索
 
@@ -151,13 +160,18 @@ V0 的步骤是已知的：
 - 同义改写的问题。
 - 精确接口名、状态码或枚举问题。
 
-先用关键词检索建立可解释基线，再使用真实 Embedding 服务建立向量检索。V0 必须在同一组样例上比较关键词与向量检索；Hybrid Retrieval 可以作为增强项，但不作为完成 V0 的必要条件。
+先用 PostgreSQL FTS 建立可解释的 Lexical Retrieval，再使用真实 Embedding 服务和 pgvector 建立 Dense Retrieval，最后在应用层用 RRF 融合两路排名。V0 必须在同一组样例上比较 lexical、dense 和 RRF 三条检索路径。
+
+RRF 只融合名次，不假装不同检索器的原始分数可以直接相加。Reranker 会增加模型调用、延迟和调试面，进入 V2 机制实验；只有评估证明收益大于复杂度时才进入产品默认链路。
 
 ### 4. 怎样组织上下文
 
 必须确定：
 
-- top-k。
+- 每路召回数量和最终 top-k。
+- 相似度或相关性阈值。
+- `knowledge_scope` 与 Metadata Filter。
+- RRF 的候选去重和稳定标识。
 - Chunk 排序。
 - 去重。
 - Token 预算。
@@ -177,8 +191,9 @@ V0 的步骤是已知的：
 - 文档和 Chunk 数据类型。
 - Loader / Cleaning。
 - Chunking / Metadata。
-- Embedding 和检索适配。
-- Retriever 契约与诊断。
+- PostgreSQL FTS 与 pgvector 适配。
+- Lexical、Dense 与 RRF Retriever。
+- Top-k、阈值、Metadata Filter 与检索诊断。
 - RAG Context Construction。
 - 固定 RAG Pipeline。
 
@@ -204,7 +219,9 @@ V0 的步骤是已知的：
 文件
 → KnowledgeDocument
 → Chunk
-→ 索引
+→ PostgreSQL FTS / pgvector 索引
+→ LexicalResult + DenseResult
+→ RRF Fusion
 → RetrievalResult
 → ReviewContext
 → ReviewReport
@@ -230,7 +247,10 @@ V0 即使不建立后台任务，也要能够区分：
 - 文档加载失败。
 - 没有生成有效 Chunk。
 - Embedding 或索引失败。
+- Lexical 或 Dense 单路检索失败。
+- RRF 候选无法通过稳定 Chunk ID 合并。
 - 检索无结果。
+- 候选全部被阈值或 Metadata Filter 淘汰。
 - Context 超出预算。
 - 模型鉴权、限流、超时或能力不支持。
 - Structured Output 校验失败。
@@ -247,8 +267,11 @@ V0 即使不建立后台任务，也要能够区分：
 4. 精确接口名被纯向量检索排到后面。
 5. top-k 太小遗漏关键证据。
 6. top-k 太大导致无关上下文干扰。
-7. 缺少真实模型 API key。
-8. 模型返回不符合 Schema 的结果。
+7. 阈值太高导致两路候选全部被淘汰。
+8. 一路检索排名很差，但 RRF 仍错误提升无关结果。
+9. Metadata Filter 错误排除本应可见的资料。
+10. 缺少真实模型 API key。
+11. 模型返回不符合 Schema 的结果。
 
 每个失败都要记录：
 
@@ -284,14 +307,15 @@ V0 至少保留一组小型固定样例：
 至少比较：
 
 - 直接 LLM。
-- 关键词检索 RAG。
-- 使用真实 Embedding 的向量检索 RAG。
-
-Hybrid Retrieval 是可选增强，不替代以上三条必需基线。
+- PostgreSQL FTS Lexical RAG。
+- 使用真实 Embedding 和 pgvector 的 Dense RAG。
+- 使用 RRF 多路召回的 RAG。
 
 关注：
 
 - Retrieval 命中。
+- 不同检索路径的排名和最终 top-k。
+- 阈值与 Metadata Filter 的淘汰情况。
 - 风险覆盖。
 - 无依据结论。
 - Token、成本和延迟。
@@ -306,19 +330,22 @@ V0 不要求完整评估平台，但结果必须可重复记录。
 - Workflow、Checkpoint 和 Human-in-the-loop。
 - Multi-Agent。
 - 完整 Citation 校验。
+- Reranker 进入产品默认链路。
 - 完整知识库运营平台。
 - 多租户、权限中台和通用连接器。
-- GraphRAG、RAPTOR 和复杂 OCR 平台。
+- GraphRAG、RAPTOR、Neo4j 和复杂 OCR / 多模态解析平台。
 
 这些能力只有在后续版本解决真实问题时进入。
 
 ## 完成标准
 
 - [ ] 使用固定业务资料跑通完整 RAG 数据流。
+- [ ] TXT 或 Markdown、DOCX 和文本型 PDF 都能进入同一 Document / Chunk 契约并保留来源位置。
 - [ ] 主路径调用真实 Embedding 和真实 LLM；失败不降级 Mock。
-- [ ] 能看到 Chunk、Metadata、检索候选和最终上下文。
+- [ ] 使用 PostgreSQL FTS、pgvector 和应用侧 RRF 完成 lexical、dense 与多路融合召回。
+- [ ] 能看到 Chunk、Metadata、每路排名、融合排名、Top-k、阈值、过滤结果和最终上下文。
 - [ ] 输出通过本地业务 Schema 校验。
-- [ ] 直接 LLM、关键词 RAG 和向量 RAG 使用同一组样例比较。
+- [ ] 直接 LLM、Lexical RAG、Dense RAG 和 RRF RAG 使用同一组样例比较。
 - [ ] 能区分检索失败、上下文失败和生成失败。
 - [ ] 至少完成一个主动失败复现和一个需求变更。
 - [ ] 有最小固定评估样例和运行记录。

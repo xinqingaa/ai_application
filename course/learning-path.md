@@ -60,42 +60,48 @@ V0 要回答：
 
 7. **RAG 与外部知识的边界** · 待编写
    区分模型已有知识、搜索、数据库查询、固定 RAG 和 Agentic RAG。
-8. **文档加载、清洗与来源保留** · 待编写
-   把固定业务资料转换为有来源身份的文档对象。
+8. **TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留** · 待编写
+   支持真实需求资料，并保留文件、章节、页码或段落等来源位置。
 9. **Chunking、父子块与 Metadata** · 待编写
    理解切分怎样影响召回、引用和后续更新。
-10. **Embedding、相似度与 Vector Store** · 待编写
-    使用真实 Embedding 服务建立向量表示和可检索索引。
-11. **关键词检索、向量检索与 Retriever 契约** · 待编写
-    用同一查询比较关键词与向量检索，并保留候选结果和诊断。
-12. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 等待前置
+10. **Embedding 表示与向量相似度** · 待编写
+    使用真实 Embedding 服务，理解距离、归一化和模型一致性边界。
+11. **Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索** · 待编写
+    理解词项检索和 BM25 原理；产品使用 PostgreSQL FTS，不把其排序函数误称为 BM25。
+12. **pgvector、Dense Retrieval 与向量索引** · 待编写
+    建立向量检索，并观察索引、过滤和相似度分数。
+13. **多路召回与 RRF 融合** · 待编写
+    分别保留 lexical 和 dense 排名，再用 RRF 形成可解释的融合候选。
+14. **Top-k、阈值、Metadata Filter 与 Retrieval 诊断** · 待编写
+    记录每路排名、融合排名、过滤条件、阈值淘汰和无结果原因。
+15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 等待前置
     Retriever 先产生候选证据，Context Builder 再决定本轮模型真正看到什么。
-13. **可信生成、Sources、Citation Candidate 与证据不足** · 待编写
+16. **可信生成、Sources、Citation Candidate 与证据不足** · 待编写
     约束模型依据候选证据生成；V0 只建立 Citation Candidate，不宣称完成 Citation 校验。
 
 ### 第四段：把能力交付成最小产品
 
-14. **AI Native 应用界面与不确定性表达** · 待编写
+17. **AI Native 应用界面与不确定性表达** · 待编写
     理解前端为什么必须表达结果、证据、状态和真实失败，而不只是显示聊天文本。
-15. **FastAPI、Review API 与错误契约** · 待编写
+18. **FastAPI、Review API 与错误契约** · 待编写
     把固定 RAG Pipeline 暴露为产品 API，并让业务错误和工程错误可以区分。
-16. **最小请求状态与结构化评审界面** · 待编写
+19. **最小请求状态与结构化评审界面** · 待编写
     建立 `idle`、`submitting`、`success`、`error` 状态，展示风险结果、候选来源、最终上下文和诊断。
 
 V0 前端使用普通请求响应即可。Streaming、SSE 和复杂运行轨迹不作为 V0 主线门禁。
 
 ### 第五段：建立可比较基线
 
-17. **[LLM Calling Harness 与最小回归](mechanisms/calling-harness-and-regression.md)** · 等待前置
+20. **[LLM Calling Harness 与最小回归](mechanisms/calling-harness-and-regression.md)** · 等待前置
     固定 Case、Run Config 和 Record，记录直接 LLM 与固定 RAG 的运行事实。
-18. **Golden Set 与最小检索、生成评估** · 待编写
+21. **Golden Set 与最小检索、生成评估** · 待编写
     固定问题、期望来源、风险覆盖和证据不足行为。
-19. **直接 LLM、关键词 RAG、向量 RAG 对比** · 待编写
-    三条路径使用同一组样例；Hybrid Retrieval 只作为增强项。
+22. **直接 LLM、Lexical RAG、Dense RAG 与 RRF RAG 对比** · 待编写
+    四条路径使用同一组样例，判断多路召回是否提高检索和评审质量。
 
 ### 第六段：进入 V0 项目
 
-20. **[V0：固定 RAG 需求评审基线](project/stage-1-single-agent-rag/v0-fixed-rag.md)** · 等待前置
+23. **[V0：固定 RAG 需求评审基线](project/stage-1-single-agent-rag/v0-fixed-rag.md)** · 等待前置
     组合 `llm_core`、后续 `rag_core` 和 `review_assistant/`，完成真实运行、最小工作台、失败复现、需求修改和版本验收。
 
 ### V0 按需支撑
@@ -140,6 +146,13 @@ V1 要回答：
 9. **V1：可信结构化需求评审** · 待编写
    在 V0 产品上增加 Citation 校验、Refusal、补充问题和可信证据界面，并完成失败、变更和验收。
 
+### V1 按需支撑
+
+- **复杂文档与多模态知识生产边界** · 待编写
+  概念篇比较文本型 PDF、扫描件、图片、音频和视频进入知识系统时的信息损失、成本和适用边界。
+- **扫描 PDF、图片 OCR/VLM 与 Markdown 归一化实验** · 待编写
+  机制篇用少量固定样例观察 OCR、版面、图片描述和来源定位；不进入 V1 产品验收。
+
 ## V2：质量闭环
 
 V2 要回答：
@@ -156,28 +169,37 @@ V2 要回答：
    分开评估风险覆盖、无依据结论、引用正确性和拒答合理性。
 4. **LLM-as-Judge 与 Human Eval** · 待编写
    明确自动评审与人工判断分别能证明什么。
+5. **Reranker、重排诊断与产品准入证据** · 待编写
+   用真实 Reranker 对比 RRF 基线；只有预先定义的质量收益大于延迟、成本和维护复杂度时才进入产品默认链路。
 
 ### 第二段：把一次结果变成可回归事实
 
-5. **Trace、Span、Run 与版本关联** · 待编写
+6. **Trace、Span、Run 与版本关联** · 待编写
    关联模型、Prompt、Retriever、Schema、输入、结果和错误。
-6. **Versioning、Regression 与 Experiment** · 待编写
+7. **Versioning、Regression 与 Experiment** · 待编写
    控制变量比较版本，避免用单次好结果证明质量提升。
-7. **Bad Case Management 与失败归因** · 待编写
+8. **Bad Case Management 与失败归因** · 待编写
    判断问题应修改数据、Retriever、Context、Prompt、Schema 还是模型。
-8. **Feedback Loop** · 待编写
+9. **Feedback Loop** · 待编写
    将人工反馈转为可复现样例、标签和回归任务。
-9. **质量、成本与延迟联合判断** · 待编写
+10. **质量、成本与延迟联合判断** · 待编写
    防止把更便宜、更快或可解析误当成更正确。
 
 ### 第三段：建立质量工作台
 
-10. **Eval、Labeling 与 Feedback UI** · 待编写
+11. **Eval、Labeling 与 Feedback UI** · 待编写
     展示运行记录、版本比较、指标和 bad case，并支持人工标注与反馈。
-11. **V2：需求评审质量闭环** · 待编写
+12. **V2：需求评审质量闭环** · 待编写
     在产品中接入评估、回归、bad case 和最小质量面板，完成失败、变更和验收。
 
 V2 是质量工作台的起点。V6 负责完善和作品化，不从零开始建设质量界面。
+
+### V2 按需支撑
+
+- **RAPTOR、GraphRAG、知识图谱与普通 RAG 的边界** · 待编写
+  概念篇用于判断长文档总结、实体关系和多跳问题何时值得使用高级索引。
+- **Neo4j 多跳检索与 RAG 融合实验** · 待编写
+  机制篇仅使用小型固定图和可验证问题观察实体、关系、路径与文本证据融合；没有稳定多跳 bad case 时不进入项目。
 
 ## V3：单 Agent RAG
 
@@ -189,45 +211,66 @@ V3 要回答：
 
 1. **Chain、固定 RAG、Workflow、Agent 与 Multi-Agent 边界** · 待编写
    用固定 RAG 的真实失败证明哪些步骤需要模型动态决策。
-2. **Function Calling 与 Tool Schema** · 待编写
+
+### 第二段：建立可治理的短期与长期记忆
+
+2. **Run State、Conversation、Memory 与业务知识的边界** · 待编写
+   区分当前运行状态、会话历史、跨会话记忆和可引用业务资料。
+3. **短期记忆：滑动窗口、摘要与预算** · 待编写
+   明确窗口淘汰、摘要触发、原始消息范围、摘要版本和失真诊断。
+4. **长期记忆：作用域、抽取、检索与治理** · 待编写
+   保存用户确认的偏好、约束和事实，支持来源、更新、删除、关闭和注入预算。
+
+### 第三段：把模型行动变成可治理工具
+
+5. **Function Calling 与 Tool Schema** · 待编写
    将模型提出的行动约束为可校验的工具调用草案。
-3. **Tool Runtime 与结构化错误** · 待编写
+6. **Tool Runtime 与结构化错误** · 待编写
    由应用执行工具、校验输入输出并暴露真实失败。
-4. **工具权限、超时、幂等与审计** · 待编写
+7. **工具权限、超时、幂等与审计** · 待编写
    明确模型决策和应用控制之间的边界。
 
-### 第二段：把 Retriever 变成可治理工具
+### 第四段：把 Retriever 和 Memory 变成可治理工具
 
-5. **Query Rewrite 与 Source Routing** · 待编写
+8. **Query Rewrite 与 Source Routing** · 待编写
    根据任务改写检索查询并选择允许的知识源。
-6. **Retriever as Tool** · 待编写
+9. **Retriever as Tool** · 待编写
    保留查询、过滤条件、候选结果和失败原因。
-7. **Agent Loop、最大步数与停止原因** · 待编写
+10. **Memory Retrieval 与上下文注入** · 待编写
+    分开检索长期记忆和业务证据，记录命中原因并防止记忆冒充 Citation。
+11. **Agent Loop、最大步数与停止原因** · 待编写
    显式表达继续、完成、需要补充、达到上限、工具失败和安全阻止。
-8. **补检索、质量判断与追问补全** · 待编写
+12. **补检索、质量判断与追问补全** · 待编写
    在证据不足时决定再次检索还是向用户提问。
-9. **Guardrails 与应用控制边界** · 待编写
+13. **Guardrails 与应用控制边界** · 待编写
    限制工具、预算、风险操作和不可接受输出。
-10. **Agent Trajectory 与 Tool Evaluation** · 待编写
-    评估工具选择、参数、步骤、停止原因、质量、成本和延迟。
+14. **Agent Trajectory、Tool 与 Memory Evaluation** · 待编写
+    评估工具选择、参数、步骤、停止原因、记忆污染、质量、成本和延迟。
 
-### 第三段：让 Agent 运行过程成为产品状态
+### 第五段：让 Agent 运行过程成为产品状态
 
-11. **SSE 结构化事件协议** · 待编写
+15. **SSE 结构化事件协议** · 待编写
     将 Agent 状态、Tool Call、检索和错误转换为稳定应用事件。
-12. **Streaming State Synchronization** · 待编写
+16. **Streaming State Synchronization** · 待编写
     处理事件顺序、取消、重连、重复事件和最终提交。
-13. **AI Response State Machine** · 待编写
+17. **AI Response State Machine** · 待编写
     建立运行中、调用工具、等待补充、完成、失败和终止状态。
-14. **Tool Call、证据变化与 Agent 轨迹 UI** · 待编写
-    让用户看到当前步骤、证据变化、停止原因和真实失败。
+18. **Tool Call、Memory、证据变化与 Agent 轨迹 UI** · 待编写
+    让用户看到当前步骤、记忆使用、证据变化、停止原因和真实失败。
 
-### 第四段：进入 V3 项目
+### 第六段：进入 V3 项目
 
-15. **V3：单 Agent RAG 需求评审** · 待编写
-    在 V2 质量基线上增加动态补检索、知识源选择、追问和 Agent 运行界面，并与固定 RAG 基线比较。
+19. **V3：单 Agent RAG 需求评审** · 待编写
+    在 V2 质量基线上增加短期与长期记忆、动态补检索、知识源选择、追问和 Agent 运行界面，并与固定 RAG 基线比较。
 
 V3 不实现 Workflow Checkpoint、人工审批节点和恢复语义；这些进入 V4。
+
+### V3 按需支撑
+
+- **Mem0 与自建 Memory Runtime 对照** · 待编写
+  机制篇比较记忆抽取、去重、更新、检索和治理边界；产品优先复用 PostgreSQL、pgvector 和已有运行时，不为框架本身增加依赖。
+- **图片理解与音频 ASR 归一化实验** · 待编写
+  用少量真实样例观察图片或音频怎样转换为可追踪文本；视频理解和语音产品交互只保留概念认知。
 
 ## V4-V6 暂定边界
 

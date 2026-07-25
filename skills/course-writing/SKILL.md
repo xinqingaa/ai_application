@@ -17,11 +17,12 @@ description: >-
 
 1. 阅读 `docs/strategy.md`，确认当前项目阶段和长期边界。
 2. 阅读 `docs/learning-guide.md` §1–§9，确认学习路径、文档类型和代码关系。
-3. 判断当前文档属于概念篇、机制篇还是项目篇；不能同时承担三个主体。
-4. 阅读 `course/knowledge-map.md` 和当前项目篇（存在时），确认它为什么需要、优先级和前置知识。
-5. 阅读被引用的真实代码、package README、demo README 或产品 README。
-6. 用一句话写出本文核心问题、目标读者和明确非目标。
-7. 先设计解释顺序，再决定标题；不要先套固定章节。
+3. 新增知识、技术或功能时，先按其中“知识与功能的分级准入”判断进入项目篇、机制篇、概念篇还是未来认知；不要因实现困难降低产品必需能力的级别。
+4. 判断当前文档属于概念篇、机制篇还是项目篇；不能同时承担三个主体。
+5. 阅读 `course/knowledge-map.md` 和当前项目篇（存在时），确认它为什么需要、优先级和前置知识。
+6. 阅读被引用的真实代码、package README、demo README 或产品 README。
+7. 用一句话写出本文核心问题、目标读者和明确非目标。
+8. 先设计解释顺序，再决定标题；不要先套固定章节。
 
 涉及 Agent、Tool、Workflow 或 Multi-Agent 时，另读 `docs/learning-guide.md`
 “Agent、Workflow 与 Multi-Agent 工程规则”，不要自行弱化其中的控制、状态、恢复、评估和安全约束。

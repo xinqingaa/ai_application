@@ -59,7 +59,7 @@
 | 面向应用的 Prompt Engineering | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约 | [阅读正文](mechanisms/prompt-engineering.md) | `llm_core/prompts`、`llm_invoke_lab` | 已落地 |
 | Streaming 与 Conversation | 机制 | 支撑 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/streaming-and-conversation.md) | `llm_core/streaming`、`conversation`、`apps/llm_streaming_api` | 已落地 |
 | Structured Output 与本地校验 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约 | [阅读正文](mechanisms/structured-output.md) | `llm_core/structured`、`schemas`、`llm_invoke_lab` | 已落地 |
-| Context Engineering 与预算 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约、Retriever 契约、过滤、阈值与结果诊断 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context`、`llm_context_lab` | 已落地 |
+| Context Engineering 与预算 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约、Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context`、`llm_context_lab` | 已落地 |
 | 错误分类、重试、降级与可靠调用 | 机制 | 支撑 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/reliability-and-errors.md) | `llm_core/errors`、`reliability`、`llm_reliability_lab` | 已落地 |
 | 调用 Harness、回归与版本比较 | 机制 | 主线 | V0 | 面向应用的 Prompt Engineering、Structured Output 与本地校验、错误分类、重试、降级与可靠调用、固定 RAG 生成链 | [阅读正文](mechanisms/calling-harness-and-regression.md) | `llm_core/harness`、`llm_regression_lab` | 已落地 |
 | Token、成本、延迟与缓存 | 机制 | 支撑 | V0 | 调用 Harness、回归与版本比较 | [阅读正文](mechanisms/cost-latency-and-caching.md) | `llm_core/costing`、`cache`、`llm_regression_lab` | 已落地 |
@@ -69,9 +69,9 @@
 关系主线：
 
 外部知识为什么需要 RAG
-→ 文档与 Chunk
-→ Embedding 与索引
-→ Retrieval 与诊断
+→ 文档解析、来源与 Chunk
+→ Lexical / Dense Retrieval
+→ 多路召回、RRF 与诊断
 → Context Construction
 → 可信生成与评估
 
@@ -81,35 +81,45 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | RAG 问题空间与完整链路 | 概念 | 主线 | V0 | LLM 应用问题空间与能力边界 | `concepts/rag-and-external-knowledge.md` | 后续 `rag_core` | 待编写 |
 | 固定 RAG、搜索、数据库与 Agent 的边界 | 概念 | 主线 | V0 | RAG 问题空间与完整链路 | `concepts/rag-and-external-knowledge.md` | 后续 `rag_core` | 待编写 |
-| Document Loading、Cleaning 与结构保留 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | `mechanisms/document-loading-and-cleaning.md` | 后续 `rag_core/ingestion` | 待编写 |
-| Chunking、父子块与 Metadata | 机制 | 主线 | V0 | Document Loading、Cleaning 与结构保留 | `mechanisms/chunking-and-metadata.md` | 后续 `rag_core/chunking` | 待编写 |
+| TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | `mechanisms/document-loading-and-cleaning.md` | 后续 `rag_core/ingestion` | 待编写 |
+| 复杂文档与多模态知识生产边界 | 概念 | 支撑 | V1 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | `concepts/multimodal-knowledge-production.md` | 无项目实现 | 待编写 |
+| 扫描 PDF、图片 OCR/VLM 与 Markdown 归一化 | 机制 | 支撑 | V1 | 复杂文档与多模态知识生产边界 | `mechanisms/ocr-vlm-normalization.md` | 后续按需扩展 ingestion demo | 待编写 |
+| 图片理解与音频 ASR 归一化 | 机制 | 支撑 | V3 | 复杂文档与多模态知识生产边界 | `mechanisms/image-audio-normalization.md` | 后续多模态对照 demo | 待编写 |
+| 视频理解与流式语音产品 | 概念 | 未来认知 | 未来 | 图片理解与音频 ASR 归一化 | 待按需创建 | 无当前实现 | 未来认知 |
+| Chunking、父子块与 Metadata | 机制 | 主线 | V0 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | `mechanisms/chunking-and-metadata.md` | 后续 `rag_core/chunking` | 待编写 |
 | Embedding 的表示与相似度 | 概念+机制 | 主线 | V0 | RAG 问题空间与完整链路 | `mechanisms/embedding-and-similarity.md` | 后续 `rag_core/embedding` | 待编写 |
-| Vector Store、索引与 pgvector | 机制 | 主线 | V0 | Embedding 的表示与相似度 | `mechanisms/vector-store-and-pgvector.md` | 后续 `rag_core/vector_store` | 待编写 |
-| 关键词、向量、混合检索与 Top-k | 机制 | 主线 | V0 | Chunking、父子块与 Metadata、Embedding 的表示与相似度 | `mechanisms/retrieval-strategies.md` | 后续 `rag_core/retrieval` | 待编写 |
-| Retriever 契约、过滤、阈值与结果诊断 | 机制 | 主线 | V0 | 关键词、向量、混合检索与 Top-k | `mechanisms/retriever-contract.md` | 后续 `rag_core/retrieval` | 待编写 |
-| Query Rewrite 与 Source Routing | 机制 | 主线 | V3 | Retriever 契约、过滤、阈值与结果诊断 | `mechanisms/query-rewrite-and-routing.md` | 后续 `rag_core/query` | 待编写 |
-| Context Construction 与 Compression | 机制 | 主线 | V0 | Retriever 契约、过滤、阈值与结果诊断、Context Engineering 与预算 | `mechanisms/context-construction.md` | `llm_core/context` + 后续 `rag_core` | 待编写 |
+| Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索 | 机制 | 主线 | V0 | Chunking、父子块与 Metadata | `mechanisms/lexical-retrieval.md` | 后续 `rag_core/retrieval` | 待编写 |
+| pgvector、Dense Retrieval 与向量索引 | 机制 | 主线 | V0 | Embedding 的表示与相似度 | `mechanisms/vector-store-and-pgvector.md` | 后续 `rag_core/vector_store` | 待编写 |
+| 多路召回与 RRF 融合 | 机制 | 主线 | V0 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索、pgvector、Dense Retrieval 与向量索引 | `mechanisms/multi-retrieval-and-rrf.md` | 后续 `rag_core/retrieval` | 待编写 |
+| Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | 机制 | 主线 | V0 | 多路召回与 RRF 融合 | `mechanisms/retriever-contract.md` | 后续 `rag_core/retrieval` | 待编写 |
+| Reranker、重排诊断与产品准入证据 | 机制 | 主线 | V2 | 多路召回与 RRF 融合、Retrieval 与 Generation Eval | `mechanisms/reranking.md` | 通过收益门槛后进入 `rag_core/retrieval` | 待编写 |
+| Query Rewrite 与 Source Routing | 机制 | 主线 | V3 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | `mechanisms/query-rewrite-and-routing.md` | 后续 `rag_core/query` | 待编写 |
+| Context Construction 与 Compression | 机制 | 主线 | V0 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断、Context Engineering 与预算 | `mechanisms/context-construction.md` | `llm_core/context` + 后续 `rag_core` | 待编写 |
 | 可信生成、Sources 与 Citation Candidate | 概念+机制 | 主线 | V0 | Context Construction 与 Compression、Structured Output 与本地校验 | `mechanisms/trusted-generation.md` | 后续 `rag_core/generation` | 待编写 |
 | Citation 校验、证据充分性、Refusal 与补充问题 | 机制 | 主线 | V1 | 可信生成、Sources 与 Citation Candidate | `mechanisms/citation-and-evidence-validation.md` | 后续 `rag_core/evidence` | 待编写 |
 | Retriever as Tool 与 Single Agent RAG | 机制 | 主线 | V3 | Query Rewrite 与 Source Routing、Tool Runtime 与结构化错误 | `mechanisms/single-agent-rag.md` | 后续 `agent_core` | 待编写 |
 | RAG Failure Analysis 与 Bad Case 回流 | 机制 | 主线 | V2 | Retrieval 与 Generation Eval、Citation 与 Refusal Eval | `mechanisms/failure-analysis.md` | 后续 `eval_core` | 待编写 |
-| RAPTOR、GraphRAG、复杂解析等高级知识生产 | 概念 | 未来认知 | 未来 | Chunking、父子块与 Metadata、关键词、向量、混合检索与 Top-k | 待按需创建 | 无当前实现 | 未来认知 |
-| 文档版本、更新、删除一致性与权限过滤 | 机制 | 支撑 | V1 | Document Loading、Cleaning 与结构保留、Chunking、父子块与 Metadata | `mechanisms/knowledge-governance.md` | 后续 `rag_core/governance` | 待编写 |
-| RAG Memory、写入、检索与遗忘 | 概念+机制 | 支撑 | V3 | Retriever 契约、过滤、阈值与结果诊断 | `mechanisms/memory-and-context.md` | 后续 `agent_core/memory` | 待编写 |
+| RAPTOR、GraphRAG、知识图谱与普通 RAG 的边界 | 概念 | 支撑 | V2 | Chunking、父子块与 Metadata、多路召回与 RRF 融合 | `concepts/advanced-rag-indexes.md` | 无项目实现 | 待编写 |
+| Neo4j 多跳检索与 RAG 融合 | 机制 | 支撑 | V2 | RAPTOR、GraphRAG、知识图谱与普通 RAG 的边界 | `mechanisms/graph-retrieval.md` | 后续 GraphRAG 对照 demo | 待编写 |
+| 文档版本、更新、删除一致性与权限过滤 | 机制 | 支撑 | V1 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留、Chunking、父子块与 Metadata | `mechanisms/knowledge-governance.md` | 后续 `rag_core/governance` | 待编写 |
 
 ## Agent 与 Tool
 
 关系主线：
 
 判断是否需要 Agent
-→ Function Calling 与 Tool Schema
-→ Tool Runtime 与治理
+→ State、Conversation、Memory 与业务知识
+→ Function Calling 与 Tool Runtime
+→ Retriever / Memory as Tool
 → Agent Loop、停止和安全
-→ 记忆、Agentic RAG 与子 Agent
 
 | 知识 | 类型 | 定位 | 最早进入 | 理解前提 | 文档入口 | 代码入口 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chain、Workflow、Agent 与 Multi-Agent 边界 | 概念 | 主线 | V3 | 固定 RAG、搜索、数据库与 Agent 的边界 | `concepts/agent-and-workflow-boundaries.md` | 后续 `agent_core` | 待编写 |
+| Run State、Conversation、Memory 与业务知识的边界 | 概念 | 主线 | V3 | Chain、Workflow、Agent 与 Multi-Agent 边界 | `concepts/memory-and-knowledge-boundaries.md` | 后续 `agent_core/memory` | 待编写 |
+| 短期记忆：滑动窗口、摘要与预算 | 机制+项目 | 主线 | V3 | Run State、Conversation、Memory 与业务知识的边界、Context Engineering 与预算 | `mechanisms/short-term-memory.md` | 后续 `agent_core/memory` | 待编写 |
+| 长期记忆：作用域、抽取、检索与治理 | 机制+项目 | 主线 | V3 | 短期记忆：滑动窗口、摘要与预算、Embedding 的表示与相似度 | `mechanisms/long-term-memory.md` | 后续 `agent_core/memory` | 待编写 |
+| Mem0 与自建 Memory Runtime 对照 | 机制 | 支撑 | V3 | 长期记忆：作用域、抽取、检索与治理 | 并入长期记忆机制篇 | 对照实验，不作为产品依赖 | 待编写 |
 | Function Calling 与 Tool Schema | 机制 | 主线 | V3 | Structured Output 与本地校验 | `mechanisms/tool-schema.md` | 后续 `agent_core/tools` | 待编写 |
 | Tool Runtime 与结构化错误 | 机制 | 主线 | V3 | Function Calling 与 Tool Schema | `mechanisms/tool-runtime.md` | 后续 `agent_core/tools` | 待编写 |
 | 工具权限、确认、幂等与审计 | 机制 | 主线 | V3 | Tool Runtime 与结构化错误 | `mechanisms/tool-governance.md` | 后续 `agent_core/tools` | 待编写 |
@@ -118,7 +128,6 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | LangChain Agent Patterns | 机制 | 主线 | V3 | Agent Loop 与停止条件 | 并入对应 Agent 机制篇 | 后续 `agent_core` | 待编写 |
 | Agentic RAG 深化 | 机制 | 支撑 | V4 | Retriever as Tool 与 Single Agent RAG、Workflow State、Node 与 Edge | `mechanisms/agentic-rag.md` | 后续 `agent_core` | 待编写 |
 | Workflow as Tool 与子 Agent | 机制 | 主线 | V5 | Human-in-the-loop、Multi-Agent 拆分判断 | `mechanisms/workflow-as-tool.md` | 后续 `agent_core` | 待编写 |
-| Agent Memory 与 Context | 机制 | 主线 | V3 | RAG Memory、写入、检索与遗忘、Agent Loop 与停止条件 | `mechanisms/memory-and-context.md` | 后续 `agent_core/memory` | 待编写 |
 | MCP、A2A 与 Agent Skills | 概念 | 未来认知 | 未来 | Tool Runtime 与结构化错误 | 待按需创建 | 无当前实现 | 未来认知 |
 | Guardrails、Safety 与应用控制边界 | 机制 | 主线 | V3 | 工具权限、确认、幂等与审计、Agent Loop 与停止条件 | `mechanisms/guardrails-and-safety.md` | 后续 `agent_core/safety` | 待编写 |
 | Deep Research | 概念 | 未来认知 | 未来 | Workflow State、Node 与 Edge、Planning、Task Decomposition 与 Reflection | 待按需创建 | 无当前实现 | 未来认知 |
@@ -179,15 +188,15 @@ State / Node / Edge
 | 知识 | 类型 | 定位 | 最早进入 | 理解前提 | 文档入口 | 代码入口 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Evaluation Dataset 与最小 Golden Set | 机制 | 主线 | V0 | 项目业务契约 | `mechanisms/dataset-and-golden-set.md` | 后续 `eval_core` | 待编写 |
-| Retrieval 与 Generation Eval | 机制 | 主线 | V2 | 关键词、向量、混合检索与 Top-k、可信生成、Sources 与 Citation Candidate | `mechanisms/rag-evaluation.md` | 后续 `eval_core/rag` | 待编写 |
+| Retrieval 与 Generation Eval | 机制 | 主线 | V2 | 多路召回与 RRF 融合、Top-k、阈值、Metadata Filter 与 Retrieval 诊断、可信生成、Sources 与 Citation Candidate | `mechanisms/rag-evaluation.md` | 后续 `eval_core/rag` | 待编写 |
 | Citation 与 Refusal Eval | 机制 | 主线 | V2 | Citation 校验、证据充分性、Refusal 与补充问题 | `mechanisms/citation-and-refusal.md` | 后续 `eval_core/rag` | 待编写 |
 | Bad Case Management | 机制 | 主线 | V2 | Evaluation Dataset 与最小 Golden Set、Retrieval 与 Generation Eval、Citation 与 Refusal Eval | `mechanisms/bad-case-management.md` | 后续 `eval_core` | 待编写 |
-| Agent Trajectory 与 Tool Eval | 机制 | 主线 | V3 | Tool Runtime 与结构化错误、Agent Loop 与停止条件 | `mechanisms/agent-and-tool-evaluation.md` | 后续 `eval_core/agent` | 待编写 |
+| Agent Trajectory、Tool 与 Memory Eval | 机制 | 主线 | V3 | Tool Runtime 与结构化错误、长期记忆：作用域、抽取、检索与治理、Agent Loop 与停止条件 | `mechanisms/agent-and-tool-evaluation.md` | 后续 `eval_core/agent` | 待编写 |
 | Workflow Eval 与 Human Review | 机制 | 主线 | V4 | Workflow State、Node 与 Edge、Human-in-the-loop | `mechanisms/workflow-evaluation.md` | 后续 `eval_core/workflow` | 待编写 |
 | Trace、Span 与 Run 关联 | 机制 | 主线 | V2 | 调用 Harness、回归与版本比较、Evaluation Dataset 与最小 Golden Set | `mechanisms/trace-and-observability.md` | `llm_core/harness` + 后续 `eval_core` | 待编写 |
-| Versioning、Regression 与 Experiment | 机制 | 主线 | V2 | Evaluation Dataset 与 Golden Set、Trace、Span 与 Run 关联 | `mechanisms/versioning-and-regression.md` | 后续 `eval_core` | 待编写 |
+| Versioning、Regression 与 Experiment | 机制 | 主线 | V2 | Evaluation Dataset 与最小 Golden Set、Trace、Span 与 Run 关联 | `mechanisms/versioning-and-regression.md` | 后续 `eval_core` | 待编写 |
 | Cost、Latency 与运行指标 | 机制 | 主线 | V2 | Token、成本、延迟与缓存、Trace、Span 与 Run 关联 | `mechanisms/cost-latency-metrics.md` | `llm_core/costing` + 后续 `eval_core` | 待编写 |
-| LLM-as-Judge 与 Human Eval | 机制 | 主线 | V2 | Evaluation Dataset 与 Golden Set | `mechanisms/llm-as-judge.md` | 后续 `eval_core` | 待编写 |
+| LLM-as-Judge 与 Human Eval | 机制 | 主线 | V2 | Evaluation Dataset 与最小 Golden Set | `mechanisms/llm-as-judge.md` | 后续 `eval_core` | 待编写 |
 | Feedback Loop | 机制+项目 | 主线 | V2 | Bad Case Management | `mechanisms/feedback-loop.md` | 后续 `eval_core` | 待编写 |
 | Engineering Contract Tests | 机制 | 主线 | V1 | 项目 Schema、Citation 校验、证据充分性、Refusal 与补充问题 | `mechanisms/engineering-contract-tests.md` | package / product tests | 待编写 |
 
@@ -211,7 +220,7 @@ State / Node / Edge
 | SSE 结构化事件协议 | 机制 | 主线 | V3 | Agent Loop 与停止条件、FastAPI、Review API 与错误契约 | `mechanisms/sse-event-protocol.md` | 产品 app / workbench | 待编写 |
 | Streaming State Synchronization | 机制 | 主线 | V3 | SSE 结构化事件协议 | `mechanisms/streaming-state.md` | 产品 workbench | 待编写 |
 | AI Response State Machine | 机制 | 主线 | V3 | Streaming State Synchronization、Agent Loop 与停止条件 | `mechanisms/response-state-machine.md` | 产品 workbench | 待编写 |
-| Tool Call、证据变化与 Agent 轨迹 UI | 机制+项目 | 主线 | V3 | AI Response State Machine、Agent Trajectory 与 Tool Eval | `mechanisms/agent-runtime-ui.md` | 产品 workbench | 待编写 |
+| Tool Call、Memory、证据变化与 Agent 轨迹 UI | 机制+项目 | 主线 | V3 | AI Response State Machine、Agent Trajectory、Tool 与 Memory Eval | `mechanisms/agent-runtime-ui.md` | 产品 workbench | 待编写 |
 | Workflow Runtime UI | 机制 | 主线 | V4 | Workflow State、Node 与 Edge、Node 输入输出契约与状态合并、条件、循环与并行、Checkpoint、Interrupt 与 Resume、Human-in-the-loop | `mechanisms/workflow-runtime-ui.md` | 产品 workbench | 待编写 |
 | Multi-Agent UI / UX | 机制 | 主线 | V5 | 角色责任、上下文、工具和输出契约、Supervisor / Worker 与任务分配、共享状态、私有上下文与证据、并行执行、依赖和失败隔离、结果汇总、证据合并与冲突裁决 | `mechanisms/multi-agent-ux.md` | 产品 workbench | 待编写 |
 | 知识与质量工作台完善 | 机制+项目 | 主线 | V6 | 文档版本、更新、删除一致性与权限过滤、Eval、Labeling 与 Feedback UI | 对应 V6 项目篇 | 产品 workbench | 待编写 |
@@ -225,11 +234,11 @@ State / Node / Edge
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Python、HTTP、JSON 与配置 | 基础 | 支撑 | V0 | `python_base` | 按需回查 `python_base/` | 根项目 | 已落地 |
 | FastAPI、Review API 与错误契约 | 机制 | 主线 | V0 | Python、HTTP、JSON 与配置、Structured Output 与本地校验 | `mechanisms/fastapi-and-api.md` | 产品 app | 待编写 |
-| PostgreSQL / pgvector 数据模型 | 机制 | 支撑 | V0 | SQL 基础、Vector Store、索引与 pgvector | `mechanisms/postgres-and-pgvector.md` | 产品 infra | 待编写 |
-| Redis、后台任务与入库状态 | 机制 | 主线 | V4 | Document Loading、Cleaning 与结构保留、Checkpoint、Interrupt 与 Resume | `mechanisms/background-jobs.md` | 产品 infra | 待编写 |
+| PostgreSQL FTS / pgvector 数据模型 | 机制 | 主线 | V0 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索、pgvector、Dense Retrieval 与向量索引 | `mechanisms/postgres-and-pgvector.md` | 产品 infra | 待编写 |
+| Redis、后台任务与入库状态 | 机制 | 主线 | V4 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留、Checkpoint、Interrupt 与 Resume | `mechanisms/background-jobs.md` | 产品 infra | 待编写 |
 | Docker Compose 本地部署 | 机制+项目 | 主线 | V6 | 产品入口 | `mechanisms/docker-compose.md` | 产品 infra | 待编写 |
 | 日志、Metrics 与工程观测 | 机制 | 主线 | V2 | Trace、Span 与 Run 关联 | `mechanisms/logging-and-metrics.md` | 产品 app / infra | 待编写 |
-| 文件、对象存储与数据生命周期 | 机制 | 支撑 | V6 | Document Loading、Cleaning 与结构保留、文档版本、更新、删除一致性与权限过滤 | `mechanisms/file-storage.md` | 产品 infra | 待编写 |
+| 文件、对象存储与数据生命周期 | 机制 | 支撑 | V6 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留、文档版本、更新、删除一致性与权限过滤 | `mechanisms/file-storage.md` | 产品 infra | 待编写 |
 | Kubernetes、灰度、多租户与权限中台 | 概念 | 未来认知 | 未来 | Docker Compose 本地部署、日志、Metrics 与工程观测 | 无当前正文 | 无当前实现 | 未来认知 |
 
 ## 维护边界

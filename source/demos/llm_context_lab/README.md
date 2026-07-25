@@ -1,6 +1,6 @@
 # llm_context_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 12（**等待前置**）。  
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 15（**等待前置**）。
 > 必须先完成文档、Chunk、Metadata 与 Retriever 相关步骤，再把本 lab 当主线。  
 > Retriever 产生候选证据；本 lab 观察 Context Builder 如何决定本轮模型真正看到什么。
 
@@ -194,6 +194,6 @@ no_evidence_included
 ## 与 Structured Output demo 的关系
 
 - [`llm_invoke_lab/structured_risk.py`](../llm_invoke_lab/structured_risk.py)：观察 structured mode（步骤 5）。
-- 本 lab `context_compare.py`：观察 context builder 策略和诊断（步骤 12，等 RAG）。
+- 本 lab `context_compare.py`：观察 context builder 策略和诊断（步骤 15，等 RAG）。
 
 二者都调用 `llm_core`，但观察问题不同；课表顺序不允许跳过 RAG 前置直接把本 lab 当主线。
