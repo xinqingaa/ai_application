@@ -124,7 +124,7 @@ course/README.md
 - 一个项目版本可以同时使用 LLM、RAG、Agent 和 Eval 能力。
 - 不为了让知识清单“整齐”而创建空文档、空目录或空代码。
 
-各能力域可以保留标签和分组价值，但不再各自维护分散的 outline 真源。
+各能力域可以保留标签和分组价值，但不各自维护与知识地图或标准学习路径竞争的课程规划。
 
 ### 集中查看知识
 
@@ -143,35 +143,6 @@ course/README.md
 - 想集中检查“Agent、RAG 或 Eval 有哪些知识、是否遗漏”，看 `course/knowledge-map.md`。
 - 想把已经学过的能力组合成当前版本，进入 `course/project/` 对应项目篇。
 - 想理解知识本身，进入对应概念篇和机制篇。
-
-### 旧 Outline 的信息去向
-
-旧能力 outline 不能直接删除，也不能整体搬进 `knowledge-map.md`。迁移时按信息职责拆分：
-
-| 旧 Outline 中的信息 | 新真源 |
-| --- | --- |
-| 学习者入口与课程概览 | `course/README.md` |
-| 全局学习顺序、当前从哪里开始 | `course/learning-path.md` |
-| 完整知识项、前置、优先级、阶段和状态 | `course/knowledge-map.md` |
-| 是什么、为什么、区别和边界 | `course/concepts/` |
-| 内部机制、实验、框架映射和失败排查 | `course/mechanisms/` |
-| V0–V6 业务任务、设计选择和验收 | `course/project/` |
-| 通用能力的真实实现 | `source/packages/` |
-| 实验参数、命令和输出解读 | `source/demos/` 及其 README |
-| 产品安装、API、测试和部署 | `review_assistant/` 及其 README |
-| 企业平台远期能力 | `docs/ai-application-platform.md` |
-| 重复、过时或只服务旧结构的内容 | 删除，不迁移 |
-
-旧 outline 只有在以下条件全部满足后才可以删除：
-
-- 每个有效知识项都已进入集中知识清单。
-- 正向学习顺序已进入 `course/learning-path.md`；项目篇明确进入项目之前应具备的能力。
-- 概念、机制、项目任务和运行说明已有明确真源。
-- 旧 outline 中的独有内容已确认保留、降级或删除原因。
-- 新入口不存在指向旧 outline 的链接。
-- 删除后仍能回答“学什么、为什么学、先学什么、在哪里运行、如何验收”。
-
-迁移不是追求逐行保留。需要保留的是有效知识、判断和边界，不是旧章节结构。
 
 ## 5. 概念篇规范
 

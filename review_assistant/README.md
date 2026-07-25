@@ -10,12 +10,14 @@
 
 ```text
 可信 RAG
+→ 最小评审工作台
 → 结构化评审与证据引用
-→ 评估和 bad case 回流
-→ 单 Agent 补检索与追问
+→ 可信证据界面
+→ 评估、bad case 和质量工作台
+→ 单 Agent 补检索、追问和运行界面
 → Workflow 与人工审核
 → 多 Agent 协作
-→ AI Native 工作台与产品化
+→ 工作台整合、部署与产品化
 ```
 
 两个阶段怎样进入学习与项目实现，见 [标准学习路径](../course/learning-path.md)。

@@ -165,7 +165,7 @@ description: >-
 - 强制套用“真实问题 → 原理 → 实现 → 框架 → 失败”的固定标题。
 - 按旧课程编号、每课 00 或普通专题规则组织新文档。
 - 在 `course/concepts/` 或 `course/mechanisms/` 下按 LLM、RAG、Agent 等能力域创建子目录；正文平铺，能力域只写入 `knowledge-map.md`。
-- 将 outline 条目扩写成正文。
+- 将知识清单条目机械扩写成正文。
 - 一篇文档同时做概念教材、源码导览和产品运行手册。
 - 为每篇文档新建 demo 或 package 增量。
 - 用 Mock 结果证明真实模型或项目质量。

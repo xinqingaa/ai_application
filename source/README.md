@@ -14,7 +14,7 @@ source/
 │   ├── llm_invoke_lab/        # 步骤 3–5：SDK 对照、Provider、Prompt、Structured
 │   ├── llm_reliability_lab/   # 步骤 6：Reliability
 │   ├── llm_context_lab/       # 步骤 12：Context Builder（等待 RAG 前置）
-│   └── llm_regression_lab/    # 步骤 14 + 按需 Cost：Harness 与成本缓存
+│   └── llm_regression_lab/    # 步骤 17 + 按需 Cost：Harness 与成本缓存
 ├── apps/
 │   └── llm_streaming_api/     # 按需：FastAPI + SSE 学习期组合入口
 └── python_base/               # 已完成的 Python 基础练习
