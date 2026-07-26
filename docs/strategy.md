@@ -81,11 +81,11 @@
 - 将 TXT、Markdown、DOCX 和文本型 PDF 等真实业务资料加工为可检索知识。
 - 使用 PostgreSQL 全文检索、pgvector 和应用侧 RRF 建立可诊断的多路召回基线。
 - 区分检索失败、上下文失败和生成失败。
-- 输出结构化评审结果、Sources 和 Citation。
+- 输出结构化评审结果；V0 提供 Sources / Citation Candidate，V1 完成 Citation 校验和证据充分性判断。
 - 证据不足时拒答或提出补充问题。
 - 建立最小 Golden Set、bad case 和反馈回流。
 - 使用单 Agent 处理查询改写、知识源选择、补检索和追问补全，并建立有作用域、可治理的短期与长期记忆。
-- 从 V0 开始提供最小但可用的产品交互入口，并随 V1 的可信证据、V2 的质量闭环和 V3 的 Agent 运行逐步演进。
+- 从 V0 开始提供最小但可用的 Web 产品交互入口，并随 V1 的可信证据、V2 的质量闭环和 V3 的 Agent 运行逐步演进；当前主项目不建设 Flutter App。
 
 阶段一完成后，项目必须已经能够运行和使用，不能把“产品成立”推迟到多 Agent 阶段。
 
@@ -111,7 +111,7 @@ V0–V6 是唯一项目里程碑顺序；每个版本内部的认知前置和正
 
 | 阶段 | 版本 | 核心结果 |
 | --- | --- | --- |
-| 阶段一 | V0 固定 RAG 基线 | 跑通 TXT、Markdown、DOCX、文本型 PDF，使用 PostgreSQL 全文检索、pgvector 与应用侧 RRF 完成可诊断的多路召回、上下文、评审 API 和最小工作台；直接 LLM 仅作为效果对照 |
+| 阶段一 | V0 固定 RAG 基线 | 跑通 TXT、Markdown、DOCX、文本型 PDF，使用 PostgreSQL 全文检索、pgvector 与应用侧 RRF 完成可诊断的多路召回、上下文、评审 API 和最小 Web 工作台；直接 LLM 仅作为效果对照 |
 | 阶段一 | V1 可信结构化评审 | Structured Output、Sources、Citation 校验、Refusal、补充问题和可信证据界面 |
 | 阶段一 | V2 质量闭环 | Golden Set、检索与生成评估、bad case、feedback、回归和最小质量工作台；Reranker 先以实验验证收益，达到准入门槛后才进入产品链路 |
 | 阶段一 | V3 单 Agent RAG | Query Rewrite、Source Routing、补检索、质量判断、追问补全、短期与长期记忆，以及 Agent 运行界面 |

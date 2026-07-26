@@ -206,10 +206,10 @@ print(summary.success_count, records[0].attempt_count)
 
 按 [标准学习路径](../../../course/learning-path.md) 进入，不要按目录字母序通关：
 
-- 步骤 3–5 调用与契约：[../../demos/llm_invoke_lab/](../../demos/llm_invoke_lab/)（含 `first_chat.py` SDK 对照）
-- 步骤 6 Reliability：[../../demos/llm_reliability_lab/](../../demos/llm_reliability_lab/)
-- 步骤 15 Context（等待 RAG）：[../../demos/llm_context_lab/](../../demos/llm_context_lab/)
-- 步骤 20 Harness + 按需 Cost：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
+- 模型调用与输入输出契约：[../../demos/llm_invoke_lab/](../../demos/llm_invoke_lab/)（含 `first_chat.py` SDK 对照）
+- Reliability 与可见降级：[../../demos/llm_reliability_lab/](../../demos/llm_reliability_lab/)
+- Context Engineering（等待 RAG 前置）：[../../demos/llm_context_lab/](../../demos/llm_context_lab/)
+- Calling Harness、成本、延迟与缓存：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
 - 按需 Streaming SSE：[../../apps/llm_streaming_api/](../../apps/llm_streaming_api/)
 
 ## 常见定位

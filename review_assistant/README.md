@@ -58,13 +58,15 @@ review_assistant/     产品真源：代码、API、测试、配置、运行和�
 ```text
 review_assistant/
 ├── app/            # FastAPI、业务服务和运行时
-├── workbench/      # Web / Flutter AI Native 工作台
+├── workbench/      # AI Native Web 工作台
 ├── tests/          # 产品级测试
 ├── fixtures/       # 固定业务资料和评估样例
 └── infra/          # 数据库、迁移、Docker 与部署
 ```
 
 这是一张职责地图，不授权预建空目录。只有对应版本的文档、代码和运行入口同时落地时才创建实际目录。
+
+当前产品只维护 Web 工作台，不建设或并行维护 Flutter App。课程中的 Flutter 仍可作为业务影响范围和学习者既有经验出现，但不是 V0–V6 的产品入口或验收项。
 
 ## 当前运行说明
 
