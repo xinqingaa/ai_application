@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型调用前，应用如何把任务、证据、历史和中间结果装配成可追溯、可预算、可诊断的上下文。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第十二步，当前正文存在但应等待 RAG 前置。必要前提是 [模型输入输出契约](../concepts/model-input-output-contracts.md)，以及文档、Chunk、Metadata 与 Retriever 怎样产生候选证据；本文交付候选材料进入模型前的选择、预算和诊断。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第十五步，当前正文存在但应等待 RAG 前置。必要前提是 [模型输入输出契约](../concepts/model-input-output-contracts.md)，以及文档、Chunk、Metadata 与 Retriever 怎样产生候选证据；本文交付候选材料进入模型前的选择、预算和诊断。
 
 ---
 

@@ -60,7 +60,7 @@
 | Streaming 与 Conversation | 机制 | 支撑 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/streaming-and-conversation.md) | `llm_core/streaming`、`conversation`、`apps/llm_streaming_api` | 已落地 |
 | Structured Output 与本地校验 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约 | [阅读正文](mechanisms/structured-output.md) | `llm_core/structured`、`schemas`、`llm_invoke_lab` | 已落地 |
 | Context Engineering 与预算 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约、Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context`、`llm_context_lab` | 已落地 |
-| 错误分类、重试、降级与可靠调用 | 机制 | 支撑 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/reliability-and-errors.md) | `llm_core/errors`、`reliability`、`llm_reliability_lab` | 已落地 |
+| 错误分类、重试、降级与可靠调用 | 机制 | 主线 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/reliability-and-errors.md) | `llm_core/errors`、`reliability`、`llm_reliability_lab` | 已落地 |
 | 调用 Harness、回归与版本比较 | 机制 | 主线 | V0 | 面向应用的 Prompt Engineering、Structured Output 与本地校验、错误分类、重试、降级与可靠调用、固定 RAG 生成链 | [阅读正文](mechanisms/calling-harness-and-regression.md) | `llm_core/harness`、`llm_regression_lab` | 已落地 |
 | Token、成本、延迟与缓存 | 机制 | 支撑 | V0 | 调用 Harness、回归与版本比较 | [阅读正文](mechanisms/cost-latency-and-caching.md) | `llm_core/costing`、`cache`、`llm_regression_lab` | 已落地 |
 
@@ -79,8 +79,8 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 
 | 知识 | 类型 | 定位 | 最早进入 | 理解前提 | 文档入口 | 代码入口 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| RAG 问题空间与完整链路 | 概念 | 主线 | V0 | LLM 应用问题空间与能力边界 | `concepts/rag-and-external-knowledge.md` | 后续 `rag_core` | 待编写 |
-| 固定 RAG、搜索、数据库与 Agent 的边界 | 概念 | 主线 | V0 | RAG 问题空间与完整链路 | `concepts/rag-and-external-knowledge.md` | 后续 `rag_core` | 待编写 |
+| RAG 问题空间与完整链路 | 概念 | 主线 | V0 | LLM 应用问题空间与能力边界 | [阅读正文](concepts/rag-and-external-knowledge.md) | 后续 `rag_core` | 已落地 |
+| 固定 RAG、搜索、数据库与 Agent 的边界 | 概念 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](concepts/rag-and-external-knowledge.md) | 后续 `rag_core` | 已落地 |
 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | `mechanisms/document-loading-and-cleaning.md` | 后续 `rag_core/ingestion` | 待编写 |
 | 复杂文档与多模态知识生产边界 | 概念 | 支撑 | V1 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | `concepts/multimodal-knowledge-production.md` | 无项目实现 | 待编写 |
 | 扫描 PDF、图片 OCR/VLM 与 Markdown 归一化 | 机制 | 支撑 | V1 | 复杂文档与多模态知识生产边界 | `mechanisms/ocr-vlm-normalization.md` | 后续按需扩展 ingestion demo | 待编写 |
@@ -94,7 +94,7 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | 机制 | 主线 | V0 | 多路召回与 RRF 融合 | `mechanisms/retriever-contract.md` | 后续 `rag_core/retrieval` | 待编写 |
 | Reranker、重排诊断与产品准入证据 | 机制 | 主线 | V2 | 多路召回与 RRF 融合、Retrieval 与 Generation Eval | `mechanisms/reranking.md` | 通过收益门槛后进入 `rag_core/retrieval` | 待编写 |
 | Query Rewrite 与 Source Routing | 机制 | 主线 | V3 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | `mechanisms/query-rewrite-and-routing.md` | 后续 `rag_core/query` | 待编写 |
-| Context Construction 与 Compression | 机制 | 主线 | V0 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断、Context Engineering 与预算 | `mechanisms/context-construction.md` | `llm_core/context` + 后续 `rag_core` | 待编写 |
+| Context Construction 与 Compression | 机制 | 主线 | V0 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断、Context Engineering 与预算 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context` + 后续 `rag_core` | 已落地 |
 | 可信生成、Sources 与 Citation Candidate | 机制 | 主线 | V0 | Context Construction 与 Compression、Structured Output 与本地校验 | `mechanisms/trusted-generation.md` | 后续 `rag_core/generation` | 待编写 |
 | Citation 校验、证据充分性、Refusal 与补充问题 | 机制 | 主线 | V1 | 可信生成、Sources 与 Citation Candidate | `mechanisms/citation-and-evidence-validation.md` | 后续 `rag_core/evidence` | 待编写 |
 | Retriever as Tool 与 Single Agent RAG | 机制 | 主线 | V3 | Query Rewrite 与 Source Routing、Tool Runtime 与结构化错误 | `mechanisms/single-agent-rag.md` | 后续 `agent_core` | 待编写 |

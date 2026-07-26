@@ -58,7 +58,7 @@ V0 要回答：
 
 ### 第三段：让外部资料成为可检索证据
 
-7. **RAG 与外部知识的边界** · 待编写
+7. **[RAG 与外部知识的边界](concepts/rag-and-external-knowledge.md)** · 可学习
    区分模型已有知识、搜索、数据库查询、固定 RAG 和 Agentic RAG。
 8. **TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留** · 待编写
    支持真实需求资料，并保留文件、章节、页码或段落等来源位置。
