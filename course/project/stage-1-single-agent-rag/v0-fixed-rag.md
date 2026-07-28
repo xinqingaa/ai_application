@@ -1,6 +1,6 @@
 # V0：固定 RAG 需求评审基线
 
-> 课程位置：这是 V0 的综合实践与验收文档，不是课程第一篇。请先完成 [V0 标准学习路径](../../learning-path.md) 中的核心概念、机制和小实验；如果下面的术语仍然陌生，先回到对应步骤。
+> 课程位置：本文是 V0 业务契约、综合实践与验收的唯一真源，但分两次使用。V0 开始时只读“业务场景”“V0 Definition of Ready”“输入与输出契约”和“V0 明确不做”，为后续实验取得固定业务契约；完成 [V0 标准学习路径](../../learning-path.md) 的核心概念、机制和小实验后，再回到本文完成实现、失败题、变更题和版本验收。
 
 V0 是需求评审助手的第一个可运行产品版本。
 
@@ -14,15 +14,15 @@ V0 使用固定 RAG Pipeline，不使用 Agent 动态决策。直接调用 LLM �
 
 以“售后入口与订单状态”需求为固定垂直切片。
 
-核心资料集至少包含：
+固定业务集由三类对象组成：
 
-- 一份售后入口 PRD。
-- 一份订单状态规则。
-- 一份售后接口文档。
-- 一份客户端展示规则。
-- 一份历史需求评审记录。
+- **Target Requirement**：当前被评审的“售后入口 PRD”，作为 `ReviewRequest` 的直接输入，不默认作为普通知识 Chunk 参与检索。
+- **Reference Knowledge**：订单状态规则、售后接口文档和客户端展示规则，是当前有效、允许成为业务证据的参考知识。
+- **Historical Material**：历史需求评审记录，用于提供历史背景或已知 bad case；必须标明历史属性，不能自动覆盖当前有效规则。
 
-资料集必须覆盖 TXT 或 Markdown、DOCX 和文本型 PDF，不能只用手写 JSON 或已经整理好的字符串替代真实文档加载。扫描 PDF、OCR、图片、音频和视频不作为 V0 产品输入。
+Reference Knowledge 与 Historical Material 必须共同覆盖 TXT 或 Markdown、DOCX 和文本型 PDF，不能只用手写 JSON 或已经整理好的字符串替代真实文档加载。扫描 PDF、OCR、图片、音频和视频不作为 V0 产品输入。
+
+V0 默认不把 Target Requirement 与 Reference Knowledge 混在同一个 Retriever 候选池。若后续出现超长 PRD 需要对目标文档内部检索，应建立独立的 target-document 通道、作用域和诊断，不能无说明地把当前 PRD 当作外部证据。
 
 这些资料在 V0–V6 持续复用。后续版本可以增加样例覆盖新问题，但不能通过更换整套案例规避回归比较。
 
@@ -52,7 +52,8 @@ V0 不重新实现这些能力，而是在此基础上增加唯一 `rag_core`，
 
 V0 可以分段实现，但进入产品组合前必须先确定下面这些契约。这里检查的是设计是否具备实施条件，不要求产品已经完成：
 
-- 固定“售后入口与订单状态”资料集、问题集和数据集版本；后续只增量补样例，不替换基线。
+- 固定“售后入口与订单状态”的 Target Requirement、Reference Knowledge、Historical Material、问题集和数据集版本；后续只增量补样例，不替换基线。
+- 明确三类对象的身份、作用域和证据资格：当前 PRD 是评审主体，现行规则是主要证据，历史材料只能以明确的历史角色进入 Context。
 - 明确 TXT / Markdown、DOCX、文本型 PDF 的解析范围、所选解析库和已知不支持结构。
 - 明确 `KnowledgeDocument`、`Chunk`、来源定位和稳定标识契约。
 - 明确 PostgreSQL 与 pgvector 版本、迁移方式、Embedding Provider、模型和向量维度。
@@ -68,11 +69,13 @@ V0 可以分段实现，但进入产品组合前必须先确定下面这些契�
 V0 需要跑通：
 
 ```text
-固定知识资料
+Reference Knowledge + Historical Material
 → TXT / Markdown / DOCX / 文本型 PDF 加载与清洗
-→ Chunk + Metadata
+→ KnowledgeDocument / Chunk + Metadata
 → PostgreSQL 全文索引 + pgvector 向量索引
-→ 输入待评审 PRD
+Target Requirement
+→ 作为待评审主体直接输入
+两路在 ReviewRequest 中汇合
 → 固定查询或评审问题
 → Lexical Retrieval + Dense Retrieval
 → RRF 融合
@@ -93,20 +96,26 @@ V0 的核心不是追求高级检索，而是让每一层都可以观察和替�
 `ReviewRequest` 至少表达：
 
 - `request_id`
+- `requirement_id`
+- `requirement_version`
 - `title`
 - `requirement_text`
 - `review_questions`
 - `knowledge_scope`
 
+`request_id` 标识一次运行，`requirement_id` / `requirement_version` 标识当前被评审对象，`requirement_text` 保存该版本的直接输入。`knowledge_scope` 只约束 Reference Knowledge 和 Historical Material 的可检索范围，不用于把当前 PRD 伪装成外部知识。
+
 具体 Schema 以产品代码为真源。项目篇只规定业务上必须表达的信息。
 
 ### 知识候选
 
-`KnowledgeDocument` 至少保留：
+V0 中只有 Reference Knowledge 和 Historical Material 进入通用知识生产链。`KnowledgeDocument` 至少保留：
 
 - 稳定 `document_id`。
 - `document_version` 或内容版本。
 - 原始文件名、格式和受控来源位置。
+- `source_role`，至少区分 `reference_knowledge` 与 `historical_material`。
+- `evidence_eligibility` 或等价字段，说明该资料能否作为当前规则证据、只能作为历史参考，还是不能进入 Citation Candidate。
 - 内容哈希或其他可复现的变更标识。
 - 解析状态和明确错误。
 
@@ -118,7 +127,7 @@ V0 的核心不是追求高级检索，而是让每一层都可以观察和替�
 - 用于 `knowledge_scope` 的业务 Metadata。
 - Chunk 策略版本和必要的父块关系。
 
-`document_id` 标识业务文档，`document_version` 标识内容版本，`chunk_id` 标识该版本下的稳定片段。重新入库同一内容应得到可预测的标识；内容或切分策略改变时必须能够区分新旧 Chunk，不能依赖数据库自增 ID 作为 Citation Candidate。
+`document_id` 标识业务文档，`document_version` 标识内容版本，`chunk_id` 标识该版本下的稳定片段。重新入库同一内容应得到可预测的标识；内容或切分策略改变时必须能够区分新旧 Chunk，不能依赖数据库自增 ID 作为 Citation Candidate。Target Requirement 使用独立的 `requirement_id` / `requirement_version`，不与知识文档标识混用。
 
 ### 输出
 
@@ -170,9 +179,9 @@ V0 的步骤是已知的：
 
 模型不需要动态选择下一步，因此暂不使用 Agent。
 
-### 2. 第一版支持哪些资料
+### 2. 第一版支持哪些知识资料
 
-V0 必须支持 TXT、Markdown、DOCX 和带文本层的 PDF，并保留文档、章节、页码或段落位置。允许先覆盖项目固定资料中实际出现的 DOCX 和 PDF 结构，不要求建设通用 Office 解析平台。
+V0 的 Reference Knowledge 与 Historical Material 必须支持 TXT、Markdown、DOCX 和带文本层的 PDF，并保留文档、章节、页码或段落位置。Target Requirement 作为直接输入，不靠重复入库来满足格式数量。允许先覆盖项目固定资料中实际出现的 DOCX 和 PDF 结构，不要求建设通用 Office 解析平台。
 
 扫描 PDF、复杂版面、表格语义、图片 OCR/VLM、音频 ASR 和视频理解进入概念或机制实验，不阻塞 V0 产品链路。
 
@@ -190,7 +199,7 @@ RRF 只融合名次，不假装不同检索器的原始分数可以直接相加�
 
 V0 的检索参数遵守下面的固定语义：
 
-1. `knowledge_scope` 与 Metadata Filter 在 lexical 和 dense 两路检索前应用，保证两路候选来自同一可见文档池。
+1. `knowledge_scope`、`source_role` 与 Metadata Filter 在 lexical 和 dense 两路检索前应用，保证两路候选来自同一可见文档池，并防止 Target Requirement 无说明地进入参考知识检索。
 2. 每路分别设置 `candidate_k` 和该路原生分数阈值；FTS 相关性与向量相似度保留各自名称、方向和原始值。
 3. 每路阈值在 RRF 前执行。不同检索器的原始分数不归一化相加，也不互相比较。
 4. RRF 只接收通过过滤和阈值的排名列表，使用固定 `rrf_k`，按稳定 `chunk_id` 去重并保留命中路由。
@@ -211,6 +220,7 @@ V0 的检索参数遵守下面的固定语义：
 - 去重。
 - Token 预算。
 - 来源标记格式。
+- Reference Knowledge 与 Historical Material 的分区、证据资格和优先级。
 - 没有候选材料时的行为。
 
 ### 5. 哪些信息进入产品输出
@@ -240,7 +250,7 @@ V0 只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/app
 
 负责产品组合：
 
-- 固定业务资料。
+- 固定 Target Requirement、Reference Knowledge 与 Historical Material fixtures。
 - 产品级 ReviewRequest / ReviewReport。
 - FastAPI Review API 与结构化错误契约。
 - 最小 AI Native Web 工作台和请求状态。
@@ -267,7 +277,7 @@ V0 只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/app
 
 V0 的范围必须按纵向切片推进，每一段都留下可观察结果，再进入下一段：
 
-1. **契约与资料**：固定 fixtures，完成 `KnowledgeDocument` / `Chunk` / locator / Metadata 契约和 TXT、Markdown、DOCX、文本型 PDF 的解析对照。
+1. **契约与资料**：固定三类 fixtures，完成 Target Requirement 与知识资料的身份边界，以及 `KnowledgeDocument` / `Chunk` / locator / Metadata 契约和 TXT、Markdown、DOCX、文本型 PDF 的解析对照。
 2. **Lexical 基线**：先让 PostgreSQL FTS 单路检索可运行，记录词项命中、原生 rank、阈值和过滤诊断。
 3. **Dense 基线**：接入真实 Embedding 与 pgvector，固定模型和维度，记录相似度方向、索引和单路失败。
 4. **RRF 融合**：在两路结果之上实现应用侧 rank fusion、去重、`rrf_k`、`final_top_k` 和完整诊断。
@@ -282,18 +292,18 @@ V0 的范围必须按纵向切片推进，每一段都留下可观察结果，�
 ### 数据流
 
 ```text
-文件
+Reference Knowledge + Historical Material
 → KnowledgeDocument
 → Chunk
 → PostgreSQL FTS / pgvector 索引
 → LexicalResult + DenseResult
 → RRF Fusion
-→ RetrievalResult
-→ ReviewContext
-→ ReviewReport
+→ RetrievalResult ────────────┐
+                              ├→ ReviewContext → ReviewReport
+Target Requirement ──────────┘
 ```
 
-每次转换必须能保留来源关系，不能到模型输出时才临时猜测来源。
+每次转换必须能保留来源关系，不能到模型输出时才临时猜测来源。Target Requirement 是评审主体，不因进入 ReviewContext 就成为 Citation Candidate；只有满足证据资格的知识来源才能进入候选引用。
 
 ### 状态流
 
@@ -336,8 +346,10 @@ V0 即使不建立后台任务，也要能够区分：
 7. 阈值太高导致两路候选全部被淘汰。
 8. 一路检索排名很差，但 RRF 仍错误提升无关结果。
 9. Metadata Filter 错误排除本应可见的资料。
-10. 缺少真实模型 API key。
-11. 模型返回不符合 Schema 的结果。
+10. Target Requirement 被错误加入参考知识候选，导致检索和评估泄漏。
+11. Historical Material 与当前规则冲突，却因未标明历史角色覆盖现行证据。
+12. 缺少真实模型 API key。
+13. 模型返回不符合 Schema 的结果。
 
 每个失败都要记录：
 
@@ -367,6 +379,7 @@ V0 即使不建立后台任务，也要能够区分：
 V0 使用版本化的小型固定数据集。每个 Case 至少记录：
 
 - `case_id`、问题和所属问题类型。
+- `requirement_id`、`requirement_version` 和对应 Target Requirement。
 - `split`，取值为用于开发诊断和调参的 `development`，或只用于版本验收的 `acceptance`。
 - `dataset_version` 和允许的 `knowledge_scope`。
 - 期望命中的 `document_id` / `chunk_id` 或可验证来源范围。
@@ -374,7 +387,7 @@ V0 使用版本化的小型固定数据集。每个 Case 至少记录：
 - 期望覆盖的风险类别。
 - 是否应该明确表示证据不足。
 
-`development` Case 用于观察失败、选择 Chunk 策略和调整 Retriever 参数；`acceptance` Case 在首次验收运行前冻结，不能用于选择参数。两部分都至少覆盖词面一致、同义改写、精确接口名或枚举、无答案、噪声相似和 Metadata Filter 六类问题，每类至少有一个稳定 Case。资料格式至少各有一个可重复解析的 TXT 或 Markdown、DOCX 和文本型 PDF fixture。
+`development` Case 用于观察失败、选择 Chunk 策略和调整 Retriever 参数；`acceptance` Case 在首次验收运行前冻结，不能用于选择参数。两部分都至少覆盖词面一致、同义改写、精确接口名或枚举、无答案、噪声相似和 Metadata Filter 六类问题，每类至少有一个稳定 Case。Reference Knowledge 与 Historical Material 至少各有明确角色，知识资料格式至少各有一个可重复解析的 TXT 或 Markdown、DOCX 和文本型 PDF fixture。
 
 样例数量可以增长，但删除、改写或改变 Case 的 split 必须提升 `dataset_version` 并说明原因。验收失败后可以保留失败记录并创建新实验，但不能根据 acceptance 结果删除 Case、降低门槛或把 Case 移入 development；若要改变验收集，必须发布新的数据集版本，并把原结果保留为历史证据。V0 只建立小型基线，V2 再扩大数据集和隔离程度。
 
@@ -393,7 +406,7 @@ V0 使用版本化的小型固定数据集。每个 Case 至少记录：
 
 | 维度 | V0 必须记录 | 能证明什么 |
 | --- | --- | --- |
-| 解析 | 文件成功/失败、文档与 Chunk 数、来源定位完整性 | 真实资料能否稳定进入知识系统 |
+| 解析 | 文件成功/失败、文档与 Chunk 数、来源角色、证据资格和定位完整性 | 参考与历史资料能否稳定进入知识系统且不混淆角色 |
 | Retrieval | 每路与融合后的 Source Hit@k、Source Recall@k、MRR@k、禁止来源命中、无结果原因 | 是否命中、是否覆盖完整及排序是否改善 |
 | Generation | Schema 结果、风险类别覆盖、无依据结论、证据不足行为 | 检索结果是否转化为更可靠的评审结果 |
 | 工程 | 成功/失败层级、Token、成本、各阶段耗时和总延迟 | 改进是否付出不可接受的工程代价 |
@@ -461,8 +474,9 @@ Definition of Ready 完成后，V0 主路径默认冻结：
 
 ## 完成标准
 
-- [ ] 使用固定业务资料跑通完整 RAG 数据流。
-- [ ] TXT 或 Markdown、DOCX 和文本型 PDF 都能进入同一 Document / Chunk 契约并保留来源位置。
+- [ ] 使用固定 Target Requirement、Reference Knowledge 和 Historical Material 跑通完整 RAG 数据流。
+- [ ] 当前 PRD 作为评审主体直接输入，不会无说明地进入参考知识候选或成为 Citation Candidate。
+- [ ] TXT 或 Markdown、DOCX 和文本型 PDF 知识资料都能进入同一 Document / Chunk 契约并保留来源角色与位置。
 - [ ] 主路径调用真实 Embedding 和真实 LLM；失败不降级 Mock。
 - [ ] 使用 PostgreSQL FTS、pgvector 和应用侧 RRF 完成 lexical、dense 与多路融合召回。
 - [ ] 能看到 Chunk、Metadata、每路排名、融合排名、Top-k、阈值、过滤结果和最终上下文。

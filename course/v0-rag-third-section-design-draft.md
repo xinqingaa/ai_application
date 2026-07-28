@@ -1,6 +1,6 @@
 # V0 第三段 7-16 课程设计评审稿
 
-> 本文件是讨论用草稿，不是课程真源，不规定新的阅读顺序。正式顺序仍以仓库中的 `course/learning-path.md` 为准。
+> 本文件是第 7–16 步实施前的临时设计输入，不是课程真源，不规定新的阅读顺序，也不记录实时进度。正式顺序以 `course/learning-path.md` 为准，V0 业务契约以项目篇为准；每一步完成后，结论进入对应正文、代码、测试和 README，不回写本草稿。第 16 步完成并确认有效决策已被正式真源吸收后，删除本文件。
 
 ## 结论
 
@@ -10,7 +10,7 @@
 
 第 7 步需要补齐五组概念层内容：
 
-1. **对象地图**：File、KnowledgeDocument、DocumentElement、Chunk、Embedding Record、Retrieval Hit、Context Source、Review Result 分别是什么。
+1. **对象地图**：Target Requirement、Reference Knowledge、Historical Material、File、KnowledgeDocument、DocumentElement、Chunk、Embedding Record、Retrieval Hit、Context Source、Review Result 分别是什么。
 2. **三条流**：知识生产流、在线检索流、证据进入生成流；每条流的输入、输出和责任边界。
 3. **检索位置地图**：知道表示、匹配、排名、过滤、融合和最终选择属于不同环节，但把具体区别留给第 10 步正文的概念过渡。
 4. **质量坐标**：可解析、可检索、相关、可进入上下文、能支撑结论不是同一个“准确率”。
@@ -20,16 +20,18 @@
 
 ## 第三段共同主线
 
-全部机制使用同一组“售后入口与订单状态”资料和同一批问题，避免每篇换案例：
+全部机制使用 V0 项目篇定义的同一组“售后入口与订单状态”对象和同一批问题，避免每篇换案例。当前待评审 PRD 是 Target Requirement，作为评审主体直接输入；订单状态规则、接口文档和客户端规则是 Reference Knowledge；历史评审记录是 Historical Material，必须保留历史角色。
 
 ```text
-TXT / Markdown / DOCX / PDF
+Reference Knowledge + Historical Material
+→ TXT / Markdown / DOCX / PDF
 → KnowledgeDocument + DocumentElement
 → Chunk + Metadata
 → lexical index / embedding / vector index
 → LexicalHit + DenseHit
 → RRF Candidate
 → RetrievalResult + diagnostics
+Target Requirement + RetrievalResult
 → ContextSource + ContextBuildReport
 → structured ReviewReport + Sources / Citation Candidate
 ```
@@ -535,4 +537,4 @@ ReviewRequest + messages + ContextBuildReport
 6. 第 15 步在已有 Context Builder 上补 RAG adapter。
 7. 第 16 步接入真实结构化生成并冻结 V0 / V1 的可信边界。
 
-任何一步正式落地时，正文、通用代码、实验、测试和 README 一起完成；本评审稿本身不能作为“已学习”或“已实现”的证据。
+任何一步正式落地时，正文、通用代码、实验、测试和 README 一起完成；本评审稿本身不能作为“已学习”或“已实现”的证据，也不维护完成勾选。第 16 步完成后按文首退出条件删除，不长期保留为第四类课程文档。

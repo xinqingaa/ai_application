@@ -84,7 +84,7 @@
 - 输出结构化评审结果；V0 提供 Sources / Citation Candidate，V1 完成 Citation 校验和证据充分性判断。
 - 证据不足时拒答或提出补充问题。
 - 建立最小 Golden Set、bad case 和反馈回流。
-- 使用单 Agent 处理查询改写、知识源选择、补检索和追问补全，并建立有作用域、可治理的短期与长期记忆。
+- 使用单 Agent 处理查询改写、知识源选择、补检索和追问补全；短期记忆承载当前会话，长期记忆只保存用户明确确认且跨会话仍有效的偏好或约束，并具备作用域、来源、更新、删除和关闭能力。PRD、接口规则和历史评审等业务事实仍进入可引用知识，不由长期记忆替代。
 - 从 V0 开始提供最小但可用的 Web 产品交互入口，并随 V1 的可信证据、V2 的质量闭环和 V3 的 Agent 运行逐步演进；当前主项目不建设 Flutter App。
 
 阶段一完成后，项目必须已经能够运行和使用，不能把“产品成立”推迟到多 Agent 阶段。
@@ -112,14 +112,14 @@ V0–V6 是唯一项目里程碑顺序；每个版本内部的认知前置和正
 | 阶段 | 版本 | 核心结果 |
 | --- | --- | --- |
 | 阶段一 | V0 固定 RAG 基线 | 跑通 TXT、Markdown、DOCX、文本型 PDF，使用 PostgreSQL 全文检索、pgvector 与应用侧 RRF 完成可诊断的多路召回、上下文、评审 API 和最小 Web 工作台；直接 LLM 仅作为效果对照 |
-| 阶段一 | V1 可信结构化评审 | Structured Output、Sources、Citation 校验、Refusal、补充问题和可信证据界面 |
+| 阶段一 | V1 可信结构化评审 | 在 V0 结构化风险和 Citation Candidate 基础上增加可信评审 Schema、Citation 校验、证据充分性、Refusal、补充问题和可信证据界面 |
 | 阶段一 | V2 质量闭环 | Golden Set、检索与生成评估、bad case、feedback、回归和最小质量工作台；Reranker 先以实验验证收益，达到准入门槛后才进入产品链路 |
-| 阶段一 | V3 单 Agent RAG | Query Rewrite、Source Routing、补检索、质量判断、追问补全、短期与长期记忆，以及 Agent 运行界面 |
+| 阶段一 | V3 单 Agent RAG | Query Rewrite、Source Routing、补检索、质量判断、追问补全、短期记忆、面向用户确认偏好与约束的长期记忆，以及 Agent 运行界面 |
 | 阶段二 | V4 可控 Workflow | 显式状态、分支、人工审核、中断、恢复和重试 |
 | 阶段二 | V5 多 Agent 评审 | 多角色协作、并行评审、结果汇总、证据合并和冲突处理 |
-| 阶段二 | V6 产品化 | 整合并完善已有工作台和质量面板，补齐本地部署、演示和作品化 |
+| 阶段二 | V6 产品化 | 整合并完善已有工作台和质量面板，补齐本地或个人私有服务器的单用户部署、演示和作品化 |
 
-版本只描述产品演进到哪里。学习者从 `course/README.md` 进入，正向阅读顺序由 `course/learning-path.md` 唯一定义；`course/project/` 在必要概念和机制之后负责综合实现、设计选择和版本验收。
+版本只描述产品演进到哪里。学习者从 `course/README.md` 进入，正向阅读顺序由 `course/learning-path.md` 唯一定义；每个版本开始时可以从 `course/project/` 预读业务契约和非目标，完成必要概念、机制和实验后，再回到同一项目篇完成综合实现、设计选择和版本验收。
 
 ## 5. 能力组织
 
@@ -131,7 +131,7 @@ LLM、RAG、Agent、Workflow、Eval 和 AI Native 是能力域，不是必须依
 - Prompt、Structured Output 和 Context Engineering。
 - 文档解析、Chunk、Metadata、Embedding、Lexical / Dense Retrieval、RRF 和检索诊断。
 - Sources、Citation、Refusal 和可信生成。
-- 单 Agent、短期与长期记忆、Tool Runtime、Workflow 和 Multi-Agent。
+- 单 Agent、短期记忆、用户确认偏好与约束的长期记忆、Tool Runtime、Workflow 和 Multi-Agent。
 - Evaluation、Trace、Bad Case 和 Feedback。
 - SSE、任务状态、证据展示、人工介入和 AI Native 交互。
 

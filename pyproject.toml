@@ -31,6 +31,17 @@ dev = [
     "ruff>=0.8.4",
 ]
 
+[tool.pytest.ini_options]
+testpaths = [
+    "source/packages",
+    "review_assistant",
+]
+norecursedirs = [
+    "archive",
+    "other",
+    ".venv",
+]
+
 [tool.setuptools.packages.find]
 where = ["source/packages"]
 

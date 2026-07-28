@@ -125,7 +125,7 @@
 对当前项目的启发：
 
 - 阶段一用固定 RAG 和单 Agent 覆盖主要需求。
-- V3 将短期记忆、长期记忆及其作用域和治理纳入单 Agent 主线；初期优先复用 PostgreSQL / pgvector，不把 Mem0 设为产品前置。
+- V3 将短期记忆和长期记忆纳入单 Agent 主线；长期记忆只保存用户明确确认且跨会话仍有效的偏好或约束，业务事实继续进入可引用知识。两类记忆都必须有作用域和治理，初期优先复用 PostgreSQL / pgvector，不把 Mem0 设为产品前置。
 - 阶段二先建立可控 Workflow，再放入多 Agent。
 - 不强迫所有业务进入可视化编排。
 - 多 Agent 必须证明比单 Agent 基线更有价值。
@@ -233,7 +233,7 @@ MaxKB 更值得学习的是从 RAG 能力到可发布应用的产品化：
 - PostgreSQL 全文检索、pgvector、应用侧 RRF，以及 Top-k、阈值、过滤和 Retrieval 诊断。
 - Sources、Citation、Refusal。
 - 最小评估集、trace 和 bad case。
-- V3 的短期与长期记忆、作用域隔离和记忆治理。
+- V3 的短期记忆、用户确认偏好与约束的长期记忆、作用域隔离和记忆治理。
 - 简单 AI 应用入口和可观察交互。
 
 ### 阶段二优先取用
