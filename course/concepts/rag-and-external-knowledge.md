@@ -42,9 +42,42 @@ RAG 是 Retrieval-Augmented Generation，中文通常称为检索增强生成：
 
 因此，RAG 是一条应用数据流，不是某个向量数据库、Embedding 模型或框架的别名。
 
-## RAG 有离线和在线两条链路
+## 先认清系统里的对象
 
-只看“问题 → 向量搜索 → 回答”会漏掉一半系统。真实 RAG 至少包含知识生产和在线回答两条链路。
+进入 Loader、Chunk 或 Retriever 之前，先把业务对象和工程对象分开。它们都可能以文本出现，但承担的责任不同。
+
+| 对象 | 它是什么 | 它不是什么 |
+| --- | --- | --- |
+| Target Requirement | 当前被评审的 PRD，是本轮任务主体 | 默认可被引用的外部知识 |
+| Reference Knowledge | 当前有效的业务规则、接口文档和客户端规则 | 当前待评审需求本身 |
+| Historical Material | 带历史属性的评审记录或旧背景 | 可以自动覆盖现行规则的证据 |
+| File Artifact | 系统收到的 TXT、Markdown、DOCX 或 PDF 文件 | 已经可检索的知识 |
+| Knowledge Document | 具有稳定业务身份、版本和来源角色的知识文档 | 文件名或数据库自增 ID |
+| Document Element | 解析后保留标题、段落、表格或页面位置的内容元素 | 为检索切出的 Chunk |
+| Chunk | 为检索建立的内容单元 | 天然正确的语义边界或已验证证据 |
+| Retrieval Hit | Retriever 返回的候选 Chunk 和排名信息 | 最终进入模型的上下文 |
+| Context Source | Context Builder 选入本轮模型输入的材料 | 已经支持模型结论的 Citation |
+| Review Result | 模型生成并经过应用结构校验的评审结果 | 自动可信的事实结论 |
+
+它们的关系不是“文件上传后直接问模型”，而是逐步转换：
+
+```text
+Reference Knowledge / Historical Material
+→ File Artifact
+→ Knowledge Document + Document Element
+→ Chunk
+→ Retrieval Hit
+→ Context Source
+
+Target Requirement + Context Source
+→ Review Result
+```
+
+Target Requirement 在最后一段与外部知识汇合，但 V0 不把它无说明地放进通用知识候选池。否则系统可能检索到需求自己的说法，再把它当成证明需求正确的外部依据。
+
+## RAG 包含三条相连的数据流
+
+只看“问题 → 向量搜索 → 回答”会漏掉大部分系统。为了观察每一步的责任，可以把固定 RAG 分成知识生产、在线检索和证据进入生成三条流。
 
 ### 知识生产：先让资料成为可检索对象
 
@@ -59,13 +92,33 @@ RAG 是 Retrieval-Augmented Generation，中文通常称为检索增强生成：
 
 这条链路决定资料是否完整进入系统、来源位置是否保留、更新后能否区分版本。文件上传成功不等于知识已经可用；解析为空、切分破坏语义或来源丢失，都会让后面的检索失去基础。
 
-### 在线回答：再为当前任务寻找证据
+### 在线检索：为当前任务寻找候选
 
 ```text
-待评审需求与问题
+待评审需求 + 评审问题 + knowledge scope
 → Retriever 查询受控知识
 → 返回候选 Chunk 和检索诊断
-→ Context Builder 选择本轮材料
+```
+
+Retriever 的职责是寻找可能相关的候选。表示、匹配、排名、过滤和多路融合都发生在“找候选”这件事里，但它们不是同一个动作：
+
+```text
+内容表示
+→ 查询与候选匹配
+→ 每路候选排名
+→ 范围过滤与阈值淘汰
+→ 多路排名融合
+→ 最终候选集
+```
+
+这里先记住各环节的位置。Embedding、lexical / dense 区别、分数方向、PostgreSQL FTS、pgvector 和 RRF 会在后续机制篇中分别观察。
+
+### 证据进入生成：决定模型真正看到什么
+
+```text
+Target Requirement + Retrieval Hit
+→ Context Builder 按角色、预算和去重规则选择材料
+→ Context Source + Context Build Report
 → LLM 生成结构化风险
 → 应用校验结果并展示来源候选
 ```
@@ -77,6 +130,20 @@ RAG 是 Retrieval-Augmented Generation，中文通常称为检索增强生成：
 - **模型结果**：模型根据任务和最终上下文生成的分析。
 
 候选被检索到，不代表一定进入上下文；进入上下文，也不代表模型一定正确使用。把三者分开，失败时才知道应该检查 Retriever、Context Builder 还是生成链路。
+
+## RAG 质量不是一个准确率
+
+从文件进入系统到风险结论出现，至少有五个逐层收紧的问题：
+
+| 质量判断 | 要回答的问题 | 典型失败 |
+| --- | --- | --- |
+| 可解析 | 文件内容是否完整、按合理顺序进入系统 | PDF 没有文本层、表格或否定条件丢失 |
+| 可检索 | 内容是否成为带稳定身份和范围的候选单元 | Chunk 缺少来源、索引未更新 |
+| 相关 | Retriever 是否把正确候选排进可用范围 | 同义改写召回失败、旧规则排名过高 |
+| 可进入上下文 | 正确候选是否在预算和角色约束下进入模型输入 | top-k、去重或预算丢掉关键规则 |
+| 能支撑结论 | 上下文内容是否真的足以支持当前风险结论 | 只有相似措辞，没有对应事实或条件 |
+
+前一层成功只是后一层的必要条件，不是充分条件。文件解析成功不能证明检索正确；相似度高不能证明材料支持结论；模型输出了来源编号也不能证明 Citation 有效。因此，V0 必须保留分层诊断，V1 才继续完成 Citation 支持性和证据充分性校验。
 
 ## 外部知识不只有 RAG 一种接入方式
 
@@ -225,6 +292,17 @@ RAG 是阶段一的主线能力，但不同版本承担不同责任：
 
 当前第 7 步只建立选择和边界判断。文档加载、Chunk、Embedding、PostgreSQL FTS、pgvector、RRF 与 Retrieval 诊断会由后续机制篇分别解释并通过真实实验观察。
 
+第三段后续内容沿着刚才的三条流展开：
+
+```text
+第 8–9 步：File Artifact → Knowledge Document → Document Element → Chunk
+第 10–14 步：Chunk → lexical / dense candidate → RRF → Retrieval Result
+第 15 步：Retrieval Result → Context Source + Context Build Report
+第 16 步：Context → structured Review Result + Sources / Citation Candidate
+```
+
+这张导航只说明每一步接管哪个问题，不替代 [标准学习路径](../learning-path.md) 的阅读顺序。
+
 ## 常见误解
 
 ### “接入向量数据库就完成了 RAG”
@@ -271,5 +349,6 @@ RAG 是阶段一的主线能力，但不同版本承担不同责任：
 5. 固定 RAG 与 Agentic RAG 的决定权有什么不同？
 6. 一条正确规则没有出现在最终答案中，应该按什么顺序定位？
 7. RAG 为什么不能自动证明 Citation 正确？
+8. 可解析、相关和能支撑结论为什么是三种不同的质量判断？
 
 完成后回到 [标准学习路径](../learning-path.md)，由唯一课表决定后续内容。

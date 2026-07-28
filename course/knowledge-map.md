@@ -84,7 +84,7 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | RAG 问题空间与完整链路 | 概念 | 主线 | V0 | LLM 应用问题空间与能力边界 | [阅读正文](concepts/rag-and-external-knowledge.md) | 后续 `rag_core` | 已落地 |
 | 固定 RAG、搜索、数据库与 Agent 的边界 | 概念 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](concepts/rag-and-external-knowledge.md) | 后续 `rag_core` | 已落地 |
-| TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | `mechanisms/document-loading-and-cleaning.md` | 后续 `rag_core/ingestion` | 待编写 |
+| TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](mechanisms/document-loading-and-cleaning.md) | `rag_core/ingestion`、`rag_ingestion_lab` | 已落地 |
 | 复杂文档与多模态知识生产边界 | 概念 | 支撑 | V1 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | `concepts/multimodal-knowledge-production.md` | 无项目实现 | 待编写 |
 | 扫描 PDF、图片 OCR/VLM 与 Markdown 归一化 | 机制 | 支撑 | V1 | 复杂文档与多模态知识生产边界 | `mechanisms/ocr-vlm-normalization.md` | 后续按需扩展 ingestion demo | 待编写 |
 | 图片理解与音频 ASR 归一化 | 机制 | 支撑 | V3 | 复杂文档与多模态知识生产边界 | `mechanisms/image-audio-normalization.md` | 后续多模态对照 demo | 待编写 |

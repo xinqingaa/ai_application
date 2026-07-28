@@ -67,7 +67,7 @@ V0 要回答：
 
 7. **[RAG 与外部知识的边界](concepts/rag-and-external-knowledge.md)** · 可学习
    区分模型已有知识、搜索、数据库查询、固定 RAG 和 Agentic RAG。
-8. **TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留** · 待编写
+8. **[TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留](mechanisms/document-loading-and-cleaning.md)** · 可学习
    支持真实需求资料，并保留文件、章节、页码或段落等来源位置。
 9. **Chunking、父子块与 Metadata** · 待编写
    理解切分怎样影响召回、引用和后续更新。

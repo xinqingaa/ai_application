@@ -73,8 +73,11 @@ review_assistant/
 当前目录尚未形成独立产品运行入口。已有通用能力和学习期实验分别位于：
 
 - `source/packages/llm_core/`
+- `source/packages/rag_core/`（当前已实现文档加载、清洗和来源定位）
 - `source/demos/`
 - `source/apps/llm_streaming_api/`
+
+V0 受控格式对照 fixtures 已经位于 `fixtures/v0/ingestion/`，供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF 和稳定失败路径。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
 产品入口落地后，本节应替换为真实的安装、配置、启动、测试和验证命令，不保留占位命令或模拟成功结果。
 

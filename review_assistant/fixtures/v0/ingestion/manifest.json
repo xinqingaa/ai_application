@@ -1,0 +1,53 @@
+{
+  "fixture_kind": "synthetic_controlled_format_comparison",
+  "comparison_mode": "mutually_exclusive_representations",
+  "canonical_source": "canonical_content.json",
+  "documents": [
+    {
+      "path": "order_rules.txt",
+      "document_id": "KR-ORDER-STATE",
+      "document_version": "1.0.0",
+      "source_role": "reference_knowledge",
+      "evidence_eligibility": "current_evidence"
+    },
+    {
+      "path": "order_rules.md",
+      "document_id": "KR-ORDER-STATE",
+      "document_version": "1.0.0",
+      "source_role": "reference_knowledge",
+      "evidence_eligibility": "current_evidence"
+    },
+    {
+      "path": "order_rules.docx",
+      "document_id": "KR-ORDER-STATE",
+      "document_version": "1.0.0",
+      "source_role": "reference_knowledge",
+      "evidence_eligibility": "current_evidence"
+    },
+    {
+      "path": "order_rules.pdf",
+      "document_id": "KR-ORDER-STATE",
+      "document_version": "1.0.0",
+      "source_role": "reference_knowledge",
+      "evidence_eligibility": "current_evidence"
+    }
+  ],
+  "failure_cases": [
+    {
+      "path": "image_only_scan.pdf",
+      "expected_error": "pdf_text_layer_missing"
+    },
+    {
+      "path": "damaged.docx",
+      "expected_error": "document_parse_failed"
+    },
+    {
+      "path": "invalid_encoding.txt",
+      "expected_error": "text_decode_failed"
+    },
+    {
+      "path": "empty.md",
+      "expected_error": "empty_document"
+    }
+  ]
+}

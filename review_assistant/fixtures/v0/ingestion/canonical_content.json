@@ -1,0 +1,19 @@
+{
+  "title": "After-sale entry and order status",
+  "sections": [
+    {
+      "heading": "Current order-state rules",
+      "facts": [
+        "Only paid and completed orders may request after-sale service.",
+        "Virtual goods are excluded from the after-sale flow."
+      ]
+    },
+    {
+      "heading": "API and client constraints",
+      "facts": [
+        "After-sale API v2 requires source_channel.",
+        "The Flutter client must use the same entry visibility rules."
+      ]
+    }
+  ]
+}
