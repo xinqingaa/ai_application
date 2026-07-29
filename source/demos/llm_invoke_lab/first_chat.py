@@ -12,10 +12,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 import time
 from pathlib import Path
 
+from app_log import add_log_arguments, configure_from_args, console
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -40,10 +40,10 @@ def require_api_key() -> str:
     api_key = os.environ.get("OPENAI_API_KEY", "").strip()
     if api_key:
         return api_key
-    print("错误：未配置 OPENAI_API_KEY。", file=sys.stderr)
-    print("请在仓库根目录复制 .env.example 为 .env 并填写 Key：", file=sys.stderr)
-    print(f"  cp {REPO_ROOT / '.env.example'} {REPO_ROOT / '.env'}", file=sys.stderr)
-    sys.exit(1)
+    console.error("未配置 OPENAI_API_KEY")
+    console.error("请在仓库根目录复制 .env.example 为 .env 并填写 Key")
+    console.error(f"cp {REPO_ROOT / '.env.example'} {REPO_ROOT / '.env'}")
+    raise SystemExit(1)
 
 
 def load_sample(sample_id: str) -> dict:
@@ -51,8 +51,8 @@ def load_sample(sample_id: str) -> dict:
     by_id = {s["id"]: s for s in samples}
     if sample_id not in by_id:
         valid = ", ".join(sorted(by_id))
-        print(f"错误：未知样例 {sample_id!r}，可选：{valid}", file=sys.stderr)
-        sys.exit(1)
+        console.error(f"未知样例 {sample_id!r}，可选：{valid}")
+        raise SystemExit(1)
     return by_id[sample_id]
 
 
@@ -81,11 +81,13 @@ def parse_args() -> argparse.Namespace:
         default=0.0,
         help="采样温度（默认 0，便于对比实验）",
     )
+    add_log_arguments(parser)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    configure_from_args(args)
     find_and_load_env()
     api_key = require_api_key()
 
@@ -97,11 +99,12 @@ def main() -> None:
 
     client = OpenAI(api_key=api_key, base_url=base_url)
 
-    print(f"sample: {sample['id']} ({sample['type']}) — {sample['summary']}")
-    print(f"model: {model}  temperature: {args.temperature}")
+    console.title("First Chat", "OpenAI SDK direct-call baseline")
+    console.field("sample", f"{sample['id']} ({sample['type']}) — {sample['summary']}")
+    console.field("model", model)
+    console.field("temperature", args.temperature)
     if base_url:
-        print(f"base_url: {base_url}")
-    print("-" * 60)
+        console.field("base_url", base_url)
 
     t0 = time.perf_counter()
     resp = client.chat.completions.create(
@@ -114,10 +117,11 @@ def main() -> None:
     content = resp.choices[0].message.content or ""
     usage = resp.usage
 
-    print("model (response):", resp.model)
+    console.section("Response")
+    console.field("model", resp.model)
     if usage:
-        print(
-            "usage:",
+        console.field(
+            "usage",
             {
                 "prompt_tokens": usage.prompt_tokens,
                 "completion_tokens": usage.completion_tokens,
@@ -125,11 +129,9 @@ def main() -> None:
             },
         )
     else:
-        print("usage: (not provided)")
-    print("latency_ms:", round(latency_ms, 1))
-    print("-" * 60)
-    print("content preview:")
-    print(content[:300] + ("..." if len(content) > 300 else ""))
+        console.field("usage", "(not provided)")
+    console.field("latency_ms", round(latency_ms, 1))
+    console.text("content preview", content[:300] + ("..." if len(content) > 300 else ""))
 
 
 if __name__ == "__main__":

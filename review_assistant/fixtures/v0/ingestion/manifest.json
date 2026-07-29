@@ -35,19 +35,40 @@
   "failure_cases": [
     {
       "path": "image_only_scan.pdf",
+      "expected_stage": "empty_content",
       "expected_error": "pdf_text_layer_missing"
     },
     {
       "path": "damaged.docx",
+      "expected_stage": "parse",
       "expected_error": "document_parse_failed"
     },
     {
       "path": "invalid_encoding.txt",
+      "expected_stage": "parse",
       "expected_error": "text_decode_failed"
     },
     {
       "path": "empty.md",
+      "expected_stage": "empty_content",
       "expected_error": "empty_document"
+    }
+  ],
+  "warning_cases": [
+    {
+      "path": "reading_order_columns.pdf",
+      "expected_warning": "pdf_reading_order_not_guaranteed",
+      "visual_first": "LEFT-COLUMN-FIRST",
+      "extracted_first": "RIGHT-COLUMN-FIRST"
+    }
+  ],
+  "cleaning_cases": [
+    {
+      "path": "cleaning_probe.md",
+      "document_id": "CLEANING-PROBE",
+      "document_version": "1.0.0",
+      "source_role": "reference_knowledge",
+      "evidence_eligibility": "ineligible"
     }
   ]
 }

@@ -7,9 +7,9 @@ llm_invoke_lab — 同一任务的多版 Prompt 对比实验（学习路径步�
 
 from __future__ import annotations
 
+from app_log import configure_logging, console
 from llm_core import LLMClient
 from llm_core.errors import LLMError, LLMErrorCode
-from llm_core.observability import demo_log
 from llm_core.prompts import get_prompt, render_prompt
 
 from _shared import (
@@ -33,10 +33,11 @@ EVIDENCE_FILE = DEMO_DIR / "evidence_s2.json"
 
 
 def main() -> None:
+    configure_logging(log_format="verbose" if VERBOSE else "compact")
     find_and_load_env()
-    require_api_key(demo_log)
+    require_api_key(console)
 
-    sample = load_sample(SAMPLE_ID, demo_log)
+    sample = load_sample(SAMPLE_ID, console)
     evidence_block = load_evidence_block(EVIDENCE_FILE)
     variables = {
         "requirement_text": sample["user_content"],
@@ -47,7 +48,7 @@ def main() -> None:
     chat_kwargs: dict = {"temperature": TEMPERATURE}
 
     log_experiment_header(
-        demo_log,
+        console,
         sample=sample,
         prompt=PROMPT_ID,
         versions=", ".join(PROMPT_VERSIONS),
@@ -69,7 +70,7 @@ def main() -> None:
             config = client.get_config(tpl.model_config_ref)
             merged = {**config.default_params, **chat_kwargs, "model": config.model}
             log_chat_result(
-                demo_log,
+                console,
                 label,
                 response,
                 verbose=VERBOSE,
@@ -77,13 +78,13 @@ def main() -> None:
                 params=merged if VERBOSE else None,
             )
         except KeyError as exc:
-            log_chat_result(demo_log, label, LLMError(LLMErrorCode.UNKNOWN, str(exc)))
+            log_chat_result(console, label, LLMError(LLMErrorCode.UNKNOWN, str(exc)))
         except ValueError as exc:
-            log_chat_result(demo_log, label, LLMError(LLMErrorCode.UNKNOWN, str(exc)))
+            log_chat_result(console, label, LLMError(LLMErrorCode.UNKNOWN, str(exc)))
         except LLMError as exc:
-            log_chat_result(demo_log, label, exc)
+            log_chat_result(console, label, exc)
 
-    demo_log.hint(
+    console.hint(
         "固定 SAMPLE_ID 与 TEMPERATURE，只换 PROMPT_VERSIONS；"
         "在笔记中记录：是否更少编造、结构是否更稳、v3 JSON 是否可解析。"
     )

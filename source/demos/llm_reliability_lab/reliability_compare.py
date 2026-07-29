@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app_log import configure_logging, console
 from dotenv import load_dotenv
 
 from llm_core import (
@@ -66,6 +67,7 @@ MESSAGES = [
 
 
 def main() -> None:
+    configure_logging(log_format="verbose" if PRINT_MESSAGES else "compact")
     find_and_load_env()
 
     if USE_REAL_LLM:
@@ -221,62 +223,74 @@ def _make_case(case_id: str) -> DemoCase:
 
 
 def _print_case(case_id: str, description: str) -> None:
-    print("\n[case]")
-    print(f"  [id] {case_id}")
-    print(f"  [description] {description}")
+    console.section("case")
+    console.field("id", case_id, indent=1)
+    console.field("description", description, indent=1)
 
 
 def _print_call_plan(retry_policy: RetryPolicy, degradation_policy: DegradationPolicy) -> None:
-    print("\n[call_plan]")
-    print(f"  [primary] {PRIMARY_CONFIG_REF}")
-    print(f"  [fallbacks] {_join_or_dash(degradation_policy.fallback_config_refs)}")
-    print(f"  [max_attempts_per_config] {retry_policy.max_attempts}")
-    print(f"  [retryable_errors] {_join_or_dash(error.value for error in retry_policy.retryable_errors)}")
-    print(f"  [fallback_on_errors] {_join_or_dash(error.value for error in degradation_policy.fallback_on_errors)}")
+    console.section("call plan")
+    console.field("primary", PRIMARY_CONFIG_REF, indent=1)
+    console.field("fallbacks", _join_or_dash(degradation_policy.fallback_config_refs), indent=1)
+    console.field("max_attempts_per_config", retry_policy.max_attempts, indent=1)
+    console.field(
+        "retryable_errors",
+        _join_or_dash(error.value for error in retry_policy.retryable_errors),
+        indent=1,
+    )
+    console.field(
+        "fallback_on_errors",
+        _join_or_dash(error.value for error in degradation_policy.fallback_on_errors),
+        indent=1,
+    )
 
 
 def _print_messages() -> None:
     if not PRINT_MESSAGES:
         return
-    print("\n[messages]")
+    console.section("messages")
     for index, message in enumerate(MESSAGES, start=1):
-        print(f"  [{index}] role={message['role']}")
-        print(f"      {message['content']}")
+        console.field(str(index), f"role={message['role']}", indent=1)
+        console.print(f"      {message['content']}")
 
 
 def _print_result(result: ReliableCallResult[Any]) -> None:
-    print("\n[attempts]")
+    console.section("attempts")
     for attempt in result.report.attempts:
         if attempt.ok:
-            print(
+            console.success(
                 f"  [{attempt.attempt_number}] config={attempt.config_ref} "
                 f"status=success latency_ms={attempt.latency_ms:.1f}"
             )
         else:
             message = f" message={attempt.message}" if PRINT_ATTEMPT_DETAIL and attempt.message else ""
-            print(
+            console.warning(
                 f"  [{attempt.attempt_number}] config={attempt.config_ref} "
                 f"status=failed code={attempt.error_code.value if attempt.error_code else 'unknown'}{message}"
             )
 
-    print("\n[final]")
+    console.section("final")
     if result.ok and result.output is not None:
         answer = getattr(result.output, "content", None)
         if answer is None and hasattr(result.output, "llm"):
             answer = result.output.llm.content
-        print("  [status] success")
-        print(f"  [final_config] {result.report.final_config_ref}")
-        print(f"  [degraded] {str(result.report.degraded).lower()}")
-        print(f"  [answer] {answer}")
+        console.success("status · success")
+        console.field("final_config", result.report.final_config_ref, indent=1)
+        console.field("degraded", str(result.report.degraded).lower(), indent=1)
+        console.text("answer", str(answer), indent=1)
     else:
-        print("  [status] failed")
-        print(f"  [final_error] {result.report.final_error_code.value if result.report.final_error_code else 'unknown'}")
-        print(f"  [message] {result.report.final_message or '—'}")
+        console.error("status · failed")
+        console.field(
+            "final_error",
+            result.report.final_error_code.value if result.report.final_error_code else "unknown",
+            indent=1,
+        )
+        console.field("message", result.report.final_message or "—", indent=1)
 
 
 def _print_lesson(text: str) -> None:
-    print("\n[lesson]")
-    print(f"  {text}")
+    console.section("lesson")
+    console.hint(text)
 
 
 def _join_or_dash(values: Any) -> str:

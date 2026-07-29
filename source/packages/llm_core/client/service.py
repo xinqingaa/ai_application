@@ -7,9 +7,9 @@ from typing import Any, Optional
 
 from pydantic import BaseModel
 
+from app_log import get_logger
 from llm_core.config import LLMResponse, ModelConfig
 from llm_core.errors import LLMError, LLMErrorCode
-from llm_core.observability import demo_log, render_call_log
 from llm_core.providers.registry import ConfigRegistry
 from llm_core.schemas.review import ReviewRiskList
 from llm_core.streaming import LLMStreamEvent, StreamEventBuilder
@@ -20,6 +20,8 @@ from llm_core.structured import (
     merge_chat_request_params,
     parse_structured_content,
 )
+
+log = get_logger("llm_core.client")
 
 
 class LLMClient:
@@ -63,7 +65,18 @@ class LLMClient:
 
         if debug:
             merged = {**config.default_params, **params, "model": config.model}
-            render_call_log(demo_log, messages, merged, response)
+            log.debug(
+                "llm.call_detail",
+                "模型调用详情",
+                config_ref=response.config_ref,
+                provider=response.provider,
+                model=response.model,
+                latency_ms=round(response.latency_ms, 1),
+                request_params=merged,
+                messages=messages,
+                assistant_content=response.content,
+                usage=response.usage,
+            )
 
         return response
 

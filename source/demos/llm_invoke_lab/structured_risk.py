@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from typing import Literal
 
+from app_log import configure_logging, console
 from llm_core import LLMClient
 from llm_core.errors import LLMError
-from llm_core.observability import demo_log, render_experiment_messages_once
 from llm_core.prompts import get_prompt, render_prompt
 from llm_core.schemas.review import ReviewRiskList
 from llm_core.structured import StructuredMode, build_response_format, merge_chat_request_params
@@ -23,6 +23,7 @@ from _shared import (
     load_sample,
     log_experiment_header,
     log_structured_mode_result,
+    render_experiment_messages_once,
     require_api_key,
 )
 
@@ -68,10 +69,11 @@ def _request_params_for_mode(
 
 
 def main() -> None:
+    configure_logging(log_format="verbose" if VERBOSE else "compact")
     find_and_load_env()
-    require_api_key(demo_log)
+    require_api_key(console)
 
-    sample = load_sample(SAMPLE_ID, demo_log)
+    sample = load_sample(SAMPLE_ID, console)
     client = LLMClient.from_default_config()
     config = client.get_config(CONFIG_REF)
     chat_kwargs = {"temperature": TEMPERATURE}
@@ -86,7 +88,7 @@ def main() -> None:
     messages = render_prompt(tpl, variables)
 
     log_experiment_header(
-        demo_log,
+        console,
         sample=sample,
         prompt=f"{PROMPT_ID}@{PROMPT_VERSION}",
         config_ref=CONFIG_REF,
@@ -96,7 +98,7 @@ def main() -> None:
         evidence_file=EVIDENCE_FILE,
     )
     if VERBOSE:
-        render_experiment_messages_once(demo_log, messages)
+        render_experiment_messages_once(console, messages)
 
     for mode in MODES:
         structured_mode = _structured_mode(mode)
@@ -111,7 +113,7 @@ def main() -> None:
             )
         except LLMError as exc:
             log_structured_mode_result(
-                demo_log,
+                console,
                 mode,
                 structured_mode=structured_mode,
                 error=exc,
@@ -121,7 +123,7 @@ def main() -> None:
             continue
 
         log_structured_mode_result(
-            demo_log,
+            console,
             mode,
             structured_mode=structured_mode,
             result=result,

@@ -45,6 +45,8 @@ print(result.report.warnings)
 
 调用者提供稳定的业务 `document_id` 和 `document_version`；Loader 计算物理文件内容哈希。数据库自增 ID 和文件名都不能替代业务身份。
 
+Loader 在读取完整字节前先通过文件状态检查 `max_file_bytes`，避免超限文件已经占用内存后才失败；读取后仍保留一次大小校验以防文件在检查与读取之间变化。
+
 ## 支持边界
 
 | 格式 | 当前保留的位置 | 明确边界 |
@@ -67,3 +69,5 @@ print(result.report.warnings)
 | `empty_content` | 空文档、图片页或扫描 PDF 的文本层 |
 
 主路径不返回 fake 文档，也不把失败格式当成空成功结果。
+
+终端颜色、表格、JSON Lines 和日志级别由全仓共享的 [`app_log`](../app_log/) 负责。`rag_core` 只返回领域结果、报告和错误，不直接决定终端布局。

@@ -259,7 +259,7 @@ State / Node / Edge
 | PostgreSQL FTS / pgvector 数据模型 | 机制 | 主线 | V0 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索、pgvector、Dense Retrieval 与向量索引 | `mechanisms/postgres-and-pgvector.md` | 产品 infra | 待编写 |
 | Redis、后台任务与入库状态 | 机制 | 主线 | V4 | 内容识别、格式检测与解析路由、最小结构还原、清洗与来源保留、Checkpoint、Interrupt 与 Resume | `mechanisms/background-jobs.md` | 产品 infra | 待编写 |
 | Docker Compose 本地部署 | 机制 | 主线 | V6 | 产品入口 | `mechanisms/docker-compose.md` | 产品 infra | 待编写 |
-| 日志、Metrics 与工程观测 | 机制 | 主线 | V2 | Trace、Span 与 Run 关联 | `mechanisms/logging-and-metrics.md` | 产品 app / infra | 待编写 |
+| 日志、Metrics 与工程观测 | 机制 | 主线 | V2 | Trace、Span 与 Run 关联 | `mechanisms/logging-and-metrics.md` | `app_log` + 后续产品 app / infra | 待编写 |
 | 文件、对象存储与数据生命周期 | 机制 | 支撑 | V6 | 内容识别、格式检测与解析路由、最小结构还原、清洗与来源保留、文档版本、更新、删除一致性与 Citation 失效 | `mechanisms/file-storage.md` | 产品 infra | 待编写 |
 | Kubernetes、灰度、多租户与权限中台 | 概念 | 未来认知 | 未来 | Docker Compose 本地部署、日志、Metrics 与工程观测 | 无当前正文 | 无当前实现 | 未来认知 |
 

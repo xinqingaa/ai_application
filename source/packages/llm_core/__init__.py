@@ -38,7 +38,6 @@ from llm_core.harness import (
     format_records_table,
     format_summary,
 )
-from llm_core.observability import DemoLog, demo_log, format_call_log, print_call_log
 from llm_core.prompts import PromptTemplate, get_prompt, list_prompt_versions, render_prompt
 from llm_core.reliability import (
     DegradationPolicy,
@@ -127,9 +126,5 @@ __all__ = [
     "encode_sse",
     "ConversationBuffer",
     "ConversationMessage",
-    "DemoLog",
-    "demo_log",
-    "format_call_log",
-    "print_call_log",
     "__version__",
 ]

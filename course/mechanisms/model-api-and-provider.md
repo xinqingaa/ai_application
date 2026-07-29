@@ -78,7 +78,7 @@ text = resp.choices[0].message.content
 
 **第 5 步 · `LLMClient` + `LLMResponse`**
 
-`LLMClient.chat(messages, config_ref)` 完成：查配置 → 选 Provider → 发请求 → 包装 `LLMResponse`；可选 `debug=True` 打印完整日志。  
+`LLMClient.chat(messages, config_ref)` 完成：查配置 → 选 Provider → 发请求 → 包装 `LLMResponse`；可选 `debug=True` 向全仓共享 `app_log` 发出调用详情事件，只有启用 DEBUG / verbose 时才显示完整内容。
 RAG、Agent、结构化输出（结构化输出）都通过同一入口扩展，而不是再 copy 一份 `OpenAI()`。
 
 ```text

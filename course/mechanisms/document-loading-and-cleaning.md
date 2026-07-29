@@ -213,6 +213,8 @@ DOCX 通常比 PDF 更容易读取逻辑段落，但并不天然等于纯文本�
 
 每次实际发生的变化会写入 `cleaning_actions`，再汇总到 `LoadReport`。看到文本变化时，使用者可以判断变化来自 Parser 还是清洗规则。
 
+实验中的 `cleaning_probe.md` 固定包含不换行空格、分解形式 Unicode、多余空行和外层空白。verbose 输出会同时展示清洗前对应的输入特征、规范化文本和 actions；测试还会确认业务文本与段内换行没有被破坏。这样“确定性”不只表示代码没有调用模型，也表示每一类变化都能被观察和回归。
+
 下面这些操作看似让文本更整齐，实际会破坏知识：
 
 | 操作 | 风险 |
@@ -340,7 +342,13 @@ document_id
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py
 ```
 
-不要只检查有没有输出。按下面的问题观察：
+默认终端使用摘要表，只保留四种格式的元素数量、locator 类型、warning 和最终统计，避免大段元素文本淹没格式差异。需要查看每个元素、稳定 ID、完整 locator 和 cleaning actions 时运行：
+
+```bash
+uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --verbose
+```
+
+不要只检查命令是否成功。按下面的问题观察：
 
 1. 四个文件分别选择了哪个格式 Parser？
 2. TXT、Markdown、DOCX 和 PDF 分别恢复了哪些元素类型？
@@ -363,7 +371,9 @@ uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --include-failures
 ```
 
-当前实验固定四种失败：
+实验会先展示一个可重复的双栏 PDF 阅读顺序对照：视觉左栏应先读，但 fixture 故意先把右栏写入 PDF 内容流，抽取结果因此先出现右栏。这使 reading-order warning 对应到真实可见差异，而不只是一条固定提示。
+
+随后固定四种失败：
 
 | 输入 | stage | code | 优先判断 |
 | --- | --- | --- | --- |
@@ -371,6 +381,8 @@ uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --include-fail
 | 损坏 DOCX | `parse` | `document_parse_failed` | 容器内部 OOXML 无法解析 |
 | 非 UTF-8 TXT | `parse` | `text_decode_failed` | 编码契约不匹配 |
 | 无有效内容 Markdown | `empty_content` | `empty_document` | 文件存在但没有可继续处理的元素 |
+
+manifest 同时冻结 expected stage 和 expected code。任意一项不匹配，或失败样例意外成功，实验都会返回非零退出码，不能用“打印了错误信息”代替失败契约成立。
 
 错误类型定义在 [`ingestion/errors.py`](../../source/packages/rag_core/ingestion/errors.py)。建议按数据流定位：
 

@@ -14,7 +14,7 @@ SDK 直调对照     first_chat.py
 
 ## 本 lab 调用面
 
-允许：`LLMClient.chat` / `chat_structured`、`prompts`、`structured`、`schemas`、`errors`、`observability`、直调 OpenAI SDK（仅 `first_chat.py`）。
+允许：`LLMClient.chat` / `chat_structured`、`prompts`、`structured`、`schemas`、`errors`、全仓共享 `app_log`、直调 OpenAI SDK（仅 `first_chat.py`）。
 
 不调用：`context`、`harness`、`reliability`、`streaming`、`conversation`、`cache`、`costing`。
 
@@ -110,7 +110,9 @@ SDK 直调基线。观察缺少统一 `config_ref` / `LLMResponse` 时，业务�
 
 ## 输出怎么看
 
-`provider_switching` / `prompt_compare` / `structured_risk` 经 `DemoLog` 输出 `[tag]` 块。
+`provider_switching` / `prompt_compare` / `structured_risk` 使用全仓共享的
+[`app_log`](../../packages/app_log/) 输出带颜色的结构化区块；完整请求与响应只在
+verbose 模式显示。
 
 | tag / 字段 | 含义 |
 | --- | --- |

@@ -10,13 +10,9 @@ from typing import Any, Optional
 
 from dotenv import load_dotenv
 
+from app_log import AppConsole, console
 from llm_core.config import LLMResponse
 from llm_core.errors import LLMError
-from llm_core.observability import (
-    DemoLog,
-    demo_log,
-    render_structured_mode_verbose,
-)
 from llm_core.schemas.review import ReviewRisk
 from llm_core.structured import StructuredLLMResponse
 
@@ -33,7 +29,7 @@ def find_and_load_env() -> None:
         load_dotenv()
 
 
-def require_api_key(log: DemoLog = demo_log) -> None:
+def require_api_key(log: AppConsole = console) -> None:
     if os.environ.get("OPENAI_API_KEY", "").strip():
         return
     log.error("error", "未配置 OPENAI_API_KEY。")
@@ -42,7 +38,7 @@ def require_api_key(log: DemoLog = demo_log) -> None:
     sys.exit(1)
 
 
-def load_sample(sample_id: str, log: DemoLog = demo_log) -> dict:
+def load_sample(sample_id: str, log: AppConsole = console) -> dict:
     samples = json.loads(SAMPLES_PATH.read_text(encoding="utf-8"))
     by_id = {s["id"]: s for s in samples}
     if sample_id not in by_id:
@@ -60,7 +56,7 @@ def load_evidence_block(path: Path) -> str:
 
 
 def log_experiment_header(
-    log: DemoLog,
+    log: AppConsole,
     *,
     sample: dict,
     temperature: Optional[float] = None,
@@ -99,7 +95,7 @@ def _shorten(value: str, *, limit: int = 120) -> str:
     return f"{text[:limit]}..."
 
 
-def log_review_risk(log: DemoLog, index: int, risk: ReviewRisk, *, indent: int = 2) -> None:
+def log_review_risk(log: AppConsole, index: int, risk: ReviewRisk, *, indent: int = 2) -> None:
     """Print one parsed ReviewRisk with all fields and shortened long values."""
     log.field(f"risk {index}", None, indent=indent)
     log.field("title", _shorten(risk.title, limit=80), indent=indent + 1)
@@ -118,7 +114,7 @@ def log_review_risk(log: DemoLog, index: int, risk: ReviewRisk, *, indent: int =
 
 
 def log_chat_result(
-    log: DemoLog,
+    log: AppConsole,
     label: str,
     item: LLMResponse | LLMError,
     *,
@@ -138,9 +134,7 @@ def log_chat_result(
     log.field("latency_ms", round(item.latency_ms, 1), indent=1)
     log.field("tokens", tokens, indent=1)
     if verbose and messages is not None and params is not None:
-        from llm_core.observability import render_call_log
-
-        render_call_log(log, messages, params, item)
+        render_call_detail(log, messages, params, item)
     else:
         log.text("content", item.content, indent=1)
     log.blank()
@@ -154,7 +148,7 @@ def _parse_summary(result: StructuredLLMResponse) -> str:
 
 
 def log_structured_mode_result(
-    log: DemoLog,
+    log: AppConsole,
     mode: str,
     *,
     structured_mode: str,
@@ -209,3 +203,67 @@ def log_structured_mode_result(
             log.text("parse_error", parse.message, indent=1)
 
     log.blank()
+
+
+def render_experiment_messages_once(
+    log: AppConsole,
+    messages: list[dict[str, str]],
+) -> None:
+    log.text("messages", _format_messages(messages), indent=1)
+    log.blank()
+
+
+def render_structured_mode_verbose(
+    log: AppConsole,
+    *,
+    request_params: dict[str, Any],
+    response: LLMResponse,
+    parse_result: str,
+) -> None:
+    log.text(
+        "request_params",
+        json.dumps(request_params, ensure_ascii=False, indent=2),
+        indent=1,
+    )
+    log.text("assistant_raw", response.content, indent=1)
+    log.text("usage", _format_usage(response), indent=1)
+    log.field("parse_result", parse_result, indent=1)
+
+
+def render_call_detail(
+    log: AppConsole,
+    messages: list[dict[str, str]],
+    params: dict[str, Any],
+    response: LLMResponse,
+) -> None:
+    log.section("call detail")
+    log.field("config_ref", response.config_ref, indent=1)
+    log.field("provider", response.provider, indent=1)
+    log.field("model", response.model, indent=1)
+    log.field("latency_ms", round(response.latency_ms, 1), indent=1)
+    log.text("request_params", json.dumps(params, ensure_ascii=False, indent=2), indent=1)
+    log.text("messages", _format_messages(messages), indent=1)
+    log.text("assistant_content", response.content, indent=1)
+    log.text("usage", _format_usage(response), indent=1)
+
+
+def _format_messages(messages: list[dict[str, str]]) -> str:
+    lines: list[str] = []
+    for index, message in enumerate(messages, start=1):
+        lines.append(f"--- message {index} [{message.get('role', '?')}] ---")
+        lines.append(message.get("content", ""))
+    return "\n".join(lines)
+
+
+def _format_usage(response: LLMResponse) -> str:
+    if response.usage is None:
+        return "(not provided)"
+    return json.dumps(
+        {
+            "prompt_tokens": response.usage.prompt_tokens,
+            "completion_tokens": response.usage.completion_tokens,
+            "total_tokens": response.usage.total_tokens,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )

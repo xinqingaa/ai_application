@@ -14,6 +14,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+from app_log import configure_logging, console
 from dotenv import load_dotenv
 
 from llm_core import (
@@ -55,6 +56,7 @@ CONTEXT_FINGERPRINT = "ctx-review-rules-v1"
 
 
 def main() -> None:
+    configure_logging(log_format="compact")
     find_and_load_env()
     cases = [
         _case("S1", "售后入口", "订单详情页新增申请售后入口。"),
@@ -95,33 +97,33 @@ def main() -> None:
         context_fingerprint="ctx-review-rules-v2",
     )
 
-    print("\n[cost_latency]")
-    print(f"  [run_name] {config.run_name}")
-    print(f"  [mode] {'real_llm' if USE_REAL_LLM else 'fake'}")
-    print(f"  [cache] {'enabled' if ENABLE_CACHE else 'disabled'}")
-    print("  [price_source] learning estimate, not provider bill")
+    console.title("Cost / Latency / Cache", "Harness diagnostics")
+    console.field("run_name", config.run_name)
+    console.field("mode", "real_llm" if USE_REAL_LLM else "fake")
+    console.field("cache", "enabled" if ENABLE_CACHE else "disabled")
+    console.field("price_source", "learning estimate, not provider bill")
 
-    print("\n[records:cold]")
-    print(format_records_table(cold_records))
+    console.section("records · cold")
+    console.print(format_records_table(cold_records))
 
-    print("\n[summary:cold]")
+    console.section("summary · cold")
     for line in format_summary(_summary(cold_records)).splitlines():
-        print(f"  {line}")
+        console.print(f"  {line}")
 
-    print("\n[cache_rounds]")
+    console.section("cache rounds")
     _print_cache_stats("cold", CacheStats.from_events(cold_events))
     _print_cache_stats("repeat_same_input", CacheStats.from_events(repeat_events))
     _print_cache_stats("changed_context", CacheStats.from_events(changed_context_events))
 
-    print("\n[records:repeat]")
-    print(format_records_table(repeat_records))
+    console.section("records · repeat")
+    console.print(format_records_table(repeat_records))
 
-    print("\n[budget_shape]")
+    console.section("budget shape")
     _print_budget_shape(_summary(cold_records))
 
-    print("\n[lesson]")
-    print("  成本下降只说明调用更省；是否可信仍要看引用、结构化校验和后续 eval。")
-    print("  context_fingerprint 变化后 cache miss，是为了避免把旧证据下的结论复用到新材料。")
+    console.section("lesson")
+    console.hint("成本下降只说明调用更省；是否可信仍要看引用、结构化校验和后续 eval。")
+    console.hint("context_fingerprint 变化后 cache miss，是为了避免把旧证据下的结论复用到新材料。")
 
 
 def find_and_load_env() -> None:
@@ -194,7 +196,7 @@ def _summary(records: list[HarnessRunRecord]):
 
 def _print_cache_stats(label: str, stats: CacheStats) -> None:
     cost = "-" if stats.saved_estimated_cost is None else f"${stats.saved_estimated_cost:.6f}"
-    print(
+    console.print(
         "  "
         f"{label}: hit_rate={stats.hit_rate:.0%}, "
         f"hits={stats.hit_count}, misses={stats.miss_count}, "
@@ -205,10 +207,19 @@ def _print_cache_stats(label: str, stats: CacheStats) -> None:
 
 def _print_budget_shape(summary: Any) -> None:
     single_call_cost = summary.estimated_total_cost or 0
-    print(f"  single_structured_call: calls={summary.total}, estimated_cost=${single_call_cost:.6f}")
-    print(f"  context_enriched_call: calls={summary.total}, estimated_cost≈${single_call_cost * 1.4:.6f}")
-    print(f"  multi_step_review: calls≈{summary.total * 3}, estimated_cost≈${single_call_cost * 3:.6f}")
-    print("  这里只是预算形状估算；真实 RAG / Agent 链路进入后续课程。")
+    console.print(
+        f"  single_structured_call: calls={summary.total}, "
+        f"estimated_cost=${single_call_cost:.6f}"
+    )
+    console.print(
+        f"  context_enriched_call: calls={summary.total}, "
+        f"estimated_cost≈${single_call_cost * 1.4:.6f}"
+    )
+    console.print(
+        f"  multi_step_review: calls≈{summary.total * 3}, "
+        f"estimated_cost≈${single_call_cost * 3:.6f}"
+    )
+    console.hint("这里只是预算形状估算；真实 RAG / Agent 链路进入后续课程。")
 
 
 def _case(case_id: str, title: str, user_input: str) -> HarnessCase:

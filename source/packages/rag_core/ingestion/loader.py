@@ -53,7 +53,7 @@ def load_document(
         raise ValueError("Historical Material 不能直接标记为 current_evidence")
 
     loader_config = config or LoaderConfig()
-    artifact = _read_artifact(path)
+    artifact = _read_artifact(path, max_file_bytes=loader_config.max_file_bytes)
     if artifact.size_bytes > loader_config.max_file_bytes:
         raise IngestionError(
             code=IngestionErrorCode.FILE_TOO_LARGE,
@@ -133,17 +133,26 @@ def load_document(
     return LoadResult(artifact=artifact, document=document, report=report)
 
 
-def _read_artifact(path: str | Path) -> FileArtifact:
+def _read_artifact(path: str | Path, *, max_file_bytes: int) -> FileArtifact:
+    resolved = Path(path).expanduser().resolve()
     try:
-        return FileArtifact.from_path(path)
+        size_bytes = resolved.stat().st_size
     except FileNotFoundError as exc:
         raise IngestionError(
             code=IngestionErrorCode.FILE_NOT_FOUND,
             stage=IngestionStage.FORMAT_DETECTION,
             message="文件不存在",
-            filename=Path(path).name,
+            filename=resolved.name,
             raw=exc,
         ) from exc
+    if size_bytes > max_file_bytes:
+        raise IngestionError(
+            code=IngestionErrorCode.FILE_TOO_LARGE,
+            stage=IngestionStage.FORMAT_DETECTION,
+            message=f"文件大小 {size_bytes} 超过上限 {max_file_bytes}",
+            filename=resolved.name,
+        )
+    return FileArtifact.from_path(resolved)
 
 
 def _detect_format(artifact: FileArtifact) -> FileFormat:

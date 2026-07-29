@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app_log import configure_logging, console
 from dotenv import load_dotenv
 
 from llm_core import (
@@ -47,6 +48,7 @@ FALLBACK_CONFIG_REF = "chat.fallback_chat"
 
 
 def main() -> None:
+    configure_logging(log_format="compact")
     find_and_load_env()
     cases = [
         _case("S1", "售后入口", "订单详情页新增申请售后入口。"),
@@ -63,26 +65,25 @@ def main() -> None:
     )
     records, summary = harness.run_cases(cases, config)
 
-    print("\n[harness]")
-    print(f"  [run_name] {config.run_name}")
-    print(f"  [cases] {len(cases)}")
-    print(f"  [mode] {'real_llm' if USE_REAL_LLM else 'fake'}")
-    print(f"  [structured] {str(config.structured).lower()}")
+    console.title("Calling Harness", "Repeatable LLM comparison")
+    console.field("run_name", config.run_name)
+    console.field("cases", len(cases))
+    console.field("mode", "real_llm" if USE_REAL_LLM else "fake")
+    console.field("structured", str(config.structured).lower())
 
-    print("\n[records]")
-    print(format_records_table(records))
+    console.section("records")
+    console.print(format_records_table(records))
 
-    print("\n[summary]")
+    console.section("summary")
     for line in format_summary(summary).splitlines():
-        print(f"  {line}")
+        console.print(f"  {line}")
 
     if PRINT_RECORD_DETAIL:
-        print("\n[detail]")
+        console.section("detail")
         for record in records:
-            print(f"  [{record.case_id}] {record.content_preview or record.message or '-'}")
+            console.print(f"  [{record.case_id}] {record.content_preview or record.message or '-'}")
 
-    print("\n[lesson]")
-    print("  Harness 不判断答案是否绝对正确；它先把同一批 case 的调用结果记录成可对比事实。")
+    console.hint("Harness 不判断答案是否绝对正确；它先把同一批 case 的调用结果记录成可对比事实。")
 
 
 def find_and_load_env() -> None:

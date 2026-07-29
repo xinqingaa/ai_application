@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from app_log import configure_logging, console
 from dotenv import load_dotenv
 
 from llm_core import (
@@ -121,26 +122,26 @@ def _preview(text: str, *, limit: int = 1400) -> str:
 
 
 def _print_report(report: ContextBuildReport) -> None:
-    print(f"  [policy] {report.policy_name}")
-    print(f"  [token_budget] {report.token_budget}")
-    print(f"  [estimated_tokens] {report.estimated_tokens}")
-    print("  [section_tokens]")
+    console.print(f"  [policy] {report.policy_name}")
+    console.print(f"  [token_budget] {report.token_budget}")
+    console.print(f"  [estimated_tokens] {report.estimated_tokens}")
+    console.print("  [section_tokens]")
     for name, tokens in report.section_tokens.items():
-        print(f"    [{name}] {tokens}")
-    print(f"  [citation_candidates] {_ids(report.citation_source_ids)}")
-    print(f"  [compressed_sources] {_ids(report.compressed_source_ids)}")
-    print("  [dropped_sources]")
+        console.print(f"    [{name}] {tokens}")
+    console.print(f"  [citation_candidates] {_ids(report.citation_source_ids)}")
+    console.print(f"  [compressed_sources] {_ids(report.compressed_source_ids)}")
+    console.print("  [dropped_sources]")
     if not report.dropped_sources:
-        print("    —")
+        console.print("    —")
     for item in report.dropped_sources:
         title = f" ({item.title})" if item.title else ""
-        print(f"    {item.source_id}{title} reason={item.reason} tokens={item.estimated_tokens}")
-    print("  [warnings]")
+        console.print(f"    {item.source_id}{title} reason={item.reason} tokens={item.estimated_tokens}")
+    console.print("  [warnings]")
     if not report.warnings:
-        print("    —")
+        console.print("    —")
     for warning in report.warnings:
         suffix = f" source_id={warning.source_id}" if warning.source_id else ""
-        print(f"    {warning.code}: {warning.message}{suffix}")
+        console.print(f"    {warning.code}: {warning.message}{suffix}")
 
 
 def _print_context(
@@ -159,27 +160,27 @@ def _print_context(
     )
     assert context.report is not None
 
-    print(f"[strategy] {strategy}")
-    print("  [context_build]")
-    print(f"  [included_sources] {_ids(context.included_source_ids)}")
+    console.section(f"strategy · {strategy}")
+    console.print("  [context_build]")
+    console.print(f"  [included_sources] {_ids(context.included_source_ids)}")
     _print_report(context.report)
-    print("  [built_context_preview]")
+    console.print("  [built_context_preview]")
     context_text = context.context_block()
-    print(_indent(context_text if print_full_context else _preview(context_text)))
-    print()
+    console.print(_indent(context_text if print_full_context else _preview(context_text)))
+    console.blank()
 
     messages = _render_messages(context)
     if print_messages:
         _print_messages(messages)
-        print()
+        console.blank()
 
     if call_llm:
         _call_llm(context, messages)
-        print()
+        console.blank()
     else:
-        print("  [llm_result] not_run")
-        print("    当前 CALL_LLM=False，仅输出上下文诊断；改为 True 后会调用真实模型。")
-        print()
+        console.print("  [llm_result] not_run")
+        console.print("    当前 CALL_LLM=False，仅输出上下文诊断；改为 True 后会调用真实模型。")
+        console.blank()
 
 
 def _render_messages(context: BuiltContext) -> list[dict[str, str]]:
@@ -188,10 +189,10 @@ def _render_messages(context: BuiltContext) -> list[dict[str, str]]:
 
 
 def _print_messages(messages: list[dict[str, str]]) -> None:
-    print("  [messages]")
+    console.print("  [messages]")
     for index, message in enumerate(messages, 1):
-        print(f"    [{index}] role={message['role']}")
-        print(_indent(message["content"], prefix="      "))
+        console.print(f"    [{index}] role={message['role']}")
+        console.print(_indent(message["content"], prefix="      "))
 
 
 def _call_llm(
@@ -208,18 +209,26 @@ def _call_llm(
             temperature=0,
         )
     except LLMError as exc:
-        print(f"  [llm_result] error: {exc}")
+        console.error(f"llm_result: {exc}")
         return
 
     parse = result.parse
     usage = result.llm.usage.total_tokens if result.llm.usage else "—"
     if parse.ok:
-        print(f"  [llm_result] parse=ok risks={parse.risk_count} tokens={usage} latency_ms={result.llm.latency_ms:.0f}")
+        console.success(
+            f"llm_result · parse=ok · risks={parse.risk_count} · "
+            f"tokens={usage} · latency_ms={result.llm.latency_ms:.0f}"
+        )
         for index, risk in enumerate(parse.risks or [], 1):
             citation_ids = [citation.source_id for citation in risk.citations]
-            print(f"    [{index}] {risk.category.value}/{risk.level.value} {risk.title} cites={_ids(citation_ids)}")
+            console.print(
+                f"    [{index}] {risk.category.value}/{risk.level.value} "
+                f"{risk.title} cites={_ids(citation_ids)}"
+            )
     else:
-        print(f"  [llm_result] parse=fail stage={parse.error_stage} message={parse.message}")
+        console.error(
+            f"llm_result · parse=fail · stage={parse.error_stage} · message={parse.message}"
+        )
 
 
 def _indent(text: str, prefix: str = "    ") -> str:
@@ -227,12 +236,13 @@ def _indent(text: str, prefix: str = "    ") -> str:
 
 
 def main() -> None:
+    configure_logging(log_format="verbose" if PRINT_MESSAGES else "compact")
     case = _load_case(CASE_PATH)
-    print("[case]")
-    print(f"  [id] {case.get('case_id')}")
-    print(f"  [title] {case.get('title')}")
-    print(f"  [source_count] {len(case.get('sources', []))}")
-    print()
+    console.title("Context Compare", "Context policy diagnostics")
+    console.field("case", case.get("case_id"))
+    console.field("title", case.get("title"))
+    console.field("source_count", len(case.get("sources", [])))
+    console.blank()
 
     call_llm = CALL_LLM or COMPARE_WITH_MINIMAL
     for strategy in _active_strategy_names(DEFAULT_STRATEGY, compare_with_minimal=COMPARE_WITH_MINIMAL):

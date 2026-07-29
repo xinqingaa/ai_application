@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
+from PIL import Image, ImageDraw
 from reportlab.pdfgen import canvas
 
 FIXTURE_DIR = Path(__file__).resolve().parent
@@ -18,6 +19,7 @@ def main() -> None:
     _build_docx(FIXTURE_DIR / "order_rules.docx", content)
     _build_text_pdf(FIXTURE_DIR / "order_rules.pdf", content)
     _build_image_only_pdf(FIXTURE_DIR / "image_only_scan.pdf")
+    _build_reading_order_pdf(FIXTURE_DIR / "reading_order_columns.pdf")
     (FIXTURE_DIR / "damaged.docx").write_bytes(b"PK damaged OOXML fixture")
     (FIXTURE_DIR / "invalid_encoding.txt").write_bytes("售后入口".encode("gbk"))
 
@@ -60,9 +62,30 @@ def _build_text_pdf(path: Path, content: dict[str, Any]) -> None:
 
 
 def _build_image_only_pdf(path: Path) -> None:
+    image_path = FIXTURE_DIR / "_scan_source.png"
+    image = Image.new("RGB", (880, 240), color="white")
+    drawing = ImageDraw.Draw(image)
+    drawing.rectangle((5, 5, 875, 235), outline="black", width=4)
+    drawing.text((40, 95), "SCANNED AFTER-SALE RULES", fill="black")
+    image.save(image_path)
     pdf = canvas.Canvas(str(path))
     pdf.setTitle("Image-only scan fixture")
-    pdf.rect(72, 680, 440, 120, stroke=1, fill=1)
+    pdf.drawImage(str(image_path), 72, 620, width=440, height=120)
+    pdf.showPage()
+    pdf.save()
+    image_path.unlink()
+
+
+def _build_reading_order_pdf(path: Path) -> None:
+    pdf = canvas.Canvas(str(path))
+    pdf.setTitle("Two-column reading-order fixture")
+    pdf.setFont("Helvetica-Bold", 12)
+    # Intentionally write the right column first in the content stream.
+    pdf.drawString(320, 760, "RIGHT-COLUMN-FIRST")
+    pdf.drawString(72, 760, "LEFT-COLUMN-FIRST")
+    pdf.setFont("Helvetica", 10)
+    pdf.drawString(320, 735, "Extracted before the visually first column.")
+    pdf.drawString(72, 735, "Visually this column should be read first.")
     pdf.showPage()
     pdf.save()
 

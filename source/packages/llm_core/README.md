@@ -4,6 +4,8 @@
 
 课程正文负责解释为什么这样设计；本 README 负责帮助你读代码、跑 demo、定位模块。
 
+日志、颜色、终端表格与 JSON Lines 由全仓共享的 [`app_log`](../app_log/) 负责。`llm_core` 只产生统一响应、诊断和结构化日志事件，不维护自己的终端输出子模块。
+
 ## 已实现能力不等于当前学习顺序
 
 `llm_core` 已经包含多个可复用模块，但模块存在不会自动启用功能，也不会自动发起模型请求。真正参与一次运行的能力由 demo、app 或产品代码显式调用。
@@ -77,7 +79,6 @@ harness records + learning price table + cache key
 | `harness/` | 批量 case 调用记录与汇总 | `harness/runner.py` |
 | `costing/` | 学习用价格表、token 成本估算 | `costing/estimate.py` |
 | `cache/` | 本地 exact-match cache key 与命中统计 | `cache/keys.py` |
-| `observability/` | demo 日志格式与调用详情输出 | `observability/demo_log.py` |
 
 ## 按标准学习路径读代码
 

@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import argparse
 
+from app_log import add_log_arguments, configure_from_args, console
 from llm_core import LLMClient
 from llm_core.errors import LLMError
-from llm_core.observability import demo_log
 
 from _shared import (
     find_and_load_env,
@@ -46,32 +46,29 @@ def parse_args() -> argparse.Namespace:
         help="逗号分隔的 config_ref，如 chat.dev_chat,chat.structured_chat",
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="输出完整 messages / 参数 / 响应",
-    )
-    parser.add_argument(
         "--temperature",
         type=float,
         default=None,
         help="覆盖所有 config 的 temperature（可选）",
     )
+    add_log_arguments(parser)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    configure_from_args(args)
     find_and_load_env()
-    require_api_key(demo_log)
+    require_api_key(console)
 
-    sample = load_sample(args.sample, demo_log)
+    sample = load_sample(args.sample, console)
     messages = build_messages(sample["user_content"])
     config_refs = [c.strip() for c in args.configs.split(",") if c.strip()]
 
     client = LLMClient.from_default_config()
 
     log_experiment_header(
-        demo_log,
+        console,
         sample=sample,
         configs=", ".join(config_refs),
         temperature=args.temperature,
@@ -87,7 +84,7 @@ def main() -> None:
             config = client.get_config(config_ref)
             merged = {**config.default_params, **chat_kwargs, "model": config.model}
             log_chat_result(
-                demo_log,
+                console,
                 config_ref,
                 response,
                 verbose=args.verbose,
@@ -95,9 +92,9 @@ def main() -> None:
                 params=merged if args.verbose else None,
             )
         except LLMError as exc:
-            log_chat_result(demo_log, config_ref, exc)
+            log_chat_result(console, config_ref, exc)
 
-    demo_log.hint(
+    console.hint(
         "固定 sample，只换 config_ref 或 temperature，在笔记中记录差异。"
     )
 
