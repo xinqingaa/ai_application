@@ -1,8 +1,8 @@
 # rag_ingestion_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 8。必要前置是 [RAG 与外部知识的边界](../../../course/concepts/rag-and-external-knowledge.md)，实现思路先读 [文档内容识别、解析路由、结构还原与来源保留](../../../course/mechanisms/document-loading-and-cleaning.md)。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 8–9。步骤 8 先读 [文档内容识别、解析路由、结构还原与来源保留](../../../course/mechanisms/document-loading-and-cleaning.md)，步骤 9 再读 [Chunking、父子块与 Metadata](../../../course/mechanisms/chunking-and-metadata.md)。
 
-本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文，核心实现位于 [`rag_core.ingestion`](../../packages/rag_core/ingestion/)；demo 只读取 fixture manifest、调用公共 API，并使用全仓共享的 [`app_log`](../../packages/app_log/) 呈现结果。
+本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文，核心实现位于 [`rag_core.ingestion`](../../packages/rag_core/ingestion/) 和 [`rag_core.chunking`](../../packages/rag_core/chunking/)；demo 只读取 fixture、调用公共 API，并使用全仓共享的 [`app_log`](../../packages/app_log/) 呈现结果。
 
 ## 实验契约
 
@@ -84,6 +84,55 @@ uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py \
 
 每行是一个独立 JSON 事件，适合 CI、脚本处理和后续 Trace 接入。warning/error 写入 stderr；普通结果写入 stdout。`--no-color` 可强制关闭 ANSI 颜色。
 
+## 第九步：为什么 Element 还不是检索 Chunk
+
+第八步的 Markdown Parser 会把标题、列表项分别保存为 `DocumentElement`。这是原文结构，不保证每个元素都适合独立检索：
+
+- 只有标题的 Element 没有业务事实。
+- “允许申请售后”和“虚拟商品除外”位于两个列表项。
+- DOCX 表格和 PDF 页面又可能比一次检索需要的内容更大。
+
+运行策略对照：
+
+```bash
+uv run python source/demos/rag_ingestion_lab/inspect_chunking.py
+```
+
+默认比较：
+
+- `element_baseline`
+- `fixed_window`
+- `structure_aware`
+- `parent_child`
+
+输出只描述块数量、token 分布、重复量、来源跨度，以及两组相关事实位于同一 retrieval chunk、同一 parent 或不同 chunk。它不把某种组织方式标记为通过或失败，也不能代替后续真实 Retriever 评估。
+
+只观察一种策略或修改窗口：
+
+```bash
+uv run python source/demos/rag_ingestion_lab/inspect_chunking.py \
+  --policy fixed \
+  --max-tokens 32 \
+  --overlap-tokens 6
+```
+
+查看 `chunk_id`、Parent/child、文本和逐项来源跨度：
+
+```bash
+uv run python source/demos/rag_ingestion_lab/inspect_chunking.py \
+  --policy parent-child \
+  --verbose
+```
+
+JSON Lines：
+
+```bash
+uv run python source/demos/rag_ingestion_lab/inspect_chunking.py \
+  --log-format json
+```
+
+Chunking 对照使用第八步已经加载成功的真实 Markdown fixture，不增加故意损坏的 Chunk 或专门报错样例。参数不合法仍由公共契约明确拒绝，但不作为课程实验主线。
+
 ## Demo 的调用路径
 
 ```text
@@ -137,10 +186,11 @@ uv run pytest source/packages/rag_core/tests -q
 
 测试覆盖 canonical facts、稳定身份、四格式 locator、清洗 actions、文本型 PDF、部分无文本页、真实扫描 PDF、双栏阅读顺序、编码、格式检测、文件大小预检和历史证据边界。
 
-## 本实验不观察什么
+## 当前实验不观察什么
 
-- 不产生 Chunk，不比较 Chunk 策略。
+- `inspect_ingestion.py` 不产生 Chunk；`inspect_chunking.py` 只比较 Chunk 组织，不建立索引。
 - 不建立 Embedding、FTS 或向量索引。
+- 不运行 Retriever，不宣称某个策略召回质量更好。
 - 不对扫描 PDF 静默调用 OCR/VLM。
 - 不用模型推测缺失结构或来源位置。
 - 不用受控 fixtures 证明复杂真实文档的整体解析质量。

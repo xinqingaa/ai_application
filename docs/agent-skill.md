@@ -110,7 +110,7 @@ review_assistant/     可运行产品
 
 AI Agent 必须遵守：
 
-- 项目学习目标、设计题、失败题和版本验收写入 `course/project/`。
+- 项目学习目标、设计题、真实 bad case / 边界题和版本验收写入 `course/project/`。
 - 产品代码、测试、配置、API、安装和部署写入 `review_assistant/`。
 - 通用能力实现写入 `source/packages/`。
 - 机制实验写入 `source/demos/`。
@@ -155,7 +155,7 @@ AI Agent 不只交付生成结果，还应帮助用户理解：
 - 为什么这样设计。
 - 数据、状态和异常如何流动。
 - 需求变化时改哪里。
-- 如何主动制造失败。
+- 如何复现真实 bad case 或观察正常策略边界。
 - 如何通过测试、评估或 trace 验证修改。
 
 实现 Agent、Tool、Workflow 或 Multi-Agent 时，必须先按

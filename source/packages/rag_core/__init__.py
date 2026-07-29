@@ -1,5 +1,15 @@
 """Shared RAG capabilities for the review assistant."""
 
+from rag_core.chunking import (
+    Chunk,
+    ChunkKind,
+    ChunkPolicy,
+    ChunkReport,
+    ChunkResult,
+    ChunkSourceSpan,
+    ChunkStrategy,
+    chunk_document,
+)
 from rag_core.ingestion import (
     DocumentElement,
     ElementKind,
@@ -20,6 +30,13 @@ from rag_core.ingestion import (
 )
 
 __all__ = [
+    "Chunk",
+    "ChunkKind",
+    "ChunkPolicy",
+    "ChunkReport",
+    "ChunkResult",
+    "ChunkSourceSpan",
+    "ChunkStrategy",
     "DocumentElement",
     "ElementKind",
     "EvidenceEligibility",
@@ -35,5 +52,6 @@ __all__ = [
     "LoaderConfig",
     "SourceLocator",
     "SourceRole",
+    "chunk_document",
     "load_document",
 ]
