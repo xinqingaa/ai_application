@@ -86,7 +86,7 @@ def test_docx_preserves_paragraph_and_table_locations(tmp_path: Path) -> None:
     table.cell(0, 1).text = "requirement"
     table.cell(1, 0).text = "source_channel"
     table.cell(1, 1).text = "required"
-    document.save(path)
+    document.save(str(path))
 
     result = _load(path)
 
@@ -157,8 +157,8 @@ def test_pdf_with_partial_text_layer_reports_empty_page(tmp_path: Path) -> None:
 def test_two_column_pdf_exposes_content_stream_reading_order() -> None:
     result = _load(FIXTURE_DIR / "reading_order_columns.pdf")
 
-    assert result.document.text.index("RIGHT-COLUMN-FIRST") < result.document.text.index(
-        "LEFT-COLUMN-FIRST"
+    assert result.document.text.index("右栏先写入") < result.document.text.index(
+        "左栏应先读"
     )
     assert {
         warning.code for warning in result.report.warnings
@@ -223,7 +223,7 @@ def test_cleaning_actions_are_observable_and_preserve_semantics() -> None:
         "collapse_blank_lines",
         "trim_outer_whitespace",
     }
-    assert "The client keeps the Café rule." in result.document.text
+    assert "客户端 保留 Café 规则。" in result.document.text
     assert "line one\n\nline two" in result.document.text
 
 

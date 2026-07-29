@@ -110,9 +110,10 @@ def test_every_source_span_round_trips_to_document_element(
 
 
 def test_structure_aware_chunks_keep_heading_with_body() -> None:
+    # 中文 fixture 在 cl100k 下标题+正文更容易顶满 24；32 才能稳定观察“标题随正文”。
     result = chunk_document(
         _document(),
-        _policy(ChunkStrategy.STRUCTURE_AWARE),
+        _policy(ChunkStrategy.STRUCTURE_AWARE, max_tokens=32),
     )
 
     assert all(
@@ -123,9 +124,9 @@ def test_structure_aware_chunks_keep_heading_with_body() -> None:
         for chunk in result.chunks
     )
     virtual_goods = next(
-        chunk for chunk in result.chunks if "Virtual goods" in chunk.text
+        chunk for chunk in result.chunks if "虚拟商品" in chunk.text
     )
-    assert "Current order-state rules" in virtual_goods.text
+    assert "当前订单状态规则" in virtual_goods.text
 
 
 def test_parent_child_links_are_valid_and_source_ranges_are_contained() -> None:

@@ -1,11 +1,11 @@
-# After-sale entry and order status
+# 售后入口与订单状态
 
-## Current order-state rules
+## 当前订单状态规则
 
-- Only paid and completed orders may request after-sale service.
-- Virtual goods are excluded from the after-sale flow.
+- 仅已支付且已完成的订单可申请售后。
+- 虚拟商品不进入售后流程。
 
-## API and client constraints
+## 接口与客户端约束
 
-- After-sale API v2 requires source_channel.
-- The Flutter client must use the same entry visibility rules.
+- 售后接口 v2 必须提供 source_channel。
+- Flutter 客户端必须使用相同的入口可见性规则。

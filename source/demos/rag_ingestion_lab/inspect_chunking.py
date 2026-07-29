@@ -26,13 +26,13 @@ FIXTURE_PATH = (
 log = get_logger("rag_ingestion_lab.chunking")
 
 RELATIONSHIPS = {
-    "order eligibility + exception": (
-        "Only paid and completed",
-        "Virtual goods",
+    "订单资格 + 例外": (
+        "仅已支付且已完成",
+        "虚拟商品",
     ),
-    "API + client constraint": (
+    "接口 + 客户端约束": (
         "source_channel",
-        "Flutter client",
+        "Flutter 客户端",
     ),
 }
 
@@ -48,8 +48,8 @@ def main() -> int:
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=24,
-        help="fixed、structure 和 child 的 token 上限",
+        default=32,
+        help="fixed、structure 和 child 的 token 上限（中文 fixture 建议 ≥32）",
     )
     parser.add_argument(
         "--overlap-tokens",

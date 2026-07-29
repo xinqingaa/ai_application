@@ -12,7 +12,22 @@ endobj
 endobj
 3 0 obj
 <<
-/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+/BaseFont /STSong-Light /DescendantFonts [ <<
+/BaseFont /STSong-Light /CIDSystemInfo <<
+/Ordering (GB1) /Registry (Adobe) /Supplement 0
+>> /DW 1000 /FontDescriptor <<
+/Ascent 752 /CapHeight 737 /Descent -271 /Flags 6 /FontBBox [ -25 -254 1000 880 ] /FontName /STSongStd-Light 
+  /ItalicAngle 0 /Leading 148 /MaxWidth 1000 /MissingWidth 500 /StemH 91 /StemV 58 
+  /Type /FontDescriptor /XHeight 553
+>> /Subtype /CIDFontType0 /Type /Font 
+  /W [ 1 [ 207 270 342 467 462 797 710 239 374 ] 10 [ 374 423 605 238 375 238 334 462 ] 18 26 462 27 28 238 
+  29 31 605 32 [ 344 748 684 560 695 739 563 511 729 793 
+  318 312 666 526 896 758 772 544 772 628 
+  465 607 753 711 972 647 620 607 374 333 
+  374 606 500 239 417 503 427 529 415 264 
+  444 518 241 230 495 228 793 527 524 ] 81 [ 524 504 338 336 277 517 450 652 466 452 
+  407 370 258 370 605 ] ]
+>> ] /Encoding /UniGB-UCS2-H /Name /F2 /Subtype /Type0 /Type /Font
 >>
 endobj
 4 0 obj
@@ -32,8 +47,8 @@ endobj
 endobj
 6 0 obj
 <<
-/Author (anonymous) /CreationDate (D:20260729165037+08'00') /Creator (anonymous) /Keywords () /ModDate (D:20260729165037+08'00') /Producer (ReportLab PDF Library - \(opensource\)) 
-  /Subject (unspecified) /Title (Two-column reading-order fixture) /Trapped /False
+/Author (anonymous) /CreationDate (D:20260729221806+08'00') /Creator (anonymous) /Keywords () /ModDate (D:20260729221806+08'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (unspecified) /Title (\376\377S\314h\017\226\005\213\373\230z^\217[\371qg\000 \000f\000i\000x\000t\000u\000r\000e) /Trapped /False
 >>
 endobj
 7 0 obj
@@ -43,10 +58,10 @@ endobj
 endobj
 8 0 obj
 <<
-/Filter [ /ASCII85Decode /FlateDecode ] /Length 225
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 247
 >>
 stream
-Gas2B_$YcZ'LhbF`EcN;3MY]Mck<Fq?L:HW1c.M=W5#M_Mhm;sDfOa+HPt')1%jQ>Qk@=Z"66$gbVj96!1,O-o:J&/'G`Xd9MJ??60KtfUsD!9DRJ%Y5MXZuF9IT;(l,kg_"I[=C6bdPGu(n,;'P`YlR8&C_*Oks/Kcj#F5F9$;-]7GFX%K"79c@Br_]5%s2&<42][T!X4lQA7kLIrC&Cpr])dR:=$?~>endstream
+Gas2C:CdIl%)q[!7?9FT^<Y$Z-,`*j1<4DXr^=%>GG!\.Cfj^bkqk'\n%B'JHBRTs+rWlg:4r`a%jZ&N.*cKG4'BU"?(M<*;t*JcqD$]0R<h"69.6^76)EB2.%Vm])jl.?PdRL^RBeQ_PuE=6C!]XVhW2>+QCqF2(2ni]XW\B-/,V7>4f5#m@B?u:epr[pF#"3%.W]+^V(i%L%dj"tQmIc[Z@Ddmk6\l]or7FP.paS^4fNK)<h!_M~>endstream
 endobj
 xref
 0 9
@@ -54,15 +69,15 @@ xref
 0000000061 00000 n 
 0000000102 00000 n 
 0000000209 00000 n 
-0000000321 00000 n 
-0000000524 00000 n 
-0000000592 00000 n 
-0000000877 00000 n 
-0000000936 00000 n 
+0000001142 00000 n 
+0000001345 00000 n 
+0000001413 00000 n 
+0000001757 00000 n 
+0000001816 00000 n 
 trailer
 <<
 /ID 
-[<3e08e21ae1846bbaf34e52127243131b><3e08e21ae1846bbaf34e52127243131b>]
+[<7ced95121a5527812422f8360e5b57f1><7ced95121a5527812422f8360e5b57f1>]
 % ReportLab generated PDF document -- digest (opensource)
 
 /Info 6 0 R
@@ -70,5 +85,5 @@ trailer
 /Size 9
 >>
 startxref
-1251
+2153
 %%EOF

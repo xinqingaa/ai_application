@@ -9,13 +9,13 @@
 第八步把 `order_rules.md` 解析成七个 `DocumentElement`：
 
 ```text
-标题：After-sale entry and order status
-标题：Current order-state rules
-列表项：Only paid and completed orders may request after-sale service.
-列表项：Virtual goods are excluded from the after-sale flow.
-标题：API and client constraints
-列表项：After-sale API v2 requires source_channel.
-列表项：The Flutter client must use the same entry visibility rules.
+标题：售后入口与订单状态
+标题：当前订单状态规则
+列表项：仅已支付且已完成的订单可申请售后。
+列表项：虚拟商品不进入售后流程。
+标题：接口与客户端约束
+列表项：售后接口 v2 必须提供 source_channel。
+列表项：Flutter 客户端必须使用相同的入口可见性规则。
 ```
 
 这些元素忠实表达了 Markdown 的原文结构，但如果直接把每个元素放进索引，会出现新的问题：

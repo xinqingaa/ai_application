@@ -1,6 +1,6 @@
-# Cleaning probe
+# 清洗探针
 
-The client keeps the Café rule.  
+客户端 保留 Café 规则。  
 
 ```text
 line one

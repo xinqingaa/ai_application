@@ -58,8 +58,8 @@
     {
       "path": "reading_order_columns.pdf",
       "expected_warning": "pdf_reading_order_not_guaranteed",
-      "visual_first": "LEFT-COLUMN-FIRST",
-      "extracted_first": "RIGHT-COLUMN-FIRST"
+      "visual_first": "左栏应先读",
+      "extracted_first": "右栏先写入"
     }
   ],
   "cleaning_cases": [
