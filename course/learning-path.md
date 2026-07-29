@@ -65,12 +65,14 @@ V0 要回答：
 
 ### 第三段：让外部资料成为可检索证据
 
+本段从知识生产开始，依次完成文档解析与结构还原、切片与索引、检索、上下文装配和可信生成；V3 再在这些固定能力之上增加 Agent 动态编排。
+
 7. **[RAG 与外部知识的边界](concepts/rag-and-external-knowledge.md)** · 可学习
    区分模型已有知识、搜索、数据库查询、固定 RAG 和 Agentic RAG。
-8. **[TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留](mechanisms/document-loading-and-cleaning.md)** · 可学习
-   支持真实需求资料，并保留文件、章节、页码或段落等来源位置。
+8. **[文档内容识别、解析路由、结构还原与来源保留](mechanisms/document-loading-and-cleaning.md)** · 可学习
+   以 PDF 为复杂样例理解原生文本、扫描件和图文混排的处理路线；代码实现 TXT、Markdown、DOCX 与文本型 PDF 的最小结构还原，交付带来源位置的 `KnowledgeDocument`，但不产生 Chunk。
 9. **Chunking、父子块与 Metadata** · 待编写
-   理解切分怎样影响召回、引用和后续更新。
+   接收第 8 步产生的 `DocumentElement`，建立用于检索的语义切片、父子块和 Metadata，理解切分怎样影响召回、引用和后续更新。
 10. **Embedding 表示与向量相似度** · 待编写
     使用真实 Embedding 服务，理解距离、归一化和模型一致性边界。
 11. **Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索** · 待编写
@@ -82,7 +84,7 @@ V0 要回答：
 14. **Top-k、阈值、Metadata Filter 与 Retrieval 诊断** · 待编写
     记录每路排名、融合排名、过滤条件、阈值淘汰和无结果原因。
 15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 等待前置
-    Retriever 先产生候选证据，Context Builder 再决定本轮模型真正看到什么。
+    Retriever 先产生候选证据，Context Builder 再决定本轮模型真正看到什么；Context 注入不属于文档解析或 Chunking。
 16. **可信生成、Sources、Citation Candidate 与证据不足** · 待编写
     约束模型依据候选证据生成；V0 只建立 Citation Candidate，不宣称完成 Citation 校验。
 
@@ -214,6 +216,8 @@ V3 要回答：
 
 > 当固定 RAG 无法预先决定查询、知识源和补检索步骤时，怎样让单 Agent 动态行动，同时保持应用控制、可观察和可评估？
 
+V3 增加的是运行时控制层，不重做 V0 已建立的知识生产、索引和检索机制。Agent 决定何时改写查询、选择知识源、调用 Retriever、补检索、追问或停止；Retriever、RRF 和满足准入条件的 Reranker 继续负责候选过滤、排序和诊断。
+
 ### 第一段：判断为什么需要 Agent
 
 1. **Chain、固定 RAG、Workflow、Agent 与 Multi-Agent 边界** · 待编写
@@ -242,7 +246,7 @@ V3 要回答：
 8. **Query Rewrite 与 Source Routing** · 待编写
    根据任务改写检索查询并选择允许的知识源。
 9. **Retriever as Tool** · 待编写
-   保留查询、过滤条件、候选结果和失败原因。
+   将已有 Retriever 暴露为可治理工具，保留查询、过滤条件、排序诊断、候选结果和失败原因；Agent 不自由替代 Retriever 排序。
 10. **Memory Retrieval 与上下文注入** · 待编写
     分开检索长期记忆和业务证据，记录命中原因并防止记忆冒充 Citation。
 11. **Agent Loop、最大步数与停止原因** · 待编写

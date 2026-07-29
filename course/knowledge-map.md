@@ -69,14 +69,29 @@
 
 ## RAG 与知识系统
 
-关系主线：
+端到端四层能力主线：
 
-外部知识为什么需要 RAG
-→ 文档解析、来源与 Chunk
-→ Lexical / Dense Retrieval
-→ 多路召回、RRF 与诊断
-→ Context Construction
-→ 可信生成与评估
+```text
+知识生产
+1. 内容识别与解析路由
+→ 文件容器 
+→ 内容形态
+→ 文本抽取 / OCR / 视觉理解
+2. 结构还原、清洗与统一表示
+→ 原始片段 
+→ 标题、段落、表格、阅读顺序和来源位置
+
+固定 RAG
+3. Chunk 与 Metadata
+→ Lexical / Dense Index
+→ Retrieve、RRF 与诊断
+→ Context
+→ Generate 与评估
+
+动态控制
+4.Tool Contract + Tool Runtime
+→ Agent 选择 Query / Source / Retrieve / Ask / Stop
+```
 
 RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔离的课程。
 
@@ -84,12 +99,13 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | RAG 问题空间与完整链路 | 概念 | 主线 | V0 | LLM 应用问题空间与能力边界 | [阅读正文](concepts/rag-and-external-knowledge.md) | 后续 `rag_core` | 已落地 |
 | 固定 RAG、搜索、数据库与 Agent 的边界 | 概念 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](concepts/rag-and-external-knowledge.md) | 后续 `rag_core` | 已落地 |
-| TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](mechanisms/document-loading-and-cleaning.md) | `rag_core/ingestion`、`rag_ingestion_lab` | 已落地 |
-| 复杂文档与多模态知识生产边界 | 概念 | 支撑 | V1 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | `concepts/multimodal-knowledge-production.md` | 无项目实现 | 待编写 |
+| 内容识别、格式检测与解析路由 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](mechanisms/document-loading-and-cleaning.md) | `rag_core/ingestion`、`rag_ingestion_lab` | 已落地 |
+| 最小结构还原、清洗与来源保留 | 机制 | 主线 | V0 | 内容识别、格式检测与解析路由 | [阅读正文](mechanisms/document-loading-and-cleaning.md) | `rag_core/ingestion`、`rag_ingestion_lab` | 已落地 |
+| 复杂文档与多模态知识生产边界 | 概念 | 支撑 | V1 | 内容识别、格式检测与解析路由、最小结构还原、清洗与来源保留 | `concepts/multimodal-knowledge-production.md` | 无项目实现 | 待编写 |
 | 扫描 PDF、图片 OCR/VLM 与 Markdown 归一化 | 机制 | 支撑 | V1 | 复杂文档与多模态知识生产边界 | `mechanisms/ocr-vlm-normalization.md` | 后续按需扩展 ingestion demo | 待编写 |
 | 图片理解与音频 ASR 归一化 | 机制 | 支撑 | V3 | 复杂文档与多模态知识生产边界 | `mechanisms/image-audio-normalization.md` | 后续多模态对照 demo | 待编写 |
 | 视频理解与流式语音产品 | 概念 | 未来认知 | 未来 | 图片理解与音频 ASR 归一化 | 待按需创建 | 无当前实现 | 未来认知 |
-| Chunking、父子块与 Metadata | 机制 | 主线 | V0 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留 | `mechanisms/chunking-and-metadata.md` | 后续 `rag_core/chunking` | 待编写 |
+| Chunking、父子块与 Metadata | 机制 | 主线 | V0 | 最小结构还原、清洗与来源保留 | `mechanisms/chunking-and-metadata.md` | 后续 `rag_core/chunking` | 待编写 |
 | Embedding 的表示与相似度 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | `mechanisms/embedding-and-similarity.md` | 后续 `rag_core/embedding` | 待编写 |
 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索 | 机制 | 主线 | V0 | Chunking、父子块与 Metadata | `mechanisms/lexical-retrieval.md` | 后续 `rag_core/retrieval` | 待编写 |
 | pgvector、Dense Retrieval 与向量索引 | 机制 | 主线 | V0 | Embedding 的表示与相似度 | `mechanisms/vector-store-and-pgvector.md` | 后续 `rag_core/vector_store` | 待编写 |
@@ -104,7 +120,7 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | RAG Failure Analysis 与 Bad Case 回流 | 机制 | 主线 | V2 | Retrieval 与 Generation Eval、Citation 与 Refusal Eval | `mechanisms/failure-analysis.md` | 后续 `eval_core` | 待编写 |
 | RAPTOR、GraphRAG、知识图谱与普通 RAG 的边界 | 概念 | 支撑 | V2 | Chunking、父子块与 Metadata、多路召回与 RRF 融合 | `concepts/advanced-rag-indexes.md` | 无项目实现 | 待编写 |
 | Neo4j 多跳检索与 RAG 融合 | 机制 | 支撑 | V2 | RAPTOR、GraphRAG、知识图谱与普通 RAG 的边界 | `mechanisms/graph-retrieval.md` | 后续 GraphRAG 对照 demo | 待编写 |
-| 文档版本、更新、删除一致性与 Citation 失效 | 机制 | 主线 | V1 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留、Chunking、父子块与 Metadata | `mechanisms/knowledge-governance.md` | 后续 `rag_core/governance` | 待编写 |
+| 文档版本、更新、删除一致性与 Citation 失效 | 机制 | 主线 | V1 | 最小结构还原、清洗与来源保留、Chunking、父子块与 Metadata | `mechanisms/knowledge-governance.md` | 后续 `rag_core/governance` | 待编写 |
 | 多用户知识权限与可见范围 | 概念 | 未来认知 | 未来 | 文档版本、更新、删除一致性与 Citation 失效、Metadata Filter | 待按需创建 | 无当前实现 | 未来认知 |
 
 ## Agent 与 Tool
@@ -241,10 +257,10 @@ State / Node / Edge
 | Python、HTTP、JSON 与配置 | 基础 | 支撑 | V0 | `python_base` | 按需回查 `python_base/` | 根项目 | 已落地 |
 | FastAPI、Review API 与错误契约 | 机制 | 主线 | V0 | Python、HTTP、JSON 与配置、Structured Output 与本地校验 | `mechanisms/fastapi-and-api.md` | 产品 app | 待编写 |
 | PostgreSQL FTS / pgvector 数据模型 | 机制 | 主线 | V0 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索、pgvector、Dense Retrieval 与向量索引 | `mechanisms/postgres-and-pgvector.md` | 产品 infra | 待编写 |
-| Redis、后台任务与入库状态 | 机制 | 主线 | V4 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留、Checkpoint、Interrupt 与 Resume | `mechanisms/background-jobs.md` | 产品 infra | 待编写 |
+| Redis、后台任务与入库状态 | 机制 | 主线 | V4 | 内容识别、格式检测与解析路由、最小结构还原、清洗与来源保留、Checkpoint、Interrupt 与 Resume | `mechanisms/background-jobs.md` | 产品 infra | 待编写 |
 | Docker Compose 本地部署 | 机制 | 主线 | V6 | 产品入口 | `mechanisms/docker-compose.md` | 产品 infra | 待编写 |
 | 日志、Metrics 与工程观测 | 机制 | 主线 | V2 | Trace、Span 与 Run 关联 | `mechanisms/logging-and-metrics.md` | 产品 app / infra | 待编写 |
-| 文件、对象存储与数据生命周期 | 机制 | 支撑 | V6 | TXT、Markdown、DOCX 与文本型 PDF 的加载、清洗和来源保留、文档版本、更新、删除一致性与 Citation 失效 | `mechanisms/file-storage.md` | 产品 infra | 待编写 |
+| 文件、对象存储与数据生命周期 | 机制 | 支撑 | V6 | 内容识别、格式检测与解析路由、最小结构还原、清洗与来源保留、文档版本、更新、删除一致性与 Citation 失效 | `mechanisms/file-storage.md` | 产品 infra | 待编写 |
 | Kubernetes、灰度、多租户与权限中台 | 概念 | 未来认知 | 未来 | Docker Compose 本地部署、日志、Metrics 与工程观测 | 无当前正文 | 无当前实现 | 未来认知 |
 
 ## 维护边界

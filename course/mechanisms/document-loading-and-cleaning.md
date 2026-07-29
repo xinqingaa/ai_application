@@ -1,101 +1,247 @@
-# 文档加载、清洗与来源保留
+# 文档内容识别、解析路由、结构还原与来源保留
 
-> 机制篇：理解 TXT、Markdown、DOCX 和文本型 PDF 怎样进入统一知识文档契约，同时保留能够回到原文的位置。
+> 机制篇：理解一份文件怎样经过内容识别、解析路由和最小结构还原，成为可继续切片的知识文档。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第八步。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md)；本文交付可运行的 ingestion 机制、真实代码调用链、四格式对照和失败定位，不产生 Chunk，也不建立检索索引。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第八步。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md)。本文用 PDF 建立复杂文档的完整心智模型，真实代码实现 TXT、Markdown、DOCX 和文本型 PDF；本文不产生 Chunk，不建立索引，也不实现 OCR/VLM。
 
-## 上传成功，为什么仍然没有知识
+## 先问文件里有什么，而不是先问用哪个库
 
-需求评审助手收到一份 `after-sale-rules.pdf`。文件存在、大小正常，上传接口也返回了成功，但系统检索不到其中的规则。
+需求评审助手收到一份 `after-sale-rules.pdf`。文件存在、大小正常，上传接口也返回成功，但这只能证明应用拿到了文件字节。
 
-可能发生了几件完全不同的事：
+同一个 `.pdf` 后缀里可能装着完全不同的内容：
 
-- 这是文本型 PDF，但解析库没有按预期提取页面内容。
-- 这是扫描 PDF，页面只有图片，本来就没有文本层。
-- 文本已经提取，但双栏阅读顺序错乱，条件和结论被拼反。
-- 清洗规则删掉了表头、换行或否定词。
-- 内容存在，却没有保留页码，后续无法回到原文核对。
+- 原生文本 PDF：文字有可提取文本层。
+- 扫描 PDF：每页主要是一张图片，没有可用文本层。
+- 图文混排 PDF：正文文字、截图、流程图、图表和扫描页同时存在。
+- 复杂排版 PDF：虽然有文本层，但双栏、浮动文本框或表格使提取顺序失真。
 
-“拿到文件字节”只说明传输完成。知识生产还要回答：内容是否被正确读出，结构是否仍然可解释，来源能否定位，失败是否清晰可见。
+如果不先识别内容形态，就无法选择正确的解析路线。直接调用文本提取库可能返回空字符串，也可能返回一段“看起来有字、实际顺序错误”的文本。
 
-## 本文有一条可以立即运行的机制链
-
-本文不是只介绍解析库。共享实现位于 [`rag_core.ingestion`](../../source/packages/rag_core/ingestion/)，最小实验位于 [`rag_ingestion_lab`](../../source/demos/rag_ingestion_lab/)。
-
-先在仓库根目录运行正常路径：
-
-```bash
-uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py
-```
-
-此时先不用读完所有输出，只确认四件事：
-
-1. TXT、Markdown、DOCX 和文本型 PDF 都得到 `loaded` 结果。
-2. 每个结果都包含 `document_id@version`、元素和 locator。
-3. 四种格式的元素数量和 locator 类型不同。
-4. PDF 有页码和 reading-order warning，不是“没有结果”。
-
-接下来正文会沿着实验调用的真实路径解释实现：
+因此，文件进入 RAG 之前至少要经过两层知识生产：
 
 ```text
-inspect_ingestion.main
-→ 读取 fixture manifest
-→ 调用 load_document
-→ 检测格式并选择 parser
-→ 清洗 ParsedElement
-→ 组装 KnowledgeDocument + LoadReport
-→ demo 打印元素、位置、warning 或 error
+第一层：内容识别与解析路由
+文件容器 → 内容形态 → 文本抽取 / OCR / 视觉理解
+
+第二层：结构还原与统一表示
+原始片段 → 阅读顺序、标题、段落、列表、表格、来源位置 → DocumentElement[]
 ```
 
-完整命令、输出字段和修改实验的方法由 [demo README](../../source/demos/rag_ingestion_lab/README.md) 维护。正文关注这条链为什么这样实现。
+本文只深入这两层，交付带结构和来源位置的 `DocumentElement[]`。Chunking 接收这组元素并建立检索单元，但不属于本文的文档解析责任。
 
-## 从一个字符串递进到知识文档契约
+## 第一层：识别内容形态并选择解析路线
 
-最简单的文档加载方式，是读取文件后返回一个字符串。它只能回答“有没有文本”，不能回答：
+### 格式识别只回答“容器是什么”
 
-- 这是哪个业务文档和哪个版本？
-- 这段文字来自第几页、哪一段或哪个标题？
-- 历史评审能否作为当前规则的证据？
-- 内容是解析失败、清洗后为空，还是扫描 PDF 没有文本层？
-- 文件或策略改变后，元素身份是否仍然可比较？
+扩展名和文件头可以帮助确认输入是不是声明的格式。例如，文件名以 `.pdf` 结尾但文件头不是 PDF，应在格式检测阶段失败。
 
-因此实现按问题逐层增加责任：
+但格式识别不能回答：
+
+- PDF 页面有没有文本层。
+- DOCX 中是否包含图片、文本框或复杂图表。
+- 一页文字能否按正确阅读顺序提取。
+- 图片中的表格、箭头和关系是否需要视觉理解。
+
+所以完整判断应是：
 
 ```text
-读取文件字节
-→ 识别并校验格式
-→ 用格式 Parser 产生带位置的元素
-→ 确定性清洗并记录动作
-→ 生成稳定元素身份
-→ 组装业务文档和加载诊断
+识别文件容器
+→ 检查容器内有什么可用内容
+→ 按页或按区域选择解析路线
 ```
 
-这不是为了把 Loader 做复杂，而是让每一次转换都留下可验证结果。后面的 Chunking 和 Retrieval 只能使用这里已经存在的内容与来源，不能补救已经丢失的原文。
+### PDF 是最完整的路由样例
 
-## 文件、文档、元素和 Chunk 是四个对象
+PDF 不是“文字文档格式”，而是用于稳定呈现页面的容器。处理时至少需要下面的决策树：
 
-真实数据契约定义在 [`ingestion/models.py`](../../source/packages/rag_core/ingestion/models.py)。四个对象分别回答不同问题：
+```text
+PDF
+├─ 页面存在可靠文本层
+│  └─ 提取文本、页码和可获得的位置
+├─ 页面没有文本层
+│  └─ 渲染页面 → OCR → 文字、坐标和置信度
+└─ 文本、图片、图表或复杂版面混合
+   └─ 文本抽取 + 版面分析 + 选择性 OCR/VLM → 按页面和区域合并
+```
 
-| 对象 | 核心责任 | 当前实现中的关键字段 |
+这个判断最好按页甚至按区域进行。一份 20 页 PDF 可能有 18 页原生文本和 2 页扫描附件；把整份文档简单标记为“文本 PDF”或“扫描 PDF”都会掩盖信息缺口。
+
+### 原生文本路线：读取内容流，不是看懂页面
+
+文本抽取库读取 PDF 内部的字符和内容流，再尝试生成页面文本。它适合文本层存在、阅读顺序相对简单的 PDF。
+
+它并不等于视觉阅读。常见问题包括：
+
+- 双栏内容左右交叉。
+- 表格按单个字符或错误行序输出。
+- 页眉页脚反复混入正文。
+- 图表只提取标签，丢失箭头和空间关系。
+- 字体编码异常导致字符乱码。
+
+因此“提取到了非空文本”只是成功条件之一。系统还需要保留页码并报告阅读顺序风险，让后续实验或人工抽查能够发现结构问题。
+
+### 扫描件路线：OCR 先识字，再恢复结构
+
+扫描 PDF 没有可供文本库读取的字符层。典型 OCR 链路是：
+
+```text
+PDF 页面
+→ 渲染为图像
+→ 方向校正、去噪、裁边等预处理
+→ 文字区域检测
+→ 字符识别
+→ 文本 + bounding box + confidence
+→ 阅读顺序和段落重建
+→ 来源定位与质量报告
+```
+
+OCR 的输出不应只有一个大字符串。坐标用于恢复阅读顺序和回到原图，置信度用于发现低质量区域，页码用于后续引用。
+
+OCR 也不能自动保证理解正确。低分辨率、小字体、印章、手写内容和复杂表格都可能产生识别错误；“售后不可申请”中的“不”一旦丢失，结果会从格式问题变成业务事实错误。
+
+当前 V0 不实现 OCR。当全部页面都没有可提取文本时，代码明确返回 `pdf_text_layer_missing`，而不是静默调用外部 OCR，也不返回空成功。
+
+### 图文混排路线：组合确定性抽取和视觉理解
+
+图文混排不应默认把整份文档交给 VLM 重写。更可控的方案是：
+
+1. 先提取可靠的原生文本和页码。
+2. 用版面分析识别文本块、图片、表格和区域坐标。
+3. 只对缺少文本的图片区域执行 OCR。
+4. 只对流程图、截图状态、图表关系等需要语义理解的区域调用 VLM。
+5. 按页面、区域坐标和阅读顺序合并结果。
+6. 为每个元素记录来源方式，例如 native text、OCR 或 VLM。
+7. 保留模型、Prompt、置信度、成本和失败信息，以便复现。
+
+VLM 适合回答“这张流程图表达了哪些分支”或“截图中按钮在哪种状态出现”，但输出具有模型不确定性，不能无记录地覆盖原生文字。涉及规则证据时，还需要让生成文本能够回到原始图片区域核对。
+
+当前 V0 不实现版面分析、OCR、VLM 或多路结果合并。V1 的按需支撑课程会用固定样例观察这些机制，本节只建立选路原则和接口边界。
+
+### 其他格式也遵循同一问题框架
+
+PDF 的分支最多，但 TXT、Markdown 和 DOCX 仍要回答“容器里有什么、可以恢复什么结构”。
+
+| 格式 | 主要解析依据 | 仍需警惕 |
 | --- | --- | --- |
-| `FileArtifact` | 描述收到的物理文件 | `path`、`filename`、`size_bytes`、`content_hash`、`content` |
-| `KnowledgeDocument` | 描述具有业务身份和来源角色的知识文档 | `document_id`、`document_version`、`source_role`、`evidence_eligibility`、`elements` |
-| `DocumentElement` | 保存解析后的内容、结构类型和原始位置 | `element_id`、`kind`、`text`、`locator`、`cleaning_actions` |
-| `Chunk` | 为后续检索策略创建单元 | 本文不产生 |
+| TXT | 字符编码、行和空行 | 编码错误，没有可靠标题语义 |
+| Markdown | 文本编码和语法 Token | 方言扩展、嵌入 HTML、外链图片 |
+| DOCX | OOXML 段落、样式、表格顺序 | 图片、图形、文本框、复杂布局和视觉分页 |
+| PDF | 页面文本层和内容流 | 扫描页、图文混排、阅读顺序和表格语义 |
 
-同一个业务文档可以有多个文件版本。`document_id` 回答“这是哪份业务文档”，`document_version` 回答“这是哪个内容版本”，文件名和内容哈希描述本次物理输入。数据库自增 ID、文件名和业务身份不能互相替代。
+DOCX 通常比 PDF 更容易读取逻辑段落，但并不天然等于纯文本。当前实现只处理段落、标题样式和表格，不读取图片文字、浮动文本框或图形关系。
 
-本阶段的完整输入输出是：
+## 第二层：从文本片段恢复可用结构
+
+### 得到文字不等于得到知识结构
+
+假设解析器返回下面的字符串：
 
 ```text
-path + document identity + source contract + LoaderConfig
-→ FileArtifact
-→ ParsedElement[]
-→ DocumentElement[]
-→ KnowledgeDocument + LoadReport
+已支付 已完成
+允许申请售后
+虚拟商品除外
 ```
 
-## 公共入口先冻结调用者必须提供的信息
+如果不知道它来自标题、表格还是连续段落，也不知道“虚拟商品除外”属于哪一节，后续切片很容易把条件与结论拆开。结构还原要把解析器能够可靠获得的关系保存下来：
+
+```text
+原始解析片段
+→ 确定阅读顺序
+→ 识别标题、段落、列表、代码和表格
+→ 关联章节路径
+→ 保存页码、行号、段落号或表格号
+→ 形成统一 DocumentElement
+```
+
+“统一”不表示伪造所有格式都没有的信息。TXT 没有页码，就保存真实行号；PDF 没有可靠标题层级，就不能仅凭字号猜出一棵确定的章节树。
+
+### 当前实现完成的是最小结构还原
+
+真实数据契约位于 [`ingestion/models.py`](../../source/packages/rag_core/ingestion/models.py)。`DocumentElement` 保存：
+
+- `kind`：标题、段落、列表项、表格、代码或页面。
+- `text`：当前元素的规范化文本。
+- `ordinal`：元素在统一序列中的顺序。
+- `locator`：原格式真正拥有的位置和章节路径。
+- `cleaning_actions`：文本经历过的确定性清洗。
+
+四种格式的当前结构能力不同：
+
+| 格式 | 当前保留 | 当前明确损失或不保证 |
+| --- | --- | --- |
+| TXT | 连续非空文本块、起止行号、原始顺序 | 标题层级、表格和视觉布局 |
+| Markdown | 标题、段落、列表、代码、标题路径、行号 | 非 CommonMark 扩展和外链媒体语义 |
+| DOCX | 标题样式、段落、表格、文档顺序、标题路径 | 图片文字、文本框、绘图、稳定视觉页码 |
+| PDF | 页面文本、页码、页面顺序 | 可靠标题树、表格语义、区域坐标和复杂阅读顺序 |
+
+当前 `KnowledgeDocument.elements` 是一个扁平有序序列，`heading_path` 表达元素所属章节。它不是完整文档结构树。
+
+尚未实现的结构能力包括：
+
+- 显式父子元素 ID 和嵌套结构树。
+- bounding box 和区域级阅读顺序。
+- 跨页表格、合并单元格和表头语义。
+- 原生文本、OCR 与 VLM 结果的合并契约。
+- 结构恢复的置信度和逐项信息损失报告。
+
+这些限制必须显式保留，不能把扁平元素序列描述成“完整还原了文档”。
+
+### 原始结构与父子 Chunk 不是一回事
+
+第 8 步的结构还原描述原文拥有什么：标题、段落、表格、页面以及它们的位置。
+
+第 9 步的父子 Chunk 描述检索策略怎样组织内容：小块用于命中，大块用于补充上下文，父子关系可能由切片策略重新建立。
+
+```text
+原始文档结构                     检索结构
+标题 > 段落 > 表格      →       Parent Chunk > Child Chunk
+```
+
+检索结构必须基于原始结构，但不能反过来冒充原文结构。若第 8 步已经丢失标题或表格关系，第 9 步无法可靠猜回。
+
+## 清洗属于归一化，不负责修复语义
+
+格式 Parser 产生 `ParsedElement` 后，公共流程调用 [`clean_text`](../../source/packages/rag_core/ingestion/cleaning.py)。当前清洗只做确定性规范化：
+
+- 统一换行。
+- 替换不换行空格。
+- Unicode NFC 规范化。
+- 删除行尾和元素外层空白。
+- 收敛过多空行。
+
+清洗不会删除标点、标题、表头、否定词、代码标识或段落内换行，也不会用模型改写原文。
+
+每次实际发生的变化会写入 `cleaning_actions`，再汇总到 `LoadReport`。看到文本变化时，使用者可以判断变化来自 Parser 还是清洗规则。
+
+下面这些操作看似让文本更整齐，实际会破坏知识：
+
+| 操作 | 风险 |
+| --- | --- |
+| 把全部换行替换为空格 | 列表、表格行和条件边界消失 |
+| 删除重复词或相似句 | 现行规则和历史规则可能被错误合并 |
+| 用模型润色解析结果 | 来源事实变成不可复现的生成内容 |
+| 解析异常后返回空字符串 | 下游无法区分空文档、扫描件和程序错误 |
+
+清洗只能规范已经识别出的内容，不能修复错误阅读顺序，也不能补回漏掉的图片或表格语义。
+
+## 统一表示还必须保留业务身份和来源
+
+物理文件、业务文档、结构元素和检索 Chunk 是四个不同对象：
+
+| 对象 | 回答的问题 |
+| --- | --- |
+| `FileArtifact` | 本次收到哪个物理文件，字节和哈希是什么？ |
+| `KnowledgeDocument` | 这是哪份业务文档、哪个版本、什么来源角色？ |
+| `DocumentElement` | 解析出了什么结构化内容，它位于原文哪里？ |
+| `Chunk` | 后续检索策略要用什么单元建立索引？本节不产生它。 |
+
+同一业务文档可以有多个文件版本。文件名和数据库自增 ID 都不能稳定表达业务身份。因此调用者必须提供 `document_id`、`document_version`、`source_role` 和 `evidence_eligibility`。
+
+这里还有一个业务不变量：Historical Material 可以进入知识系统，但不能自动标记为当前有效证据。Parser 负责读取内容，不负责决定资料是否有资格支撑当前结论。
+
+## 把两层机制映射到真实代码
+
+### 公共入口冻结输入输出契约
 
 公共入口是 [`load_document`](../../source/packages/rag_core/ingestion/loader.py)：
 
@@ -112,283 +258,181 @@ def load_document(
 ) -> LoadResult:
 ```
 
-这段签名把两类信息分开：
+Loader 可以从文件得到路径、字节、格式、大小和内容哈希，但不能从字节可靠推断业务身份、版本、来源角色和证据资格。这些信息必须由调用者提供。
 
-- Loader 可以从文件得到路径、字节、格式、大小和内容哈希。
-- Loader 无法从字节可靠推断业务文档身份、版本、来源角色和证据资格，这些必须由调用者提供。
+最终 `LoadResult` 同时返回：
 
-如果让 Parser 根据文件名猜 `document_id`，重命名文件就会改变业务身份；如果让模型判断历史材料能否成为当前证据，来源事实就会变成不稳定推测。
+- `artifact`：物理文件事实。
+- `document`：可进入后续知识生产的统一文档与元素。
+- `report`：格式、元素数量、locator、清洗动作和 warning。
 
-## 第一步：先执行应用约束，再解析文件
+这使业务结果和诊断结果保持关联，又不会混成一个无约束字典。
 
-[`loader.py`](../../source/packages/rag_core/ingestion/loader.py) 在读取内容前先校验业务身份和来源边界：
+### 主调用链怎样推进数据
 
-```python
-document_id = document_id.strip()
-document_version = document_version.strip()
-if not document_id or not document_version:
-    raise ValueError("document_id 和 document_version 不能为空")
-if (
-    source_role is SourceRole.HISTORICAL_MATERIAL
-    and evidence_eligibility is EvidenceEligibility.CURRENT_EVIDENCE
-):
-    raise ValueError("Historical Material 不能直接标记为 current_evidence")
-```
-
-这里体现了一个不变量：历史材料可以进入知识系统，但不能自动获得“当前规则证据”资格。Parser 只负责读取内容，不负责修改来源角色。
-
-当前待评审 PRD 是 Target Requirement，它通过 `ReviewRequest` 直接进入后续评审链路。本 Loader 服务 Reference Knowledge 和 Historical Material，不会为了复用文件解析就把 Target Requirement 混进外部证据候选池。
-
-## 第二步：检测格式和解析格式是两层责任
-
-公共流程接着读取文件、检查大小、检测格式，再把文件交给对应 Parser：
-
-```python
-loader_config = config or LoaderConfig()
-artifact = _read_artifact(path)
-if artifact.size_bytes > loader_config.max_file_bytes:
-    raise IngestionError(
-        code=IngestionErrorCode.FILE_TOO_LARGE,
-        stage=IngestionStage.FORMAT_DETECTION,
-        message=f"文件大小 {artifact.size_bytes} 超过上限 {loader_config.max_file_bytes}",
-        filename=artifact.filename,
-    )
-
-file_format = _detect_format(artifact)
-parsed = parse_artifact(artifact, file_format, loader_config)
-```
-
-`_detect_format` 先根据支持的扩展名选择格式，并对 PDF、DOCX 检查基础文件头。它回答“这是不是一种可交给对应 Parser 的输入”。
-
-`parse_artifact` 再调用格式库读取内部结构。它回答“合法格式内部有哪些可用内容和位置”。因此：
-
-- 扩展名是 `.pdf`，文件头却不是 PDF，属于 `format_detection/format_mismatch`。
-- 文件头看起来像 DOCX，但内部 OOXML 已损坏，属于 `parse/document_parse_failed`。
-
-把两层拆开后，使用者不会只得到一个无法行动的“加载失败”。
-
-## 四种 Parser 保留各自真正拥有的位置
-
-格式分派位于 [`ingestion/parsers.py`](../../source/packages/rag_core/ingestion/parsers.py)。统一契约不是把所有格式强行改造成相同结构，而是保证每个 `ParsedElement` 都带一个结构化 `SourceLocator`。
-
-### TXT：连续文本块和行范围
-
-TXT 没有天然标题结构。`_parse_txt` 按空行形成连续非空块，在 flush 时保存 `line_start` 和 `line_end`。
-
-默认编码是 UTF-8 / UTF-8-SIG。GBK 等编码不会被静默猜测，因为自动猜测可能把错误字节解释成看似正常的文本。调用者需要显式设置 `LoaderConfig.text_encoding`，或者在进入系统前完成可追踪的编码转换。
-
-### Markdown：语法 Token 和标题路径
-
-`_parse_markdown` 不用正则删除 `#` 后返回大字符串。`markdown-it-py` 先生成 Token，Parser 再读取 Token 的 `map` 作为源行范围，并维护当前 `heading_path`。
-
-因此列表项可以表达自己属于“售后入口与订单状态 > 接口与客户端约束”。这仍然是原文结构，不是 Chunk 的父子关系。
-
-### DOCX：按文档顺序处理段落和表格
-
-`_parse_docx` 使用 `python-docx` 的 `iter_inner_content()` 按文档顺序读取 `Paragraph` 和 `Table`。标题样式更新 heading path，普通段落保存段落序号，表格保存表格序号和完整单元格内容。
-
-DOCX 的视觉分页、浮动文本框、图形和图片文字不等于稳定逻辑结构。当前实现不根据排版坐标伪造页码，也不声称完整还原复杂 Office 文档。
-
-### PDF：文本型成功，无文本层明确失败
-
-`_parse_pdf` 使用 `pypdf` 逐页提取文本，并把真实 PDF 页码写入 locator。若某一页没有文本，Parser 记录 page warning；若所有页面都没有文本，才将整个文档判为失败：
-
-```python
-if not elements:
-    raise IngestionError(
-        code=IngestionErrorCode.PDF_TEXT_LAYER_MISSING,
-        stage=IngestionStage.EMPTY_CONTENT,
-        message="PDF 没有可提取文本层；V0 不会静默调用 OCR/VLM",
-        filename=artifact.filename,
-    )
-```
-
-文本型 PDF 正常产生页面元素。复杂分栏、表格和浮动元素的阅读顺序仍可能与视觉版面不同，所以成功结果还会携带 `pdf_reading_order_not_guaranteed` warning。warning 表示需要核对，不表示没有结果。
-
-四种 locator 保留格式真实拥有的位置：
+真实调用链是：
 
 ```text
-TXT       → text_lines, lines=6-7
-Markdown  → markdown_block, lines=10, heading=API and client constraints
-DOCX      → docx_table, table=1, heading=After-sale entry and order status > API and client constraints
-PDF       → pdf_page, page=2
+load_document
+→ 校验业务身份和来源资格
+→ _read_artifact：path 变为 FileArtifact
+→ _detect_format：确认受支持容器和基础文件头
+→ parse_artifact：选择格式 Parser
+→ ParsedElement[] + warning[]
+→ clean_text：规范文本并记录 action
+→ DocumentElement[]：增加稳定 ID、顺序和来源位置
+→ KnowledgeDocument + LoadReport
+→ LoadResult
 ```
 
-下游只依赖 locator 可以展示和回查，不要求所有来源都有页码。
+这条源码链实现前两层机制，但两者不是按函数一一分开的：
 
-## 第三步：清洗每个元素，并保留清洗事实
+- `_detect_format` 和格式 Parser 共同承担内容识别与解析路由。
+- 每个 Parser 同时抽取内容并保存它能可靠获得的原生结构。
+- Loader 负责清洗、稳定身份、业务来源约束和统一结果组装。
 
-格式 Parser 返回 `ParsedElement` 后，公共流程逐元素调用 [`clean_text`](../../source/packages/rag_core/ingestion/cleaning.py)：
+### 四个 Parser 怎样完成最小结构还原
 
-```python
-for parsed_element in parsed.elements:
-    try:
-        cleaned, actions = clean_text(parsed_element.text, loader_config)
-    except Exception as exc:
-        raise IngestionError(
-            code=IngestionErrorCode.CLEANING_FAILED,
-            stage=IngestionStage.CLEANING,
-            message=f"文本清洗失败：{exc}",
-            filename=artifact.filename,
-            raw=exc,
-        ) from exc
-    if not cleaned:
-        continue
+格式分派位于 [`ingestion/parsers.py`](../../source/packages/rag_core/ingestion/parsers.py)。
+
+TXT Parser 按空行形成连续文本块，在 flush 时记录 `line_start` 和 `line_end`。默认编码是 UTF-8 / UTF-8-SIG；其他编码必须显式指定或在入库前完成可追踪转换，不能靠猜测把错误字节变成看似正常的文字。
+
+Markdown Parser 使用 `markdown-it-py` 生成语法 Token。标题 Token 更新 `heading_path`，段落、列表和代码块保存各自的行号与章节路径。这里使用语法结构，而不是用正则删掉 `#` 后返回一个大字符串。
+
+DOCX Parser 使用 `python-docx` 的 `iter_inner_content()` 按文档顺序读取段落和表格。标题样式更新章节路径，普通段落保存段落序号，表格保存表格序号和单元格文字。它没有根据视觉排版伪造页码。
+
+PDF Parser 使用 `pypdf` 逐页提取文本并保存真实页码。它有三种可观察结果：
+
+```text
+页面有文本
+→ 产生 PAGE element
+
+部分页面无文本
+→ 跳过空页并产生 pdf_page_without_text warning
+
+全部页面无文本
+→ 抛出 empty_content / pdf_text_layer_missing
 ```
 
-当前清洗只做确定性规范化：统一换行、替换不换行空格、Unicode NFC、删除行尾和外层空白、收敛过多空行。它不会删除标点、代码标识、标题、表头、否定条件或段落内换行。
+只要得到文本，结果还会包含 `pdf_reading_order_not_guaranteed`。warning 表示内容可以继续处理但必须核对；error 表示当前 V0 路线没有产生可继续处理的内容。
 
-清洗函数同时返回 `actions`。动作写入对应 `DocumentElement`，再由 `LoadReport` 汇总。这样看到文本变化时，可以区分是 Parser 原始输出还是清洗策略造成的结果。
+### 清洗后再生成稳定元素身份
 
-下面几类操作不属于当前清洗：
+Loader 根据以下信息生成 `element_id`：
 
-| 操作 | 为什么危险 |
-| --- | --- |
-| 把所有换行替换为空格 | 表格行、列表项和条件边界消失 |
-| 删除重复词或相似句 | 现行规则与历史规则可能被错误合并 |
-| 用模型改写原文 | 来源事实变成不可复现的模型输出 |
-| 解析失败后返回空字符串 | 下游无法区分空文档、扫描件和程序错误 |
-
-清洗不是“让文本看起来漂亮”，而是在不破坏业务含义的前提下建立可重复输入。
-
-## 第四步：稳定元素身份，再同时返回业务结果和诊断
-
-清洗成功后，Loader 根据业务文档身份、版本、元素顺序、locator 和清洗后文本生成 `element_id`：
-
-```python
-element_id = _element_id(
-    document_id,
-    document_version,
-    ordinal,
-    parsed_element.locator.describe(),
-    cleaned,
-)
+```text
+document_id
++ document_version
++ element ordinal
++ locator
++ cleaned text
 ```
 
-这意味着同一文件以相同身份和策略重复加载时，元素 ID 可预测；文档版本、位置或内容变化时，旧元素与新元素能够区分。它不是数据库自增主键，也不是后续 Chunk ID。
+同一文件以相同身份和策略重复加载时，元素 ID 可预测；版本、位置或文本变化时，旧元素和新元素能够区分。它不是数据库自增 ID，也不是后续 Chunk ID。
 
-流程最后返回 `LoadResult`，其中包含三部分：
+## 用实验观察识别、结构和失败
 
-- `artifact`：本次物理文件事实。
-- `document`：可以进入后续知识生产的业务文档和元素。
-- `report`：格式、元素数量、locator 类型、清洗动作和 warning。
+共享实现位于 [`rag_core.ingestion`](../../source/packages/rag_core/ingestion/)，最小实验位于 [`rag_ingestion_lab`](../../source/demos/rag_ingestion_lab/)。
 
-业务结果与诊断同时返回，但不混成一个无约束字典。后续代码消费 `KnowledgeDocument`，学习和排错入口读取 `LoadReport`。
+在仓库根目录运行正常组：
 
-如果解析和清洗后没有任何有效元素，Loader 不返回“空成功”，而是抛出 `empty_content/empty_document`。这保证“loaded”始终意味着至少存在一个可继续处理的元素。
+```bash
+uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py
+```
 
-## Fixtures 是受控模拟材料，不是生产资料
+不要只检查有没有输出。按下面的问题观察：
 
-实验资料位于 [`review_assistant/fixtures/v0/ingestion`](../../review_assistant/fixtures/v0/ingestion/)。它们是人为编写的模拟业务内容，但使用真实 TXT、Markdown、DOCX 和 PDF 文件格式，由真实 Parser 处理。
+1. 四个文件分别选择了哪个格式 Parser？
+2. TXT、Markdown、DOCX 和 PDF 分别恢复了哪些元素类型？
+3. 为什么它们的元素数量不应完全相同？
+4. 每种格式保留了行号、标题路径、段落号、表格号还是页码？
+5. PDF 为什么在成功时仍然报告 reading-order warning？
+6. `KnowledgeDocument` 为什么还不是 Chunk 或检索索引？
 
-四种正常文件共享同一份 canonical facts，用于观察格式怎样改变结构元素和 locator。它们是同一业务文档版本的四种互斥表示：实验每次独立加载一个文件，不把四份内容同时写入同一个知识库。
+实验材料位于 [`review_assistant/fixtures/v0/ingestion`](../../review_assistant/fixtures/v0/ingestion/)。它们是人为编写的模拟业务内容，但使用真实文件格式并由真实 Parser 处理，不是 Mock Parser 的返回值。
 
-因此这个实验能够证明：
+四种正常文件是同一份 canonical facts 的互斥表示。实验每次独立加载一种格式，用来比较不同容器保留的结构和 locator；不能把四份内容同时入库并当成四份独立知识。
 
-- 四种受支持格式能进入统一契约。
-- 核心业务事实没有因格式解析丢失。
-- 格式原生 locator 和结构化失败可观察。
+完整运行参数、输出字段、代码阅读顺序和修改实验的方法由 [demo README](../../source/demos/rag_ingestion_lab/README.md) 维护。正文负责解释为什么要观察这些变化。
 
-它不能证明：
+## 失败必须指出发生在哪一层
 
-- 任意复杂 DOCX 或 PDF 都能正确解析。
-- 双栏、复杂表格、图片和扫描件已经被可靠理解。
-- 当前 Loader 已经达到真实生产资料的完整覆盖率。
-
-失败 fixtures 也是人为构造的，只用于稳定复现无文本层 PDF、损坏 DOCX、错误编码和空文档路径。它们不是 Mock Parser 返回值。
-
-## 用失败组验证错误分层
-
-运行：
+运行稳定失败组：
 
 ```bash
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --include-failures
 ```
 
-实验固定了四类失败：
+当前实验固定四种失败：
 
-| 输入 | 期望 stage | 期望 code | 说明 |
+| 输入 | stage | code | 优先判断 |
 | --- | --- | --- | --- |
-| 无文本层 PDF | `empty_content` | `pdf_text_layer_missing` | 不静默 OCR，不返回空成功 |
-| 损坏 DOCX | `parse` | `document_parse_failed` | 文件头通过后，OOXML 结构解析失败 |
-| 非 UTF-8 TXT | `parse` | `text_decode_failed` | 默认编码契约没有被猜测绕过 |
-| 无知识内容的 Markdown | `empty_content` | `empty_document` | 文件存在不代表具有可用内容 |
+| 无文本层 PDF | `empty_content` | `pdf_text_layer_missing` | 当前文本路线不适用，应评估 OCR/VLM 路线 |
+| 损坏 DOCX | `parse` | `document_parse_failed` | 容器内部 OOXML 无法解析 |
+| 非 UTF-8 TXT | `parse` | `text_decode_failed` | 编码契约不匹配 |
+| 无有效内容 Markdown | `empty_content` | `empty_document` | 文件存在但没有可继续处理的元素 |
 
-错误类型定义在 [`ingestion/errors.py`](../../source/packages/rag_core/ingestion/errors.py)。建议按数据流顺序定位：
+错误类型定义在 [`ingestion/errors.py`](../../source/packages/rag_core/ingestion/errors.py)。建议按数据流定位：
 
-1. `format_detection`：文件存在吗，大小是否超限，扩展名与文件头一致吗？
-2. `parse`：编码正确吗，文件是否损坏或加密，解析库是否支持当前结构？
-3. `cleaning`：清洗策略是否异常，关键内容是否在这里消失？
-4. `empty_content`：文件本来为空，还是 PDF 没有文本层？
-5. source contract：业务身份、来源角色、证据资格和 locator 是否正确？
+1. `format_detection`：文件是否存在、大小是否超限、扩展名与文件头是否一致？
+2. `parse`：编码是否正确、文件是否损坏或加密、解析库是否支持当前结构？
+3. `empty_content`：是原文为空、清洗后为空，还是当前路线无法取得文字？
+4. warning：结果能否继续使用，但存在哪些页、结构或阅读顺序风险？
 
-如果 `KnowledgeDocument` 中已经没有某条关键规则，后续 Retriever 无论怎样调参都无法召回它。此时应修复 Loader 或清洗，而不是调整 Embedding、top-k 或 Prompt。
-
-## 测试把哪些不变量固定下来
-
-实现测试位于 [`test_ingestion.py`](../../source/packages/rag_core/tests/test_ingestion.py)。运行：
-
-```bash
-uv run pytest source/packages/rag_core/tests -q
-```
-
-测试分别证明：
-
-- 相同输入重复加载得到相同文件哈希和元素 ID。
-- Markdown 标题路径、DOCX 段落/表格位置和 PDF 页码得到保留。
-- 四种格式都包含 canonical facts。
-- 文本型 PDF 成功，无文本层 PDF 明确失败。
-- format mismatch、parse failure 和 empty content 不会混成同一种错误。
-- Historical Material 不能被标成 Current Evidence。
-
-测试通过不能替代机制解释，但可以防止这些不变量在后续 Chunking、索引和产品组合时悄悄退化。
+无文本层 PDF 的失败不是“PDF 没有结果”，而是一个有行动含义的路由结果：当前文本抽取路线已经证明不适用。由于 V0 没有配置真实 OCR/VLM 服务，系统在这里停止并暴露边界。
 
 ## 解析库封装了什么，没有解决什么
 
-三个解析库分别封装 Markdown 语法 Token、OOXML 文档结构和 PDF 内容流读取。它们减少了手写格式解析的错误，但没有替应用决定：
+`pypdf`、`python-docx` 和 `markdown-it-py` 封装了对应格式的底层读取，但没有替应用解决：
 
-- 哪个文件属于哪个业务文档和版本。
-- Reference Knowledge 与 Historical Material 的证据资格。
-- 哪种结构损失可以接受。
-- 清洗是否改变了业务语义。
-- PDF 阅读顺序是否符合视觉版面。
-- 扫描件是否值得进入 OCR/VLM 流程。
-- DocumentElement 应怎样切成 Chunk。
+- 应该选择文本抽取、OCR 还是 VLM。
+- 哪些结构恢复结果足够可信。
+- 文档业务身份、版本和证据资格是什么。
+- 清洗能否改变业务语义。
+- 元素与原文如何稳定关联。
+- 失败如何进入日志、重试、人工处理或产品状态。
+- 后续怎样 Chunk、索引、检索和评估。
 
-因此，解析库返回了字符串，不等于知识生产已经完成。应用仍需建立身份、来源、诊断和失败契约。
+框架只能提供能力，应用仍要建立路由、数据契约、诊断和业务边界。
 
-## 在 V0 中的边界
+## 本节交付与下一层输入
 
-本步骤已经实现：
+本节真实交付是：
 
-- TXT、Markdown、DOCX 和文本型 PDF 的真实解析。
-- 稳定文档身份、来源角色、证据资格和内容哈希。
-- 格式原生 locator、确定性清洗和加载报告。
-- 文本型 PDF 正常路径，以及无文本层 PDF 等可重复失败路径。
+```text
+KnowledgeDocument
++ DocumentElement[]
++ SourceLocator
++ LoadReport
+```
 
-本步骤明确不做：
+下一层接收本文结果：
 
-- Chunk、父子块、overlap 和 Chunk ID。
-- Embedding、PostgreSQL FTS、pgvector 和 RRF。
-- OCR/VLM、复杂版面恢复和图片语义抽取。
-- 对象存储、后台入库任务和通用知识库管理后台。
-- 文档更新、删除一致性和 Citation 失效治理。
+```text
+DocumentElement[] → Chunk[] + Parent/Child + Metadata
+```
 
-后续 Chunking 机制会以这里产生的 `DocumentElement` 为输入；具体阅读位置仍以标准学习路径为准。
+本文只保证后续 Chunking 能获得有序文本元素、最小结构、来源位置、业务身份和加载诊断，不替后续策略决定怎样切片或建立索引。
+
+V0 明确不做：
+
+- 扫描 PDF 的 OCR 产品链路。
+- 图片、流程图和截图的 VLM 理解。
+- 完整版面结构树和 bounding box。
+- Chunk、Embedding、FTS、向量索引和 Retrieval。
+
+这些边界不会阻止本节建立完整心智模型，但不能把未实现设计写成当前能力。
 
 ## 判断是否已经掌握
 
-读完并运行实验后，应能回答：
-
-1. 文件上传成功为什么不能证明知识已经可检索？
-2. `FileArtifact`、`KnowledgeDocument`、`DocumentElement` 和 Chunk 分别承担什么责任？
-3. `load_document` 从文件路径到 `LoadResult` 经历了哪些转换？
-4. 为什么格式检测、格式解析和空内容要分成不同失败层？
-5. 为什么 TXT、Markdown、DOCX 和 PDF 不应该统一伪装成页码定位？
-6. 清洗动作为什么必须确定、可测试并记录？
-7. `element_id` 为什么不能使用数据库自增 ID？
-8. 文本型 PDF 的 warning 与无文本层 PDF 的 error 分别代表什么？
-9. 为什么 Historical Material 的证据资格必须由应用控制？
-10. 将 fixture 中一条规则改为相反含义后，哪些输出、哈希和测试应该变化？
+1. 为什么识别 PDF 文件头后仍然不能立即选择文本抽取路线？
+2. 原生文本 PDF、扫描 PDF 和图文混排 PDF 分别应该怎样处理？
+3. OCR 为什么需要坐标和置信度，而不应只返回大字符串？
+4. VLM 适合补充什么信息，为什么不应无记录地覆盖原生文本？
+5. 内容抽取和结构还原分别解决什么问题？
+6. 当前四种 Parser 分别保留了哪些结构，又明确损失了什么？
+7. 原始标题层级和父子 Chunk 为什么不是同一种关系？
+8. `load_document` 从文件路径到 `LoadResult` 经历了哪些数据转换？
+9. 文本型 PDF 的 warning 与无文本层 PDF 的 error 分别代表什么？
 
 完成后回到 [标准学习路径](../learning-path.md)，由唯一课表决定后续内容。

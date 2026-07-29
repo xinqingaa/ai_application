@@ -1,6 +1,6 @@
 # rag_ingestion_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 8。必要前置是 [RAG 与外部知识的边界](../../../course/concepts/rag-and-external-knowledge.md)，实现思路先读 [文档加载、清洗与来源保留](../../../course/mechanisms/document-loading-and-cleaning.md)。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 8。必要前置是 [RAG 与外部知识的边界](../../../course/concepts/rag-and-external-knowledge.md)，实现思路先读 [文档内容识别、解析路由、结构还原与来源保留](../../../course/mechanisms/document-loading-and-cleaning.md)。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文，核心实现位于 [`rag_core.ingestion`](../../packages/rag_core/ingestion/)；demo 只读取 fixture manifest、调用公共 API 并打印诊断。
 
