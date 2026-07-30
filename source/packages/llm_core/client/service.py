@@ -8,7 +8,7 @@ from typing import Any, Optional
 from pydantic import BaseModel
 
 from app_log import get_logger
-from llm_core.config import LLMResponse, ModelConfig
+from llm_core.config import EmbeddingResponse, LLMResponse, ModelConfig
 from llm_core.errors import LLMError, LLMErrorCode
 from llm_core.providers.registry import ConfigRegistry
 from llm_core.schemas.review import ReviewRiskList
@@ -166,3 +166,51 @@ class LLMClient:
             structured_mode=structured_mode,
             request_params=request_params,
         )
+
+    def embed(
+        self,
+        texts: list[str] | str,
+        config_ref: str,
+        *,
+        debug: bool = False,
+        **kwargs: Any,
+    ) -> EmbeddingResponse:
+        config = self._registry.get_config(config_ref)
+        if config.role != "embedding":
+            raise LLMError(
+                code=LLMErrorCode.CAPABILITY_MISMATCH,
+                message=f"{config_ref} 的 role 是 {config.role}，不能用于 embed",
+                config_ref=config_ref,
+            )
+
+        normalized = [texts] if isinstance(texts, str) else list(texts)
+        if not normalized:
+            raise LLMError(
+                code=LLMErrorCode.PROVIDER_ERROR,
+                message="embed 至少需要一条非空文本",
+                config_ref=config_ref,
+            )
+        if any(not text.strip() for text in normalized):
+            raise LLMError(
+                code=LLMErrorCode.PROVIDER_ERROR,
+                message="embed 不接受空文本或仅空白文本",
+                config_ref=config_ref,
+            )
+
+        provider = self._registry.get_provider(config.provider)
+        response = provider.embed(normalized, config, **kwargs)
+
+        if debug:
+            log.debug(
+                "llm.embed_detail",
+                "Embedding 调用详情",
+                config_ref=response.config_ref,
+                provider=response.provider,
+                model=response.model,
+                latency_ms=round(response.latency_ms, 1),
+                text_count=len(normalized),
+                dimensions=response.dimensions,
+                usage=response.usage,
+            )
+
+        return response

@@ -10,6 +10,15 @@ from rag_core.chunking import (
     ChunkStrategy,
     chunk_document,
 )
+from rag_core.embedding import (
+    EmbeddingBatchResult,
+    EmbeddingRecord,
+    SimilarityMetric,
+    SimilarityObservation,
+    embed_texts,
+    pairwise_similarity,
+    similarity,
+)
 from rag_core.ingestion import (
     DocumentElement,
     ElementKind,
@@ -39,6 +48,8 @@ __all__ = [
     "ChunkStrategy",
     "DocumentElement",
     "ElementKind",
+    "EmbeddingBatchResult",
+    "EmbeddingRecord",
     "EvidenceEligibility",
     "FileArtifact",
     "FileFormat",
@@ -50,8 +61,13 @@ __all__ = [
     "LoadResult",
     "LoadWarning",
     "LoaderConfig",
+    "SimilarityMetric",
+    "SimilarityObservation",
     "SourceLocator",
     "SourceRole",
     "chunk_document",
+    "embed_texts",
     "load_document",
+    "pairwise_similarity",
+    "similarity",
 ]

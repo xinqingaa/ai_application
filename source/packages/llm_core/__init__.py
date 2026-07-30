@@ -8,7 +8,7 @@ Calling Harness、Streaming、Conversation、成本与缓存。模块存在不�
 
 from llm_core.cache import CacheEvent, CacheKeyParts, CacheStats, InMemoryLLMCache, build_cache_key
 from llm_core.client import LLMClient
-from llm_core.config import CapabilityTags, LLMResponse, ModelConfig, TokenUsage
+from llm_core.config import CapabilityTags, EmbeddingResponse, LLMResponse, ModelConfig, TokenUsage
 from llm_core.context import (
     BuiltContext,
     CitationCandidate,
@@ -60,7 +60,7 @@ from llm_core.schemas import (
 from llm_core.streaming import LLMStreamEvent, StreamEventBuilder, encode_sse
 from llm_core.structured import StructuredLLMResponse, build_response_format
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 __all__ = [
     "LLMClient",
@@ -70,6 +70,7 @@ __all__ = [
     "InMemoryLLMCache",
     "build_cache_key",
     "LLMResponse",
+    "EmbeddingResponse",
     "StructuredLLMResponse",
     "StructuredParseResult",
     "LLMStreamEvent",

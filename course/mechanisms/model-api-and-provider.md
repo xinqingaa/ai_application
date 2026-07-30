@@ -209,10 +209,10 @@ LLMResponse（content, usage, latency_ms, model, config_ref, …）
 | 角色 | 输入 | 输出 | Provider 调用层 是否调用 |
 | --- | --- | --- | --- |
 | Chat | messages | 文本 | 是（`LLMClient.chat`） |
-| Embedding | 文本 | 向量 | 否（YAML 预置，RAG 用） |
+| Embedding | 文本 | 向量 | 是（`LLMClient.embed`；详见 Embedding 机制篇） |
 | Rerank | query + 文档 | 分数 | 否（后续可选） |
 
-对 `embedding.default_embed` 调 `chat` 会触发 `LLMErrorCode.CAPABILITY_MISMATCH`——这是刻意的角色守卫，避免 Chat 与 Embedding 混用。
+对 `embedding.default_embed` 调 `chat`，或对 chat 配置调 `embed`，都会触发 `LLMErrorCode.CAPABILITY_MISMATCH`——这是刻意的角色守卫，避免 Chat 与 Embedding 混用。
 
 这也是抽象层应该承担的责任：它不只帮你发请求，还要尽早阻止明显错误。若把 embedding 配置误传给 chat，最糟糕的做法是等供应商返回一个难懂的 HTTP 错误；更好的做法是在本地看到 `role` 不匹配时就失败，并给出 `config_ref`。这类「早失败」会让后续 RAG 和 Agent 调试简单很多。
 
@@ -360,7 +360,7 @@ class LLMResponse:
 | 流式输出 | 流式机制 | 知道非流式一次返回 `content` 即可 |
 | 完整重试 / 熔断 | 可靠调用 | 会用 `LLMErrorCode` 分类，遇 429 知换 `fallback` |
 | Structured Outputs | 结构化输出 | 知 `chat.structured_chat` 预留给结构化任务 |
-| 实际调用 embedding | RAG | 知 YAML 里已有 `embedding.default_embed`，Provider 调用层 不调 |
+| 实际调用 embedding | Embedding 机制篇 | 本节建立 role 守卫；`LLMClient.embed` 在后续步骤进入 |
 | harness 落盘 | 调用 Harness | demo 对比 + 笔记记录 token/latency |
 | 多轮会话持久化 | 流式机制 | 知历史在 `messages`，不由 API 保存 |
 

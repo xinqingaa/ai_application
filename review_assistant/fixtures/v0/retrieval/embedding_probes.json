@@ -1,0 +1,63 @@
+{
+  "domain": "after_sale",
+  "description": "V0 步骤 10 成对相似度探针；观察表示空间，不建立 Retriever。",
+  "probes": [
+    {
+      "id": "synonym_apply",
+      "text": "申请售后",
+      "group": "同义改写"
+    },
+    {
+      "id": "synonym_reverse",
+      "text": "发起逆向服务",
+      "group": "同义改写"
+    },
+    {
+      "id": "paid_rule",
+      "text": "仅已支付且已完成的订单可申请售后。",
+      "group": "状态条件"
+    },
+    {
+      "id": "virtual_exception",
+      "text": "虚拟商品不进入售后流程。",
+      "group": "例外约束"
+    },
+    {
+      "id": "exact_field",
+      "text": "售后接口 v2 必须提供 source_channel。",
+      "group": "精确标识"
+    },
+    {
+      "id": "field_query",
+      "text": "source_channel 什么时候必填？",
+      "group": "精确标识"
+    },
+    {
+      "id": "noise_presale",
+      "text": "售前活动规则与优惠入口展示条件。",
+      "group": "无关噪声"
+    }
+  ],
+  "focus_pairs": [
+    {
+      "left": "synonym_apply",
+      "right": "synonym_reverse",
+      "expect": "同义改写通常较高"
+    },
+    {
+      "left": "paid_rule",
+      "right": "virtual_exception",
+      "expect": "语义相关但约束相反，高分不等于可直接当证据"
+    },
+    {
+      "left": "exact_field",
+      "right": "field_query",
+      "expect": "精确字段问答可能接近，但仍需后续词面检索对照"
+    },
+    {
+      "left": "synonym_apply",
+      "right": "noise_presale",
+      "expect": "无关噪声应明显更低"
+    }
+  ]
+}

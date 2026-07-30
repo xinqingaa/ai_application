@@ -106,7 +106,7 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | 图片理解与音频 ASR 归一化 | 机制 | 支撑 | V3 | 复杂文档与多模态知识生产边界 | `mechanisms/image-audio-normalization.md` | 后续多模态对照 demo | 待编写 |
 | 视频理解与流式语音产品 | 概念 | 未来认知 | 未来 | 图片理解与音频 ASR 归一化 | 待按需创建 | 无当前实现 | 未来认知 |
 | Chunking、父子块与 Metadata | 机制 | 主线 | V0 | 最小结构还原、清洗与来源保留 | [阅读正文](mechanisms/chunking-and-metadata.md) | `rag_core/chunking`、`rag_ingestion_lab/inspect_chunking.py` | 已落地 |
-| Embedding 的表示与相似度 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | `mechanisms/embedding-and-similarity.md` | 后续 `rag_core/embedding` | 待编写 |
+| Embedding 的表示与相似度 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](mechanisms/embedding-and-similarity.md) | `llm_core` embed、`rag_core/embedding`、`rag_retrieval_lab/inspect_embedding.py` | 已落地 |
 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索 | 机制 | 主线 | V0 | Chunking、父子块与 Metadata | `mechanisms/lexical-retrieval.md` | 后续 `rag_core/retrieval` | 待编写 |
 | pgvector、Dense Retrieval 与向量索引 | 机制 | 主线 | V0 | Embedding 的表示与相似度 | `mechanisms/vector-store-and-pgvector.md` | 后续 `rag_core/vector_store` | 待编写 |
 | 多路召回与 RRF 融合 | 机制 | 主线 | V0 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索、pgvector、Dense Retrieval 与向量索引 | `mechanisms/multi-retrieval-and-rrf.md` | 后续 `rag_core/retrieval` | 待编写 |

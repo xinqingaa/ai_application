@@ -57,3 +57,17 @@ class LLMResponse:
     provider: str
     model: str
     config_ref: str
+
+
+@dataclass(frozen=True)
+class EmbeddingResponse:
+    """One vector per input text, in the same order as the request."""
+
+    vectors: tuple[tuple[float, ...], ...]
+    dimensions: int
+    raw_response: Any
+    usage: Optional[TokenUsage]
+    latency_ms: float
+    provider: str
+    model: str
+    config_ref: str

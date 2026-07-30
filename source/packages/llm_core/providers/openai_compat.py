@@ -1,15 +1,15 @@
-"""OpenAI-compatible chat provider."""
+"""OpenAI-compatible chat and embedding provider."""
 
 from __future__ import annotations
 
 import os
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI, RateLimitError
 
-from llm_core.config import LLMResponse, ModelConfig, TokenUsage
+from llm_core.config import EmbeddingResponse, LLMResponse, ModelConfig, TokenUsage
 from llm_core.errors import LLMError, LLMErrorCode
 from llm_core.streaming import LLMStreamEvent, StreamEventBuilder
 
@@ -19,10 +19,17 @@ class OpenAICompatProvider:
 
     def _client_for_config(self, config: ModelConfig) -> OpenAI:
         api_key = os.environ.get(config.api_key_env, "").strip()
+        # Allow chat-only OPENAI_API_KEY setups to reuse the same secret for
+        # embedding when a dedicated OPENAI_EMBEDDING_API_KEY is not set.
+        if not api_key and config.api_key_env == "OPENAI_EMBEDDING_API_KEY":
+            api_key = os.environ.get("OPENAI_API_KEY", "").strip()
         if not api_key:
+            hint = f"环境变量 {config.api_key_env} 未配置"
+            if config.api_key_env == "OPENAI_EMBEDDING_API_KEY":
+                hint += "（也未找到可回退的 OPENAI_API_KEY）"
             raise LLMError(
                 code=LLMErrorCode.AUTH,
-                message=f"环境变量 {config.api_key_env} 未配置",
+                message=hint,
                 config_ref=config.config_ref,
             )
 
@@ -48,9 +55,17 @@ class OpenAICompatProvider:
             )
         if isinstance(exc, APIStatusError):
             code = LLMErrorCode.AUTH if exc.status_code in (401, 403) else LLMErrorCode.PROVIDER_ERROR
+            message = str(exc)
+            if exc.status_code == 404 and config.role == "embedding":
+                message += (
+                    "。Embedding 端点不存在或模型不可用；"
+                    "若 chat 使用 DeepSeek 等仅聊天平台，请单独配置 "
+                    "OPENAI_EMBEDDING_BASE_URL 与 OPENAI_EMBEDDING_API_KEY"
+                    "（不要复用仅支持 chat 的 OPENAI_BASE_URL）。"
+                )
             return LLMError(
                 code=code,
-                message=str(exc),
+                message=message,
                 config_ref=config.config_ref,
                 raw=exc,
             )
@@ -173,3 +188,72 @@ class OpenAICompatProvider:
                 config_ref=config.config_ref,
                 include_latency=True,
             )
+
+    def embed(
+        self,
+        texts: Sequence[str],
+        config: ModelConfig,
+        **params: Any,
+    ) -> EmbeddingResponse:
+        client = self._client_for_config(config)
+        request_params = {**config.default_params, **params}
+        request_params.setdefault("model", config.model)
+        request_params["input"] = list(texts)
+
+        t0 = time.perf_counter()
+        try:
+            resp = client.embeddings.create(**request_params)
+        except Exception as exc:
+            raise self._map_exception(exc, config) from exc
+
+        latency_ms = (time.perf_counter() - t0) * 1000
+        if not resp.data:
+            raise LLMError(
+                code=LLMErrorCode.EMPTY_RESPONSE,
+                message="Embedding 响应未返回任何向量",
+                config_ref=config.config_ref,
+                raw=resp,
+            )
+
+        ordered = sorted(resp.data, key=lambda item: item.index)
+        vectors = tuple(tuple(float(value) for value in item.embedding) for item in ordered)
+        if len(vectors) != len(texts):
+            raise LLMError(
+                code=LLMErrorCode.PROVIDER_ERROR,
+                message=(
+                    f"Embedding 返回 {len(vectors)} 条向量，"
+                    f"与输入文本数 {len(texts)} 不一致"
+                ),
+                config_ref=config.config_ref,
+                raw=resp,
+            )
+
+        dimensions = len(vectors[0])
+        if dimensions == 0 or any(len(vector) != dimensions for vector in vectors):
+            raise LLMError(
+                code=LLMErrorCode.PROVIDER_ERROR,
+                message="Embedding 向量维度为空或不一致",
+                config_ref=config.config_ref,
+                raw=resp,
+            )
+
+        usage = None
+        if resp.usage:
+            prompt_tokens = getattr(resp.usage, "prompt_tokens", None) or 0
+            total_tokens = getattr(resp.usage, "total_tokens", None) or prompt_tokens
+            usage = TokenUsage(
+                prompt_tokens=prompt_tokens,
+                completion_tokens=0,
+                total_tokens=total_tokens,
+            )
+
+        return EmbeddingResponse(
+            vectors=vectors,
+            dimensions=dimensions,
+            raw_response=resp,
+            usage=usage,
+            latency_ms=latency_ms,
+            provider=self.name,
+            model=getattr(resp, "model", None) or config.model,
+            config_ref=config.config_ref,
+        )

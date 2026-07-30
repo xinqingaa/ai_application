@@ -73,7 +73,7 @@ V0 要回答：
    以 PDF 为复杂样例理解原生文本、扫描件和图文混排的处理路线；代码实现 TXT、Markdown、DOCX 与文本型 PDF 的最小结构还原，交付带来源位置的 `KnowledgeDocument`，但不产生 Chunk。
 9. **[Chunking、父子块与 Metadata](mechanisms/chunking-and-metadata.md)** · 可学习
    接收第 8 步产生的 `DocumentElement`，建立用于检索的语义切片、父子块和 Metadata，理解切分怎样影响召回、引用和后续更新。
-10. **Embedding 表示与向量相似度** · 待编写
+10. **[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)** · 可学习
     使用真实 Embedding 服务，理解距离、归一化和模型一致性边界。
 11. **Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索** · 待编写
     理解词项检索和 BM25 原理；产品使用 PostgreSQL FTS，不把其排序函数误称为 BM25。

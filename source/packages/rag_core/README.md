@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，以及步骤 9 的可回查 Chunking。Embedding、Retriever、RRF 和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
+当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，以及步骤 10 的 Embedding 表示与成对相似度观察。知识库匹配、排名、持久化向量索引和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
 
 ## 当前数据流
 
@@ -15,6 +15,8 @@ FileArtifact + LoaderConfig
 → ChunkPolicy
 → element / fixed-window / structure-aware / parent-child
 → Chunk[] + ChunkReport
+→ embed_texts / pairwise_similarity
+→ EmbeddingRecord[] + SimilarityObservation[]
 ```
 
 ## 代码入口
@@ -32,8 +34,10 @@ FileArtifact + LoaderConfig
 | `chunking/identity.py` | 根据文档、有效策略和来源跨度生成稳定 Chunk ID |
 | `chunking/service.py` | element、fixed、structure-aware 与 parent-child 策略 |
 | `tests/test_chunking.py` | 来源回查、父子关系、Metadata 与稳定身份不变量 |
+| `embedding/models.py` | EmbeddingRecord、相似度度量与成对观察契约 |
+| `tests/test_embedding.py` | 表示顺序、度量方向和模型一致性边界 |
 
-建议按上表顺序阅读，再运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)。
+建议按上表顺序阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
 ## 公共入口
 
@@ -74,6 +78,27 @@ result = chunk_document(
 `ChunkSourceSpan` 保存原始 `element_id`、locator 和元素内字符范围。Chunk 可以合并、截取或重复原文，但每个来源片段必须能够回到真实 `DocumentElement`。
 
 `chunk_id` 同时包含文档身份、版本、有效策略 fingerprint、Chunk 类型、文本和来源跨度。同一输入与策略重复运行可预测；内容、版本或有效策略改变后不会复用旧 ID。数据库清理、索引迁移和 Citation 失效属于后续知识治理，不由当前模块执行。
+
+## Embedding 表示边界
+
+真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../llm_core/client/service.py)。`rag_core.embedding` 只负责：
+
+- 把文本整理成带模型、维度和可选 `text_id` 的 `EmbeddingRecord`
+- 在同一模型与维度下计算 cosine / dot / Euclidean
+- 产出成对 `SimilarityObservation`
+
+它只做表示记录与成对相似度观察，不对知识库候选做匹配排名，也不持久化向量。换模型或维度后，不得拿旧向量与新向量直接比较。
+
+```python
+from rag_core import SimilarityMetric, embed_texts, pairwise_similarity
+
+batch = embed_texts(
+    ["申请售后", "发起逆向服务", "售前活动规则"],
+    text_ids=["synonym_a", "synonym_b", "noise"],
+)
+for item in pairwise_similarity(batch.records, metric=SimilarityMetric.COSINE):
+    print(item.left_id, item.right_id, round(item.score, 4))
+```
 
 ## Chunking 策略边界
 

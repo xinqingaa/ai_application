@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from typing import Any, Protocol
 
-from llm_core.config import LLMResponse, ModelConfig
+from llm_core.config import EmbeddingResponse, LLMResponse, ModelConfig
 from llm_core.streaming import LLMStreamEvent
 
 
@@ -24,4 +24,14 @@ class ChatProvider(Protocol):
         config: ModelConfig,
         **params: Any,
     ) -> Iterator[LLMStreamEvent]:
+        ...
+
+
+class EmbeddingProvider(Protocol):
+    def embed(
+        self,
+        texts: Sequence[str],
+        config: ModelConfig,
+        **params: Any,
+    ) -> EmbeddingResponse:
         ...
