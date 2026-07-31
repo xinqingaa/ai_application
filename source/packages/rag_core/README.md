@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，以及步骤 10 的 Embedding 表示与成对相似度观察。知识库匹配、排名、持久化向量索引和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
+当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，以及步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval。Dense Retrieval、RRF、多路诊断、持久化向量索引和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
 
 ## 当前数据流
 
@@ -17,6 +17,14 @@ FileArtifact + LoaderConfig
 → Chunk[] + ChunkReport
 → embed_texts / pairwise_similarity
 → EmbeddingRecord[] + SimilarityObservation[]
+
+Chunk[]
+→ LexicalAnalyzer（中文词项 + 技术标识）
+→ lexical_text + lexical_config_ref
+→ PostgresFTSRetriever.upsert_chunks
+→ PostgreSQL tsvector + GIN
+→ PostgresFTSRetriever.search
+→ LexicalHit[] + LexicalDiagnostics
 ```
 
 ## 代码入口
@@ -36,8 +44,15 @@ FileArtifact + LoaderConfig
 | `tests/test_chunking.py` | 来源回查、父子关系、Metadata 与稳定身份不变量 |
 | `embedding/models.py` | EmbeddingRecord、相似度度量与成对观察契约 |
 | `tests/test_embedding.py` | 表示顺序、度量方向和 Embedding 空间一致性边界 |
+| `lexical/models.py` | 中文词法配置、查询操作符和可重建的配置身份 |
+| `lexical/analyzer.py` | NFKC、大小写、jieba 搜索模式、问句停用词和技术标识哨兵 |
+| `retrieval/models.py` | LexicalHit、原生 FTS rank 与查询诊断契约 |
+| `retrieval/errors.py` | 连接、鉴权、迁移、权限和数据库执行错误分层 |
+| `retrieval/postgres_fts.py` | Chunk upsert、删除、参数化 PostgreSQL FTS 查询和结果组装 |
+| `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
+| `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
 
-建议按上表顺序阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
+建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–11 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
 ## 公共入口
 
@@ -100,6 +115,27 @@ batch = embed_texts(
 for item in pairwise_similarity(batch.records, metric=SimilarityMetric.COSINE):
     print(item.left_id, item.right_id, round(item.score, 4))
 ```
+
+## PostgreSQL FTS 公共入口
+
+`LexicalAnalyzer` 必须以同一配置处理文档和查询。它保留重复文档词项用于词频观察，查询词项则去重；`source_channel`、`v2` 等技术标识会增加稳定的技术哨兵词，避免只依赖标点边界。
+
+```python
+from rag_core import PostgresFTSRetriever
+
+retriever = PostgresFTSRetriever()  # 从 DATABASE_URL 读取真实 PostgreSQL
+retriever.upsert_chunks(chunk_result.retrieval_chunks)
+result = retriever.search("source_channel 什么时候必填？", candidate_k=5)
+
+for hit in result.hits:
+    print(hit.route_rank, hit.fts_rank, hit.chunk_id)
+```
+
+当前 FTS 使用显式 `pg_catalog.simple`、生成的 `tsvector` 列、GIN 索引和 PostgreSQL 原生 `ts_rank`。返回字段名是 `fts_rank`，方向是 higher-is-better；不能改称 BM25 score。
+
+`lexical_config_ref` 包含名称、版本和所有影响文档/查询共同词项空间的配置 fingerprint。jieba 模式、领域词、停用词或 PostgreSQL text search config 变化时身份都会改变，旧行不会与新查询静默混用，调用者需要重新入库。查询 AND/OR 不改变已存词项，因此进入独立 `retriever_config_ref`，切换时需要记录实验配置但不需要重建文档索引。
+
+完整 migration 和数据库运行方式由 [`review_assistant/README.md`](../../../review_assistant/README.md) 维护。package 不自动建表、不自动执行 migration，也不在 PostgreSQL 失败后回退到 SQLite 或内存搜索。
 
 ## Chunking 策略边界
 

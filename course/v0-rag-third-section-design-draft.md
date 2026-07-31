@@ -66,7 +66,7 @@ Target Requirement + RetrievalResult
 
 正文解释机制、关键数据变化、公共入口和不变量；完整命令、参数和读码顺序由 package / demo README 维护。
 
-## 第 7–10 步的正式入口
+## 第 7–11 步的正式入口
 
 这些步骤的稳定内容已经由正式真源承担，本草稿不再复制其正文设计：
 
@@ -74,22 +74,7 @@ Target Requirement + RetrievalResult
 - 第 8 步：[文档内容识别、解析路由、结构还原与来源保留](mechanisms/document-loading-and-cleaning.md)
 - 第 9 步：[Chunking、父子块与 Metadata](mechanisms/chunking-and-metadata.md)
 - 第 10 步：[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)
-
-## 第 11 步：Lexical Retrieval 与 PostgreSQL FTS
-
-**核心问题**：词项检索怎样利用精确词面形成并排序候选，PostgreSQL FTS 与 BM25 的边界是什么？
-
-必须建立的判断：
-
-- 字符串包含、关键词搜索和 Lexical Retrieval 不是同一机制。
-- 匹配决定候选，排序决定先后。
-- BM25 是排序方法，不是全文检索的统称。
-- PostgreSQL 使用 `tsvector`、`tsquery` 与 `ts_rank` / `ts_rank_cd`；产品不能把原生 rank 改名为 BM25 分数。
-- 中文分词、英文标识符、下划线和大小写属于检索语义。
-
-最小实验使用真实 PostgreSQL 和同一批 Chunk，比较精确接口名、同义改写与正常噪声文本。重点观察原生 term、候选和 rank；配置错误只作为诊断或契约测试，不作为词面检索效果证据。
-
-**非目标**：不在 Python 内另造产品主路径 BM25，不提前融合 dense 结果。
+- 第 11 步：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)
 
 ## 第 12 步：pgvector 与 Dense Retrieval
 

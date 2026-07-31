@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)。本 lab 后续还会承接 lexical、dense、RRF 与 retrieval 诊断实验。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)。本 lab 后续还会承接 dense、RRF 与 retrieval 诊断实验。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文；真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../../packages/llm_core/client/service.py)，RAG 侧表示与成对相似度位于 [`rag_core.embedding`](../../packages/rag_core/embedding/)。
 
@@ -57,6 +57,75 @@ main
 
 本步只观察探针句对的表示距离。匹配一整库候选、持久化向量、多路融合和检索诊断，由课表后续步骤再进入。
 
+## 步骤 11：PostgreSQL FTS Lexical Retrieval
+
+先按 [`review_assistant/README.md`](../../../review_assistant/README.md) 安装并初始化真实 PostgreSQL、配置 `DATABASE_URL`、执行 migration。实验不会自动安装服务、自动建表，也不会回退到 SQLite 或内存检索。
+
+在仓库根目录运行：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py
+```
+
+默认实验会：
+
+1. 用第 8 步 Loader 读取 `order_rules.md`。
+2. 用第 9 步 structure-aware 策略生成真实 Chunk。
+3. 使用同一 `LexicalAnalyzer` 处理 Chunk 与查询。
+4. 幂等 upsert 到 `review_assistant.rag_chunks`。
+5. 用 PostgreSQL `websearch_to_tsquery`、`@@` 和 `ts_rank` 返回候选。
+6. 比较精确标识、词面一致、自然问句、同义改写、否定规则和正常噪声。
+
+查看 `tsquery`、PostgreSQL lexeme、命中词和每个候选：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --verbose
+```
+
+比较召回型 OR 与严格 AND：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --query-operator and --verbose
+```
+
+JSON Lines：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-format json
+```
+
+默认输出包含：
+
+- 原始查询、应用词项、PostgreSQL query lexeme 和最终 `tsquery`
+- `lexical_config_ref`、query operator 和 `candidate_k`
+- 命中数、返回数、稳定 `chunk_id` 和路由排名
+- 原生 `fts_rank`、方向和匹配词
+- 真实数据库错误的 stage、code 和 message
+
+探针位于 [`lexical_queries.json`](../../../review_assistant/fixtures/v0/retrieval/lexical_queries.json)。它是探索性机制材料，不是冻结的 V0 acceptance 集，也不证明最终 RAG 质量。
+
+### 步骤 11 调用路径
+
+```text
+main
+→ load_document
+→ chunk_document
+→ LexicalAnalyzer.analyze_document
+→ PostgresFTSRetriever.upsert_chunks
+→ PostgreSQL generated tsvector + GIN
+→ LexicalAnalyzer.analyze_query
+→ websearch_to_tsquery + @@ + ts_rank
+→ LexicalSearchResult
+```
+
+### 步骤 11 读码顺序
+
+1. [`inspect_lexical_retrieval.py`](inspect_lexical_retrieval.py)：看真实实验怎样组合已有 Loader、Chunker 和 Retriever。
+2. [`lexical/analyzer.py`](../../packages/rag_core/lexical/analyzer.py)：看中文词项、技术标识和配置版本。
+3. [`retrieval/postgres_fts.py`](../../packages/rag_core/retrieval/postgres_fts.py)：看参数化 SQL、事务、upsert、query 和错误转换。
+4. [`0001_create_rag_chunks.sql`](../../../review_assistant/infra/migrations/0001_create_rag_chunks.sql)：看表、约束、生成列和索引。
+5. [`test_lexical.py`](../../packages/rag_core/tests/test_lexical.py) 与 [`test_postgres_fts.py`](../../packages/rag_core/tests/test_postgres_fts.py)：看确定性契约和真实集成边界。
+
 ## 从 Demo 进入核心代码
 
 1. [`inspect_embedding.py`](inspect_embedding.py)：看探针如何进入公共 API。
@@ -71,9 +140,24 @@ main
 uv run pytest source/packages/llm_core/tests/test_client_embed.py source/packages/rag_core/tests/test_embedding.py -q
 ```
 
+步骤 11 的离线测试：
+
+```bash
+uv run pytest source/packages/rag_core/tests/test_lexical.py source/packages/rag_core/tests/test_postgres_fts.py -q -m "not integration"
+```
+
+配置独立测试库后运行真实 PostgreSQL 集成测试：
+
+```bash
+TEST_DATABASE_URL="$DATABASE_URL" uv run pytest source/packages/rag_core/tests/test_postgres_fts.py -q -m integration
+```
+
+不要对包含重要数据的数据库直接复用这条学习命令；集成测试会删除自己写入的测试 Chunk，但不会替你隔离其他数据。
+
 ## 当前实验不观察什么
 
-- 不对知识库候选做匹配与排名
-- 不持久化向量，也不建立全文索引
+- 步骤 10 不对知识库候选做匹配与排名；步骤 11 已建立 PostgreSQL FTS
+- 不持久化向量，也不建立 pgvector 索引
 - 不装配模型上下文，也不用最终评审回答判断 Embedding 质量
 - 不允许主路径 mock embedding 结果冒充真实模型效果
+- 步骤 11 不实现 Dense Retrieval、RRF、统一阈值或最终 Context
