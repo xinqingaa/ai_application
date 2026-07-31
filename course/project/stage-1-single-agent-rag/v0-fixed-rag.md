@@ -56,7 +56,7 @@ V0 可以分段实现，但进入产品组合前必须先确定下面这些契�
 - 明确三类对象的身份、作用域和证据资格：当前 PRD 是评审主体，现行规则是主要证据，历史材料只能以明确的历史角色进入 Context。
 - 明确 TXT / Markdown、DOCX、文本型 PDF 的解析范围、所选解析库和已知不支持结构。
 - 明确 `KnowledgeDocument`、`Chunk`、来源定位和稳定标识契约。
-- 明确 PostgreSQL 与 pgvector 版本、迁移方式、Embedding Provider、模型和向量维度。
+- 明确 PostgreSQL 与 pgvector 版本、迁移方式，以及 Embedding Provider、配置、模型、向量维度和预处理版本共同构成的空间身份。
 - 明确 lexical、dense、RRF 的参数语义、过滤顺序、阈值位置和诊断字段。
 - 明确 Review API 的业务结果与错误分层，以及唯一 Web 工作台入口。
 - 为第一次基线实验登记数据集、对照组、参数、指标、通过条件、成本和延迟预算。
@@ -266,7 +266,7 @@ V0 只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/app
 
 - PostgreSQL 与 pgvector 的版本、扩展启用和迁移命令。
 - 数据库连接、真实 Embedding 与真实 LLM 所需环境变量。
-- Embedding 模型名称、向量维度和模型变更后的重建索引规则。
+- Embedding Provider、配置、模型名称、向量维度、预处理版本，以及空间身份变化后的重建索引规则。
 - DOCX、PDF 解析库、支持范围和失败表现。
 - 资料入库、启动 API、启动 Web、运行测试和运行评估的唯一主命令。
 - 本地输出、运行记录和敏感配置的保存边界。
@@ -279,7 +279,7 @@ V0 的范围必须按纵向切片推进，每一段都留下可观察结果，�
 
 1. **契约与资料**：固定三类 fixtures，完成 Target Requirement 与知识资料的身份边界，以及 `KnowledgeDocument` / `Chunk` / locator / Metadata 契约和 TXT、Markdown、DOCX、文本型 PDF 的解析对照。
 2. **Lexical 基线**：先让 PostgreSQL FTS 单路检索可运行，记录词项命中、原生 rank、阈值和过滤诊断。
-3. **Dense 基线**：接入真实 Embedding 与 pgvector，固定模型和维度，记录相似度方向、索引和单路失败。
+3. **Dense 基线**：接入真实 Embedding 与 pgvector，固定 Provider、配置、模型、维度和预处理版本，记录相似度方向、索引和单路失败。
 4. **RRF 融合**：在两路结果之上实现应用侧 rank fusion、去重、`rrf_k`、`final_top_k` 和完整诊断。
 5. **Context 与生成**：将 RetrievalResult 交给已有 Context Builder 和真实结构化 LLM，区分检索、上下文、生成和 Schema 失败。
 6. **Review API 与 Web**：组合唯一产品入口，先完成普通请求响应、状态、风险、来源候选、上下文摘要和真实错误展示。
@@ -426,7 +426,7 @@ V0 不使用“感觉更好”作为指标，也不要求 RRF 在每个 Case 都
 第一次运行及后续每次比较前，必须登记：
 
 - `experiment_id`、`dataset_version`、Case 范围、development / acceptance split 和运行时间窗口。
-- 生成模型、Embedding 模型、Prompt、Schema、Chunk 和 Retriever 配置版本。
+- 生成模型、Embedding 空间身份、Prompt、Schema、Chunk 和 Retriever 配置版本。
 - lexical / dense 的 `candidate_k`、原生阈值、`rrf_k`、`final_top_k` 和 Metadata Filter。
 - 对照组、实验组、Source Hit@k / Recall@k / MRR@k 的具体 `k`，以及按问题类型登记的最低门槛。
 - 允许的禁止来源命中、无依据结论、成本和延迟预算。

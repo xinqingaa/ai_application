@@ -25,6 +25,7 @@ class EmbeddingRecord:
     config_ref: str
     provider: str
     text_id: str | None = None
+    preprocessing_version: str = "raw-v1"
 
 
 @dataclass(frozen=True)
@@ -36,8 +37,11 @@ class SimilarityObservation:
     score: float
     metric: SimilarityMetric
     higher_is_closer: bool
+    provider: str
+    config_ref: str
     model: str
     dimensions: int
+    preprocessing_version: str
 
 
 @dataclass(frozen=True)
@@ -52,10 +56,13 @@ def embed_texts(
     client: LLMClient | None = None,
     config_ref: str = "embedding.default_embed",
     text_ids: Sequence[str] | None = None,
+    preprocessing_version: str = "raw-v1",
     debug: bool = False,
 ) -> EmbeddingBatchResult:
     if text_ids is not None and len(text_ids) != len(texts):
         raise ValueError("text_ids 数量必须与 texts 一致")
+    if not preprocessing_version.strip():
+        raise ValueError("preprocessing_version 不能为空")
 
     llm = client or LLMClient.from_default_config()
     response = llm.embed(list(texts), config_ref, debug=debug)
@@ -68,6 +75,7 @@ def embed_texts(
             config_ref=response.config_ref,
             provider=response.provider,
             text_id=None if text_ids is None else text_ids[index],
+            preprocessing_version=preprocessing_version,
         )
         for index, (text, vector) in enumerate(zip(texts, response.vectors, strict=True))
     )
@@ -105,11 +113,12 @@ def pairwise_similarity(
     observations: list[SimilarityObservation] = []
     for left_index, left in enumerate(records):
         for right in records[left_index + 1 :]:
-            if left.model != right.model or left.dimensions != right.dimensions:
+            left_space = _space_identity(left)
+            right_space = _space_identity(right)
+            if left_space != right_space:
                 raise ValueError(
-                    "不能比较不同模型或不同维度的 EmbeddingRecord；"
-                    f"left=({left.model}, {left.dimensions}) "
-                    f"right=({right.model}, {right.dimensions})"
+                    "不能比较不同 Embedding 空间的 EmbeddingRecord；"
+                    f"left={left_space} right={right_space}"
                 )
             observations.append(
                 SimilarityObservation(
@@ -120,11 +129,24 @@ def pairwise_similarity(
                     score=similarity(left, right, metric=metric),
                     metric=metric,
                     higher_is_closer=higher_is_closer,
+                    provider=left.provider,
+                    config_ref=left.config_ref,
                     model=left.model,
                     dimensions=left.dimensions,
+                    preprocessing_version=left.preprocessing_version,
                 )
             )
     return tuple(observations)
+
+
+def _space_identity(record: EmbeddingRecord) -> tuple[str, str, str, int, str]:
+    return (
+        record.provider,
+        record.config_ref,
+        record.model,
+        record.dimensions,
+        record.preprocessing_version,
+    )
 
 
 def _dot(left: Sequence[float], right: Sequence[float]) -> float:

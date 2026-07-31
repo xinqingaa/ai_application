@@ -19,6 +19,12 @@ messages + config_ref
 → Provider
 → LLMResponse
 
+Embedding
+texts + embedding config_ref
+→ LLMClient.embed
+→ Provider
+→ EmbeddingResponse
+
 Prompt 工程化
 prompt_id@version + variables
 → render_prompt
@@ -65,9 +71,9 @@ harness records + learning price table + cache key
 
 | 模块 | 职责 | 先读什么 |
 | --- | --- | --- |
-| `client/` | 统一调用入口：`chat` / `stream_chat` / `chat_structured` | `client/service.py` |
-| `config/` | `ModelConfig`、`LLMResponse`、`models.yaml` | `config/models.yaml` |
-| `providers/` | OpenAI-compatible 请求适配与错误映射 | `providers/openai_compat.py` |
+| `client/` | 统一调用入口：`chat` / `embed` / `stream_chat` / `chat_structured` | `client/service.py` |
+| `config/` | `ModelConfig`、`LLMResponse`、`EmbeddingResponse`、`models.yaml` | `config/models.yaml` |
+| `providers/` | OpenAI-compatible chat / embedding 请求适配与错误映射 | `providers/openai_compat.py` |
 | `prompts/` | YAML Prompt 加载、版本化与渲染 | `prompts/registry.py` |
 | `schemas/` | 需求评审结构化 schema 与解析结果 | `schemas/review.py` / `schemas/parse.py` |
 | `structured/` | `response_format` 构造与结构化响应包装 | `structured/response.py` |
@@ -86,10 +92,18 @@ harness records + learning price table + cache key
 
 ### Provider 抽象
 
-1. [`config/models.yaml`](config/models.yaml)：理解 `chat.dev_chat`、`chat.structured_chat`、`chat.fallback_chat`。
+1. [`config/models.yaml`](config/models.yaml)：理解 chat 配置与独立的 `embedding.default_embed`。
 2. [`config/types.py`](config/types.py)：理解 `ModelConfig` 和 `LLMResponse`。
 3. [`client/service.py`](client/service.py)：`LLMClient.chat` 如何查配置、校验 role、调用 provider。
 4. [`providers/openai_compat.py`](providers/openai_compat.py)：真实 SDK 调用和错误映射。
+
+### Embedding
+
+1. [`config/models.yaml`](config/models.yaml)：确认 Embedding 使用独立 key、base URL 和模型配置。
+2. [`config/types.py`](config/types.py)：理解 `EmbeddingResponse` 的向量顺序、维度、usage 和模型信息。
+3. [`client/service.py`](client/service.py)：理解 `LLMClient.embed` 的 role 与输入校验。
+4. [`providers/openai_compat.py`](providers/openai_compat.py)：理解真实 `embeddings.create`、返回顺序校验和错误映射。
+5. demo [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)：观察真实向量与成对相似度。
 
 ### Prompt 工程
 
@@ -168,6 +182,18 @@ response = client.chat(
 print(response.model, response.usage, response.content)
 ```
 
+Embedding：
+
+```python
+from llm_core import LLMClient
+
+response = LLMClient.from_default_config().embed(
+    ["申请售后", "发起逆向服务"],
+    "embedding.default_embed",
+)
+print(response.model, response.dimensions, response.usage)
+```
+
 可靠调用：
 
 ```python
@@ -208,6 +234,7 @@ print(summary.success_count, records[0].attempt_count)
 按 [标准学习路径](../../../course/learning-path.md) 进入，不要按目录字母序通关：
 
 - 模型调用与输入输出契约：[../../demos/llm_invoke_lab/](../../demos/llm_invoke_lab/)（含 `first_chat.py` SDK 对照）
+- Embedding 表示与真实调用：[../../demos/rag_retrieval_lab/](../../demos/rag_retrieval_lab/)
 - Reliability 与可见降级：[../../demos/llm_reliability_lab/](../../demos/llm_reliability_lab/)
 - Context Engineering（等待 RAG 前置）：[../../demos/llm_context_lab/](../../demos/llm_context_lab/)
 - Calling Harness、成本、延迟与缓存：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
@@ -217,7 +244,7 @@ print(summary.success_count, records[0].attempt_count)
 
 | 现象 | 先看哪里 |
 | --- | --- |
-| Key 未配置、401 | 根目录 `.env` 与 `models.yaml` 的 `api_key_env` |
+| Key 未配置、401 | 根目录 `.env` 与 `models.yaml` 的 `api_key_env`；Embedding 不自动复用 chat key |
 | 换模型不生效 | `config_ref` 是否指向预期配置；`.env` 占位符是否正确 |
 | Prompt 版本找不到 | YAML 内 `prompt_id` / `version`，不是文件名 |
 | `json_schema` API 失败 | 供应商是否支持该 `response_format` |
@@ -233,6 +260,7 @@ print(summary.success_count, records[0].attempt_count)
 ## 对应课程正文
 
 - [模型 API 与 Provider 抽象](../../../course/mechanisms/model-api-and-provider.md)
+- [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)
 - [面向应用的 Prompt Engineering](../../../course/mechanisms/prompt-engineering.md)
 - [Structured Outputs](../../../course/mechanisms/structured-output.md)
 - [Streaming 与 Conversation](../../../course/mechanisms/streaming-and-conversation.md)

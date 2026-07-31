@@ -186,13 +186,13 @@ class LLMClient:
         normalized = [texts] if isinstance(texts, str) else list(texts)
         if not normalized:
             raise LLMError(
-                code=LLMErrorCode.PROVIDER_ERROR,
+                code=LLMErrorCode.INPUT_VALIDATION,
                 message="embed 至少需要一条非空文本",
                 config_ref=config_ref,
             )
         if any(not text.strip() for text in normalized):
             raise LLMError(
-                code=LLMErrorCode.PROVIDER_ERROR,
+                code=LLMErrorCode.INPUT_VALIDATION,
                 message="embed 不接受空文本或仅空白文本",
                 config_ref=config_ref,
             )

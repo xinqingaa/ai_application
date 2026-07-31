@@ -12,13 +12,13 @@
 uv run python source/demos/rag_retrieval_lab/inspect_embedding.py
 ```
 
-主路径必须配置真实 Embedding 凭证。默认读取 `OPENAI_EMBEDDING_API_KEY`（未设置时回退 `OPENAI_API_KEY`），以及可选的 `OPENAI_EMBEDDING_BASE_URL` / `OPENAI_EMBEDDING_MODEL`。
+主路径必须显式配置真实 Embedding 凭证 `OPENAI_EMBEDDING_API_KEY`，并按需要配置 `OPENAI_EMBEDDING_BASE_URL` / `OPENAI_EMBEDDING_MODEL`。Embedding 不自动复用 chat 的 key 或 base URL。
 
-注意：`OPENAI_BASE_URL` 只服务 chat。若 chat 使用 DeepSeek 等不提供 `/embeddings` 的平台，必须单独设置 `OPENAI_EMBEDDING_BASE_URL`，否则会出现 404。缺少鉴权或端点不可用时实验直接失败，不会静默改用 mock。
+注意：`OPENAI_BASE_URL` 只服务 chat。若 chat 使用 DeepSeek 等不提供 `/embeddings` 的平台，必须为 Embedding 单独选择支持该端点的服务。缺少专用 key 时返回 `AUTH`；显式配置了不支持 `/embeddings` 的 endpoint 或不存在的模型时可能返回 `404` / `PROVIDER_ERROR`。实验不会静默改用 mock。
 
 默认输出展示：
 
-- 使用的 embedding 模型、维度、latency 和 usage
+- 使用的 embedding Provider、模型、维度、预处理版本、latency 和 usage
 - 探针文本及其分组
 - 若干 focus pairs 的成对分数与预期说明
 
@@ -62,7 +62,7 @@ main
 1. [`inspect_embedding.py`](inspect_embedding.py)：看探针如何进入公共 API。
 2. [`llm_core/client/service.py`](../../packages/llm_core/client/service.py)：看 `embed` 的 role 守卫与空文本拒绝。
 3. [`llm_core/providers/openai_compat.py`](../../packages/llm_core/providers/openai_compat.py)：看真实 `embeddings.create` 与错误映射。
-4. [`rag_core/embedding/models.py`](../../packages/rag_core/embedding/models.py)：看 `EmbeddingRecord`、度量方向和模型一致性校验。
+4. [`rag_core/embedding/models.py`](../../packages/rag_core/embedding/models.py)：看 `EmbeddingRecord`、度量方向和 Embedding 空间一致性校验。
 5. [`tests/test_client_embed.py`](../../packages/llm_core/tests/test_client_embed.py) 与 [`tests/test_embedding.py`](../../packages/rag_core/tests/test_embedding.py)：看离线契约。
 
 ## 运行测试

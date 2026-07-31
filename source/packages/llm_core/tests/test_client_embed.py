@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+import httpx
 import pytest
+from openai import APIStatusError
 
 from llm_core import EmbeddingResponse, LLMClient, LLMError, LLMErrorCode, TokenUsage
 from llm_core.config import CapabilityTags, ModelConfig
+from llm_core.providers.openai_compat import OpenAICompatProvider
 
 
 class FakeEmbeddingProvider:
@@ -79,4 +84,101 @@ def test_embed_rejects_empty_inputs(texts: list[str]) -> None:
     client = LLMClient(EmbedRegistry())  # type: ignore[arg-type]
     with pytest.raises(LLMError) as captured:
         client.embed(texts, "embedding.default_embed")
+    assert captured.value.code is LLMErrorCode.INPUT_VALIDATION
+
+
+def _embedding_config() -> ModelConfig:
+    return ModelConfig(
+        config_ref="embedding.default_embed",
+        role="embedding",
+        provider="openai_compat",
+        model="test-embed",
+        api_key_env="OPENAI_EMBEDDING_API_KEY",
+    )
+
+
+def test_embedding_requires_its_declared_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OPENAI_EMBEDDING_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "chat-only-key")
+
+    with pytest.raises(LLMError) as captured:
+        OpenAICompatProvider()._client_for_config(_embedding_config())
+
+    assert captured.value.code is LLMErrorCode.AUTH
+    assert "OPENAI_EMBEDDING_API_KEY" in captured.value.message
+
+
+def test_provider_orders_embedding_response_and_records_usage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = SimpleNamespace(
+        data=[
+            SimpleNamespace(index=1, embedding=[0.3, 0.4]),
+            SimpleNamespace(index=0, embedding=[0.1, 0.2]),
+        ],
+        usage=SimpleNamespace(prompt_tokens=4, total_tokens=4),
+        model="resolved-embed",
+    )
+    fake_client = SimpleNamespace(
+        embeddings=SimpleNamespace(create=lambda **_: response),
+    )
+    provider = OpenAICompatProvider()
+    monkeypatch.setattr(provider, "_client_for_config", lambda _: fake_client)
+
+    result = provider.embed(["a", "b"], _embedding_config())
+
+    assert result.vectors == ((0.1, 0.2), (0.3, 0.4))
+    assert result.dimensions == 2
+    assert result.model == "resolved-embed"
+    assert result.usage is not None
+    assert result.usage.total_tokens == 4
+
+
+def test_provider_maps_embedding_404_with_endpoint_hint() -> None:
+    response = httpx.Response(
+        404,
+        request=httpx.Request("POST", "https://example.test/v1/embeddings"),
+    )
+    error = OpenAICompatProvider()._map_exception(
+        APIStatusError("not found", response=response, body=None),
+        _embedding_config(),
+    )
+
+    assert error.code is LLMErrorCode.PROVIDER_ERROR
+    assert "Embedding 端点不存在或模型不可用" in error.message
+
+
+@pytest.mark.parametrize(
+    ("data", "expected_message"),
+    [
+        (
+            [SimpleNamespace(index=0, embedding=[0.1, 0.2])],
+            "与输入文本数 2 不一致",
+        ),
+        (
+            [
+                SimpleNamespace(index=0, embedding=[0.1, 0.2]),
+                SimpleNamespace(index=1, embedding=[0.3]),
+            ],
+            "向量维度为空或不一致",
+        ),
+    ],
+)
+def test_provider_rejects_invalid_embedding_response_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    data: list[SimpleNamespace],
+    expected_message: str,
+) -> None:
+    response = SimpleNamespace(data=data, usage=None, model="resolved-embed")
+    fake_client = SimpleNamespace(
+        embeddings=SimpleNamespace(create=lambda **_: response),
+    )
+    provider = OpenAICompatProvider()
+    monkeypatch.setattr(provider, "_client_for_config", lambda _: fake_client)
+
+    with pytest.raises(LLMError, match=expected_message) as captured:
+        provider.embed(["a", "b"], _embedding_config())
+
     assert captured.value.code is LLMErrorCode.PROVIDER_ERROR

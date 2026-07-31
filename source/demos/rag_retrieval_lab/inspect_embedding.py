@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 
 from app_log import add_log_arguments, configure_from_args, console, get_logger
@@ -39,6 +38,11 @@ def main() -> int:
         default=PROBES_PATH,
         help="探针 JSON 路径",
     )
+    parser.add_argument(
+        "--preprocessing-version",
+        default="raw-v1",
+        help="记录本轮文本预处理契约版本；改变文本组装方式时必须升级",
+    )
     add_log_arguments(parser)
     args = parser.parse_args()
     configure_from_args(args)
@@ -64,6 +68,7 @@ def main() -> int:
             client=LLMClient.from_default_config(),
             config_ref=args.config_ref,
             text_ids=[item["id"] for item in probes],
+            preprocessing_version=args.preprocessing_version,
             debug=args.verbose,
         )
     except LLMError as exc:
@@ -93,6 +98,7 @@ def main() -> int:
             "Embedding 成对观察完成",
             model=batch.response.model,
             dimensions=batch.response.dimensions,
+            preprocessing_version=batch.records[0].preprocessing_version,
             latency_ms=round(batch.response.latency_ms, 1),
             probe_count=len(batch.records),
             pair_count=len(observations),
@@ -131,13 +137,6 @@ def _load_env() -> None:
         load_dotenv(env_path)
     else:
         load_dotenv()
-    has_embed_key = bool(os.environ.get("OPENAI_EMBEDDING_API_KEY", "").strip())
-    has_openai_key = bool(os.environ.get("OPENAI_API_KEY", "").strip())
-    if not has_embed_key and not has_openai_key:
-        raise SystemExit(
-            "缺少 OPENAI_EMBEDDING_API_KEY（或可回退的 OPENAI_API_KEY）。"
-            "Embedding 主路径必须调用真实服务，不允许静默 fallback 到 mock。"
-        )
 
 
 def _focus_rows(observations, focus_pairs: list[dict]) -> list[dict]:
@@ -165,6 +164,7 @@ def _render_summary(batch, metric: SimilarityMetric, groups: dict[str, str]) -> 
     usage = batch.response.usage
     console.info(
         f"model={batch.response.model} · provider={batch.response.provider} · "
+        f"preprocessing={batch.records[0].preprocessing_version} · "
         f"metric={metric.value} · higher_is_closer="
         f"{metric is not SimilarityMetric.EUCLIDEAN}"
     )

@@ -35,7 +35,7 @@ FileArtifact + LoaderConfig
 | `chunking/service.py` | element、fixed、structure-aware 与 parent-child 策略 |
 | `tests/test_chunking.py` | 来源回查、父子关系、Metadata 与稳定身份不变量 |
 | `embedding/models.py` | EmbeddingRecord、相似度度量与成对观察契约 |
-| `tests/test_embedding.py` | 表示顺序、度量方向和模型一致性边界 |
+| `tests/test_embedding.py` | 表示顺序、度量方向和 Embedding 空间一致性边界 |
 
 建议按上表顺序阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
@@ -83,11 +83,11 @@ result = chunk_document(
 
 真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../llm_core/client/service.py)。`rag_core.embedding` 只负责：
 
-- 把文本整理成带模型、维度和可选 `text_id` 的 `EmbeddingRecord`
-- 在同一模型与维度下计算 cosine / dot / Euclidean
+- 把文本整理成带 Provider、配置、模型、维度、预处理版本和可选 `text_id` 的 `EmbeddingRecord`
+- 在同一 Embedding 空间内计算 cosine / dot / Euclidean
 - 产出成对 `SimilarityObservation`
 
-它只做表示记录与成对相似度观察，不对知识库候选做匹配排名，也不持久化向量。换模型或维度后，不得拿旧向量与新向量直接比较。
+它只做表示记录与成对相似度观察，不对知识库候选做匹配排名，也不持久化向量。当前 Embedding 空间身份由 Provider、配置引用、模型、维度和预处理版本共同表达；任一项变化后不得与旧记录直接比较。
 
 ```python
 from rag_core import SimilarityMetric, embed_texts, pairwise_similarity
@@ -95,6 +95,7 @@ from rag_core import SimilarityMetric, embed_texts, pairwise_similarity
 batch = embed_texts(
     ["申请售后", "发起逆向服务", "售前活动规则"],
     text_ids=["synonym_a", "synonym_b", "noise"],
+    preprocessing_version="raw-v1",
 )
 for item in pairwise_similarity(batch.records, metric=SimilarityMetric.COSINE):
     print(item.left_id, item.right_id, round(item.score, 4))

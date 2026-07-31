@@ -19,17 +19,10 @@ class OpenAICompatProvider:
 
     def _client_for_config(self, config: ModelConfig) -> OpenAI:
         api_key = os.environ.get(config.api_key_env, "").strip()
-        # Allow chat-only OPENAI_API_KEY setups to reuse the same secret for
-        # embedding when a dedicated OPENAI_EMBEDDING_API_KEY is not set.
-        if not api_key and config.api_key_env == "OPENAI_EMBEDDING_API_KEY":
-            api_key = os.environ.get("OPENAI_API_KEY", "").strip()
         if not api_key:
-            hint = f"环境变量 {config.api_key_env} 未配置"
-            if config.api_key_env == "OPENAI_EMBEDDING_API_KEY":
-                hint += "（也未找到可回退的 OPENAI_API_KEY）"
             raise LLMError(
                 code=LLMErrorCode.AUTH,
-                message=hint,
+                message=f"环境变量 {config.api_key_env} 未配置",
                 config_ref=config.config_ref,
             )
 

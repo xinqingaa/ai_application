@@ -332,7 +332,7 @@ document_id
 
 同一文件以相同身份和策略重复加载时，元素 ID 可预测；版本、位置或文本变化时，旧元素和新元素能够区分。它不是数据库自增 ID，也不是后续 Chunk ID。
 
-## 用实验观察识别、结构和失败
+## 用实验观察识别与结构
 
 共享实现位于 [`rag_core.ingestion`](../../source/packages/rag_core/ingestion/)，最小实验位于 [`rag_ingestion_lab`](../../source/demos/rag_ingestion_lab/)。
 
@@ -363,26 +363,26 @@ uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --verbose
 
 完整运行参数、输出字段、代码阅读顺序和修改实验的方法由 [demo README](../../source/demos/rag_ingestion_lab/README.md) 维护。正文负责解释为什么要观察这些变化。
 
-## 失败必须指出发生在哪一层
+## 真实输入边界与契约测试承担不同证据
 
-运行稳定失败组：
+需要检查不支持输入和错误契约时运行：
 
 ```bash
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --include-failures
 ```
 
-实验会先展示一个可重复的双栏 PDF 阅读顺序对照：视觉左栏应先读，但 fixture 故意先把右栏写入 PDF 内容流，抽取结果因此先出现右栏。这使 reading-order warning 对应到真实可见差异，而不只是一条固定提示。
+实验会先展示一个可重复的双栏 PDF 阅读顺序对照：视觉左栏应先读，但 fixture 的 PDF 内容流先记录右栏，抽取结果因此先出现右栏。这是用于隔离 Parser 行为的受控对照，只能证明内容流与视觉阅读顺序可能不一致，不能冒充真实业务文档分布或 V0 产品质量证据。
 
-随后固定四种失败：
+随后检查一项真实支持边界和三项确定性契约：
 
-| 输入 | stage | code | 优先判断 |
-| --- | --- | --- | --- |
-| 无文本层 PDF | `empty_content` | `pdf_text_layer_missing` | 当前文本路线不适用，应评估 OCR/VLM 路线 |
-| 损坏 DOCX | `parse` | `document_parse_failed` | 容器内部 OOXML 无法解析 |
-| 非 UTF-8 TXT | `parse` | `text_decode_failed` | 编码契约不匹配 |
-| 无有效内容 Markdown | `empty_content` | `empty_document` | 文件存在但没有可继续处理的元素 |
+| 输入 | 证据性质 | stage | code | 优先判断 |
+| --- | --- | --- | --- | --- |
+| 无文本层 PDF | 有效输入下的当前支持边界 | `empty_content` | `pdf_text_layer_missing` | 当前文本路线不适用，应评估 OCR/VLM 路线 |
+| 损坏 DOCX | 确定性契约测试 | `parse` | `document_parse_failed` | 容器内部 OOXML 无法解析 |
+| 非 UTF-8 TXT | 确定性契约测试 | `parse` | `text_decode_failed` | 编码契约不匹配 |
+| 无有效内容 Markdown | 确定性契约测试 | `empty_content` | `empty_document` | 文件存在但没有可继续处理的元素 |
 
-manifest 同时冻结 expected stage 和 expected code。任意一项不匹配，或失败样例意外成功，实验都会返回非零退出码，不能用“打印了错误信息”代替失败契约成立。
+manifest 同时冻结 expected stage 和 expected code。任意一项不匹配，或负向样例意外成功，实验都会返回非零退出码，不能用“打印了错误信息”代替错误契约成立。这些结果用于验证应用分层，不证明 Parser 对真实资料的总体质量。
 
 错误类型定义在 [`ingestion/errors.py`](../../source/packages/rag_core/ingestion/errors.py)。建议按数据流定位：
 

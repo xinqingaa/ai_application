@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 
 class LLMErrorCode(str, Enum):
+    INPUT_VALIDATION = "input_validation"
     RATE_LIMIT = "rate_limit"
     TIMEOUT = "timeout"
     AUTH = "auth"

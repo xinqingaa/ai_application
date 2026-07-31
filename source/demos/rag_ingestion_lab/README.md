@@ -51,7 +51,7 @@ verbose 会增加：
 
 规范化后仍需保留业务文本和段内换行。清洗实验不能证明 Parser 的阅读顺序正确，也不能用来修复缺失图片或表格语义。
 
-## 稳定边界与失败
+## 支持边界与错误契约
 
 ```bash
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --include-failures
@@ -64,16 +64,16 @@ uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --include-fail
 - `pypdf` 因而先抽取右栏。
 - Loader 必须保留 `pdf_reading_order_not_guaranteed`。
 
-随后核对四个失败契约：
+随后核对一项有效输入下的支持边界和三项确定性错误契约：
 
-| 输入 | expected stage | expected code |
-| --- | --- | --- |
-| 真实栅格图片扫描 PDF | `empty_content` | `pdf_text_layer_missing` |
-| 损坏 DOCX | `parse` | `document_parse_failed` |
-| 非 UTF-8 TXT | `parse` | `text_decode_failed` |
-| 无有效内容 Markdown | `empty_content` | `empty_document` |
+| 输入 | 证据性质 | expected stage | expected code |
+| --- | --- | --- | --- |
+| 真实栅格图片扫描 PDF | 当前文本路线的支持边界 | `empty_content` | `pdf_text_layer_missing` |
+| 损坏 DOCX | 确定性契约测试 | `parse` | `document_parse_failed` |
+| 非 UTF-8 TXT | 确定性契约测试 | `parse` | `text_decode_failed` |
+| 无有效内容 Markdown | 确定性契约测试 | `empty_content` | `empty_document` |
 
-manifest 同时冻结 stage 和 code。任意一项不匹配、或失败样例意外成功，结果为 `MISMATCH` 且命令返回非零退出码。
+manifest 同时冻结 stage 和 code。任意一项不匹配、或负向样例意外成功，结果为 `MISMATCH` 且命令返回非零退出码。这组检查证明 Loader 的错误分层，不证明真实业务文档的总体解析质量。
 
 ## JSON Lines
 

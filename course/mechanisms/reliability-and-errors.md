@@ -263,7 +263,7 @@ LangChain 也有 fallback、retry parser 和 output parser 等能力。它们解
 
 ---
 
-## 可靠性策略本身怎样制造事故
+## 可靠性策略本身会带来哪些风险
 
 ### 1. 无限重试放大成本和延迟
 

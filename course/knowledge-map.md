@@ -106,9 +106,9 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | 图片理解与音频 ASR 归一化 | 机制 | 支撑 | V3 | 复杂文档与多模态知识生产边界 | `mechanisms/image-audio-normalization.md` | 后续多模态对照 demo | 待编写 |
 | 视频理解与流式语音产品 | 概念 | 未来认知 | 未来 | 图片理解与音频 ASR 归一化 | 待按需创建 | 无当前实现 | 未来认知 |
 | Chunking、父子块与 Metadata | 机制 | 主线 | V0 | 最小结构还原、清洗与来源保留 | [阅读正文](mechanisms/chunking-and-metadata.md) | `rag_core/chunking`、`rag_ingestion_lab/inspect_chunking.py` | 已落地 |
-| Embedding 的表示与相似度 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](mechanisms/embedding-and-similarity.md) | `llm_core` embed、`rag_core/embedding`、`rag_retrieval_lab/inspect_embedding.py` | 已落地 |
+| Embedding 表示与向量相似度 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](mechanisms/embedding-and-similarity.md) | `llm_core/client/service.py`、`rag_core/embedding`、`rag_retrieval_lab/inspect_embedding.py` | 已落地 |
 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索 | 机制 | 主线 | V0 | Chunking、父子块与 Metadata | `mechanisms/lexical-retrieval.md` | 后续 `rag_core/retrieval` | 待编写 |
-| pgvector、Dense Retrieval 与向量索引 | 机制 | 主线 | V0 | Embedding 的表示与相似度 | `mechanisms/vector-store-and-pgvector.md` | 后续 `rag_core/vector_store` | 待编写 |
+| pgvector、Dense Retrieval 与向量索引 | 机制 | 主线 | V0 | Embedding 表示与向量相似度 | `mechanisms/vector-store-and-pgvector.md` | 后续 `rag_core/vector_store` | 待编写 |
 | 多路召回与 RRF 融合 | 机制 | 主线 | V0 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索、pgvector、Dense Retrieval 与向量索引 | `mechanisms/multi-retrieval-and-rrf.md` | 后续 `rag_core/retrieval` | 待编写 |
 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | 机制 | 主线 | V0 | 多路召回与 RRF 融合 | `mechanisms/retriever-contract.md` | 后续 `rag_core/retrieval` | 待编写 |
 | Reranker、重排诊断与产品准入证据 | 机制 | 主线 | V2 | 多路召回与 RRF 融合、Retrieval 与 Generation Eval | `mechanisms/reranking.md` | 条件准入：通过收益门槛后进入 `rag_core/retrieval` | 待编写 |
@@ -138,7 +138,7 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | Chain、Workflow、Agent 与 Multi-Agent 边界 | 概念 | 主线 | V3 | 固定 RAG、搜索、数据库与 Agent 的边界 | `concepts/agent-and-workflow-boundaries.md` | 后续 `agent_core` | 待编写 |
 | Run State、Conversation、Memory 与业务知识的边界 | 概念 | 主线 | V3 | Chain、Workflow、Agent 与 Multi-Agent 边界 | `concepts/memory-and-knowledge-boundaries.md` | 后续 `agent_core/memory` | 待编写 |
 | 短期记忆：滑动窗口、摘要与预算 | 机制 | 主线 | V3 | Run State、Conversation、Memory 与业务知识的边界、Context Engineering 与预算 | `mechanisms/short-term-memory.md` | 后续 `agent_core/memory` | 待编写 |
-| 长期记忆：用户确认偏好、作用域、检索与治理 | 机制 | 主线 | V3 | 短期记忆：滑动窗口、摘要与预算、Embedding 的表示与相似度 | `mechanisms/long-term-memory.md` | V3 最小产品接入：后续 `agent_core/memory` | 待编写 |
+| 长期记忆：用户确认偏好、作用域、检索与治理 | 机制 | 主线 | V3 | 短期记忆：滑动窗口、摘要与预算、Embedding 表示与向量相似度 | `mechanisms/long-term-memory.md` | V3 最小产品接入：后续 `agent_core/memory` | 待编写 |
 | Mem0 与自建 Memory Runtime 对照 | 机制 | 支撑 | V3 | 长期记忆：用户确认偏好、作用域、检索与治理 | 并入长期记忆机制篇 | 对照实验，不作为产品依赖 | 待编写 |
 | Function Calling 与 Tool Schema | 机制 | 主线 | V3 | Structured Output 与本地校验 | `mechanisms/tool-schema.md` | 后续 `agent_core/tools` | 待编写 |
 | Tool Runtime 与结构化错误 | 机制 | 主线 | V3 | Function Calling 与 Tool Schema | `mechanisms/tool-runtime.md` | 后续 `agent_core/tools` | 待编写 |

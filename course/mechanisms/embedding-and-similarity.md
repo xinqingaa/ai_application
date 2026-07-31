@@ -74,9 +74,9 @@ query + visible Chunk pool
 | 对象 | 主要责任 |
 | --- | --- |
 | `EmbeddingResponse` | `llm_core` 对一次真实 Embedding 调用的统一响应：向量序列、维度、usage、latency、model |
-| `EmbeddingRecord` | RAG 侧一条可比较记录：原文、向量、模型、维度、可选 `text_id` |
+| `EmbeddingRecord` | RAG 侧一条可比较记录：原文、向量、Provider、配置、模型、维度、预处理版本与可选 `text_id` |
 | `SimilarityMetric` | cosine / dot / euclidean，以及“越大越近还是越小越近” |
-| `SimilarityObservation` | 一对文本的观察结果：分数、方向、模型与维度 |
+| `SimilarityObservation` | 一对文本的观察结果：分数、方向与本轮 Embedding 空间身份 |
 
 它们不能互相替代：
 
@@ -122,8 +122,8 @@ if "申请售后" in chunk_text: ...
 ```text
 texts + EmbeddingConfig
 → 真实 Embedding Provider
-→ vectors + model / dimensions / usage / latency
-→ 同一模型与维度下的相似度观察
+→ vectors + provider / config / model / dimensions / usage / latency
+→ 同一 Embedding 空间下的相似度观察
 ```
 
 ## 向量直觉：先看方向，再谈高维
@@ -143,7 +143,7 @@ texts + EmbeddingConfig
 文本
 → Embedding 模型
 → 固定长度的浮点数组
-→ 只有在相同模型、相同维度、相同度量约定下才可比较
+→ 只有在兼容的 Provider、配置、模型、维度和预处理空间下才可比较
 ```
 
 ## 三种度量：数值和方向必须一起保存
@@ -153,7 +153,7 @@ texts + EmbeddingConfig
 | 度量 | 直观含义 | `higher_is_closer` | 常见误用 |
 | --- | --- | --- | --- |
 | cosine | 夹角余弦，关注方向 | 是 | 把未说明的分数默认当成 cosine |
-| dot | 点积；向量已归一化时接近 cosine | 是 | 忽略向量长度差异 |
+| dot | 点积；向量已单位化时等于 cosine | 是 | 忽略向量范数差异 |
 | euclidean | 欧氏距离 | 否 | 按“越大越好”排序，结果完全反转 |
 
 为什么必须同时保存分数值和方向？因为以后只要用这些数字做比较或排序，方向错了，结果就会整体反转，而且表面上仍然“跑通了”。
@@ -162,11 +162,13 @@ texts + EmbeddingConfig
 
 ```text
 若向量已单位化
-→ cosine 与 dot 数值接近
+→ cosine 与 dot 相等（忽略浮点误差）
+→ squared Euclidean distance = 2 - 2 × cosine
+→ cosine 与 Euclidean 会给出相同的远近次序
 
 若向量未单位化
 → dot 同时受方向和长度影响
-→ 长度大的文本表示可能被放大或缩小，取决于模型行为
+→ 向量范数较大的表示会影响点积，不能把它简单归因于原文更长
 ```
 
 当前 `rag_core.embedding` 按原始返回向量计算，不偷偷做未声明的二次归一化。实验时若切换 `--metric`，应先问“更好”的方向有没有变，而不是只看数字变大还是变小。
@@ -180,14 +182,14 @@ texts + EmbeddingConfig
 高相似 ≠ 词面命中
 ```
 
-## 模型一致性是硬约束，不是配置洁癖
+## Embedding 空间一致性是硬约束，不是配置洁癖
 
 向量表示有一个和词面比较很不一样的地方：它依赖一个外部模型定义的空间。
 
 因此至少有四条工程约束：
 
-1. **query 与 document 必须兼容。**  
-   同一批比较里，模型名和维度必须一致。
+1. **query 与 document 必须属于同一 Embedding 空间。**
+   当前最小身份由 Provider、配置引用、模型名、维度和预处理版本共同表达。
 2. **换模型通常要重建。**  
    旧向量属于旧空间；把新旧向量放进同一张相似度表，得到的是不可解释的噪声。
 3. **预处理版本也是语义的一部分。**  
@@ -198,9 +200,12 @@ texts + EmbeddingConfig
 当前代码把这些约束落成早失败：
 
 - [`LLMClient.embed`](../../source/packages/llm_core/client/service.py) 要求 `role == "embedding"`。
-- [`pairwise_similarity`](../../source/packages/rag_core/embedding/models.py) 拒绝不同 `model` 或不同 `dimensions` 的记录。
+- [`embed_texts`](../../source/packages/rag_core/embedding/models.py) 为记录保存 `provider`、`config_ref`、`model`、`dimensions` 与 `preprocessing_version`。
+- [`pairwise_similarity`](../../source/packages/rag_core/embedding/models.py) 拒绝上述空间身份任一部分不一致的记录。
 
 这比事后看到一个“看起来还行”的错误分数更安全。
+
+当前空间身份仍是应用契约，不是供应商给出的全球唯一模型版本。若同一个 `config_ref` 背后的 endpoint 或模型实现发生不兼容变化，调用方必须升级配置或预处理版本并重建向量，不能仅因名称相同就复用旧记录。
 
 ## 公共入口与核心调用链
 
@@ -210,7 +215,7 @@ texts + EmbeddingConfig
 from llm_core import LLMClient
 
 response = LLMClient.from_default_config().embed(
-    ["申请售后", "发起逆向服务"],ß
+    ["申请售后", "发起逆向服务"],
     "embedding.default_embed",
 )
 ```
@@ -235,6 +240,7 @@ from rag_core import SimilarityMetric, embed_texts, pairwise_similarity
 batch = embed_texts(
     ["申请售后", "发起逆向服务", "售前活动规则"],
     text_ids=["synonym_a", "synonym_b", "noise"],
+    preprocessing_version="raw-v1",
 )
 for item in pairwise_similarity(batch.records, metric=SimilarityMetric.COSINE):
     print(item.left_id, item.right_id, round(item.score, 4))
@@ -248,7 +254,7 @@ for item in pairwise_similarity(batch.records, metric=SimilarityMetric.COSINE):
 | 包 | 该管什么 | 不该管什么 |
 | --- | --- | --- |
 | `llm_core` | API key、base_url、role、HTTP、usage、供应商错误 | Chunk 身份、业务探针、检索策略 |
-| `rag_core.embedding` | 表示记录、成对相似度、模型/维度一致性 | 自己再维护一套 Provider 配置 |
+| `rag_core.embedding` | 表示记录、成对相似度、Embedding 空间一致性 | 自己再维护一套 Provider 配置 |
 
 ### 配置为什么要和 Chat 分开
 
@@ -269,7 +275,15 @@ Embedding：需要支持 /embeddings 的平台
 
 若把 chat 的 `OPENAI_BASE_URL` 直接拿去 embed，常见结果是 `404`。本仓库选择让 Embedding **默认不继承** chat base URL，逼着配置显式化，而不是静默打到错误端点后再把问题误判成“向量效果差”。
 
-未设置 `OPENAI_EMBEDDING_API_KEY` 时，实现可以回退读取 `OPENAI_API_KEY`，方便两端都用 OpenAI 的学习者；但这不能推导成“所有 chat 兼容平台都提供 Embedding”。
+默认配置要求显式提供 `OPENAI_EMBEDDING_API_KEY`，不自动复用 chat 的 `OPENAI_API_KEY`。即使两端都使用 OpenAI，也应显式声明 Embedding 凭证；这样 chat 切换供应商时不会把另一家服务的 key 误发到默认 Embedding endpoint。
+
+### 批量调用不是无限输入
+
+当前公共入口可以一次传入多条文本，但这只表示 Provider API 支持批量输入，不表示调用方可以无限堆积 Chunk：
+
+- 单条文本和整批请求的 Token、条数与载荷限制由真实 Provider 和模型决定。
+- 当前实现按调用方提供的列表发起一次请求，不自动拆批，也不静默截断超长文本。
+- 超过真实服务限制时应保留 Provider 错误；后续入库链路若需要自动拆批，必须显式记录批次、重试和部分失败，而不是藏在本篇成对观察中。
 
 ## 用售后探针理解分数边界
 
@@ -282,12 +296,14 @@ Embedding：需要支持 /embeddings 的平台
 | `source_channel` 资料句 ↔ 字段提问 | 精确标识在向量空间里是否足够稳 |
 | 申请售后 ↔ 售前活动规则 | 无关噪声是否明显更远 |
 
-这些对照故意覆盖四类失败或误判：
+这些对照形成四类受控观察：
 
 1. **同义成功**：说明向量表示有价值。  
 2. **例外仍近**：说明不能把高分直接当证据。  
 3. **精确字段**：提示仅靠向量接近可能不够稳，词面信息仍重要。  
 4. **噪声更远**：说明表示空间至少能分开明显无关内容。
+
+其中规则句来自前面 ingestion fixtures 的 canonical facts，查询改写和噪声句是为隔离表示变量补充的有效业务表达。本篇直接读取探针文本，不重新运行 Loader 或 Chunker；这是为了只观察 Embedding 表示，不是用手写字符串替代后续真实知识库链路。
 
 注意：本篇比较的是探针句子之间的距离，不是“拿一个问题去整库候选里做检索排序”。后者会把匹配、排名和过滤一起卷进来，超出本篇要观察的变化。
 
@@ -305,11 +321,11 @@ uv run python source/demos/rag_retrieval_lab/inspect_embedding.py
 2. “已支付可申请”和“虚拟商品除外”会不会仍然较高？若较高，你的产品结论应该是什么？
 3. 带 `source_channel` 的资料句和字段提问，分数能证明什么、不能证明什么？
 4. 换用 `--metric euclidean` 后，数值变了，远近关系应如何阅读？
-5. 若 chat 已配置 DeepSeek，而 Embedding 未单独配置，你预期看到什么错误？
+5. 若 chat 已配置 DeepSeek，而 `OPENAI_EMBEDDING_API_KEY` 未配置，你预期错误发生在调用链哪一层？
 
 默认输出展示：
 
-- 模型、维度、latency、usage
+- Provider、模型、维度、预处理版本、latency、usage
 - 探针及其分组
 - focus pairs 的分数与预期说明
 
@@ -327,7 +343,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_embedding.py
 如果同义对很高、噪声对很低，只说明当前模型在这组受控句子上区分了大方向。  
 如果例外对也很高，不要立刻改模型；先承认这是向量表示的自然边界——接近主题不等于可替换约束。后面还要用匹配范围、过滤、上下文选择和证据规则来补齐，而不是要求 Embedding“理解业务法条”。
 
-## 失败必须指出发生在哪一层
+## 将自然边界、输入错误和真实服务故障分开
 
 主路径缺少密钥、鉴权失败、限流、超时、404 端点或供应商异常时，应看到清晰的 `LLMError`，而不是空向量或本地假分数。
 
@@ -335,11 +351,12 @@ uv run python source/demos/rag_retrieval_lab/inspect_embedding.py
 
 | 现象 | 优先检查 |
 | --- | --- |
-| `AUTH` | `OPENAI_EMBEDDING_API_KEY` / 回退的 `OPENAI_API_KEY`、供应商权限 |
-| `404` / `PROVIDER_ERROR` | 是否把仅聊天平台的 base URL 当成 Embedding 地址；模型名是否存在 |
+| `INPUT_VALIDATION` | 是否传入空列表、空字符串或仅空白文本；请求尚未到 Provider |
+| `AUTH` | `OPENAI_EMBEDDING_API_KEY` 是否配置、是否属于当前 Embedding 服务、供应商权限 |
+| `404` / `PROVIDER_ERROR` | 是否把仅聊天平台的 base URL 当成 Embedding 地址；Embedding 模型名是否存在 |
 | `RATE_LIMIT` / `TIMEOUT` | 限流、网络、是否应在外层重试 |
 | `CAPABILITY_MISMATCH` | 是否误把 chat 配置传给 embed |
-| 维度不一致 / 模型不同 | 是否拿旧向量与新模型混比 |
+| Embedding 空间不一致 | Provider、配置、模型、维度或预处理版本是否混用 |
 | 语义很近但约束相反 | 表示边界，不是程序异常 |
 
 一个应被当作教学边界而不是“修好就消失”的例子：
@@ -351,7 +368,9 @@ uv run python source/demos/rag_retrieval_lab/inspect_embedding.py
 处理：承认表示边界；后续用词面信息、过滤、上下文选择和证据判断补齐，而不是要求 Embedding“理解法律逻辑”
 ```
 
-Mock 只用于单元测试中的批处理、维度和错误映射，不能作为真实 Embedding 效果的主要证据。
+前三类服务错误用于验证真实异常流；输入校验和空间不一致由确定性测试固化；“语义很近但约束相反”是有效业务输入产生的表示边界。它们承担不同证据责任，不需要在每次学习时全部主动触发。
+
+Mock 只用于单元测试中的批量顺序、输入校验、返回契约、空间一致性和错误映射，不能作为真实 Embedding 效果的主要证据。
 
 ## Provider 封装了什么，没有解决什么
 
@@ -363,7 +382,7 @@ OpenAI-compatible Embedding API 封装了：
 
 它没有替应用解决：
 
-- query 与 document 是否使用兼容模型、维度和预处理版本
+- query 与 document 是否属于兼容的 Provider、配置、模型、维度和预处理空间
 - 分数方向如何解释和保存
 - 向量如何绑定 Chunk 身份，并在文档更新后重建
 - 何时应更多依赖词面信息，或合并多路结果
@@ -401,8 +420,8 @@ texts + EmbeddingConfig
 4. cosine 与 euclidean 的“更好”方向有什么不同？为什么必须保存 `higher_is_closer`？
 5. 为什么高相似不能等同于“能支撑结论”？用售后例外对解释一次。
 6. `LLMClient.embed` 为什么拒绝 chat 配置和空文本？
-7. 为什么不同模型或不同维度的向量不能直接比较？换模型后旧向量应怎样处理？
-8. 为什么 Embedding 配置不应默认继承 chat 的 `OPENAI_BASE_URL`？
+7. 哪些字段共同表达当前最小 Embedding 空间？任一字段变化后旧向量应怎样处理？
+8. 为什么 Embedding 配置不应默认继承 chat 的 `OPENAI_BASE_URL` 和 `OPENAI_API_KEY`？
 9. `llm_core` 与 `rag_core.embedding` 的分工是什么？若在 `rag_core` 再写一套 Provider 会有什么问题？
 10. 运行 focus pairs 后，你能否解释同义对、例外对、精确字段对和噪声对各自说明了什么？
 

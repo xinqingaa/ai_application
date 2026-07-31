@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from math import isclose
 
 import pytest
@@ -118,5 +119,46 @@ def test_pairwise_rejects_mixed_models() -> None:
         config_ref="embedding.default_embed",
         provider="fake",
     )
-    with pytest.raises(ValueError, match="不同模型"):
+    with pytest.raises(ValueError, match="不同 Embedding 空间"):
         pairwise_similarity([left, right])
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("provider", "other-provider"),
+        ("config_ref", "embedding.other"),
+        ("model", "m2"),
+        ("dimensions", 3),
+        ("preprocessing_version", "title-prefixed-v2"),
+    ],
+)
+def test_pairwise_rejects_mixed_embedding_spaces(
+    field: str,
+    value: str | int,
+) -> None:
+    left = EmbeddingRecord(
+        text="a",
+        vector=(1.0, 0.0),
+        model="m1",
+        dimensions=2,
+        config_ref="embedding.default_embed",
+        provider="provider-a",
+    )
+    right = replace(left, text="b", vector=(0.0, 1.0), **{field: value})
+
+    with pytest.raises(ValueError, match="不同 Embedding 空间"):
+        pairwise_similarity([left, right])
+
+
+def test_embed_texts_records_preprocessing_version() -> None:
+    client = LLMClient(FakeRegistry())  # type: ignore[arg-type]
+    batch = embed_texts(
+        ["申请售后", "售前活动规则"],
+        client=client,
+        preprocessing_version="chunk-text-v2",
+    )
+
+    assert {record.preprocessing_version for record in batch.records} == {
+        "chunk-text-v2"
+    }

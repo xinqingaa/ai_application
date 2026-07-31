@@ -287,8 +287,8 @@ def _inspect_failures(cases: list[dict[str, Any]], *, json_mode: bool) -> int:
         if json_mode:
             method = log.success if matched else log.error
             method(
-                "failure_contract.checked",
-                "稳定失败契约检查完成",
+                "boundary_contract.checked",
+                "支持边界与错误契约检查完成",
                 filename=path.name,
                 expected_stage=case["expected_stage"],
                 actual_stage=actual_stage,
@@ -297,7 +297,7 @@ def _inspect_failures(cases: list[dict[str, Any]], *, json_mode: bool) -> int:
                 matched=matched,
             )
     if not json_mode:
-        console.section("Failure contracts")
+        console.section("Boundary and error contracts")
         console.table(
             ("File", "Stage", "Code", "Result"),
             rows,
