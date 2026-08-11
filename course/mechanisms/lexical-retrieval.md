@@ -6,19 +6,18 @@
 
 > 一个带稳定身份和来源的 Chunk，怎样进入真实 PostgreSQL，变成可检索词项，并根据用户查询形成可解释、可排序、可诊断的 lexical candidates？
 
-本文面向有过 MySQL 或 SQL 经验、但已经遗忘不少语法并且不熟悉 PostgreSQL 的学习者。因此会先恢复本节真正需要的 SQL、表、索引、CRUD、事务、JOIN 和聚合，再进入全文检索；这些基础不会扩展成独立 DBA 课程。
+本文不要求你已经使用过其他关系数据库，但会把 PostgreSQL 基础与全文检索机制分开：已经能读懂表、基本 SQL、事务、索引和 migration，可以直接继续；还不确定时，先完成下方的按需自检和补充阅读。
 
 读完后，你应该能够：
 
-- 读懂并修改本节 `rag_chunks` migration。
-- 使用 `SELECT`、CRUD、事务、JOIN 和聚合检查检索数据。
+- 读懂本节使用的 `rag_chunks` 全文检索列和索引。
 - 解释 `tsvector`、`tsquery`、`@@`、GIN 和 `ts_rank` 分别负责什么。
 - 解释中文词项和 `source_channel` 等技术标识怎样进入索引。
 - 区分字符串包含、候选匹配、候选排序和最终证据判断。
 - 说明 PostgreSQL 原生 rank 为什么不能叫 BM25 score。
 - 运行真实 PostgreSQL 实验，并根据词项、查询、索引和错误层定位问题。
 
-本文不教授 PostgreSQL 运维、高可用、复制、分区、VACUUM 调优或完整权限体系；不实现 pgvector、Dense Retrieval、RRF、统一阈值和最终 Context。PostgreSQL 安装、环境变量、migration 命令和可选 GUI 统一由 [产品 README](../../review_assistant/README.md#postgresql-本地准备) 维护，正文不复制运行手册。
+本文不重新教授通用关系模型、SQL、JOIN 和聚合，也不展开 PostgreSQL 运维、高可用、复制、分区、VACUUM 调优或完整权限体系；不实现 pgvector、Dense Retrieval、RRF、统一阈值和最终 Context。PostgreSQL 安装、环境变量、migration 命令和可选 GUI 统一由 [产品 README](../../review_assistant/README.md#postgresql-本地准备) 维护，正文不复制运行手册。
 
 ## 先看这一节为什么不是“数据库换皮”
 
@@ -67,350 +66,27 @@ tsvector @@ tsquery
 
 数据库负责可靠存储、匹配和排序执行；应用仍然要负责身份、词法策略、查询语义、参数绑定、结果契约和错误可见性。
 
-## 用已有 MySQL 经验重新建立 PostgreSQL 地图
+## 进入 FTS 前，先判断数据库基础是否够用
 
-### Server、Database、Schema 和 Table
+本节会直接读取 migration、参数化 SQL 和 Psycopg 代码，不在主线中重新讲一遍通用数据库基础。继续之前，先判断自己能否大致回答：
 
-先用四层结构定位对象：
+1. Server、Database、Schema 和 Table 分别处于什么位置？
+2. 主键、`NOT NULL`、`NULL`、基本 CRUD 和 upsert 表达什么？
+3. 事务、索引和 migration 为什么存在？
+4. 参数化 SQL 为什么不能用字符串拼接替代？
+5. 连接成功、缺表、权限不足和成功空结果有什么区别？
 
-```text
-PostgreSQL Server
-└── Database: review_assistant
-    └── Schema: review_assistant
-        └── Table: rag_chunks
-```
+不要求现在背出完整语法。只要其中任何一项仍然陌生，先阅读按需概念篇 [PostgreSQL 零基础：读懂并使用项目数据库](../concepts/postgresql-for-ai-applications.md)，再回到这里。它不属于标准学习路径的新步骤，也不会改变课程编号。
 
-- **Server** 是正在运行的 PostgreSQL 服务进程。
-- **Database** 是一组相互隔离的数据库对象；连接建立时就要选定一个 Database。
-- **Schema** 是 Database 内的命名空间。
-- **Table** 位于某个 Schema 中。
+已经具备这些基础时，直接把当前数据库边界压缩成下面几条：
 
-MySQL 日常使用中的 `database` 经常同时承担 PostgreSQL `database` 与 `schema` 的部分认知，所以刚迁移时容易忽略 Schema。本文始终写全名：
+- 真实表是 [`review_assistant.rag_chunks`](../../review_assistant/infra/migrations/0001_create_rag_chunks.sql)，应用继续使用 Chunking 阶段产生的稳定 `chunk_id`。
+- `PostgresFTSRetriever.upsert_chunks` 通过参数化 upsert 和事务批量保存 Chunk；失败时整组回滚，不留下半份文档。
+- `search_vector` 是 PostgreSQL 根据 `lexical_text` 生成的全文检索列；GIN 只为符合形态的 `@@` 匹配提供候选入口。
+- 连接、鉴权、migration、权限和查询错误属于不同失败层，不能统一伪装成空候选。
+- 本节使用 PostgreSQL 内置 FTS，不需要额外 Extension；后续 pgvector 才会在数据库侧增加 `vector` 类型和运算符。
 
-```sql
-review_assistant.rag_chunks
-```
-
-这里前一个 `review_assistant` 是 Schema，后一个 `rag_chunks` 是 Table。即使 `search_path` 变化，SQL 仍然指向同一对象。
-
-### Role、User 和连接身份
-
-PostgreSQL 使用 Role 表达身份与权限。带登录能力的 Role 可以当作用户使用。应用连接至少要回答：
-
-```text
-连接哪台 Server？
-连接哪个 Database？
-以哪个 Role 登录？
-这个 Role 能否使用目标 Schema 和 Table？
-```
-
-`DATABASE_URL` 将这些信息组合起来：
-
-```text
-postgresql://role:password@host:port/database
-```
-
-连接成功只证明身份可以进入 Database，不等于已经执行 migration，也不等于 Role 有目标表的读写权限。因此代码将连接失败、鉴权失败、缺表和权限不足分成不同错误。
-
-### Extension 为什么与普通依赖不同
-
-Python package 安装在应用环境中；PostgreSQL extension 安装在数据库 Server 侧，并且通常还要在每个 Database 中显式启用。
-
-第 11 节使用 PostgreSQL 内置 FTS，不需要额外 extension。第 12 节的 pgvector 会新增 `vector` 类型和向量操作符，因此需要理解：
-
-```sql
-CREATE EXTENSION vector;
-```
-
-这行 SQL 不是 Python `import`，也不是每次启动应用都执行的普通查询。本文只建立这个边界，不提前实现向量列。
-
-## 用 `rag_chunks` 恢复 SQL 基础
-
-本节所有 SQL 都围绕真实 migration：[`0001_create_rag_chunks.sql`](../../review_assistant/infra/migrations/0001_create_rag_chunks.sql)。先理解关系数据，再理解全文搜索类型。
-
-### 表、行、列和约束
-
-表可以先理解为一组满足同一结构约束的行：
-
-| 列 | 一行中表达什么 |
-| --- | --- |
-| `chunk_id` | Chunk 的稳定身份 |
-| `document_id` / `document_version` | 属于哪个业务文档版本 |
-| `content` | 可回查原文 |
-| `source_role` | 现行参考知识还是历史材料 |
-| `business_metadata` | `knowledge_scope` 等业务过滤字段 |
-| `lexical_text` | 词法分析后的派生文本 |
-| `lexical_config_ref` | 产生词项的完整策略身份 |
-| `search_vector` | PostgreSQL 生成的全文检索表示 |
-
-建表语句的最小骨架是：
-
-```sql
-CREATE TABLE review_assistant.rag_chunks (
-    chunk_id TEXT PRIMARY KEY,
-    document_id TEXT NOT NULL,
-    content TEXT NOT NULL
-);
-```
-
-三个关键词承担不同契约：
-
-- `TEXT` 是列的数据类型。
-- `NOT NULL` 禁止缺失值。
-- `PRIMARY KEY` 同时要求唯一且非空，并建立用于身份查找的唯一索引。
-
-`PRIMARY KEY` 不是“第一列”的装饰。它说明每一行如何被稳定识别。当前项目已经在 Chunking 阶段生成稳定 `chunk_id`，数据库不能再用自增 ID 替代它，否则入库前后的知识身份会断裂。
-
-migration 还有这样的检查约束：
-
-```sql
-token_count INTEGER NOT NULL CHECK (token_count > 0)
-```
-
-它让无效状态无法进入表。应用侧校验能提前给出友好错误，数据库约束则守住所有写入路径；两者不是重复浪费。
-
-### `NULL` 不是空字符串
-
-SQL 中 `NULL` 表示未知或缺失，不等于 `''`、`0` 或 `false`。判断时不能写：
-
-```sql
-parent_chunk_id = NULL
-```
-
-正确写法是：
-
-```sql
-parent_chunk_id IS NULL
-parent_chunk_id IS NOT NULL
-```
-
-本节允许独立 Chunk 的 `parent_chunk_id` 为 `NULL`，但不允许 `content` 或 `lexical_text` 为空。是否允许空值必须来自业务语义，而不是统一禁止或统一放开。
-
-### `SELECT`：读取你真正需要的列
-
-读取接口约束 Chunk：
-
-```sql
-SELECT chunk_id, document_id, content
-FROM review_assistant.rag_chunks
-WHERE content LIKE '%source_channel%'
-ORDER BY chunk_id ASC
-LIMIT 10;
-```
-
-执行顺序可以先这样理解：
-
-1. `FROM` 确定数据来源。
-2. `WHERE` 过滤行。
-3. `SELECT` 决定输出列。
-4. `ORDER BY` 决定顺序。
-5. `LIMIT` 截取数量。
-
-不要长期依赖 `SELECT *`。当表在第 12 节增加大向量列时，读取全部列会带来不必要的数据传输，也让调用者无意依赖表的全部结构。
-
-`LIKE '%source_channel%'` 能用于快速检查原文是否含有字符串，但它不是完整 Lexical Retrieval：它没有统一词法分析、`tsquery`、倒排候选和相关性排序。
-
-### `INSERT`：创建一行
-
-最小插入形式是：
-
-```sql
-INSERT INTO review_assistant.rag_chunks (
-    chunk_id,
-    document_id,
-    document_version,
-    content
-) VALUES (
-    'chunk-001',
-    'KR-ORDER-STATE',
-    '1.0.0',
-    '售后接口 v2 必须提供 source_channel。'
-);
-```
-
-真实表还有其他必填字段，因此这段教学缩写不能直接通过当前 migration。真实写入由 [`PostgresFTSRetriever.upsert_chunks`](../../source/packages/rag_core/retrieval/postgres_fts.py) 完成。
-
-应用代码不能把用户输入直接拼进 SQL：
-
-```python
-# 错误方向：query 可以改变 SQL 结构
-sql = f"SELECT * FROM chunks WHERE content = '{query}'"
-```
-
-真实实现使用 Psycopg 命名参数：
-
-```python
-connection.execute(sql, {"query": query})
-```
-
-参数绑定负责把“SQL 结构”和“数据值”分开，既避免引号转义错误，也防止 SQL injection。表名、列名等 SQL 标识符不能作为普通值参数传入；本项目表名固定在受控 SQL 中，不接受用户动态指定。
-
-### `UPDATE`：修改已有行
-
-普通更新：
-
-```sql
-UPDATE review_assistant.rag_chunks
-SET content = '新的规则文本',
-    updated_at = CURRENT_TIMESTAMP
-WHERE chunk_id = 'chunk-001';
-```
-
-最危险的遗忘是漏掉 `WHERE`，这会更新整张表。因此修改前可以先用同一条件 `SELECT`，事务中修改后再检查影响行数。
-
-当前代码不单独发 `UPDATE`，而使用 upsert：
-
-```sql
-INSERT INTO ...
-ON CONFLICT (chunk_id) DO UPDATE SET
-    content = EXCLUDED.content,
-    lexical_text = EXCLUDED.lexical_text,
-    lexical_config_ref = EXCLUDED.lexical_config_ref;
-```
-
-含义是：主键不存在时插入，主键已存在时用本轮值更新。重复运行同一 fixture 不会无限复制行。
-
-### `DELETE`：删除而不是清空字段
-
-按稳定 ID 删除：
-
-```sql
-DELETE FROM review_assistant.rag_chunks
-WHERE chunk_id = 'chunk-001';
-```
-
-删除文档版本时需要显式使用复合条件：
-
-```sql
-DELETE FROM review_assistant.rag_chunks
-WHERE document_id = 'KR-ORDER-STATE'
-  AND document_version = '1.0.0';
-```
-
-`DELETE` 删除行；`UPDATE content = ''` 只是把字段改为空，而且会违反当前表约束。真实的知识更新、旧版本清理和 Citation 失效要到知识生命周期课程继续处理，本节只建立 CRUD 语义。
-
-### 事务：一组操作要么一起成功，要么一起失败
-
-事务的最小形态：
-
-```sql
-BEGIN;
-
-INSERT INTO ...;
-UPDATE ...;
-
-COMMIT;
-```
-
-如果中间检查发现问题：
-
-```sql
-ROLLBACK;
-```
-
-本节批量写入多个 Chunk 时，不应该出现“前三条已经提交、第四条失败、数据库只剩半个文档”的状态。Psycopg connection context 承担事务边界：
-
-```python
-with psycopg.connect(dsn) as connection:
-    with connection.cursor() as cursor:
-        cursor.executemany(sql, rows)
-```
-
-- 代码块正常结束时提交。
-- 抛出异常时回滚。
-- 退出后关闭连接。
-
-事务不能修复错误词法策略，也不能保证检索质量；它只保证这一组数据库写入的原子性。
-
-### 索引：用额外存储换取特定查询速度
-
-没有索引时，数据库可能逐行检查；有合适索引时，可以先定位较小的候选范围。索引不是越多越好：
-
-- 会占用存储。
-- 写入时还要维护索引。
-- 只对匹配的查询形态有效。
-- 查询规划器仍会根据数据量和成本决定是否使用。
-
-当前 migration 有三类索引：
-
-```sql
--- PRIMARY KEY 隐含的 B-tree 唯一索引
-PRIMARY KEY (chunk_id)
-
--- 文档版本定位使用 B-tree
-CREATE INDEX ... ON ... (document_id, document_version);
-
--- 全文词项包含关系使用 GIN
-CREATE INDEX ... ON ... USING GIN (search_vector);
-```
-
-B-tree 适合等值、范围和有序定位；GIN 适合一个复合值中包含哪些 key，例如一个 `tsvector` 包含哪些 lexeme。GIN 加速 `@@` 匹配，不自动产生更好的 rank，也不理解同义词。
-
-小型 fixture 只有几行时，`EXPLAIN` 可能显示顺序扫描，因为直接读几行比走索引更便宜。不能通过强制关闭顺序扫描伪装“索引已经在真实规模上证明收益”。
-
-### JOIN：把相关表按条件组合
-
-当前步骤只需要一张真实表，但必须恢复 JOIN 心智模型，因为后续运行记录、文档版本和评估 Case 不会永远塞进 `rag_chunks`。
-
-假设未来有文档表：
-
-```text
-knowledge_documents(document_id, document_version, title)
-rag_chunks(chunk_id, document_id, document_version, content)
-```
-
-查出 Chunk 及文档标题：
-
-```sql
-SELECT
-    chunk.chunk_id,
-    document.title,
-    chunk.content
-FROM review_assistant.rag_chunks AS chunk
-JOIN review_assistant.knowledge_documents AS document
-  ON document.document_id = chunk.document_id
- AND document.document_version = chunk.document_version;
-```
-
-JOIN 的关键不是背 `JOIN` 单词，而是确认关联条件完整。这里只按 `document_id` 连接会把不同版本交叉组合，形成错误来源。
-
-常见语义：
-
-- `INNER JOIN`：两侧都存在才返回。
-- `LEFT JOIN`：保留左表行，右表没有时对应列为 `NULL`。
-
-本节 migration 没有为了讲 JOIN 创建无业务需要的第二张表；上例只用于恢复关系判断，不冒充当前实现。
-
-### 聚合：把多行压缩成统计事实
-
-统计每个文档版本有多少 Chunk：
-
-```sql
-SELECT
-    document_id,
-    document_version,
-    COUNT(*) AS chunk_count,
-    AVG(token_count) AS average_tokens,
-    MAX(token_count) AS max_tokens
-FROM review_assistant.rag_chunks
-GROUP BY document_id, document_version
-ORDER BY document_id, document_version;
-```
-
-- `COUNT`、`AVG`、`MAX` 是聚合函数。
-- `GROUP BY` 定义哪些行属于同一组。
-- `SELECT` 中没有被聚合的普通列通常必须出现在 `GROUP BY`。
-
-只保留 Chunk 数量大于 2 的文档：
-
-```sql
-SELECT document_id, document_version, COUNT(*) AS chunk_count
-FROM review_assistant.rag_chunks
-GROUP BY document_id, document_version
-HAVING COUNT(*) > 2;
-```
-
-`WHERE` 在分组前过滤单行，`HAVING` 在分组后过滤聚合结果。聚合可以诊断数据分布，但平均 Chunk 长度不能证明检索质量。
+接下来只讨论这些数据库能力怎样承载 Lexical Retrieval，不再展开通用 SQL。
 
 ## 从原文到 PostgreSQL 可搜索对象
 
@@ -912,26 +588,22 @@ pgAdmin 等 GUI 封装对象浏览、SQL 编辑和结果展示；它也不会替
 
 不看代码解释，尝试回答：
 
-1. PostgreSQL Database 与 Schema 有什么区别？
-2. 为什么应用 Role 不应该直接使用超级用户？
-3. `PRIMARY KEY` 在本表中守住什么业务身份？
-4. `NULL` 与空字符串有什么区别？
-5. `WHERE` 和 `HAVING` 分别在哪个阶段过滤？
-6. 为什么 JOIN 文档版本时不能只连接 `document_id`？
-7. upsert 与普通 `UPDATE` 有什么区别？
-8. Psycopg connection context 怎样处理 commit 和 rollback？
-9. B-tree 与 GIN 分别服务哪类查询？
-10. `lexical_text`、`tsvector` 和原文为什么要同时存在？
-11. `tsquery` 与 `@@` 分别做什么？
-12. OR 为什么提高召回，也可能增加噪声？
-13. `ts_rank` 的值能否与 cosine similarity 直接相加？
-14. PostgreSQL `ts_rank_cd` 为什么不能叫 BM25？
-15. 同义改写无结果时，怎样证明这是词面边界而不是数据库失败？
-16. 为什么高 rank 不能直接当作证据充分？
-17. 词法配置变化后为什么需要重新入库？
-18. 数据库连接失败时为什么不能返回空候选？
+1. 字符串包含、词项匹配、候选排序和最终证据判断分别回答什么问题？
+2. `lexical_text`、`tsvector` 和原文为什么要同时存在？
+3. 为什么文档和查询必须使用同一个 `lexical_config_ref`？
+4. 查询 operator 为什么属于 Retriever 配置，而不属于词法空间身份？
+5. `tsquery` 与 `@@` 分别做什么？
+6. OR 为什么提高召回，也可能增加噪声？
+7. GIN 加速了什么，又没有解决什么？
+8. `ts_rank` 的值能否与 cosine similarity 直接相加？
+9. PostgreSQL `ts_rank_cd` 为什么不能叫 BM25？
+10. 同义改写无结果时，怎样证明这是词面边界而不是数据库失败？
+11. 为什么高 rank 不能直接当作证据充分？
+12. 词法配置变化后为什么需要重新入库？
+13. 成功空候选与数据库连接失败为什么必须采用不同结果契约？
+14. Psycopg 封装了哪些数据库交互，又没有替应用决定哪些检索策略？
 
-如果你能画出完整数据流、读懂 migration、运行真实实验、解释 OR/AND 变化，并能完成技术标识修改题，就已经达到本节需要的 PostgreSQL 与 Lexical Retrieval 掌握程度。
+如果你能画出从 `Chunk.text` 到 `LexicalHit` 的完整数据流，读懂 FTS migration 与核心查询，运行真实实验，解释 OR/AND 变化，并完成技术标识修改题，就已经达到本节需要的 Lexical Retrieval 与 PostgreSQL FTS 掌握程度。
 
 ## 当前交付与边界
 
