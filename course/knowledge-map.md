@@ -106,7 +106,7 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | 图片理解与音频 ASR 归一化 | 机制 | 支撑 | V3 | 复杂文档与多模态知识生产边界 | `mechanisms/image-audio-normalization.md` | 后续多模态对照 demo | 待编写 |
 | 视频理解与流式语音产品 | 概念 | 未来认知 | 未来 | 图片理解与音频 ASR 归一化 | 待按需创建 | 无当前实现 | 未来认知 |
 | Chunking、父子块与 Metadata | 机制 | 主线 | V0 | 最小结构还原、清洗与来源保留 | [阅读正文](mechanisms/chunking-and-metadata.md) | `rag_core/chunking`、`rag_ingestion_lab/inspect_chunking.py` | 已落地 |
-| Embedding 表示与向量相似度 | 机制 | 主线 | V0 | RAG 问题空间与完整链路 | [阅读正文](mechanisms/embedding-and-similarity.md) | `llm_core/client/service.py`、`rag_core/embedding`、`rag_retrieval_lab/inspect_embedding.py` | 已落地 |
+| Embedding 表示与向量相似度 | 机制 | 主线 | V0 | RAG 问题空间与完整链路、Chunking、父子块与 Metadata | [阅读正文](mechanisms/embedding-and-similarity.md) | `llm_core/client/service.py`、`rag_core/embedding`、`rag_retrieval_lab/inspect_embedding.py` | 已落地 |
 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索 | 机制 | 主线 | V0 | Chunking、父子块与 Metadata | [阅读正文](mechanisms/lexical-retrieval.md) | `rag_core/lexical`、`rag_core/retrieval`、`rag_retrieval_lab/inspect_lexical_retrieval.py` | 已落地 |
 | pgvector、Dense Retrieval 与向量索引 | 机制 | 主线 | V0 | Embedding 表示与向量相似度 | `mechanisms/vector-store-and-pgvector.md` | 后续 `rag_core/vector_store` | 待编写 |
 | 多路召回与 RRF 融合 | 机制 | 主线 | V0 | Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索、pgvector、Dense Retrieval 与向量索引 | `mechanisms/multi-retrieval-and-rrf.md` | 后续 `rag_core/retrieval` | 待编写 |
@@ -256,7 +256,7 @@ State / Node / Edge
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Python、HTTP、JSON 与配置 | 基础 | 支撑 | V0 | `python_base` | 按需回查 `python_base/` | 根项目 | 已落地 |
 | FastAPI、Review API 与错误契约 | 机制 | 主线 | V0 | Python、HTTP、JSON 与配置、Structured Output 与本地校验 | `mechanisms/fastapi-and-api.md` | 产品 app | 待编写 |
-| PostgreSQL 关系模型、SQL 与本地运行 | 机制 | 主线 | V0 | Python、HTTP、JSON 与配置 | [并入 Lexical Retrieval 正文](mechanisms/lexical-retrieval.md) | `review_assistant/infra`、产品 README | 已落地 |
+| PostgreSQL 关系模型、SQL 与本地运行 | 概念 | 支撑 | V0 | Python、HTTP、JSON 与配置 | [阅读正文](concepts/postgresql-for-ai-applications.md) | `review_assistant/infra`、产品 README | 已落地 |
 | Redis、后台任务与入库状态 | 机制 | 主线 | V4 | 内容识别、格式检测与解析路由、最小结构还原、清洗与来源保留、Checkpoint、Interrupt 与 Resume | `mechanisms/background-jobs.md` | 产品 infra | 待编写 |
 | Docker Compose 本地部署 | 机制 | 主线 | V6 | 产品入口 | `mechanisms/docker-compose.md` | 产品 infra | 待编写 |
 | 日志、Metrics 与工程观测 | 机制 | 主线 | V2 | Trace、Span 与 Run 关联 | `mechanisms/logging-and-metrics.md` | `app_log` + 后续产品 app / infra | 待编写 |

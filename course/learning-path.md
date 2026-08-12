@@ -74,9 +74,9 @@ V0 要回答：
 9. **[Chunking、父子块与 Metadata](mechanisms/chunking-and-metadata.md)** · 可学习
    接收第 8 步产生的 `DocumentElement`，建立用于检索的语义切片、父子块和 Metadata，理解切分怎样影响召回、引用和后续更新。
 10. **[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)** · 可学习
-    使用真实 Embedding 服务，理解距离、归一化和 Embedding 空间一致性边界。
+    承接第 9 步的可回查 Chunk，使用真实 Embedding 服务理解距离、归一化和 Embedding 空间一致性边界。
 11. **[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)** · 可学习
-    理解词项检索和 BM25 原理；产品使用 PostgreSQL FTS，不把其排序函数误称为 BM25。
+    理解词项检索和 BM25 原理；产品使用 PostgreSQL FTS，不把其排序函数误称为 BM25。数据库基础不够时，先按需阅读 [PostgreSQL 零基础](concepts/postgresql-for-ai-applications.md) 再返回本步。
 12. **pgvector、Dense Retrieval 与向量索引** · 待编写
     建立向量检索，并观察索引、过滤和相似度分数。
 13. **多路召回与 RRF 融合** · 待编写
@@ -121,6 +121,8 @@ V0 只建设 Web 前端，使用普通请求响应即可。Streaming、SSE、Flu
   当前用于理解交互机制和学习期实验；V3 再把结构化事件正式接入 Agent 产品链。
 - **Python、HTTP、JSON 与配置** · 按需支撑
   遇到基础问题时回查 `course/python_base/`，不要求重新通关。
+- **[PostgreSQL 零基础：读懂并使用项目数据库](concepts/postgresql-for-ai-applications.md)** · 按需支撑
+  第 11 步的 Server、Schema、SQL、事务、索引或 migration 基础不足时先补齐；它不新增主线路径步骤。
 
 ## V1：可信结构化评审
 

@@ -66,6 +66,53 @@ tsvector @@ tsquery
 
 数据库负责可靠存储、匹配和排序执行；应用仍然要负责身份、词法策略、查询语义、参数绑定、结果契约和错误可见性。
 
+## 先用一个不依赖 PostgreSQL 的例子理解词法检索
+
+先不看 SQL，仍使用开头的两个 Chunk。应用对文本做规范化和分词后，可以暂时把结果想成下面这样：
+
+```text
+Chunk A：售后接口 v2 必须提供 source_channel
+词项：售后 / 接口 / v2 / source_channel / techidsourcechannel / 必须 / 提供
+
+Chunk B：仅已支付且已完成的订单可申请售后
+词项：已支付 / 已完成 / 订单 / 申请 / 售后
+
+查询：source_channel 什么时候必填
+词项：source_channel / techidsourcechannel / 必填
+```
+
+这里会遇到三个相近但责任不同的词：
+
+| 名称 | 本文中的含义 | 例子 |
+| --- | --- | --- |
+| 原始片段 / token | 分词器从原文本中识别出的表面片段，尚未必能进入检索 | `什么时候`、`source_channel` |
+| 应用词项 / term | 应用规范化、过滤和补充后决定保留的检索单位 | `techidsourcechannel`、`必填` |
+| PostgreSQL lexeme | PostgreSQL parser 和 dictionary 最终写入 `tsvector` 或 `tsquery` 的归一化单位 | 后文真实输出中的 `'售后'`、`'techidsourcechannel'` |
+
+本项目先在应用侧处理中文和技术标识，再交给 PostgreSQL 的 `simple` 配置形成 lexeme。term 与 lexeme 经常长得相同，但它们位于不同处理层，排查时不能只看其中一个。
+
+如果每次查询都逐行扫描所有 Chunk，再检查有没有共同词项，数据增大后成本会持续上升。倒排关系把方向反过来，记录“某个 lexeme 出现在哪些 Chunk 中”：
+
+```text
+售后                 → [Chunk A, Chunk B]
+techidsourcechannel  → [Chunk A]
+必填                 → []
+```
+
+查询到来时，系统先按 lexeme 找到较小的 Chunk 集合，再根据 AND / OR 组合候选。以 OR 为例，虽然资料写的是“必须提供”而查询写的是“必填”，共同的 `techidsourcechannel` 仍能让 Chunk A 进入候选；AND 则可能因为没有共同的“必填”而淘汰它。
+
+候选形成后才进入排序。匹配回答“谁有资格参加”，rank 回答“候选之间谁更靠前”，最终证据判断还要继续检查版本、来源、否定和上下文：
+
+```text
+共同 lexeme + AND / OR
+→ 候选集合
+→ 词频、位置或权重等排序信号
+→ 本路排名
+→ 后续过滤、融合与证据判断
+```
+
+PostgreSQL 用 `tsvector` 保存文档 lexeme，用 `tsquery` 表达查询条件，用 `@@` 判断是否匹配。GIN 是帮助 PostgreSQL 从 lexeme 快速定位候选行的倒排索引；它加速符合形态的 `@@` 查询，但不定义查询语义、不产生更正确的 rank，也不理解同义词和否定。
+
 ## 进入 FTS 前，先判断数据库基础是否够用
 
 本节会直接读取 migration、参数化 SQL 和 Psycopg 代码，不在主线中重新讲一遍通用数据库基础。继续之前，先判断自己能否大致回答：
@@ -520,7 +567,7 @@ WHERE search_vector @@ websearch_to_tsquery(
 - 为了让案例成功把“逆向服务”偷偷改成“售后”。
 - 直接给全库增加大量同义词并宣称质量提高。
 
-下一节 Dense Retrieval 会在同一问题上观察语义表示是否补回候选；最终收益仍需固定评估证明。
+后续 Dense Retrieval 机制会在同一问题上观察语义表示是否补回候选；最终收益仍需固定评估证明，具体阅读顺序仍以标准学习路径为准。
 
 ### 否定规则 rank 高：匹配成功但证据理解尚未完成
 
