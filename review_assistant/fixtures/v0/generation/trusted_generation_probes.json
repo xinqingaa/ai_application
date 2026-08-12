@@ -1,0 +1,15 @@
+{
+  "fixture_kind": "trusted_generation_context_variants",
+  "version": "1.0.0",
+  "description": "步骤 16 使用同一 Requirement 比较真实 RAG 证据、正常无关证据与空证据；不包含 mock 模型输出。",
+  "normal_noise_source": {
+    "source_id": "KR-CAMPAIGN-ENTRY-NOISE",
+    "source_type": "evidence",
+    "title": "营销活动入口规则（无关业务域对照）",
+    "content": "首页营销活动入口仅在活动生效时间内展示。点击后打开活动聚合页，客户端记录 campaign_id 和入口曝光事件。该规则不描述订单状态、售后接口或申请售后入口。",
+    "metadata": {
+      "knowledge_scope": "campaign",
+      "experiment_role": "normal_noise_evidence"
+    }
+  }
+}

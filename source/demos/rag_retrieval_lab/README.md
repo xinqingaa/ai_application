@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)，步骤 14 阅读 [Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../../../course/mechanisms/retriever-contract.md)，步骤 15 阅读 [Context Engineering](../../../course/mechanisms/context-engineering.md)。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)，步骤 14 阅读 [Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../../../course/mechanisms/retriever-contract.md)，步骤 15 阅读 [Context Engineering](../../../course/mechanisms/context-engineering.md)，步骤 16 阅读 [可信生成](../../../course/mechanisms/trusted-generation.md)。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文；真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../../packages/llm_core/client/service.py)，RAG 侧表示与成对相似度位于 [`rag_core.embedding`](../../packages/rag_core/embedding/)。
 
@@ -279,6 +279,37 @@ uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py --log-format
 
 主路径调用真实 PostgreSQL 与 Embedding；缺少配置会失败，不回退到静态检索。`llm_context_lab/context_compare.py` 仍可离线观察 Builder 的确定性策略，但它不能证明 RAG 候选已经接通。
 
+## 步骤 16：真实结构化生成与 Citation Candidate 检查
+
+完整运行真实检索、Context 和 chat 模型，并对同一个 Requirement 比较真实 RAG 证据、正常无关证据与空证据：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_trusted_generation.py
+```
+
+展开每条风险、claimed source ID 与集合检查结果：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_trusted_generation.py --verbose
+```
+
+一次只运行一个对照，或在真实 Provider 不支持 `json_schema` 时显式登记为 `json_object`：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_trusted_generation.py --variants rag_evidence
+uv run python source/demos/rag_retrieval_lab/inspect_trusted_generation.py --structured-mode json_object
+```
+
+JSON Lines：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_trusted_generation.py --log-format json
+```
+
+需要 `DATABASE_URL`、真实 Embedding 配置和 `OPENAI_API_KEY`。默认 chat 配置是 `chat.structured_chat`；可用 `--config-ref` 显式切换，但失败后不会静默降级。任何结构化解析失败或未知 source ID 都使进程返回非零状态。
+
+生成对照材料位于 [`fixtures/v0/generation`](../../../review_assistant/fixtures/v0/generation/)。其中没有 mock 模型结果；normal noise 只用于观察模型是否把任意 Evidence 都误当成相关依据，不改变售后 Metadata Filter。
+
 ## 从 Demo 进入核心代码
 
 1. [`inspect_embedding.py`](inspect_embedding.py)：看探针如何进入公共 API。
@@ -323,6 +354,12 @@ uv run pytest source/packages/rag_core/tests/test_hybrid_retriever.py -q
 uv run pytest source/packages/rag_core/tests/test_rag_context.py source/packages/llm_core/tests/test_context.py -q
 ```
 
+步骤 16 的结构化生成与候选集合检查：
+
+```bash
+uv run pytest source/packages/rag_core/tests/test_trusted_generation.py source/packages/llm_core/tests/test_client_structured.py -q
+```
+
 配置独立测试库后运行真实 PostgreSQL 集成测试：
 
 ```bash
@@ -344,4 +381,5 @@ uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m integr
 - 步骤 15 已装配模型上下文，但不用最终评审回答反推 Embedding 质量
 - 不允许主路径 mock embedding 结果冒充真实模型效果
 - 步骤 13 已实现应用侧 RRF；步骤 14 已实现统一控制顺序、每路阈值、`final_top_k` 和完整淘汰原因
-- 仍不执行可信生成，也不把检索分数当作事实权威性
+- 步骤 16 已执行真实结构化生成和 Citation Candidate membership check，但不把检索分数当作事实权威性
+- 不验证引用内容是否支持模型结论，也不实现证据充分性、Refusal 或追问闭环

@@ -107,7 +107,7 @@ harness records + learning price table + cache key
 
 ### Prompt 工程
 
-1. [`prompts/review/risk_review_v1.yaml`](prompts/review/risk_review_v1.yaml) 到 `v4`：Prompt 版本如何演进。
+1. [`prompts/review/risk_review_v1.yaml`](prompts/review/risk_review_v1.yaml) 到 `v5`：Prompt 怎样从直接调用演进到动态 Citation Candidate 边界。
 2. [`prompts/registry.py`](prompts/registry.py)：`get_prompt` / `render_prompt`。
 3. demo [`llm_invoke_lab/prompt_compare.py`](../../demos/llm_invoke_lab/prompt_compare.py)：同一样例比较 Prompt 版本。
 

@@ -85,7 +85,7 @@ V0 要回答：
     记录每路排名、融合排名、过滤条件、阈值淘汰和无结果原因。
 15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 可学习
     Retriever 先产生候选证据，Context Builder 再决定本轮模型真正看到什么；Context 注入不属于文档解析或 Chunking。
-16. **可信生成、Sources、Citation Candidate 与证据不足** · 待编写
+16. **[可信生成、Sources、Citation Candidate 与证据不足](mechanisms/trusted-generation.md)** · 可学习
     约束模型依据候选证据生成；V0 只建立 Citation Candidate，不宣称完成 Citation 校验。
 
 完成第 7–16 步，且能亲自运行实验、解释数据流、定位一次真实边界并完成修改题，可以称为已经完成**固定 RAG 核心机制入门**：你知道资料怎样变成 Chunk，lexical / dense / RRF 怎样形成候选，候选怎样进入 Context，以及模型怎样基于候选生成。这里只阅读正文或跑通命令，还不能称为掌握；完成第 20、22、23 步的对照与评估，并回到 V0 项目完成真实产品、bad case、变更和验收后，才达到本仓库的 **V0 固定 RAG 项目掌握**。Citation 支持性校验、证据充分性、Refusal 和知识更新在 V1，系统评估、Reranker 准入与 bad case 闭环在 V2，因此第 16 步不表示“RAG 已全部学完”。

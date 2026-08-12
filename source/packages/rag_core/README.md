@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，步骤 13 的应用侧 RRF，步骤 14 的固定 Retrieval 控制与诊断，以及步骤 15 从检索候选到共享 Context Builder 的来源适配。可信生成尚未接入这条 RAG 数据流。
+当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，步骤 13 的应用侧 RRF，步骤 14 的固定 Retrieval 控制与诊断，步骤 15 从检索候选到共享 Context Builder 的来源适配，以及步骤 16 的真实结构化生成与 Citation Candidate membership 检查。
 
 ## 当前数据流
 
@@ -51,6 +51,13 @@ RetrievalResult.candidates
 → ContextSource[]（保留 chunk_id、locator 与路线诊断）
 → llm_core.build_review_context
 → BuiltContext + ContextBuildReport
+
+BuiltContext + citation candidate IDs
+→ review.risk_review@5.0.0
+→ LLMClient.chat_structured（真实模型）
+→ ReviewRisk[]
+→ claimed source ID membership check
+→ TrustedGenerationResult + TrustedGenerationReport
 ```
 
 ## 代码入口
@@ -82,14 +89,16 @@ RetrievalResult.candidates
 | `retrieval/fusion.py` | 路由状态、统一排名候选、RRF 贡献、稳定去重与融合诊断 |
 | `retrieval/hybrid.py` | 固定预过滤、每路候选与阈值、RRF、最终截断和无结果诊断 |
 | `context/adapter.py` | RetrievalResult 到 ContextSource 的身份、位置、证据资格和诊断适配 |
+| `generation/service.py` | BuiltContext、真实结构化生成、claimed source ID 候选集合检查和报告 |
 | `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
 | `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
 | `tests/test_pgvector_dense.py` | Chunk/向量绑定、空间身份、距离方向和可选真实 pgvector 集成测试 |
 | `tests/test_rrf.py` | 名次融合、空/失败路线、稳定身份和跨路线一致性不变量 |
 | `tests/test_hybrid_retriever.py` | 控制顺序、Metadata 传递、阈值方向、最终截断和失败分类 |
 | `tests/test_rag_context.py` | Chunk 来源保留、证据资格映射、预算去向和 source ID 冲突 |
+| `tests/test_trusted_generation.py` | 合法/未知 source、无引用风险、空证据和结构化失败边界 |
 
-建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–15 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
+建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–16 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
 ## 公共入口
 
@@ -241,6 +250,12 @@ result = FixedHybridRetriever(lexical, dense).retrieve(
 `retrieval_result_to_context_sources` 将最终 RRF 候选映射到 `llm_core.ContextSource`。稳定 `chunk_id` 继续作为 `source_id`，文档版本、`source_spans`、融合排名、每路原生分数和检索配置进入可诊断 metadata；缺少 locator 的候选会明确失败。
 
 `build_rag_review_context` 随后委托唯一的 `llm_core.build_review_context` 做去重、分区预算和压缩。检索分数只保留作诊断，不写入通用 authority/confidence score；当前 evidence 才能成为 Citation Candidate，历史材料只进入 History，ineligible 材料明确排除。
+
+## 可信生成入口
+
+`generate_trusted_review` 使用 `review.risk_review@5.0.0` 和 `LLMClient.chat_structured` 调用真实模型。Prompt 显式列出本轮允许的 Citation Candidate IDs；返回通过结构化解析后，应用逐项检查每个 claimed `source_id` 是否属于该集合。
+
+`succeeded` 只表示结构合法且声明 ID 来自本轮候选。报告固定写明 `candidate_membership_only_not_support_validation`；它不校验 excerpt 是否存在、source 内容是否支持风险，也不完成证据充分性或 Refusal。未知 ID 和结构化解析失败都是非成功状态，真实 `LLMError` 继续向调用者暴露。
 
 ## Chunking 策略边界
 
