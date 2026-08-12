@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，以及步骤 13 的应用侧 RRF。统一 Retrieval 控制诊断和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
+当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，步骤 13 的应用侧 RRF，以及步骤 14 的固定 Retrieval 控制与诊断。Context 装配和可信生成尚未接入这条 RAG 数据流。
 
 ## 当前数据流
 
@@ -38,6 +38,13 @@ LexicalHit[] + DenseHit[]
 → RankedRoute("lexical") + RankedRoute("dense")
 → reciprocal_rank_fusion
 → RRFCandidate[] + RRFDiagnostics
+
+相同 Metadata pre-filter
+→ lexical / dense candidate_k
+→ 各路原生分数 threshold
+→ reciprocal_rank_fusion
+→ final_top_k
+→ RetrievalResult + RetrievalReport
 ```
 
 ## 代码入口
@@ -67,12 +74,14 @@ LexicalHit[] + DenseHit[]
 | `vector_store/postgres.py` | Chunk 向量入库、按空间建立 HNSW partial index 和删除 |
 | `retrieval/postgres_dense.py` | pgvector cosine distance、exact / HNSW 查询、可见范围和查询计划诊断 |
 | `retrieval/fusion.py` | 路由状态、统一排名候选、RRF 贡献、稳定去重与融合诊断 |
+| `retrieval/hybrid.py` | 固定预过滤、每路候选与阈值、RRF、最终截断和无结果诊断 |
 | `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
 | `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
 | `tests/test_pgvector_dense.py` | Chunk/向量绑定、空间身份、距离方向和可选真实 pgvector 集成测试 |
 | `tests/test_rrf.py` | 名次融合、空/失败路线、稳定身份和跨路线一致性不变量 |
+| `tests/test_hybrid_retriever.py` | 控制顺序、Metadata 传递、阈值方向、最终截断和失败分类 |
 
-建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–11 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
+建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–14 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
 ## 公共入口
 
@@ -198,6 +207,26 @@ fused = reciprocal_rank_fusion(
 ```
 
 同一路由成功 0 条使用 `EMPTY`，执行错误使用带结构化错误的 `FAILED`。RRF 会保留失败事实和其他路线候选，但是否允许部分结果成为产品成功由上层决定。融合按稳定 `chunk_id` 去重，并拒绝同一 ID 在两路对应不同来源内容。
+
+## 固定 Retriever 公共入口
+
+`FixedHybridRetriever` 把 Metadata 预过滤、两路 `candidate_k`、各自原生阈值、RRF 和 `final_top_k` 固定成一个调用顺序。两路阈值不共享通用相关度：PostgreSQL `fts_rank` 越大越好，pgvector cosine distance 越小越好。
+
+```python
+config = HybridRetrieverConfig(
+    knowledge_scope="after_sale",
+    lexical_candidate_k=5,
+    dense_candidate_k=5,
+    final_top_k=3,
+)
+result = FixedHybridRetriever(lexical, dense).retrieve(
+    query,
+    query_embedding,
+    config=config,
+)
+```
+
+`RetrievalReport` 保留每路 indexed/visible/candidate/pass 数量、原生阈值决策、融合统计、最终截断和结构化无结果原因。空检索不能证明知识中没有答案；一路失败也不能伪装成成功空结果。当前固定 Retriever 只形成候选，不负责 Context 预算或生成。
 
 ## Chunking 策略边界
 

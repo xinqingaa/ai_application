@@ -20,10 +20,7 @@ from rag_core import (
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 FIXTURE = REPO_ROOT / "review_assistant/fixtures/v0/ingestion/order_rules.md"
-MIGRATION = (
-    REPO_ROOT
-    / "review_assistant/infra/migrations/0001_create_rag_chunks.sql"
-)
+MIGRATION = REPO_ROOT / "review_assistant/infra/migrations/0001_create_rag_chunks.sql"
 
 
 class FakeResult:
@@ -86,6 +83,8 @@ def test_search_maps_native_rank_and_diagnostics() -> None:
                 "business_metadata": {"knowledge_scope": "after_sale"},
                 "matched_terms": ["techidsourcechannel"],
                 "fts_rank": 0.75,
+                "indexed_chunk_count": 4,
+                "visible_chunk_count": 2,
                 "matched_chunk_count": 1,
                 "tsquery": "'techidsourcechannel'",
                 "query_lexemes": ["source", "channel", "techidsourcechannel"],
@@ -97,13 +96,22 @@ def test_search_maps_native_rank_and_diagnostics() -> None:
         connect=FakeConnect(connection),
     )
 
-    result = retriever.search("source_channel", candidate_k=3)
+    result = retriever.search(
+        "source_channel",
+        candidate_k=3,
+        knowledge_scope="after_sale",
+        source_roles=(SourceRole.REFERENCE_KNOWLEDGE,),
+        evidence_eligibilities=(EvidenceEligibility.CURRENT_EVIDENCE,),
+    )
 
     assert result.hits[0].chunk_id == "chunk-1"
     assert result.hits[0].fts_rank == 0.75
     assert result.hits[0].route_rank == 1
     assert result.diagnostics.matched_chunk_count == 1
     assert result.diagnostics.returned_chunk_count == 1
+    assert result.diagnostics.indexed_chunk_count == 4
+    assert result.diagnostics.visible_chunk_count == 2
+    assert result.diagnostics.knowledge_scope == "after_sale"
     assert result.diagnostics.higher_is_better is True
     assert result.diagnostics.retriever_config_ref.startswith("postgres_fts@")
     assert connection.executions[0][1]["websearch_query"].count(" OR ") == 1
@@ -114,6 +122,8 @@ def test_search_preserves_successful_empty_result_diagnostics() -> None:
         [
             {
                 "chunk_id": None,
+                "indexed_chunk_count": 3,
+                "visible_chunk_count": 3,
                 "matched_chunk_count": None,
                 "tsquery": "'逆向' | '服务'",
                 "query_lexemes": ["逆向", "服务"],

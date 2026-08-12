@@ -109,6 +109,8 @@ class PostgresDenseRetriever:
                 dimensions=space.dimensions,
                 preprocessing_version=space.preprocessing_version,
                 knowledge_scope=knowledge_scope,
+                source_roles=tuple(source_roles or ()),
+                evidence_eligibilities=tuple(evidence_eligibilities or ()),
                 indexed_chunk_count=int(counts["indexed_chunk_count"] or 0),
                 visible_chunk_count=int(counts["visible_chunk_count"] or 0),
                 returned_chunk_count=len(hits),

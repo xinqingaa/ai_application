@@ -53,6 +53,11 @@ class LexicalDiagnostics:
     lexical_config_ref: str
     retriever_config_ref: str
     postgres_config: str
+    knowledge_scope: str | None
+    source_roles: tuple[SourceRole, ...]
+    evidence_eligibilities: tuple[EvidenceEligibility, ...]
+    indexed_chunk_count: int
+    visible_chunk_count: int
     matched_chunk_count: int
     returned_chunk_count: int
     candidate_k: int
@@ -96,6 +101,8 @@ class DenseDiagnostics:
     dimensions: int
     preprocessing_version: str
     knowledge_scope: str | None
+    source_roles: tuple[SourceRole, ...]
+    evidence_eligibilities: tuple[EvidenceEligibility, ...]
     indexed_chunk_count: int
     visible_chunk_count: int
     returned_chunk_count: int

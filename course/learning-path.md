@@ -81,7 +81,7 @@ V0 要回答：
     建立向量检索，并观察索引、过滤和相似度分数。
 13. **[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)** · 可学习
     分别保留 lexical 和 dense 排名，再用 RRF 形成可解释的融合候选。
-14. **Top-k、阈值、Metadata Filter 与 Retrieval 诊断** · 待编写
+14. **[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)** · 可学习
     记录每路排名、融合排名、过滤条件、阈值淘汰和无结果原因。
 15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 等待前置
     Retriever 先产生候选证据，Context Builder 再决定本轮模型真正看到什么；Context 注入不属于文档解析或 Chunking。

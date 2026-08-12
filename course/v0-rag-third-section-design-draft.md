@@ -66,7 +66,7 @@ Target Requirement + RetrievalResult
 
 正文解释机制、关键数据变化、公共入口和不变量；完整命令、参数和读码顺序由 package / demo README 维护。
 
-## 第 7–12 步的正式入口
+## 第 7–14 步的正式入口
 
 这些步骤的稳定内容已经由正式真源承担，本草稿不再复制其正文设计：
 
@@ -77,32 +77,7 @@ Target Requirement + RetrievalResult
 - 第 11 步：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)
 - 第 12 步：[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)
 - 第 13 步：[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)
-
-## 第 14 步：Retriever 控制与诊断
-
-**核心问题**：候选经过哪些控制才成为最终 `RetrievalResult`，正确 Chunk 消失时怎样定位？
-
-必须建立的判断：
-
-- Metadata Filter、route threshold、`candidate_k` 和 `final_top_k` 责任不同。
-- 阈值属于具体检索器的原生分数空间，必须记录名称、方向和执行位置。
-- 控制顺序会改变候选集合，是 Retriever 契约的一部分。
-- “无结果”应区分知识中无答案、可见范围为空、匹配失败、阈值淘汰、单路错误和最终截断。
-
-V0 默认顺序：
-
-```text
-pre-filter
-→ lexical / dense candidate_k
-→ route threshold
-→ RRF
-→ final_top_k
-→ RetrievalResult + RetrievalReport
-```
-
-最小实验一次只改变一个正常变量，观察候选数量、淘汰原因和最终排名。方向写反、错误被静默吞掉等属于不变量测试，不应包装成策略实验。
-
-**非目标**：不把本轮参数写成永久门槛；具体数值在实验运行前登记。
+- 第 14 步：[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)
 
 ## 第 15 步：从 RetrievalResult 到模型上下文
 

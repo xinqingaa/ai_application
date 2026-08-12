@@ -32,6 +32,23 @@ WITH query_input AS (
             to_tsvector(%(postgres_config)s::regconfig, %(query_lexical_text)s)
         ) AS query_lexemes
 ),
+visible AS MATERIALIZED (
+    SELECT chunk.*
+    FROM review_assistant.rag_chunks AS chunk
+    WHERE chunk.lexical_config_ref = %(lexical_config_ref)s
+      AND (
+        %(knowledge_scope)s::text IS NULL
+        OR chunk.business_metadata ->> 'knowledge_scope' = %(knowledge_scope)s
+      )
+      AND (
+        %(source_roles)s::text[] IS NULL
+        OR chunk.source_role = ANY (%(source_roles)s)
+      )
+      AND (
+        %(evidence_eligibilities)s::text[] IS NULL
+        OR chunk.evidence_eligibility = ANY (%(evidence_eligibilities)s)
+      )
+),
 matched AS (
     SELECT
         chunk.chunk_id,
@@ -48,10 +65,9 @@ matched AS (
             ORDER BY lexeme
         ) AS matched_terms,
         ts_rank(chunk.search_vector, query_input.ts_query) AS fts_rank
-    FROM review_assistant.rag_chunks AS chunk
+    FROM visible AS chunk
     CROSS JOIN query_input
-    WHERE chunk.lexical_config_ref = %(lexical_config_ref)s
-      AND chunk.search_vector @@ query_input.ts_query
+    WHERE chunk.search_vector @@ query_input.ts_query
 ),
 ranked AS (
     SELECT
@@ -60,12 +76,24 @@ ranked AS (
     FROM matched
     ORDER BY fts_rank DESC, chunk_id ASC
     LIMIT %(candidate_k)s
+),
+indexed_stats AS (
+    SELECT COUNT(*) AS indexed_chunk_count
+    FROM review_assistant.rag_chunks
+    WHERE lexical_config_ref = %(lexical_config_ref)s
+),
+visible_stats AS (
+    SELECT COUNT(*) AS visible_chunk_count FROM visible
 )
 SELECT
     ranked.*,
     query_input.ts_query::text AS tsquery,
-    query_input.query_lexemes
+    query_input.query_lexemes,
+    indexed_stats.indexed_chunk_count,
+    visible_stats.visible_chunk_count
 FROM query_input
+CROSS JOIN indexed_stats
+CROSS JOIN visible_stats
 LEFT JOIN ranked ON TRUE
 ORDER BY ranked.fts_rank DESC NULLS LAST, ranked.chunk_id ASC NULLS LAST
 """
@@ -96,9 +124,19 @@ class PostgresFTSRetriever:
     def upsert_chunks(self, chunks: Sequence[Chunk]) -> LexicalIndexReport:
         return self._chunk_store.upsert_chunks(chunks)
 
-    def search(self, query: str, *, candidate_k: int = 5) -> LexicalSearchResult:
+    def search(
+        self,
+        query: str,
+        *,
+        candidate_k: int = 5,
+        knowledge_scope: str | None = None,
+        source_roles: Sequence[SourceRole] | None = None,
+        evidence_eligibilities: Sequence[EvidenceEligibility] | None = None,
+    ) -> LexicalSearchResult:
         if candidate_k <= 0:
             raise ValueError("candidate_k 必须大于 0")
+        if knowledge_scope is not None and not knowledge_scope.strip():
+            raise ValueError("knowledge_scope 不能是空字符串")
         analysis = self.analyzer.analyze_query(query)
         started = perf_counter()
         params = {
@@ -107,6 +145,15 @@ class PostgresFTSRetriever:
             "query_lexical_text": analysis.lexical_text,
             "lexical_config_ref": analysis.config_ref,
             "candidate_k": candidate_k,
+            "knowledge_scope": knowledge_scope,
+            "source_roles": (
+                None if not source_roles else [item.value for item in source_roles]
+            ),
+            "evidence_eligibilities": (
+                None
+                if not evidence_eligibilities
+                else [item.value for item in evidence_eligibilities]
+            ),
         }
         try:
             with self._connect(self._dsn, row_factory=dict_row) as connection:
@@ -132,6 +179,11 @@ class PostgresFTSRetriever:
                 lexical_config_ref=analysis.config_ref,
                 retriever_config_ref=self.analyzer.config.retriever_config_ref,
                 postgres_config=analysis.postgres_config,
+                knowledge_scope=knowledge_scope,
+                source_roles=tuple(source_roles or ()),
+                evidence_eligibilities=tuple(evidence_eligibilities or ()),
+                indexed_chunk_count=int(first["indexed_chunk_count"] or 0),
+                visible_chunk_count=int(first["visible_chunk_count"] or 0),
                 matched_chunk_count=int(first["matched_chunk_count"] or 0),
                 returned_chunk_count=len(hits),
                 candidate_k=candidate_k,

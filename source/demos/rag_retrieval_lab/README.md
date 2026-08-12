@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)。本 lab 后续还会承接统一 retrieval 诊断实验。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)，步骤 14 阅读 [Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../../../course/mechanisms/retriever-contract.md)。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文；真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../../packages/llm_core/client/service.py)，RAG 侧表示与成对相似度位于 [`rag_core.embedding`](../../packages/rag_core/embedding/)。
 
@@ -219,6 +219,37 @@ uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --log-form
 
 实验出现任一路真实失败时，会保留该路 `FAILED` 与已有候选，但进程返回非零状态，不把部分结果伪装成完整融合成功。
 
+## 步骤 14：固定 Retriever 控制与诊断
+
+步骤 14 继续使用同一批 Chunk、问题和真实服务，把前几步组合成固定控制顺序：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py
+```
+
+默认不设置 route threshold，先观察基线。展开每个原生阈值决策和 `final_top_k` 决策：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --verbose
+```
+
+一次只改变一个变量，例如：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --lexical-candidate-k 2 --verbose
+uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --dense-max-distance 0.35 --verbose
+uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --final-top-k 1 --verbose
+uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --knowledge-scope missing_scope
+```
+
+输出按 `pre_filter → route_candidate_k → route_threshold → rrf → final_top_k` 记录数量变化，并区分可见范围为空、两路无匹配、全部低于阈值和真实路由失败。阈值是当前实验输入，不是项目永久最佳值。
+
+JSON Lines：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --log-format json
+```
+
 ## 从 Demo 进入核心代码
 
 1. [`inspect_embedding.py`](inspect_embedding.py)：看探针如何进入公共 API。
@@ -251,6 +282,12 @@ uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m "not i
 uv run pytest source/packages/rag_core/tests/test_rrf.py -q
 ```
 
+步骤 14 的固定控制与诊断测试：
+
+```bash
+uv run pytest source/packages/rag_core/tests/test_hybrid_retriever.py -q
+```
+
 配置独立测试库后运行真实 PostgreSQL 集成测试：
 
 ```bash
@@ -271,4 +308,5 @@ uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m integr
 - 步骤 12 已持久化向量并建立按 Embedding 空间隔离的 pgvector HNSW 索引
 - 不装配模型上下文，也不用最终评审回答判断 Embedding 质量
 - 不允许主路径 mock embedding 结果冒充真实模型效果
-- 步骤 13 已实现应用侧 RRF，但仍不实现统一阈值、`final_top_k`、完整淘汰原因或最终 Context
+- 步骤 13 已实现应用侧 RRF；步骤 14 已实现统一控制顺序、每路阈值、`final_top_k` 和完整淘汰原因
+- 仍不装配最终 Context，也不把检索分数当作事实权威性
