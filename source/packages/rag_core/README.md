@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，以及步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引。RRF、统一 Retrieval 诊断和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
+当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，以及步骤 13 的应用侧 RRF。统一 Retrieval 控制诊断和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
 
 ## 当前数据流
 
@@ -33,6 +33,11 @@ Chunk[]
 → PostgreSQL vector + 当前空间 HNSW index
 → PostgresDenseRetriever.search
 → DenseHit[] + DenseDiagnostics
+
+LexicalHit[] + DenseHit[]
+→ RankedRoute("lexical") + RankedRoute("dense")
+→ reciprocal_rank_fusion
+→ RRFCandidate[] + RRFDiagnostics
 ```
 
 ## 代码入口
@@ -61,9 +66,11 @@ Chunk[]
 | `vector_store/models.py` | Embedding 空间身份、向量入库和 HNSW 索引报告 |
 | `vector_store/postgres.py` | Chunk 向量入库、按空间建立 HNSW partial index 和删除 |
 | `retrieval/postgres_dense.py` | pgvector cosine distance、exact / HNSW 查询、可见范围和查询计划诊断 |
+| `retrieval/fusion.py` | 路由状态、统一排名候选、RRF 贡献、稳定去重与融合诊断 |
 | `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
 | `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
 | `tests/test_pgvector_dense.py` | Chunk/向量绑定、空间身份、距离方向和可选真实 pgvector 集成测试 |
+| `tests/test_rrf.py` | 名次融合、空/失败路线、稳定身份和跨路线一致性不变量 |
 
 建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–11 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
@@ -175,6 +182,22 @@ report = PostgresVectorStore().upsert_embeddings(chunks, batch.records)
 HNSW 索引不是 migration 中的固定 1536 维索引。`ensure_hnsw_index` 根据真实运行得到的维度和 `space_ref` 创建 expression + partial index，避免把同维度但模型或预处理不同的向量放进一个索引空间。小 fixture 上 PostgreSQL 可能仍选择顺序扫描；`inspect_plan=True` 会返回 `index_used` 和查询计划节点，索引存在不等于本次查询使用了索引。
 
 `rag_chunk_embeddings.embedding` 使用无固定维度的 `vector` 存储，以允许不同真实 Provider 的机制实验；每一行仍通过 `embedding_dimensions`、数据库 CHECK 和应用校验阻止维度声明不一致。当前 cosine 路线拒绝零向量。HNSW 的 `vector` 类型上限和真实服务维度不兼容时会明确失败，不自动换存储类型。
+
+## RRF 公共入口
+
+`lexical_ranked_route` 与 `dense_ranked_route` 将两种原生结果适配成 `RankedRoute`，保留原生字段名称、值和方向；`reciprocal_rank_fusion` 只使用 `route_rank` 计算，不归一化或相加 `fts_rank` 与 cosine distance。
+
+```python
+fused = reciprocal_rank_fusion(
+    (
+        lexical_ranked_route(lexical_result),
+        dense_ranked_route(dense_result),
+    ),
+    rrf_k=60,
+)
+```
+
+同一路由成功 0 条使用 `EMPTY`，执行错误使用带结构化错误的 `FAILED`。RRF 会保留失败事实和其他路线候选，但是否允许部分结果成为产品成功由上层决定。融合按稳定 `chunk_id` 去重，并拒绝同一 ID 在两路对应不同来源内容。
 
 ## Chunking 策略边界
 

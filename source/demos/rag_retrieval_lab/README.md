@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)。本 lab 后续还会承接 RRF 与统一 retrieval 诊断实验。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)。本 lab 后续还会承接统一 retrieval 诊断实验。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文；真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../../packages/llm_core/client/service.py)，RAG 侧表示与成对相似度位于 [`rag_core.embedding`](../../packages/rag_core/embedding/)。
 
@@ -190,6 +190,35 @@ load_retrieval_chunks
 5. [`0002_add_pgvector_embeddings.sql`](../../../review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql)
 6. [`test_pgvector_dense.py`](../../packages/rag_core/tests/test_pgvector_dense.py)
 
+## 步骤 13：Lexical + Dense + RRF
+
+完成步骤 12 的真实依赖配置后运行：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py
+```
+
+默认使用同一批 Chunk、同一查询和 exact dense，仅增加 RRF 作为主要变化变量。查看每个融合候选的两路名次、倒数贡献和原生值：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose
+```
+
+切换平滑常数或 dense 索引路线时，属于新的融合/检索配置：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --rrf-k 20
+uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --dense-mode hnsw
+```
+
+JSON Lines：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --log-format json
+```
+
+实验出现任一路真实失败时，会保留该路 `FAILED` 与已有候选，但进程返回非零状态，不把部分结果伪装成完整融合成功。
+
 ## 从 Demo 进入核心代码
 
 1. [`inspect_embedding.py`](inspect_embedding.py)：看探针如何进入公共 API。
@@ -216,6 +245,12 @@ uv run pytest source/packages/rag_core/tests/test_lexical.py source/packages/rag
 uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m "not integration"
 ```
 
+步骤 13 的确定性融合测试：
+
+```bash
+uv run pytest source/packages/rag_core/tests/test_rrf.py -q
+```
+
 配置独立测试库后运行真实 PostgreSQL 集成测试：
 
 ```bash
@@ -236,4 +271,4 @@ uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m integr
 - 步骤 12 已持久化向量并建立按 Embedding 空间隔离的 pgvector HNSW 索引
 - 不装配模型上下文，也不用最终评审回答判断 Embedding 质量
 - 不允许主路径 mock embedding 结果冒充真实模型效果
-- 步骤 11 不实现 Dense Retrieval；步骤 12 已实现单路 dense，但仍不实现 RRF、统一阈值或最终 Context
+- 步骤 13 已实现应用侧 RRF，但仍不实现统一阈值、`final_top_k`、完整淘汰原因或最终 Context

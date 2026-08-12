@@ -79,7 +79,7 @@ review_assistant/
 
 V0 受控格式对照 fixtures 已经位于 `fixtures/v0/ingestion/`，供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
-步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS；步骤 12 使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引。当前只完成机制实验入口，不表示产品已经提供资料管理 API、后台入库任务、RRF 或 Review API。
+步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS；步骤 12 使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；步骤 13 在应用侧按稳定 `chunk_id` 运行 RRF 并保留两路贡献。当前只完成机制实验入口，不表示产品已经提供资料管理 API、后台入库任务、统一 Retriever 或 Review API。
 
 ## PostgreSQL 本地准备
 
@@ -212,6 +212,14 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --search
 ```
 
 离线测试不调用真实模型，只验证 Chunk/向量绑定、空间身份、维度和结果契约；它不能证明 Dense Retrieval 质量。真实机制实验必须使用上面的真实 Embedding 路径。
+
+## 运行 RRF 多路召回实验
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose
+```
+
+该入口继续调用真实 FTS、真实 Embedding 和 pgvector。它不会把两路原始分数归一化相加；完整参数和输出解读由 `rag_retrieval_lab/README.md` 维护。
 
 ## PostgreSQL 常见排查
 

@@ -79,7 +79,7 @@ V0 要回答：
     理解词项检索和 BM25 原理；产品使用 PostgreSQL FTS，不把其排序函数误称为 BM25。数据库基础不够时，先按需阅读 [PostgreSQL 零基础](concepts/postgresql-for-ai-applications.md) 再返回本步。
 12. **[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)** · 可学习
     建立向量检索，并观察索引、过滤和相似度分数。
-13. **多路召回与 RRF 融合** · 待编写
+13. **[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)** · 可学习
     分别保留 lexical 和 dense 排名，再用 RRF 形成可解释的融合候选。
 14. **Top-k、阈值、Metadata Filter 与 Retrieval 诊断** · 待编写
     记录每路排名、融合排名、过滤条件、阈值淘汰和无结果原因。

@@ -5,6 +5,19 @@ from rag_core.retrieval.errors import (
     RetrievalErrorCode,
     RetrievalStage,
 )
+from rag_core.retrieval.fusion import (
+    RRFContribution,
+    RRFCandidate,
+    RRFDiagnostics,
+    RRFResult,
+    RankedCandidate,
+    RankedRoute,
+    RouteStatus,
+    dense_ranked_route,
+    failed_ranked_route,
+    lexical_ranked_route,
+    reciprocal_rank_fusion,
+)
 from rag_core.retrieval.models import (
     ChunkIndexReport,
     DenseDiagnostics,
@@ -35,7 +48,18 @@ __all__ = [
     "PostgresChunkStore",
     "PostgresDenseRetriever",
     "PostgresFTSRetriever",
+    "RRFContribution",
+    "RRFCandidate",
+    "RRFDiagnostics",
+    "RRFResult",
+    "RankedCandidate",
+    "RankedRoute",
     "RetrievalError",
     "RetrievalErrorCode",
     "RetrievalStage",
+    "RouteStatus",
+    "dense_ranked_route",
+    "failed_ranked_route",
+    "lexical_ranked_route",
+    "reciprocal_rank_fusion",
 ]

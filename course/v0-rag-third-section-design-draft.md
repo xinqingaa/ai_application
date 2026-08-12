@@ -76,22 +76,7 @@ Target Requirement + RetrievalResult
 - 第 10 步：[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)
 - 第 11 步：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)
 - 第 12 步：[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)
-
-## 第 13 步：多路召回与 RRF
-
-**核心问题**：lexical 与 dense 原生分数不可直接比较时，怎样通过排名融合保留两路互补价值？
-
-必须建立的判断：
-
-- 多路召回、Score Fusion、Rank Fusion 与 Reranker 是不同操作。
-- RRF 使用名次贡献，不把 PostgreSQL rank 和向量距离变成可比较分数。
-- 融合使用稳定 `chunk_id` 识别候选，并保留每路排名和贡献。
-- 单路正常无结果与单路执行失败必须区分。
-- RRF 改善候选覆盖与排名，不自动证明证据正确或生成质量提高。
-
-最小实验比较 lexical、dense 和 RRF 在精确字段、同义改写和噪声样例上的排名。正常互补、单路弱项与一路真实故障分别解释，不通过篡改候选列表制造效果。
-
-**非目标**：V0 不接 Reranker，不归一化相加不同检索器原始分数。
+- 第 13 步：[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)
 
 ## 第 14 步：Retriever 控制与诊断
 
