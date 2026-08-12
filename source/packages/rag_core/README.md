@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，以及步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval。Dense Retrieval、RRF、多路诊断、持久化向量索引和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
+当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，以及步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引。RRF、统一 Retrieval 诊断和固定 RAG Pipeline 尚未实现，不能从目录名推断它们已经可用。
 
 ## 当前数据流
 
@@ -21,10 +21,18 @@ FileArtifact + LoaderConfig
 Chunk[]
 → LexicalAnalyzer（中文词项 + 技术标识）
 → lexical_text + lexical_config_ref
-→ PostgresFTSRetriever.upsert_chunks
+→ PostgresChunkStore.upsert_chunks
 → PostgreSQL tsvector + GIN
 → PostgresFTSRetriever.search
 → LexicalHit[] + LexicalDiagnostics
+
+同一 Chunk[]
+→ llm_core 真实 Embedding
+→ EmbeddingRecord[] + EmbeddingSpace
+→ PostgresVectorStore.upsert_embeddings
+→ PostgreSQL vector + 当前空间 HNSW index
+→ PostgresDenseRetriever.search
+→ DenseHit[] + DenseDiagnostics
 ```
 
 ## 代码入口
@@ -48,9 +56,14 @@ Chunk[]
 | `lexical/analyzer.py` | NFKC、大小写、jieba 搜索模式、问句停用词和技术标识哨兵 |
 | `retrieval/models.py` | LexicalHit、原生 FTS rank 与查询诊断契约 |
 | `retrieval/errors.py` | 连接、鉴权、迁移、权限和数据库执行错误分层 |
-| `retrieval/postgres_fts.py` | Chunk upsert、删除、参数化 PostgreSQL FTS 查询和结果组装 |
+| `retrieval/postgres_fts.py` | 参数化 PostgreSQL FTS 查询和词面结果组装 |
+| `retrieval/postgres_chunks.py` | lexical 与 dense 共用的 Chunk 行持久化；维护原文、来源和词法表示 |
+| `vector_store/models.py` | Embedding 空间身份、向量入库和 HNSW 索引报告 |
+| `vector_store/postgres.py` | Chunk 向量入库、按空间建立 HNSW partial index 和删除 |
+| `retrieval/postgres_dense.py` | pgvector cosine distance、exact / HNSW 查询、可见范围和查询计划诊断 |
 | `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
 | `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
+| `tests/test_pgvector_dense.py` | Chunk/向量绑定、空间身份、距离方向和可选真实 pgvector 集成测试 |
 
 建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–11 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
@@ -136,6 +149,32 @@ for hit in result.hits:
 `lexical_config_ref` 包含名称、版本和所有影响文档/查询共同词项空间的配置 fingerprint。jieba 模式、领域词、停用词或 PostgreSQL text search config 变化时身份都会改变，旧行不会与新查询静默混用，调用者需要重新入库。查询 AND/OR 不改变已存词项，因此进入独立 `retriever_config_ref`，切换时需要记录实验配置但不需要重建文档索引。
 
 完整 migration 和数据库运行方式由 [`review_assistant/README.md`](../../../review_assistant/README.md) 维护。package 不自动建表、不自动执行 migration，也不在 PostgreSQL 失败后回退到 SQLite 或内存搜索。
+
+## pgvector 与 Dense Retrieval 公共入口
+
+向量入库继续使用 `llm_core` 的真实 Embedding 调用，不在 `rag_core` 内维护第二套 Provider。`EmbeddingSpace` 由 Provider、配置引用、模型、维度和预处理版本共同确定；这些字段任一变化都会产生新的 `space_ref`。
+
+```python
+from rag_core import (
+    PostgresChunkStore,
+    PostgresVectorStore,
+    embed_texts,
+)
+
+PostgresChunkStore().upsert_chunks(chunks)
+batch = embed_texts(
+    [chunk.text for chunk in chunks],
+    text_ids=[chunk.chunk_id for chunk in chunks],
+    preprocessing_version="retrieval-text-v1",
+)
+report = PostgresVectorStore().upsert_embeddings(chunks, batch.records)
+```
+
+查询文本必须使用兼容的 Embedding 空间。默认 exact 路线计算当前可见范围内的真实 cosine distance；返回字段明确命名为 `cosine_distance` 且 `lower_is_better=true`，不会与第 10 步的 cosine similarity 或第 11 步的 `fts_rank` 混写成通用 `score`。
+
+HNSW 索引不是 migration 中的固定 1536 维索引。`ensure_hnsw_index` 根据真实运行得到的维度和 `space_ref` 创建 expression + partial index，避免把同维度但模型或预处理不同的向量放进一个索引空间。小 fixture 上 PostgreSQL 可能仍选择顺序扫描；`inspect_plan=True` 会返回 `index_used` 和查询计划节点，索引存在不等于本次查询使用了索引。
+
+`rag_chunk_embeddings.embedding` 使用无固定维度的 `vector` 存储，以允许不同真实 Provider 的机制实验；每一行仍通过 `embedding_dimensions`、数据库 CHECK 和应用校验阻止维度声明不一致。当前 cosine 路线拒绝零向量。HNSW 的 `vector` 类型上限和真实服务维度不兼容时会明确失败，不自动换存储类型。
 
 ## Chunking 策略边界
 

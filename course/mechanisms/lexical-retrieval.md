@@ -478,7 +478,7 @@ tsquery = 可观察
 - 第 9 步的 structure-aware Chunking。
 - `review_assistant.rag_chunks` 真实表。
 - PostgreSQL 真实 `tsvector`、GIN、`tsquery` 和 rank。
-- [`lexical_queries.json`](../../review_assistant/fixtures/v0/retrieval/lexical_queries.json) 中的有效业务问题。
+- 共享 [`retrieval_queries.json`](../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json) 中的有效业务问题；后续 dense 使用同一批问题对照。
 
 这些问题是探索性机制材料，不是冻结的 V0 acceptance 集。运行前先预测：
 

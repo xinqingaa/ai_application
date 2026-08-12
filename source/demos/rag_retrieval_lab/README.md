@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)。本 lab 后续还会承接 dense、RRF 与 retrieval 诊断实验。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)。本 lab 后续还会承接 RRF 与统一 retrieval 诊断实验。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文；真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../../packages/llm_core/client/service.py)，RAG 侧表示与成对相似度位于 [`rag_core.embedding`](../../packages/rag_core/embedding/)。
 
@@ -102,7 +102,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-
 - 原生 `fts_rank`、方向和匹配词
 - 真实数据库错误的 stage、code 和 message
 
-探针位于 [`lexical_queries.json`](../../../review_assistant/fixtures/v0/retrieval/lexical_queries.json)。它是探索性机制材料，不是冻结的 V0 acceptance 集，也不证明最终 RAG 质量。
+探针位于共享的 [`retrieval_queries.json`](../../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json)。它是探索性机制材料，不是冻结的 V0 acceptance 集，也不证明最终 RAG 质量。步骤 12 继续使用同一批问题，避免通过更换样例制造路线差异。
 
 ### 步骤 11 调用路径
 
@@ -126,6 +126,70 @@ main
 4. [`0001_create_rag_chunks.sql`](../../../review_assistant/infra/migrations/0001_create_rag_chunks.sql)：看表、约束、生成列和索引。
 5. [`test_lexical.py`](../../packages/rag_core/tests/test_lexical.py) 与 [`test_postgres_fts.py`](../../packages/rag_core/tests/test_postgres_fts.py)：看确定性契约和真实集成边界。
 
+## 步骤 12：pgvector Dense Retrieval
+
+先按 [`review_assistant/README.md`](../../../review_assistant/README.md) 执行 `0001` 与 `0002` migration，并配置真实 `DATABASE_URL`、`OPENAI_EMBEDDING_API_KEY` 和对应 Embedding endpoint/model。
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py
+```
+
+默认 `compare` 模式会：
+
+1. 使用与步骤 11 完全相同的 Loader、Chunk 策略和共享查询集。
+2. 调用真实 Embedding 服务分别生成 Chunk 向量和 query 向量。
+3. 将向量连同 `chunk_id`、模型、维度和预处理版本写入 pgvector。
+4. 运行 exact 正确性基线。
+5. 为当前 Embedding 空间建立 HNSW partial index，再运行索引可用查询。
+6. 记录 PostgreSQL 是否真的选择该索引；小数据集选择顺序扫描不等于索引损坏。
+
+只运行 exact：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --search-mode exact
+```
+
+查看每个候选、可见数量和查询计划：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --verbose
+```
+
+JSON Lines：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --log-format json
+```
+
+默认输出包含：
+
+- Provider、模型、维度、预处理版本和 `embedding_space_ref`
+- Chunk 与 query 的真实 Embedding latency
+- exact / HNSW 的 `cosine_distance`、方向和 route rank
+- 索引名称、`index_used` 与查询计划节点
+- 当前空间已索引数量、Metadata Filter 后可见数量和实际返回数量
+
+步骤 12 的真实调用路径：
+
+```text
+load_retrieval_chunks
+→ PostgresChunkStore.upsert_chunks
+→ LLMClient.embed（Chunk）
+→ PostgresVectorStore.upsert_embeddings
+→ LLMClient.embed（query）
+→ PostgresDenseRetriever.search
+→ DenseHit + DenseDiagnostics
+```
+
+读码顺序：
+
+1. [`inspect_dense_retrieval.py`](inspect_dense_retrieval.py)
+2. [`vector_store/models.py`](../../packages/rag_core/vector_store/models.py)
+3. [`vector_store/postgres.py`](../../packages/rag_core/vector_store/postgres.py)
+4. [`retrieval/postgres_dense.py`](../../packages/rag_core/retrieval/postgres_dense.py)
+5. [`0002_add_pgvector_embeddings.sql`](../../../review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql)
+6. [`test_pgvector_dense.py`](../../packages/rag_core/tests/test_pgvector_dense.py)
+
 ## 从 Demo 进入核心代码
 
 1. [`inspect_embedding.py`](inspect_embedding.py)：看探针如何进入公共 API。
@@ -146,10 +210,22 @@ uv run pytest source/packages/llm_core/tests/test_client_embed.py source/package
 uv run pytest source/packages/rag_core/tests/test_lexical.py source/packages/rag_core/tests/test_postgres_fts.py -q -m "not integration"
 ```
 
+步骤 12 的离线契约测试：
+
+```bash
+uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m "not integration"
+```
+
 配置独立测试库后运行真实 PostgreSQL 集成测试：
 
 ```bash
 TEST_DATABASE_URL="$DATABASE_URL" uv run pytest source/packages/rag_core/tests/test_postgres_fts.py -q -m integration
+```
+
+使用独立测试库运行真实 pgvector 集成测试：
+
+```bash
+uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m integration
 ```
 
 不要对包含重要数据的数据库直接复用这条学习命令；集成测试会删除自己写入的测试 Chunk，但不会替你隔离其他数据。
@@ -157,7 +233,7 @@ TEST_DATABASE_URL="$DATABASE_URL" uv run pytest source/packages/rag_core/tests/t
 ## 当前实验不观察什么
 
 - 步骤 10 不对知识库候选做匹配与排名；步骤 11 已建立 PostgreSQL FTS
-- 不持久化向量，也不建立 pgvector 索引
+- 步骤 12 已持久化向量并建立按 Embedding 空间隔离的 pgvector HNSW 索引
 - 不装配模型上下文，也不用最终评审回答判断 Embedding 质量
 - 不允许主路径 mock embedding 结果冒充真实模型效果
-- 步骤 11 不实现 Dense Retrieval、RRF、统一阈值或最终 Context
+- 步骤 11 不实现 Dense Retrieval；步骤 12 已实现单路 dense，但仍不实现 RRF、统一阈值或最终 Context

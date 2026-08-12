@@ -66,7 +66,7 @@ Target Requirement + RetrievalResult
 
 正文解释机制、关键数据变化、公共入口和不变量；完整命令、参数和读码顺序由 package / demo README 维护。
 
-## 第 7–11 步的正式入口
+## 第 7–12 步的正式入口
 
 这些步骤的稳定内容已经由正式真源承担，本草稿不再复制其正文设计：
 
@@ -75,22 +75,7 @@ Target Requirement + RetrievalResult
 - 第 9 步：[Chunking、父子块与 Metadata](mechanisms/chunking-and-metadata.md)
 - 第 10 步：[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)
 - 第 11 步：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)
-
-## 第 12 步：pgvector 与 Dense Retrieval
-
-**核心问题**：怎样把真实 Embedding 与 Chunk 身份、模型空间和可见范围绑定，并用一致的距离语义完成向量检索？
-
-必须建立的判断：
-
-- Embedding Provider、Vector Store、Vector Index 和 Dense Retriever 责任不同。
-- exact search 与 ANN 的差异是速度和召回取舍，不会改善向量语义。
-- cosine distance、inner product 和 L2 的方向与数值语义不能混写成含糊的 `score`。
-- query 与 document 必须属于兼容的 Embedding 空间；模型或预处理变化需要重建。
-- Metadata Filter 决定允许参与检索的范围，应在候选形成前生效。
-
-最小实验先保留 exact baseline，再用同义问题、否定条件和精确字段观察 Dense Retrieval 的正常强弱项。索引未启用、维度不匹配等进入结构化诊断和测试。
-
-**非目标**：不把 ANN 当作无质量损失的默认优化，不在本步引入 RRF。
+- 第 12 步：[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)
 
 ## 第 13 步：多路召回与 RRF
 

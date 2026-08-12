@@ -70,16 +70,16 @@ review_assistant/
 
 ## 当前已落地的运行能力
 
-当前目录尚未形成完整 Review API 和 Web 产品入口，但 V0 的真实资料 fixture 与 PostgreSQL FTS 基础设施已经开始落地。已有通用能力和学习期实验分别位于：
+当前目录尚未形成完整 Review API 和 Web 产品入口，但 V0 的真实资料 fixture、PostgreSQL FTS 与 pgvector 基础设施已经开始落地。已有通用能力和学习期实验分别位于：
 
 - `source/packages/llm_core/`
-- `source/packages/rag_core/`（当前已实现文档加载、Chunking、Embedding 表示实验、中文词法分析和 PostgreSQL FTS）
+- `source/packages/rag_core/`（当前已实现文档加载、Chunking、Embedding 表示实验、中文词法分析、PostgreSQL FTS、pgvector 持久化与 Dense Retrieval）
 - `source/demos/`
 - `source/apps/llm_streaming_api/`
 
 V0 受控格式对照 fixtures 已经位于 `fixtures/v0/ingestion/`，供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
-步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS。当前只完成机制实验入口，不表示产品已经提供资料管理 API、后台入库任务、Dense Retrieval、RRF 或 Review API。
+步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS；步骤 12 使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引。当前只完成机制实验入口，不表示产品已经提供资料管理 API、后台入库任务、RRF 或 Review API。
 
 ## PostgreSQL 本地准备
 
@@ -129,22 +129,30 @@ psql "$DATABASE_URL" -c "SELECT current_database(), current_user, version();"
 
 ### 4. 执行 migration
 
-当前采用编号原生 SQL migration，使第 11 节可以直接看到真实表、约束、生成列和 GIN 索引，不引入 ORM 或 migration framework：
+当前采用编号原生 SQL migration，使第 11–12 节可以直接看到真实表、约束、生成列、GIN 和 pgvector 对象，不引入 ORM 或 migration framework。按编号顺序执行：
 
 ```bash
 psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
   -f review_assistant/infra/migrations/0001_create_rag_chunks.sql
+
+psql "$DATABASE_URL" \
+  -v ON_ERROR_STOP=1 \
+  -f review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql
 ```
 
 检查结果：
 
 ```bash
 psql "$DATABASE_URL" -c "\d+ review_assistant.rag_chunks"
+psql "$DATABASE_URL" -c "\d+ review_assistant.rag_chunk_embeddings"
+psql "$DATABASE_URL" -c "SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';"
 psql "$DATABASE_URL" -c "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'review_assistant';"
 ```
 
-`search_vector` 是由 `lexical_text` 生成的 `tsvector`；`rag_chunks_search_vector_gin_idx` 是候选匹配索引。migration 不创建 pgvector 扩展，向量列和向量索引进入标准学习路径步骤 12。
+`search_vector` 是由 `lexical_text` 生成的 `tsvector`；`rag_chunks_search_vector_gin_idx` 是词面候选匹配索引。`0002` 启用 pgvector 并创建向量表；具体 HNSW 索引依赖真实 Provider 返回的模型、维度和预处理空间，由步骤 12 入库后按当前 `embedding_space_ref` 建立，不在 migration 中假定所有服务都是固定 1536 维。
+
+若应用 Role 没有安装 extension 的权限，由本地数据库管理员只执行 `CREATE EXTENSION vector`，再由应用 Role 执行 migration。不要为了绕过权限让应用长期使用超级用户。
 
 ### 5. 可选 GUI
 
@@ -183,16 +191,41 @@ uv run pytest source/packages/rag_core/tests/test_postgres_fts.py -q -m integrat
 
 默认实验会幂等写入固定 fixture 的 Chunk。它不会清空表，也不会自动执行 migration；数据库连接、权限或表结构失败会作为结构化错误暴露。
 
+## 运行 pgvector Dense Retrieval 实验
+
+完成两条 migration，并配置真实 Embedding 服务后运行：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py
+```
+
+查看 exact / HNSW 候选、可见数量与查询计划：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --verbose
+```
+
+只运行 exact 正确性基线：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --search-mode exact
+```
+
+离线测试不调用真实模型，只验证 Chunk/向量绑定、空间身份、维度和结果契约；它不能证明 Dense Retrieval 质量。真实机制实验必须使用上面的真实 Embedding 路径。
+
 ## PostgreSQL 常见排查
 
 | 表现 | 优先检查 |
 | --- | --- |
 | `connection_failed` | Postgres.app Server 是否运行、host、port、database、网络 |
 | `auth_failed` | Role、密码、连接串特殊字符编码 |
-| `migration_required` | 是否对当前 `DATABASE_URL` 指向的 Database 执行了 `0001` migration |
+| `migration_required` | 是否对当前 `DATABASE_URL` 指向的 Database 按顺序执行了 `0001`、`0002` migration |
 | `permission_denied` | 表和 Schema owner、Role 的连接与写入权限 |
 | 查询成功但无结果 | query terms、`tsquery`、`lexical_config_ref`、资料是否真的包含相同词面 |
 | 修改词法配置后旧数据消失 | 新旧 `lexical_config_ref` 不再兼容，需要重新 upsert Chunk |
+| Dense 查询为 0 条 | 当前空间是否已有 Chunk 向量、`knowledge_scope` 是否排除了全部 Chunk；不要先判断为数据库故障 |
+| 向量维度不一致 | query 与 Chunk 是否使用同一 Provider、配置、模型、维度和预处理版本 |
+| HNSW 已创建但 `index_used=false` | 小数据集下 Planner 可能认为顺序扫描更便宜；查看 plan，不要把未选择误判成索引损坏 |
 
 不要把连接失败转换成空候选，也不要在实验中回退到 SQLite、Mock 或 Python 内存检索。
 

@@ -77,7 +77,7 @@ V0 要回答：
     承接第 9 步的可回查 Chunk，使用真实 Embedding 服务理解距离、归一化和 Embedding 空间一致性边界。
 11. **[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)** · 可学习
     理解词项检索和 BM25 原理；产品使用 PostgreSQL FTS，不把其排序函数误称为 BM25。数据库基础不够时，先按需阅读 [PostgreSQL 零基础](concepts/postgresql-for-ai-applications.md) 再返回本步。
-12. **pgvector、Dense Retrieval 与向量索引** · 待编写
+12. **[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)** · 可学习
     建立向量检索，并观察索引、过滤和相似度分数。
 13. **多路召回与 RRF 融合** · 待编写
     分别保留 lexical 和 dense 排名，再用 RRF 形成可解释的融合候选。
@@ -87,6 +87,8 @@ V0 要回答：
     Retriever 先产生候选证据，Context Builder 再决定本轮模型真正看到什么；Context 注入不属于文档解析或 Chunking。
 16. **可信生成、Sources、Citation Candidate 与证据不足** · 待编写
     约束模型依据候选证据生成；V0 只建立 Citation Candidate，不宣称完成 Citation 校验。
+
+完成第 7–16 步，且能亲自运行实验、解释数据流、定位一次真实边界并完成修改题，可以称为已经完成**固定 RAG 核心机制入门**：你知道资料怎样变成 Chunk，lexical / dense / RRF 怎样形成候选，候选怎样进入 Context，以及模型怎样基于候选生成。这里只阅读正文或跑通命令，还不能称为掌握；完成第 20、22、23 步的对照与评估，并回到 V0 项目完成真实产品、bad case、变更和验收后，才达到本仓库的 **V0 固定 RAG 项目掌握**。Citation 支持性校验、证据充分性、Refusal 和知识更新在 V1，系统评估、Reranker 准入与 bad case 闭环在 V2，因此第 16 步不表示“RAG 已全部学完”。
 
 ### 第四段：把能力交付成最小产品
 

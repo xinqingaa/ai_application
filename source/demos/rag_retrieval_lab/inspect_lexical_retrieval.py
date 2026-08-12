@@ -3,35 +3,24 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 from pathlib import Path
 
 from app_log import add_log_arguments, configure_from_args, console, get_logger
-from dotenv import load_dotenv
+from _shared import (
+    QUERIES_PATH,
+    load_query_payload,
+    load_retrieval_chunks,
+    load_workspace_env,
+)
 from rag_core import (
-    ChunkPolicy,
-    ChunkStrategy,
-    EvidenceEligibility,
     LexicalAnalyzer,
     LexicalConfig,
     PostgresFTSRetriever,
     QueryOperator,
     RetrievalError,
-    SourceRole,
-    chunk_document,
-    load_document,
 )
 
-DEMO_DIR = Path(__file__).resolve().parent
-REPO_ROOT = DEMO_DIR.parents[2]
-DOCUMENT_PATH = (
-    REPO_ROOT / "review_assistant/fixtures/v0/ingestion/order_rules.md"
-)
-QUERIES_PATH = (
-    REPO_ROOT
-    / "review_assistant/fixtures/v0/retrieval/lexical_queries.json"
-)
 log = get_logger("rag_retrieval_lab.lexical")
 
 
@@ -62,18 +51,18 @@ def main() -> int:
     configure_from_args(args)
     json_mode = args.log_format == "json" and not args.verbose
 
-    _load_env()
+    load_workspace_env()
     dsn = os.getenv("DATABASE_URL", "")
     if not dsn:
         _render_config_error(json_mode)
         return 1
 
-    payload = json.loads(args.queries.read_text(encoding="utf-8"))
+    payload = load_query_payload(args.queries)
     analyzer = LexicalAnalyzer(
         LexicalConfig(query_operator=QueryOperator(args.query_operator))
     )
     retriever = PostgresFTSRetriever(dsn, analyzer=analyzer)
-    chunks = _load_chunks()
+    chunks = load_retrieval_chunks()
 
     if not json_mode:
         console.title(
@@ -101,35 +90,6 @@ def main() -> int:
     else:
         _render_summary(index_report, results, verbose=args.verbose)
     return 0
-
-
-def _load_env() -> None:
-    env_path = REPO_ROOT / ".env"
-    if env_path.is_file():
-        load_dotenv(env_path)
-    else:
-        load_dotenv()
-
-
-def _load_chunks():
-    document = load_document(
-        DOCUMENT_PATH,
-        document_id="KR-ORDER-STATE",
-        document_version="1.0.0",
-        source_role=SourceRole.REFERENCE_KNOWLEDGE,
-        evidence_eligibility=EvidenceEligibility.CURRENT_EVIDENCE,
-        metadata={"knowledge_scope": "after_sale"},
-    ).document
-    result = chunk_document(
-        document,
-        ChunkPolicy(
-            name="lexical_structure_aware",
-            version="1.0.0",
-            strategy=ChunkStrategy.STRUCTURE_AWARE,
-            max_tokens=48,
-        ),
-    )
-    return result.retrieval_chunks
 
 
 def _render_config_error(json_mode: bool) -> None:
@@ -176,7 +136,7 @@ def _render_summary(index_report, results, *, verbose: bool) -> None:
                 " / ".join(result.diagnostics.query_terms),
                 len(result.hits),
                 "—" if not result.hits else f"{result.hits[0].fts_rank:.6f}",
-                probe["expect"],
+                probe["observations"]["lexical"],
             ]
             for probe, result in results
         ],
@@ -231,7 +191,7 @@ def _emit_json(payload, index_report, results) -> None:
             query_id=probe["id"],
             query=probe["text"],
             group=probe["group"],
-            expect=probe["expect"],
+            expect=probe["observations"]["lexical"],
             query_terms=result.diagnostics.query_terms,
             postgres_query_terms=result.diagnostics.postgres_query_terms,
             tsquery=result.diagnostics.tsquery,
