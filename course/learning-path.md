@@ -83,7 +83,7 @@ V0 要回答：
     分别保留 lexical 和 dense 排名，再用 RRF 形成可解释的融合候选。
 14. **[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)** · 可学习
     记录每路排名、融合排名、过滤条件、阈值淘汰和无结果原因。
-15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 等待前置
+15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 可学习
     Retriever 先产生候选证据，Context Builder 再决定本轮模型真正看到什么；Context 注入不属于文档解析或 Chunking。
 16. **可信生成、Sources、Citation Candidate 与证据不足** · 待编写
     约束模型依据候选证据生成；V0 只建立 Citation Candidate，不宣称完成 Citation 校验。

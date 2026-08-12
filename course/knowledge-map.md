@@ -61,7 +61,7 @@
 | 面向应用的 Prompt Engineering | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约 | [阅读正文](mechanisms/prompt-engineering.md) | `llm_core/prompts`、`llm_invoke_lab` | 已落地 |
 | Streaming 与 Conversation | 机制 | 支撑 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/streaming-and-conversation.md) | `llm_core/streaming`、`conversation`、`apps/llm_streaming_api` | 已落地 |
 | Structured Output 与本地校验 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约 | [阅读正文](mechanisms/structured-output.md) | `llm_core/structured`、`schemas`、`llm_invoke_lab` | 已落地 |
-| Context Engineering 与预算 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约、Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context`、`llm_context_lab` | 已落地 |
+| Context Engineering 与预算 | 机制 | 主线 | V0 | Prompt、Schema、Context 的模型契约、Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context`、`rag_core/context`、`rag_retrieval_lab/inspect_rag_context.py` | 已落地 |
 | 错误分类、重试、降级与可靠调用 | 机制 | 主线 | V0 | 一次模型调用的生命周期 | [阅读正文](mechanisms/reliability-and-errors.md) | `llm_core/errors`、`reliability`、`llm_reliability_lab` | 已落地 |
 | 调用 Harness、回归与版本比较 | 机制 | 主线 | V0 | 面向应用的 Prompt Engineering、Structured Output 与本地校验、错误分类、重试、降级与可靠调用、固定 RAG 生成链 | [阅读正文](mechanisms/calling-harness-and-regression.md) | `llm_core/harness`、`llm_regression_lab` | 已落地 |
 | Token、成本与延迟记录 | 机制 | 主线 | V0 | 调用 Harness、回归与版本比较 | [阅读正文](mechanisms/cost-latency-and-caching.md) | `llm_core/costing`、`llm_regression_lab` | 已落地 |
@@ -113,7 +113,7 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | 机制 | 主线 | V0 | 多路召回与 RRF 融合 | [阅读正文](mechanisms/retriever-contract.md) | `rag_core/retrieval/hybrid.py`、`rag_retrieval_lab/inspect_retrieval_contract.py` | 已落地 |
 | Reranker、重排诊断与产品准入证据 | 机制 | 主线 | V2 | 多路召回与 RRF 融合、Retrieval 与 Generation Eval | `mechanisms/reranking.md` | 条件准入：通过收益门槛后进入 `rag_core/retrieval` | 待编写 |
 | Query Rewrite 与 Source Routing | 机制 | 主线 | V3 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断 | `mechanisms/query-rewrite-and-routing.md` | 后续 `rag_core/query` | 待编写 |
-| Context Construction 与 Compression | 机制 | 主线 | V0 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断、Context Engineering 与预算 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context` + 后续 `rag_core` | 已落地 |
+| Context Construction 与 Compression | 机制 | 主线 | V0 | Top-k、阈值、Metadata Filter 与 Retrieval 诊断、Context Engineering 与预算 | [阅读正文](mechanisms/context-engineering.md) | `llm_core/context`、`rag_core/context`、`rag_retrieval_lab/inspect_rag_context.py` | 已落地 |
 | 可信生成、Sources 与 Citation Candidate | 机制 | 主线 | V0 | Context Construction 与 Compression、Structured Output 与本地校验 | `mechanisms/trusted-generation.md` | 后续 `rag_core/generation` | 待编写 |
 | Citation 校验、证据充分性、Refusal 与补充问题 | 机制 | 主线 | V1 | 可信生成、Sources 与 Citation Candidate | `mechanisms/citation-and-evidence-validation.md` | 后续 `rag_core/evidence` | 待编写 |
 | Retriever as Tool 与 Single Agent RAG | 机制 | 主线 | V3 | Query Rewrite 与 Source Routing、Tool Runtime 与结构化错误 | `mechanisms/single-agent-rag.md` | 后续 `agent_core` | 待编写 |

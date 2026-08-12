@@ -238,6 +238,20 @@ def test_dense_search_maps_cosine_distance_and_visibility_diagnostics() -> None:
                         "content": chunk.text,
                         "source_role": chunk.source_role.value,
                         "evidence_eligibility": chunk.evidence_eligibility.value,
+                        "source_spans": [
+                            {
+                                "element_id": "element-1",
+                                "start_char": 0,
+                                "end_char": 12,
+                                "text": "售后接口字段说明",
+                                "locator": {
+                                    "kind": "markdown",
+                                    "line_start": 8,
+                                    "line_end": 10,
+                                    "heading_path": ["接口规则"],
+                                },
+                            }
+                        ],
                         "business_metadata": dict(chunk.business_metadata),
                         "cosine_distance": 0.2,
                     }
@@ -259,6 +273,7 @@ def test_dense_search_maps_cosine_distance_and_visibility_diagnostics() -> None:
 
     assert result.hits[0].cosine_distance == pytest.approx(0.2)
     assert result.hits[0].cosine_similarity == pytest.approx(0.8)
+    assert result.hits[0].source_spans[0].locator.heading_path == ("接口规则",)
     assert result.diagnostics.lower_is_better is True
     assert result.diagnostics.indexed_chunk_count == 4
     assert result.diagnostics.visible_chunk_count == 2

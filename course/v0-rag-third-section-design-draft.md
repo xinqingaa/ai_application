@@ -66,7 +66,7 @@ Target Requirement + RetrievalResult
 
 正文解释机制、关键数据变化、公共入口和不变量；完整命令、参数和读码顺序由 package / demo README 维护。
 
-## 第 7–14 步的正式入口
+## 第 7–15 步的正式入口
 
 这些步骤的稳定内容已经由正式真源承担，本草稿不再复制其正文设计：
 
@@ -78,25 +78,7 @@ Target Requirement + RetrievalResult
 - 第 12 步：[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)
 - 第 13 步：[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)
 - 第 14 步：[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)
-
-## 第 15 步：从 RetrievalResult 到模型上下文
-
-**核心问题**：Retriever 已经产生候选后，应用怎样决定模型本轮真正看到什么？
-
-复用现有 [Context Engineering](mechanisms/context-engineering.md)，只补 RAG 所需的对象映射：
-
-```text
-RetrievalHit
-→ ContextSource
-→ included / dropped / compressed source
-→ BuiltContext + ContextBuildReport
-```
-
-必须保留 `chunk_id`、document locator、route ranks 和原生分数，但检索分数不能直接变成来源权威性或事实优先级。`RetrievalReport` 回答“找到了什么”，`ContextBuildReport` 回答“模型看到了什么”。
-
-最小实验使用正常预算、去重和 history 变化，观察正确候选是否因上下文选择而丢失。映射字段缺失、source id 冲突等由适配器测试阻止。
-
-**非目标**：不重新实现 Retriever，不在本步完成 Citation 支持性校验。
+- 第 15 步：[Context Engineering：从检索候选到模型真正看到的证据](mechanisms/context-engineering.md)
 
 ## 第 16 步：可信生成与 V0 证据边界
 

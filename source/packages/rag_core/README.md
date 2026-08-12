@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，步骤 13 的应用侧 RRF，以及步骤 14 的固定 Retrieval 控制与诊断。Context 装配和可信生成尚未接入这条 RAG 数据流。
+当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，步骤 13 的应用侧 RRF，步骤 14 的固定 Retrieval 控制与诊断，以及步骤 15 从检索候选到共享 Context Builder 的来源适配。可信生成尚未接入这条 RAG 数据流。
 
 ## 当前数据流
 
@@ -45,6 +45,12 @@ LexicalHit[] + DenseHit[]
 → reciprocal_rank_fusion
 → final_top_k
 → RetrievalResult + RetrievalReport
+
+RetrievalResult.candidates
+→ retrieval_result_to_context_sources
+→ ContextSource[]（保留 chunk_id、locator 与路线诊断）
+→ llm_core.build_review_context
+→ BuiltContext + ContextBuildReport
 ```
 
 ## 代码入口
@@ -75,13 +81,15 @@ LexicalHit[] + DenseHit[]
 | `retrieval/postgres_dense.py` | pgvector cosine distance、exact / HNSW 查询、可见范围和查询计划诊断 |
 | `retrieval/fusion.py` | 路由状态、统一排名候选、RRF 贡献、稳定去重与融合诊断 |
 | `retrieval/hybrid.py` | 固定预过滤、每路候选与阈值、RRF、最终截断和无结果诊断 |
+| `context/adapter.py` | RetrievalResult 到 ContextSource 的身份、位置、证据资格和诊断适配 |
 | `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
 | `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
 | `tests/test_pgvector_dense.py` | Chunk/向量绑定、空间身份、距离方向和可选真实 pgvector 集成测试 |
 | `tests/test_rrf.py` | 名次融合、空/失败路线、稳定身份和跨路线一致性不变量 |
 | `tests/test_hybrid_retriever.py` | 控制顺序、Metadata 传递、阈值方向、最终截断和失败分类 |
+| `tests/test_rag_context.py` | Chunk 来源保留、证据资格映射、预算去向和 source ID 冲突 |
 
-建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–14 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
+建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–15 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
 ## 公共入口
 
@@ -227,6 +235,12 @@ result = FixedHybridRetriever(lexical, dense).retrieve(
 ```
 
 `RetrievalReport` 保留每路 indexed/visible/candidate/pass 数量、原生阈值决策、融合统计、最终截断和结构化无结果原因。空检索不能证明知识中没有答案；一路失败也不能伪装成成功空结果。当前固定 Retriever 只形成候选，不负责 Context 预算或生成。
+
+## RAG Context 适配入口
+
+`retrieval_result_to_context_sources` 将最终 RRF 候选映射到 `llm_core.ContextSource`。稳定 `chunk_id` 继续作为 `source_id`，文档版本、`source_spans`、融合排名、每路原生分数和检索配置进入可诊断 metadata；缺少 locator 的候选会明确失败。
+
+`build_rag_review_context` 随后委托唯一的 `llm_core.build_review_context` 做去重、分区预算和压缩。检索分数只保留作诊断，不写入通用 authority/confidence score；当前 evidence 才能成为 Citation Candidate，历史材料只进入 History，ineligible 材料明确排除。
 
 ## Chunking 策略边界
 

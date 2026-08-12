@@ -80,6 +80,20 @@ def test_search_maps_native_rank_and_diagnostics() -> None:
                 "content": "售后接口 v2 必须提供 source_channel。",
                 "source_role": "reference_knowledge",
                 "evidence_eligibility": "current_evidence",
+                "source_spans": [
+                    {
+                        "element_id": "element-1",
+                        "start_char": 0,
+                        "end_char": 12,
+                        "text": "售后接口字段说明",
+                        "locator": {
+                            "kind": "markdown",
+                            "line_start": 8,
+                            "line_end": 10,
+                            "heading_path": ["接口规则"],
+                        },
+                    }
+                ],
                 "business_metadata": {"knowledge_scope": "after_sale"},
                 "matched_terms": ["techidsourcechannel"],
                 "fts_rank": 0.75,
@@ -107,6 +121,7 @@ def test_search_maps_native_rank_and_diagnostics() -> None:
     assert result.hits[0].chunk_id == "chunk-1"
     assert result.hits[0].fts_rank == 0.75
     assert result.hits[0].route_rank == 1
+    assert result.hits[0].source_spans[0].locator.line_start == 8
     assert result.diagnostics.matched_chunk_count == 1
     assert result.diagnostics.returned_chunk_count == 1
     assert result.diagnostics.indexed_chunk_count == 4

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import Mapping
+from typing import Any, Mapping
 
-from rag_core.ingestion.models import EvidenceEligibility, SourceRole
+from rag_core.chunking.models import ChunkSourceSpan
+from rag_core.ingestion.models import EvidenceEligibility, SourceLocator, SourceRole
 from rag_core.lexical.models import QueryOperator
 
 
@@ -40,6 +42,7 @@ class LexicalHit:
     matched_terms: tuple[str, ...]
     fts_rank: float
     route_rank: int
+    source_spans: tuple[ChunkSourceSpan, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -89,6 +92,7 @@ class DenseHit:
     cosine_distance: float
     cosine_similarity: float
     route_rank: int
+    source_spans: tuple[ChunkSourceSpan, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -120,3 +124,28 @@ class DenseDiagnostics:
 class DenseSearchResult:
     hits: tuple[DenseHit, ...]
     diagnostics: DenseDiagnostics
+
+
+def source_spans_from_payload(
+    payload: Sequence[Mapping[str, Any]],
+) -> tuple[ChunkSourceSpan, ...]:
+    """Restore the traceable source spans stored with a PostgreSQL Chunk."""
+
+    return tuple(
+        ChunkSourceSpan(
+            element_id=str(item["element_id"]),
+            locator=SourceLocator(
+                kind=str(item["locator"]["kind"]),
+                line_start=item["locator"].get("line_start"),
+                line_end=item["locator"].get("line_end"),
+                page_number=item["locator"].get("page_number"),
+                paragraph_index=item["locator"].get("paragraph_index"),
+                table_index=item["locator"].get("table_index"),
+                heading_path=tuple(item["locator"].get("heading_path", ())),
+            ),
+            start_char=int(item["start_char"]),
+            end_char=int(item["end_char"]),
+            text=str(item["text"]),
+        )
+        for item in payload
+    )

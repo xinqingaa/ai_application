@@ -20,6 +20,7 @@ from rag_core.retrieval.models import (
     LexicalHit,
     LexicalIndexReport,
     LexicalSearchResult,
+    source_spans_from_payload,
 )
 from rag_core.retrieval.postgres_chunks import PostgresChunkStore
 
@@ -57,6 +58,7 @@ matched AS (
         chunk.content,
         chunk.source_role,
         chunk.evidence_eligibility,
+        chunk.source_spans,
         chunk.business_metadata,
         ARRAY(
             SELECT lexeme
@@ -209,4 +211,5 @@ def _hit_from_row(row: dict[str, Any], route_rank: int) -> LexicalHit:
         matched_terms=tuple(row["matched_terms"]),
         fts_rank=float(row["fts_rank"]),
         route_rank=route_rank,
+        source_spans=source_spans_from_payload(row.get("source_spans", [])),
     )

@@ -128,12 +128,14 @@ harness records + learning price table + cache key
 
 ### Context Engineering
 
-等标准学习路径完成文档、Chunk 和 Retriever 前置后再进入：
+标准学习路径完成文档、Chunk 和 Retriever 前置后，从 RAG 适配进入：
 
 1. [`context/types.py`](context/types.py)：`ContextSource`、`ContextBuildPolicy`、`ContextBuildReport`。
 2. [`context/policies.py`](context/policies.py)：`minimal` / `balanced` / `evidence_first` / `tight_budget`。
 3. [`context/builder.py`](context/builder.py)：去重、排序、预算、压缩、引用候选。
-4. demo [`llm_context_lab/context_compare.py`](../../demos/llm_context_lab/context_compare.py)：观察 Context Report。
+4. [`rag_core/context/adapter.py`](../rag_core/context/adapter.py)：把 RetrievalResult 的身份、locator 和诊断接入 ContextSource。
+5. demo [`rag_retrieval_lab/inspect_rag_context.py`](../../demos/rag_retrieval_lab/inspect_rag_context.py)：观察真实候选的 Context Report。
+6. demo [`llm_context_lab/context_compare.py`](../../demos/llm_context_lab/context_compare.py)：用静态材料离线观察 Builder 策略。
 
 ### Calling Harness
 
@@ -236,7 +238,7 @@ print(summary.success_count, records[0].attempt_count)
 - 模型调用与输入输出契约：[../../demos/llm_invoke_lab/](../../demos/llm_invoke_lab/)（含 `first_chat.py` SDK 对照）
 - Embedding 表示与真实调用：[../../demos/rag_retrieval_lab/](../../demos/rag_retrieval_lab/)
 - Reliability 与可见降级：[../../demos/llm_reliability_lab/](../../demos/llm_reliability_lab/)
-- Context Engineering（等待 RAG 前置）：[../../demos/llm_context_lab/](../../demos/llm_context_lab/)
+- Context Engineering（已接 RAG）：[../../demos/rag_retrieval_lab/](../../demos/rag_retrieval_lab/)；静态策略对照见 [../../demos/llm_context_lab/](../../demos/llm_context_lab/)
 - Calling Harness、成本、延迟与缓存：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
 - 按需 Streaming SSE：[../../apps/llm_streaming_api/](../../apps/llm_streaming_api/)
 

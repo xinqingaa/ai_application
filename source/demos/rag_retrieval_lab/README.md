@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)，步骤 14 阅读 [Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../../../course/mechanisms/retriever-contract.md)。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)，步骤 14 阅读 [Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../../../course/mechanisms/retriever-contract.md)，步骤 15 阅读 [Context Engineering](../../../course/mechanisms/context-engineering.md)。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文；真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../../packages/llm_core/client/service.py)，RAG 侧表示与成对相似度位于 [`rag_core.embedding`](../../packages/rag_core/embedding/)。
 
@@ -250,6 +250,35 @@ JSON Lines：
 uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --log-format json
 ```
 
+## 步骤 15：从 RetrievalResult 到 BuiltContext
+
+继续复用同一个真实 Retriever，将最终候选接入 `llm_core.context`：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py
+```
+
+默认对同一个 `RetrievalResult` 运行 `evidence_first` 与 `tight_budget`，因此变化只来自 Context policy。查看每条 Chunk 的 locator、映射、budget 去向和最终 Evidence block：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py --verbose
+```
+
+只改变历史辅助材料，观察 RetrievalReport 保持不变、History 与 Citation Candidate 仍然分离：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py --without-history
+```
+
+选择其他 Context policy 或输出 JSON Lines：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py --policies full_context,evidence_first
+uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py --log-format json
+```
+
+主路径调用真实 PostgreSQL 与 Embedding；缺少配置会失败，不回退到静态检索。`llm_context_lab/context_compare.py` 仍可离线观察 Builder 的确定性策略，但它不能证明 RAG 候选已经接通。
+
 ## 从 Demo 进入核心代码
 
 1. [`inspect_embedding.py`](inspect_embedding.py)：看探针如何进入公共 API。
@@ -288,6 +317,12 @@ uv run pytest source/packages/rag_core/tests/test_rrf.py -q
 uv run pytest source/packages/rag_core/tests/test_hybrid_retriever.py -q
 ```
 
+步骤 15 的 RAG Context 适配测试：
+
+```bash
+uv run pytest source/packages/rag_core/tests/test_rag_context.py source/packages/llm_core/tests/test_context.py -q
+```
+
 配置独立测试库后运行真实 PostgreSQL 集成测试：
 
 ```bash
@@ -306,7 +341,7 @@ uv run pytest source/packages/rag_core/tests/test_pgvector_dense.py -q -m integr
 
 - 步骤 10 不对知识库候选做匹配与排名；步骤 11 已建立 PostgreSQL FTS
 - 步骤 12 已持久化向量并建立按 Embedding 空间隔离的 pgvector HNSW 索引
-- 不装配模型上下文，也不用最终评审回答判断 Embedding 质量
+- 步骤 15 已装配模型上下文，但不用最终评审回答反推 Embedding 质量
 - 不允许主路径 mock embedding 结果冒充真实模型效果
 - 步骤 13 已实现应用侧 RRF；步骤 14 已实现统一控制顺序、每路阈值、`final_top_k` 和完整淘汰原因
-- 仍不装配最终 Context，也不把检索分数当作事实权威性
+- 仍不执行可信生成，也不把检索分数当作事实权威性

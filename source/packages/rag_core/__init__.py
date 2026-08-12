@@ -10,6 +10,14 @@ from rag_core.chunking import (
     ChunkStrategy,
     chunk_document,
 )
+from rag_core.context import (
+    ContextMappingStatus,
+    RAGContextBuildResult,
+    RetrievalContextDecision,
+    RetrievalContextMapping,
+    build_rag_review_context,
+    retrieval_result_to_context_sources,
+)
 from rag_core.embedding import (
     EmbeddingBatchResult,
     EmbeddingRecord,
@@ -98,6 +106,7 @@ __all__ = [
     "ChunkResult",
     "ChunkSourceSpan",
     "ChunkStrategy",
+    "ContextMappingStatus",
     "DenseDiagnostics",
     "DenseHit",
     "DenseSearchMode",
@@ -140,10 +149,13 @@ __all__ = [
     "RRFCandidate",
     "RRFDiagnostics",
     "RRFResult",
+    "RAGContextBuildResult",
     "RankedCandidate",
     "RankedRoute",
     "RetrievalError",
     "RetrievalErrorCode",
+    "RetrievalContextDecision",
+    "RetrievalContextMapping",
     "RetrievalReport",
     "RetrievalResult",
     "RetrievalStage",
@@ -158,6 +170,7 @@ __all__ = [
     "VectorDeleteReport",
     "VectorIndexReport",
     "chunk_document",
+    "build_rag_review_context",
     "dense_ranked_route",
     "embed_texts",
     "failed_ranked_route",
@@ -165,5 +178,6 @@ __all__ = [
     "load_document",
     "pairwise_similarity",
     "reciprocal_rank_fusion",
+    "retrieval_result_to_context_sources",
     "similarity",
 ]

@@ -21,6 +21,7 @@ from rag_core.retrieval.models import (
     DenseHit,
     DenseSearchMode,
     DenseSearchResult,
+    source_spans_from_payload,
 )
 from rag_core.vector_store.models import EmbeddingSpace, hnsw_index_name
 
@@ -183,6 +184,7 @@ def _visible_sql(
             chunk.content,
             chunk.source_role,
             chunk.evidence_eligibility,
+            chunk.source_spans,
             chunk.business_metadata,
             {distance} AS cosine_distance
         FROM review_assistant.rag_chunk_embeddings AS embedding
@@ -241,6 +243,7 @@ def _dense_hit(row: dict[str, Any], route_rank: int) -> DenseHit:
         cosine_distance=distance,
         cosine_similarity=1.0 - distance,
         route_rank=route_rank,
+        source_spans=source_spans_from_payload(row.get("source_spans", [])),
     )
 
 

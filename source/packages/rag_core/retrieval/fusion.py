@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Mapping, Sequence
 
+from rag_core.chunking.models import ChunkSourceSpan
 from rag_core.ingestion.models import EvidenceEligibility, SourceRole
 from rag_core.retrieval.models import DenseSearchResult, LexicalSearchResult
 
@@ -31,6 +32,7 @@ class RankedCandidate:
     native_score_name: str
     native_score: float
     higher_is_better: bool
+    source_spans: tuple[ChunkSourceSpan, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.chunk_id.strip():
@@ -98,6 +100,7 @@ class RRFCandidate:
     contributions: tuple[RRFContribution, ...]
     rrf_score: float
     fusion_rank: int
+    source_spans: tuple[ChunkSourceSpan, ...] = ()
 
     @property
     def matched_routes(self) -> tuple[str, ...]:
@@ -135,6 +138,7 @@ def lexical_ranked_route(result: LexicalSearchResult) -> RankedRoute:
             native_score_name="postgresql_ts_rank",
             native_score=hit.fts_rank,
             higher_is_better=True,
+            source_spans=hit.source_spans,
         )
         for hit in result.hits
     )
@@ -159,6 +163,7 @@ def dense_ranked_route(result: DenseSearchResult) -> RankedRoute:
             native_score_name="pgvector_cosine_distance",
             native_score=hit.cosine_distance,
             higher_is_better=False,
+            source_spans=hit.source_spans,
         )
         for hit in result.hits
     )
@@ -250,6 +255,7 @@ def reciprocal_rank_fusion(
             contributions=contributions,
             rrf_score=score,
             fusion_rank=index + 1,
+            source_spans=candidate.source_spans,
         )
         for index, (candidate, contributions, score) in enumerate(provisional)
     )
@@ -281,6 +287,7 @@ def _validate_same_chunk(left: object, right: RankedCandidate) -> None:
         "content",
         "source_role",
         "evidence_eligibility",
+        "source_spans",
     )
     if any(getattr(left, field) != getattr(right, field) for field in identity):
         raise ValueError(f"同一 chunk_id 在不同路由中的来源内容不一致：{left.chunk_id}")
