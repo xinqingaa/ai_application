@@ -45,16 +45,34 @@
 
 V0–V3 沿同一个需求评审助手逐步建立六个相互连接的能力维度：
 
-| 能力维度 | V0 固定 RAG 基线 | V1 可信结构化评审 | V2 质量闭环 | V3 单 Agent RAG |
-| --- | --- | --- | --- | --- |
-| 知识生产 | 文件识别、结构还原、Chunk、Metadata、稳定身份与来源位置 | 文档版本、更新、删除一致性和 Citation 失效 | 将知识与检索 bad case 转为可复现质量问题 | 继续作为可引用业务知识，由 Agent 通过受控 Retriever 使用 |
-| 检索 | Embedding、PostgreSQL FTS、pgvector、RRF、Top-k、阈值、过滤和诊断 | 检索候选与经过校验的 Citation 建立关系 | Retrieval Eval、失败归因与 Reranker 准入证据 | Query Rewrite、Source Routing、补检索与 Retriever as Tool |
-| 可信生成 | Context、结构化生成、Sources 与 Citation Candidate | Citation 校验、证据充分性、Refusal 和补充问题 | Generation、Citation 与 Refusal Evaluation | Agent 的动态行动继续受证据、引用和拒答规则约束 |
-| 质量工程 | 最小 Golden Set、四路对照、成本和延迟记录 | Citation、Refusal 与工程契约测试 | Dataset、Trace、Experiment、Regression、Bad Case 与 Feedback | Tool、Memory、Trajectory、停止原因、质量、成本和延迟评估 |
-| 产品工程 | Review API、请求状态、结构化结果和来源候选界面 | 可信证据、拒答与补充信息交互 | Eval、Labeling、Feedback 和版本比较工作台 | SSE、取消、重连、响应状态机和 Agent 轨迹界面 |
-| 动态控制 | 应用预先定义固定 Pipeline | 继续由固定 Pipeline 执行可信证据逻辑 | 固定 Pipeline 已具备评估和迭代能力 | 单 Agent 动态选择 Query、Source、Retrieve、Ask 与 Stop |
+| 能力维度 | 闭环检查范围 | V0 固定 RAG 基线 | V1 可信结构化评审 | V2 质量闭环 | V3 单 Agent RAG |
+| --- | --- | --- | --- | --- | --- |
+| 知识生产 | 解析、结构、Chunk、Metadata、版本与来源 | 文件识别、结构还原、Chunk、Metadata、稳定身份与来源位置 | 文档版本、更新、删除一致性和 Citation 失效 | 将知识与检索 bad case 转为可复现质量问题 | 继续作为可引用业务知识，由 Agent 通过受控 Retriever 使用 |
+| 检索 | Embedding、全文检索、向量检索、融合、过滤和诊断 | Embedding、PostgreSQL FTS、pgvector、RRF、Top-k、阈值、过滤和诊断 | 检索候选与经过校验的 Citation 建立关系 | Retrieval Eval、失败归因与 Reranker 准入证据 | Query Rewrite、Source Routing、补检索与 Retriever as Tool |
+| 可信生成 | Context、Citation、证据充分性与 Refusal | Context、结构化生成、Sources 与 Citation Candidate | Citation 校验、证据充分性、Refusal 和补充问题 | Generation、Citation 与 Refusal Evaluation | Agent 的动态行动继续受证据、引用和拒答规则约束 |
+| 质量工程 | Golden Set、Retrieval Eval、Generation Eval、回归和 bad case | 最小 Golden Set、四路对照、成本和延迟记录 | Citation、Refusal 与工程契约测试 | Dataset、Trace、Experiment、Regression、Bad Case 与 Feedback | Tool、Memory、Trajectory、停止原因、质量、成本和延迟评估 |
+| 产品工程 | API、状态、错误、证据 UI、成本和延迟 | Review API、请求状态、错误契约、结构化结果和来源候选界面 | 可信证据、拒答与补充信息交互 | Eval、Labeling、Feedback 和版本比较工作台 | SSE、取消、重连、响应状态机、运行错误和 Agent 轨迹界面 |
+| 动态控制 | Query Rewrite、Source Routing、补检索、追问和停止 | 应用预先定义固定 Pipeline | 继续由固定 Pipeline 执行可信证据逻辑 | 固定 Pipeline 已具备评估和迭代能力 | 单 Agent 动态选择 Query、Source、Retrieve、Ask 与 Stop |
+
+成本和延迟是跨维度指标：质量工程用它们比较方案收益和回归变化，产品工程用它们管理运行预算、等待体验和服务稳定性。
 
 这张表只用于理解各能力在哪个版本建立和深化。阅读顺序仍由 [标准学习路径](learning-path.md) 定义，业务实现和验收仍由对应项目篇定义。
+
+## V3 单 Agent RAG 的七层能力结构
+
+V3 在六维 RAG 产品能力之上增加单 Agent 运行时。七层用于检查能力范围是否完整，不在知识地图中规定正文编号和阅读顺序：
+
+| 层次 | 核心问题 | 能力范围 | V3 掌握目标 |
+| --- | --- | --- | --- |
+| 边界判断 | 当前问题是否真的需要 Agent | Chain、固定 RAG、Workflow、Agent、Multi-Agent | 能根据决策是否固定、状态是否需要恢复、职责是否需要拆分作出选型；V3 只实现单 Agent |
+| 状态与记忆 | 本轮状态、会话和跨会话信息怎样区分 | Run State、Conversation、短期记忆、用户确认型长期偏好与业务知识边界 | 能解释作用域、生命周期、来源和注入预算，避免记忆冒充可引用事实 |
+| 工具契约 | 模型怎样合法地提出行动 | Function Calling、Tool Schema、参数与结果 Schema、输入输出校验 | 能定义可解析、可校验的工具调用，并拒绝非法参数和非法结果 |
+| 工具运行时 | 应用怎样安全执行行动 | 权限、高风险确认、超时、幂等、审计和结构化错误 | 能区分模型提议与应用执行，让执行结果和真实失败可治理、可追踪 |
+| Agent Loop | 系统怎样决定下一步或停止 | Query Rewrite、Source Routing、Retriever / Memory as Tool、补检索、继续、完成、追问、失败、上限和安全阻止 | 能解释每次行动和停止原因，并确保循环受预算、步数与安全边界控制 |
+| Agent 质量 | 怎样证明 Agent 的决策合理 | 工具选择、参数、轨迹、停止原因、记忆污染、质量、成本和延迟评估 | 能基于固定样例和运行轨迹定位决策问题，并与固定 RAG 基线比较 |
+| 产品状态 | 怎样把运行过程变成可用产品 | SSE、取消、重连、重复事件处理、响应状态机和轨迹 UI | 能保持前后端状态一致，并展示 Tool Call、记忆、证据变化、停止原因和真实失败 |
+
+七层的实际进入顺序由 [标准学习路径的 V3 部分](learning-path.md#v3单-agent-rag) 定义；对应项目篇负责把这些能力转成真实运行、测试、评估和界面验收。
 
 ## LLM 与模型交互
 
