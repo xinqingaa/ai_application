@@ -41,6 +41,21 @@
 
 知识项不与文档一一对应。一篇概念篇或机制篇可以讲清多个紧密相关的知识，一项知识也可以被概念、机制和项目从不同角度使用。表格中的“类型”只记录该知识当前主要由哪类文档承载；跨类型使用不写成“概念+机制”或“机制+项目”。
 
+## 阶段一的六个能力维度
+
+V0–V3 沿同一个需求评审助手逐步建立六个相互连接的能力维度：
+
+| 能力维度 | V0 固定 RAG 基线 | V1 可信结构化评审 | V2 质量闭环 | V3 单 Agent RAG |
+| --- | --- | --- | --- | --- |
+| 知识生产 | 文件识别、结构还原、Chunk、Metadata、稳定身份与来源位置 | 文档版本、更新、删除一致性和 Citation 失效 | 将知识与检索 bad case 转为可复现质量问题 | 继续作为可引用业务知识，由 Agent 通过受控 Retriever 使用 |
+| 检索 | Embedding、PostgreSQL FTS、pgvector、RRF、Top-k、阈值、过滤和诊断 | 检索候选与经过校验的 Citation 建立关系 | Retrieval Eval、失败归因与 Reranker 准入证据 | Query Rewrite、Source Routing、补检索与 Retriever as Tool |
+| 可信生成 | Context、结构化生成、Sources 与 Citation Candidate | Citation 校验、证据充分性、Refusal 和补充问题 | Generation、Citation 与 Refusal Evaluation | Agent 的动态行动继续受证据、引用和拒答规则约束 |
+| 质量工程 | 最小 Golden Set、四路对照、成本和延迟记录 | Citation、Refusal 与工程契约测试 | Dataset、Trace、Experiment、Regression、Bad Case 与 Feedback | Tool、Memory、Trajectory、停止原因、质量、成本和延迟评估 |
+| 产品工程 | Review API、请求状态、结构化结果和来源候选界面 | 可信证据、拒答与补充信息交互 | Eval、Labeling、Feedback 和版本比较工作台 | SSE、取消、重连、响应状态机和 Agent 轨迹界面 |
+| 动态控制 | 应用预先定义固定 Pipeline | 继续由固定 Pipeline 执行可信证据逻辑 | 固定 Pipeline 已具备评估和迭代能力 | 单 Agent 动态选择 Query、Source、Retrieve、Ask 与 Stop |
+
+这张表只用于理解各能力在哪个版本建立和深化。阅读顺序仍由 [标准学习路径](learning-path.md) 定义，业务实现和验收仍由对应项目篇定义。
+
 ## LLM 与模型交互
 
 关系主线：
@@ -129,31 +144,38 @@ RAG 与 LLM 通过 Context 和 Structured Output 相接，不是两门彼此隔�
 
 判断是否需要 Agent
 → State、Conversation、Memory 与业务知识
-→ Function Calling 与 Tool Runtime
+→ Function Calling 与 Tool Schema
+→ Tool Runtime、权限与执行治理
 → Retriever / Memory as Tool
-→ Agent Loop、停止和安全
+→ Agent Loop、停止和 Guardrails
+→ Agent Trajectory Evaluation
+→ SSE、响应状态机与运行轨迹 UI
+
+V3 学习 Chain、Workflow、Agent 与 Multi-Agent 的选型边界，并实现单 Agent Runtime。Workflow 的显式状态与恢复从 V4 进入，多 Agent 的真实责任分工与协作从 V5 进入。
 
 | 知识 | 类型 | 定位 | 最早进入 | 理解前提 | 文档入口 | 代码入口 | 正文状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Chain、Workflow、Agent 与 Multi-Agent 边界 | 概念 | 主线 | V3 | 固定 RAG、搜索、数据库与 Agent 的边界 | `concepts/agent-and-workflow-boundaries.md` | 后续 `agent_core` | 待编写 |
+| Chain、Workflow、Agent 与 Multi-Agent 边界 | 概念 | 主线 | V3 | 固定 RAG、搜索、数据库与 Agent 的边界 | `concepts/agent-and-workflow-boundaries.md` | 选型边界，无独立产品实现 | 待编写 |
 | Run State、Conversation、Memory 与业务知识的边界 | 概念 | 主线 | V3 | Chain、Workflow、Agent 与 Multi-Agent 边界 | `concepts/memory-and-knowledge-boundaries.md` | 后续 `agent_core/memory` | 待编写 |
 | 短期记忆：滑动窗口、摘要与预算 | 机制 | 主线 | V3 | Run State、Conversation、Memory 与业务知识的边界、Context Engineering 与预算 | `mechanisms/short-term-memory.md` | 后续 `agent_core/memory` | 待编写 |
 | 长期记忆：用户确认偏好、作用域、检索与治理 | 机制 | 主线 | V3 | 短期记忆：滑动窗口、摘要与预算、Embedding 表示与向量相似度 | `mechanisms/long-term-memory.md` | V3 最小产品接入：后续 `agent_core/memory` | 待编写 |
 | Mem0 与自建 Memory Runtime 对照 | 机制 | 支撑 | V3 | 长期记忆：用户确认偏好、作用域、检索与治理 | 并入长期记忆机制篇 | 对照实验，不作为产品依赖 | 待编写 |
 | Function Calling 与 Tool Schema | 机制 | 主线 | V3 | Structured Output 与本地校验 | `mechanisms/tool-schema.md` | 后续 `agent_core/tools` | 待编写 |
 | Tool Runtime 与结构化错误 | 机制 | 主线 | V3 | Function Calling 与 Tool Schema | `mechanisms/tool-runtime.md` | 后续 `agent_core/tools` | 待编写 |
-| 工具权限、确认、幂等与审计 | 机制 | 主线 | V3 | Tool Runtime 与结构化错误 | `mechanisms/tool-governance.md` | 后续 `agent_core/tools` | 待编写 |
+| 工具权限、高风险确认、超时、幂等与审计 | 机制 | 主线 | V3 | Tool Runtime 与结构化错误 | `mechanisms/tool-governance.md` | 后续 `agent_core/tools` | 待编写 |
 | Agent Loop 与停止条件 | 机制 | 主线 | V3 | Tool Runtime 与结构化错误 | `mechanisms/agent-loop.md` | 后续 `agent_core/runtime` | 待编写 |
 | Planning、Task Decomposition 与 Reflection | 机制 | 支撑 | V3 | Agent Loop 与停止条件 | `mechanisms/planning-and-reflection.md` | 后续 `agent_core/runtime` | 待编写 |
-| LangChain Agent Patterns | 机制 | 主线 | V3 | Agent Loop 与停止条件 | 并入对应 Agent 机制篇 | 后续 `agent_core` | 待编写 |
-| Agentic RAG 深化 | 机制 | 支撑 | V4 | Retriever as Tool 与 Single Agent RAG、Workflow State、Node 与 Edge | `mechanisms/agentic-rag.md` | 后续 `agent_core` | 待编写 |
+| LangChain Agent 模式映射 | 机制 | 支撑 | V3 | Agent Loop 与停止条件 | 并入对应 Agent 机制篇 | 按实现选择映射到 `agent_core` | 待编写 |
+| Workflow 控制下的 Agentic RAG 深化 | 机制 | 支撑 | V4 | Retriever as Tool 与 Single Agent RAG、Workflow State、Node 与 Edge | `mechanisms/agentic-rag.md` | 后续 `agent_core/workflow` | 待编写 |
 | Workflow as Tool 与子 Agent | 机制 | 主线 | V5 | Human-in-the-loop、Multi-Agent 拆分判断 | `mechanisms/workflow-as-tool.md` | 后续 `agent_core` | 待编写 |
 | MCP、A2A 与 Agent Skills | 概念 | 未来认知 | 未来 | Tool Runtime 与结构化错误 | 待按需创建 | 无当前实现 | 未来认知 |
-| Guardrails、Safety 与应用控制边界 | 机制 | 主线 | V3 | 工具权限、确认、幂等与审计、Agent Loop 与停止条件 | `mechanisms/guardrails-and-safety.md` | 后续 `agent_core/safety` | 待编写 |
+| Guardrails、Safety 与应用控制边界 | 机制 | 主线 | V3 | 工具权限、高风险确认、超时、幂等与审计、Agent Loop 与停止条件 | `mechanisms/guardrails-and-safety.md` | 后续 `agent_core/safety` | 待编写 |
 | Deep Research | 概念 | 未来认知 | 未来 | Workflow State、Node 与 Edge、Planning、Task Decomposition 与 Reflection | 待按需创建 | 无当前实现 | 未来认知 |
 | 多模态 Agent、Browser、Code、File、Search 工具 | 概念 | 未来认知 | 未来 | Tool Runtime 与结构化错误 | 待按需创建 | 无当前实现 | 未来认知 |
 
 ## Workflow
+
+V4 将 V3 单 Agent 中的运行过程提升为显式、可恢复、可人工介入的状态流程。
 
 关系主线：
 
@@ -171,10 +193,12 @@ State / Node / Edge
 | 条件、循环与并行 | 机制 | 主线 | V4 | Workflow State、Node 与 Edge | `mechanisms/branch-loop-parallel.md` | 后续 `agent_core/workflow` | 待编写 |
 | Checkpoint、Interrupt 与 Resume | 机制 | 主线 | V4 | Node 输入输出契约与状态合并 | `mechanisms/checkpoint-and-resume.md` | 后续 `agent_core/workflow` | 待编写 |
 | Human-in-the-loop | 机制 | 主线 | V4 | Checkpoint、Interrupt 与 Resume | `mechanisms/human-in-the-loop.md` | 后续 `agent_core/workflow` | 待编写 |
-| 节点重试、副作用与幂等 | 机制 | 主线 | V4 | Node 输入输出契约与状态合并、工具权限、确认、幂等与审计 | `mechanisms/retry-and-idempotency.md` | 后续 `agent_core/workflow` | 待编写 |
+| 节点重试、副作用与幂等 | 机制 | 主线 | V4 | Node 输入输出契约与状态合并、工具权限、高风险确认、超时、幂等与审计 | `mechanisms/retry-and-idempotency.md` | 后续 `agent_core/workflow` | 待编写 |
 | LangGraph 框架映射与运行调试 | 机制 | 主线 | V4 | Workflow State、Node 与 Edge、Node 输入输出契约与状态合并、条件、循环与并行、Checkpoint、Interrupt 与 Resume、Human-in-the-loop、节点重试、副作用与幂等 | 并入 Workflow 机制篇 | 后续 `agent_core/workflow` | 待编写 |
 
 ## Multi-Agent
+
+V5 在可控 Workflow 基础上引入多个具有独立责任、上下文、工具和输出契约的 Agent，并用单 Agent 基线验证协作收益。
 
 关系主线：
 
