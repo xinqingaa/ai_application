@@ -6,6 +6,7 @@ import sys
 from collections.abc import Iterable, Sequence
 from typing import Any, TextIO
 
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
@@ -68,7 +69,7 @@ class AppConsole:
     ) -> None:
         target = self._err if err else self._out
         text = sep.join(str(item) for item in objects)
-        target.print(Text(text, style=style), end=end)
+        target.print(Text(text, style=style or ""), end=end)
 
     def emit(self, text: str = "", *, err: bool = False) -> None:
         self.print(text, err=err)
@@ -131,7 +132,13 @@ class AppConsole:
         title: str | None = None,
         styles: Sequence[str | None] | None = None,
     ) -> None:
-        table = Table(title=title, header_style="bold cyan", border_style="dim")
+        table = Table(
+            title=title,
+            box=box.SQUARE,
+            header_style="bold bright_cyan",
+            border_style="turquoise4",
+            title_style="bold cyan",
+        )
         for index, column in enumerate(columns):
             style = styles[index] if styles and index < len(styles) else None
             table.add_column(column, style=style)
