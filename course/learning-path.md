@@ -93,7 +93,7 @@ V0 要回答：
 本段从知识生产开始，依次完成文档解析与结构还原、切片与索引、检索、上下文装配和可信生成；V3 再在这些固定能力之上增加 Agent 动态编排。
 
 7. **[RAG 与外部知识的边界](concepts/rag-and-external-knowledge.md)** · 可学习
-   区分模型已有知识、搜索、数据库查询、固定 RAG 和 Agentic RAG。
+   画出固定 RAG 从文件到生成的总图；区分模型已有知识、搜索、数据库查询、固定 RAG 和 Agentic RAG。
 8. **[文档内容识别、解析路由、结构还原与来源保留](mechanisms/document-loading-and-cleaning.md)** · 可学习
    以 PDF 为复杂样例理解原生文本、扫描件和图文混排的处理路线；代码实现 TXT、Markdown、DOCX 与文本型 PDF 的最小结构还原，交付带来源位置的 `KnowledgeDocument`，但不产生 Chunk。
 9. **[Chunking、父子块与 Metadata](mechanisms/chunking-and-metadata.md)** · 可学习
