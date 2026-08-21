@@ -143,13 +143,14 @@ SSL: 关闭
 | `lexical_text` | Python 拆好、空格分开的检索词 |
 | `search_vector` | 数据库收下的词袋，不是第 10 步那种 Embedding 向量 |
 
-也可用：
+不要把 `SELECT` 存成临时文件名再在终端里看宽表。调试 SQL 放在 [`sql/`](../sql/README.md)：
 
-```sql
-SELECT chunk_id, content, lexical_text, search_vector
-FROM review_assistant.rag_chunks
-ORDER BY chunk_id;
+```bash
+psql "$DATABASE_URL" -f source/demos/rag_retrieval_lab/sql/list_chunk_previews.sql
+psql "$DATABASE_URL" -f source/demos/rag_retrieval_lab/sql/inspect_rag_chunks.sql
 ```
+
+前一条是窄表摘要；后一条会把 `content` / `lexical_text` / `search_vector` 逐列展开，避免挤成一团。
 
 第一次查询前先预测：`source_channel` 应能命中接口规则；`发起逆向服务` 可能 0 条。0 条且没有报错，是词面检索的边界，到机制篇再解释。
 
