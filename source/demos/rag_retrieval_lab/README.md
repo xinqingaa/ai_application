@@ -61,6 +61,8 @@ main
 
 先按 [`review_assistant/README.md`](../../../review_assistant/README.md) 安装并初始化真实 PostgreSQL、配置 `DATABASE_URL`、执行 migration。实验不会自动安装服务、自动建表，也不会回退到 SQLite 或内存检索。
 
+migration 只创建表结构，不会写入售后 Chunk。本实验才会把第 8–9 步的 Loader / Chunker 结果幂等写入 `review_assistant.rag_chunks`；不要在 GUI 里手工插入课文。若表还不存在，先完成产品 README 中的 migration。词面检索的机制解释在 [课程正文](../../../course/mechanisms/lexical-retrieval.md)。
+
 在仓库根目录运行：
 
 ```bash
