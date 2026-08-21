@@ -575,7 +575,7 @@ Chunk / query
 7. 区分成功空结果、连接失败、鉴权失败、缺表和权限不足。
 8. 知道 PostgreSQL 不能替应用完成词法策略、Embedding 身份、证据判断和评估。
 
-真实安装和运行时，按照[产品 README 的 PostgreSQL 本地准备](../../review_assistant/README.md#postgresql-本地准备)完成 Server、Role、Database、连接与 migration；按照 [`rag_retrieval_lab` README](../../source/demos/rag_retrieval_lab/README.md#步骤-11postgresql-fts-lexical-retrieval)运行真实检索实验。命令、参数和排障以这些 README 为真源。
+第 11 步从空库到第一次按词查询，按照 [实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 操作。产品级两条 migration、测试库和 pgvector 见 [产品 README 的 PostgreSQL 本地准备](../../review_assistant/README.md#postgresql-本地准备)。命令、参数和排障以这些文档为真源。
 
 ## 掌握检查
 
@@ -600,7 +600,7 @@ Chunk / query
 17. 怎样区分连接失败、鉴权失败、缺表、权限不足和成功空结果？
 18. 为什么“成功写入并得到高 rank”仍不能证明最终评审结论正确？
 
-如果这些问题大部分能够独立回答，就已经具备本项目当前需要的 PostgreSQL 基础。若是从第 11 步进入本文，读完后回到正在阅读的 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../mechanisms/lexical-retrieval.md)；标准课程顺序仍只由 [学习路径](../learning-path.md) 维护。
+如果这些问题大部分能够独立回答，就已经具备本项目当前需要的 PostgreSQL 基础。若是从第 11 步进入本文，操作仍走 [实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)，概念补齐后回到 [机制正文](../mechanisms/lexical-retrieval.md)；标准课程顺序仍只由 [学习路径](../learning-path.md) 维护。
 
 ## 官方参考
 

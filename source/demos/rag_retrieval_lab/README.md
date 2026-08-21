@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)，步骤 11 阅读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)，步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)，步骤 14 阅读 [Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../../../course/mechanisms/retriever-contract.md)，步骤 15 阅读 [Context Engineering](../../../course/mechanisms/context-engineering.md)，步骤 16 阅读 [可信生成](../../../course/mechanisms/trusted-generation.md)。
+> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 10 起。步骤 10 先读 [Embedding 表示与向量相似度](../../../course/mechanisms/embedding-and-similarity.md)。步骤 11 先完成 [实验准备](docs/11-lexical-retrieval.md)，再读 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)。步骤 12 阅读 [pgvector、Dense Retrieval 与向量索引](../../../course/mechanisms/vector-store-and-pgvector.md)，步骤 13 阅读 [多路召回与 RRF 融合](../../../course/mechanisms/multi-retrieval-and-rrf.md)，步骤 14 阅读 [Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../../../course/mechanisms/retriever-contract.md)，步骤 15 阅读 [Context Engineering](../../../course/mechanisms/context-engineering.md)，步骤 16 阅读 [可信生成](../../../course/mechanisms/trusted-generation.md)。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文；真实 Embedding HTTP 调用位于 [`llm_core.LLMClient.embed`](../../packages/llm_core/client/service.py)，RAG 侧表示与成对相似度位于 [`rag_core.embedding`](../../packages/rag_core/embedding/)。
 
@@ -59,74 +59,11 @@ main
 
 ## 步骤 11：PostgreSQL FTS Lexical Retrieval
 
-先按 [`review_assistant/README.md`](../../../review_assistant/README.md) 安装并初始化真实 PostgreSQL、配置 `DATABASE_URL`、执行 migration。实验不会自动安装服务、自动建表，也不会回退到 SQLite 或内存检索。
+第 11 步的操作、写入、命令和排障已拆到配对文档，不再写在本 README：
 
-migration 只创建表结构，不会写入售后 Chunk。本实验才会把第 8–9 步的 Loader / Chunker 结果幂等写入 `review_assistant.rag_chunks`；不要在 GUI 里手工插入课文。若表还不存在，先完成产品 README 中的 migration。词面检索的机制解释在 [课程正文](../../../course/mechanisms/lexical-retrieval.md)。
+> **[第 11 步实验准备：从空库到第一次按词检索](docs/11-lexical-retrieval.md)**
 
-在仓库根目录运行：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py
-```
-
-默认实验会：
-
-1. 用第 8 步 Loader 读取 `order_rules.md`。
-2. 用第 9 步 structure-aware 策略生成真实 Chunk。
-3. 使用同一 `LexicalAnalyzer` 处理 Chunk 与查询。
-4. 幂等 upsert 到 `review_assistant.rag_chunks`。
-5. 用 PostgreSQL `websearch_to_tsquery`、`@@` 和 `ts_rank` 返回候选。
-6. 比较精确标识、词面一致、自然问句、同义改写、否定规则和正常噪声。
-
-查看 `tsquery`、PostgreSQL lexeme、命中词和每个候选：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --verbose
-```
-
-比较召回型 OR 与严格 AND：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --query-operator and --verbose
-```
-
-JSON Lines：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-format json
-```
-
-默认输出包含：
-
-- 原始查询、应用词项、PostgreSQL query lexeme 和最终 `tsquery`
-- `lexical_config_ref`、query operator 和 `candidate_k`
-- 命中数、返回数、稳定 `chunk_id` 和路由排名
-- 原生 `fts_rank`、方向和匹配词
-- 真实数据库错误的 stage、code 和 message
-
-探针位于共享的 [`retrieval_queries.json`](../../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json)。它是探索性机制材料，不是冻结的 V0 acceptance 集，也不证明最终 RAG 质量。步骤 12 继续使用同一批问题，避免通过更换样例制造路线差异。
-
-### 步骤 11 调用路径
-
-```text
-main
-→ load_document
-→ chunk_document
-→ LexicalAnalyzer.analyze_document
-→ PostgresFTSRetriever.upsert_chunks
-→ PostgreSQL generated tsvector + GIN
-→ LexicalAnalyzer.analyze_query
-→ websearch_to_tsquery + @@ + ts_rank
-→ LexicalSearchResult
-```
-
-### 步骤 11 读码顺序
-
-1. [`inspect_lexical_retrieval.py`](inspect_lexical_retrieval.py)：看真实实验怎样组合已有 Loader、Chunker 和 Retriever。
-2. [`lexical/analyzer.py`](../../packages/rag_core/lexical/analyzer.py)：看中文词项、技术标识和配置版本。
-3. [`retrieval/postgres_fts.py`](../../packages/rag_core/retrieval/postgres_fts.py)：看参数化 SQL、事务、upsert、query 和错误转换。
-4. [`0001_create_rag_chunks.sql`](../../../review_assistant/infra/migrations/0001_create_rag_chunks.sql)：看表、约束、生成列和索引。
-5. [`test_lexical.py`](../../packages/rag_core/tests/test_lexical.py) 与 [`test_postgres_fts.py`](../../packages/rag_core/tests/test_postgres_fts.py)：看确定性契约和真实集成边界。
+机制正文：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../course/mechanisms/lexical-retrieval.md)。步骤 12 及之后仍暂时写在下面，随课程推进再拆。
 
 ## 步骤 12：pgvector Dense Retrieval
 

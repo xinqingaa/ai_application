@@ -83,7 +83,11 @@ V0 受控格式对照 fixtures 已经位于 `fixtures/v0/ingestion/`，供 `rag_
 
 ## PostgreSQL 本地准备
 
-本节只提供安装与配置说明，不自动安装 PostgreSQL、GUI 或系统服务。当前 macOS 学习主路径推荐 [Postgres.app](https://postgresapp.com/)，因为安装简单、包含 `psql`，并预装后续步骤需要的 pgvector；PostgreSQL 官方也在 [macOS packages](https://www.postgresql.org/download/macosx/) 页面列出了 Postgres.app、EDB installer 和 Homebrew 等方式。
+**正在学习课程第 11 步（按词检索）时，不要从本节开始。** 从空库到第一次 FTS 查询，只走：
+
+> [第 11 步实验准备](../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)
+
+本节保留产品级安装：Role、两个 Database、`0001` 与 `0002`、测试库，以及第 12 步起需要的 pgvector。不自动安装 PostgreSQL、GUI 或系统服务。当前 macOS 学习主路径推荐 [Postgres.app](https://postgresapp.com/)，因为安装简单、包含 `psql`，并预装后续步骤需要的 pgvector；PostgreSQL 官方也在 [macOS packages](https://www.postgresql.org/download/macosx/) 页面列出了 Postgres.app、EDB installer 和 Homebrew 等方式。
 
 推荐使用一个受支持的 PostgreSQL 大版本，并固定记录本地真实版本。当前课程代码不依赖 PostgreSQL 18 独有语法；后续 pgvector 版本仍以实际锁定的运行环境为准。
 
@@ -170,26 +174,15 @@ Postgres.app 的窗口主要负责本地 Server 生命周期；pgAdmin 才是完
 
 ## 运行 PostgreSQL FTS 实验
 
-数据库和 migration 就绪后，在仓库根目录运行：
+第 11 步课程实验的命令、写入说明和输出解读见 [第 11 步实验准备](../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。
 
-```bash
-uv sync
-uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py
-```
-
-详细诊断：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --verbose
-```
-
-真实集成测试：
+产品侧可选集成测试：
 
 ```bash
 uv run pytest source/packages/rag_core/tests/test_postgres_fts.py -q -m integration
 ```
 
-默认实验会幂等写入固定 fixture 的 Chunk。它不会清空表，也不会自动执行 migration；数据库连接、权限或表结构失败会作为结构化错误暴露。
+默认实验会幂等写入固定 fixture 的 Chunk。它不会清空表，也不会自动执行 migration；数据库连接、权限或表结构失败会作为结构化错误暴露。不要回退到 SQLite、Mock 或 Python 内存检索。
 
 ## 运行 pgvector Dense Retrieval 实验
 

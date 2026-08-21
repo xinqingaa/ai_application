@@ -2,7 +2,7 @@
 
 > 机制篇：第 8–9 步已经把资料切成带稳定身份的 Chunk，第 10 步观察过句子在向量空间里近不近。本节第一次回答：用户一句话过来，怎样从这批 Chunk 里按**词**找出候选。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第十一步。本文交付词面匹配、排序和可诊断的 lexical 候选；不实现向量检索、RRF、Context 或 Citation 校验。安装、写入和运行命令由 [产品 README](../../review_assistant/README.md#postgresql-本地准备) 与 [lab README](../../source/demos/rag_retrieval_lab/README.md#步骤-11postgresql-fts-lexical-retrieval) 维护。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第十一步。本文交付词面匹配、排序和可诊断的 lexical 候选；不实现向量检索、RRF、Context 或 Citation 校验。从空库到第一次查询，只走配对操作文档 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。
 
 第 8–9 步已经有可回查的 Chunk。本节的机制是：
 
@@ -18,7 +18,29 @@
 - 解释 PostgreSQL 词袋、查询条件、`@@` 和 `ts_rank` 各自做什么，以及为什么 `ts_rank` 不能叫 BM25。
 - 把「查询成功但 0 条」和「数据库执行失败」分成两类结果。
 
-要在真实 PostgreSQL 上观察这些机制，按 [lab README 步骤 11](../../source/demos/rag_retrieval_lab/README.md#步骤-11postgresql-fts-lexical-retrieval) 运行实验。阅读本文不要求先通过数据库测验；实验失败时再去产品 README 或 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。
+## 开始阅读前先分流
+
+第 11 步有两篇成对文档，不要混着当同一篇读：
+
+| 你现在的状态 | 打开哪一篇 |
+| --- | --- |
+| Server 刚装好、还没有应用库、表是空的、或还没跑过词面实验 | 先做完 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)，再回到本文 |
+| `rag_chunks` 里已经有实验写入的行，并且 `--verbose` 跑通过 | 从下一节「数据库已就绪时怎样读本文」继续 |
+
+不要在机制篇里找 createuser、migration 或 GUI 填数步骤。概念不够时再读 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。
+
+## 数据库已就绪时怎样读本文
+
+默认你已经完成实验准备：能用 `review_assistant_app` 连上 `review_assistant`，表里有售后 Chunk，并且看过至少一次命中和一次可能的空结果。
+
+阅读顺序：
+
+1. 先用两个 Chunk 把「按词找」讲圆，包括备份标识、0 条结果、匹配和排序和证据。
+2. 再认实现名：`lexical_text`、`search_vector`、`tsquery`、`@@`、`ts_rank`。
+3. 需要对终端输出或 GUI 三列时，打开准备文档里的命令，不要重装数据库。
+4. BM25 命名、错误分层和修改题放在已经理解词面匹配之后读。
+
+若准备尚未完成，先离开本文去实验准备，做完再从本节重新进入。
 
 ## 先看两个 Chunk，按词会发生什么
 
@@ -411,11 +433,11 @@ tsquery = 可观察
 
 错误还带 `stage`：connection、indexing、query 或 deletion。应用不会在这些失败后改用 SQLite、Mock 或 Python `in` 返回伪成功。
 
-跑实验时若落到这些错误，再检查产品 README 的连接与 migration，或按需阅读 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。需要能分清的基础包括：Server / Database / Schema / Table、主键与 upsert、事务、参数化 SQL，以及连接失败和成功空结果不是一回事。读机制本身不要求先背这些条目。
+跑实验时若落到这些错误，回到 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 的失败表。Server / 表 / SQL 仍陌生时，再读 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。需要能分清的基础包括：Server / Database / Schema / Table、主键与 upsert、事务、参数化 SQL，以及连接失败和成功空结果不是一回事。读机制本身不要求先背这些条目。
 
 ## 用实验观察机制，不把实验手册写进本节
 
-真实运行入口是 [`inspect_lexical_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py)。命令、参数和排障以 [lab README 步骤 11](../../source/demos/rag_retrieval_lab/README.md#步骤-11postgresql-fts-lexical-retrieval) 为准。
+真实运行入口是 [`inspect_lexical_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py)。命令、参数和排障以 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 为准。
 
 实验把第 8 步 Loader、第 9 步 structure-aware Chunking、真实 `rag_chunks` 和 PostgreSQL FTS 接在同一条链上，并用共享 [`retrieval_queries.json`](../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json) 提问。这些问题用来观察机制，不是冻结的 V0 验收集。
 
@@ -478,7 +500,7 @@ GIN 是否被查询计划选中，可以用 `EXPLAIN` 观察。小 fixture 走�
 
 ### 数据库不可用：依赖失败，不是词面 0 条
 
-连接、鉴权、权限或缺表时，按产品 README 定位。它验证的是错误可见，不证明检索效果。离线测试里的空输入、fingerprint 和参数校验也不能代替真实 FTS 运行。
+连接、鉴权、权限或缺表时，按 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 定位。它验证的是错误可见，不证明检索效果。离线测试里的空输入、fingerprint 和参数校验也不能代替真实 FTS 运行。
 
 ## Psycopg 和 GUI 封装了什么
 
