@@ -2,9 +2,9 @@
 
 > 机制篇：把第 9 步的可回查 Chunk 与第 10 步的真实 Embedding 连接起来，在 PostgreSQL 中完成可观察的向量检索。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第十二步。必要前置是 [Embedding 表示与向量相似度](embedding-and-similarity.md)；为了看清两条召回路线的差异，也应先完成 [Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](lexical-retrieval.md)。本文交付 `Chunk → pgvector → DenseHit`，不实现 RRF、统一阈值、最终 Context 或 Citation 校验。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第十二步。本节会用到第 10 步建立的 Embedding、向量和相似度概念；第 11 步则提供了另一条检索路线，方便比较但不是本节的知识前置。本文交付 `Chunk → pgvector → DenseHit`，不实现 RRF、统一阈值、最终 Context 或 Citation 校验。
 
-## 先看一个“程序没坏，但就是找不到”的问题
+## 先分清两条检索路线
 
 资料中有一句：
 
@@ -18,7 +18,18 @@
 哪些订单可以发起逆向服务？
 ```
 
-如果你刚学完第 11 步，可能会疑惑：资料明明写了相关规则，为什么 PostgreSQL FTS 可能返回 0 条？
+第 11 步学习的是 **Lexical Retrieval**：把资料和 Query 拆成词，按共同词项找候选。本节学习的是 **Dense Retrieval**：把资料和 Query 变成向量，按向量空间中的距离找候选。
+
+它们解决的是相似但不同的匹配问题：
+
+```text
+Lexical Retrieval：词项是否相同？
+Dense Retrieval：表示在向量空间中是否接近？
+```
+
+第 11 步不是第 12 步的知识前置；两者在检索原理上是两种不同的维度，后面的 RRF 才会把两路排名放到一起。运行实验时可以复用第 11 步已经准备好的 PostgreSQL 和 Chunk 数据，这是环境和数据的复用，不代表两节有相同的检索知识。第 10 步提供本节需要的 Embedding、向量和相似度直觉，但第 10 步只比较已知文本对，本节才把 Query 放进整批 Chunk 中检索。
+
+现在回到同一个问题：资料明明写了相关规则，为什么词面检索可能返回 0 条？
 
 先把两边真正进入词面检索的词列出来：
 
@@ -41,9 +52,7 @@ source_channel
 
 > 这是 Lexical Retrieval 的能力范围。它擅长相同词语和精确标识，不会自动理解所有同义改写。
 
-第 10 步已经观察过，“申请售后”和“发起逆向服务”的 Embedding 可能比较接近。问题是，当时只比较了提前选好的几个句子，并没有从整个 Chunk 集合中搜索。
-
-本文要完成的变化是：
+第 10 步已经观察过，“申请售后”和“发起逆向服务”的 Embedding 可能比较接近。但当时只比较了提前选好的几个句子，并没有从整个 Chunk 集合中搜索。本节要完成的变化是：
 
 ```text
 第 10 步：几段已知文本 → 成对相似度
@@ -64,7 +73,19 @@ source_channel
 
 本文不会证明 Dense 一定优于 Lexical，也不会把距离近的 Chunk 直接当成正确证据。
 
-## Dense Retrieval 到底多做了什么
+本节的主线只有一条：
+
+```text
+Query
+→ Query vector
+→ 与可见 Chunk vectors 计算 distance
+→ 按 distance 排序
+→ DenseHit[]
+```
+
+`pgvector`、`exact`、Embedding 空间和 `DenseHit` 是主线必须掌握的概念；HNSW、IVFFlat、Planner 和 ANN 过滤召回损失属于工程边界，先理解它们解决什么问题以及可能带来的取舍，不要求现在掌握全部参数。
+
+## 从 Query 到 DenseHit：向量检索多做了什么
 
 “Dense”不是“数据很多”的意思。这里指每段文本被表示成一个大多数维度都有数值的稠密向量。
 
@@ -87,7 +108,7 @@ query text
 → DenseHit[]
 ```
 
-和第 10 步相比，新增了三个动作：
+和第 10 步的成对相似度观察相比，本节新增了三个动作：
 
 1. **持久化**：Chunk 向量不能每次查询都重新生成。
 2. **候选范围**：只比较当前允许检索的 Chunk，而不是随意拿两段文本。
@@ -103,7 +124,46 @@ Dense Retrieval 仍然没有完成：
 
 所以本文输出叫 `DenseHit`，不叫 `Evidence` 或 `Answer`。
 
-## 四个角色不要混在一起
+## 把第 10 步的 similarity 接到本节的 distance
+
+第 10 步的成对实验使用 `cosine similarity`：
+
+```text
+越接近 1 → 方向越接近 → higher is closer
+```
+
+本节用 pgvector 做整库检索时，SQL 中的 `<=>` 返回 `cosine distance`：
+
+```text
+cosine distance = 1 - cosine similarity
+```
+
+所以：
+
+```text
+similarity = 0.90 → distance = 0.10
+similarity = 0.35 → distance = 0.65
+```
+
+在 distance 中，`0.10` 比 `0.65` 更近。当前结果刻意保留两个字段：
+
+```text
+cosine_distance   = 0.10  # lower is better
+cosine_similarity = 0.90  # higher is better
+```
+
+它们只是同一个 cosine 关系的两种读法。SQL 排名使用原生 `cosine_distance`，诊断额外给出 similarity，帮助你承接第 10 步的直觉。
+
+不能把这些数与第 11 步的 `fts_rank` 相加：
+
+```text
+PostgreSQL FTS rank：词项匹配路线自己的排序值
+pgvector distance：向量空间路线自己的距离值
+```
+
+两个数字来源、方向和分布都不同。后续融合会使用排名，而不是假装它们处于同一个分数空间。
+
+## 先建立最小数据流，再认识四个角色
 
 先用生活化分工理解：
 
@@ -123,7 +183,7 @@ Dense Retrieval 仍然没有完成：
 
 如果把四个动作都写成一个 `vector_search()` 黑盒，运行成功时看起来很方便，失败时却不知道应该检查模型、存储、查询还是索引。
 
-## pgvector 是 PostgreSQL 的扩展，不是另一个模型
+## pgvector：让 PostgreSQL 保存和计算向量
 
 当前项目已经在第 11 步使用 PostgreSQL 保存 Chunk。第 12 步继续使用同一个数据库，并通过 pgvector 增加：
 
@@ -161,7 +221,81 @@ rag_chunk_embeddings
 
 这不是要求产品长期保留无限多旧空间。知识治理、重建和删除策略会继续演进；当前先把身份表达正确，避免新旧向量悄悄混用。
 
-## 先做 exact search：最慢但最容易判断对错
+## 向量必须和 Chunk 身份绑定
+
+下面这段调用来自真实公共入口：
+
+```python
+chunk_embeddings = embed_texts(
+    [chunk.text for chunk in chunks],
+    text_ids=[chunk.chunk_id for chunk in chunks],
+    preprocessing_version="retrieval-text-v1",
+)
+
+vector_report = PostgresVectorStore().upsert_embeddings(
+    chunks,
+    chunk_embeddings.records,
+)
+```
+
+[`PostgresVectorStore.upsert_embeddings`](../../source/packages/rag_core/vector_store/postgres.py) 不只检查“有几个向量”。它要求：
+
+- Chunk 数量和 EmbeddingRecord 数量一致。
+- 每条 `EmbeddingRecord.text_id` 等于对应 `chunk_id`。
+- `EmbeddingRecord.text` 与 `Chunk.text` 一致。
+- 一批记录属于同一个 Embedding 空间。
+- 向量真实长度与声明维度一致。
+- cosine 路线不接受零向量。
+
+这些是不变量。任何一条不成立，都应该在入库前失败，而不是保存一批无法解释的浮点数。
+
+尤其不能只依赖列表顺序：
+
+```text
+chunks  = [A, B]
+vectors = [B 的向量, A 的向量]
+```
+
+数量完全一样，也能成功写入数据库，但以后 A 会召回 B 的语义。`text_id == chunk_id` 和原文一致性检查就是为了阻止这种“能运行但结果一直不对”的错误。
+
+## Embedding 空间不只是维度
+
+两组向量都是 1536 维，不代表它们可以比较。
+
+当前最小空间身份是：
+
+```text
+provider
++ config_ref
++ model
++ dimensions
++ preprocessing_version
+→ embedding_space_ref
+```
+
+[`EmbeddingSpace`](../../source/packages/rag_core/vector_store/models.py) 为这些字段生成稳定 fingerprint。例如，下面任一变化都会形成新空间：
+
+- 从模型 A 换到模型 B。
+- Provider 不变，但 endpoint 背后的模型实现变化。
+- 向量维度变化。
+- 从“只嵌入 Chunk 原文”改成“标题 + Chunk 原文”。
+- 文本清洗或截断策略升级。
+
+query 也必须使用兼容空间：
+
+```text
+旧模型生成的 Chunk vectors
++ 新模型生成的 query vector
+→ 维度可能相同
+→ 数字可以计算
+→ 结果没有可解释意义
+```
+
+数据库只知道浮点数组。应用必须阻止这种混用。
+
+当前实验使用同一个 `retrieval-text-v1` 处理 Chunk 与 query，是 V0 的明确取舍，不是所有检索系统的唯一做法。未来若 query 与 document 使用不同但经过模型明确支持的编码方式，也必须把这种关系建模成正式空间契约，不能靠调用者记忆。
+
+## exact search：先建立正确性基线
 
 假设当前可见范围只有四个 Chunk。最直接的方法是：
 
@@ -205,122 +339,7 @@ LIMIT %(candidate_k)s;
 
 数据库执行 SQL；哪些字段构成空间、哪些资料允许参与、返回什么诊断，仍由应用建立契约。
 
-## cosine similarity 与 cosine distance 方向相反
-
-第 10 步的成对实验使用 `cosine similarity`：
-
-```text
-越接近 1 → 方向越接近 → higher is closer
-```
-
-pgvector 的 `<=>` 返回 `cosine distance`：
-
-```text
-cosine distance = 1 - cosine similarity
-```
-
-所以：
-
-```text
-similarity = 0.90 → distance = 0.10
-similarity = 0.35 → distance = 0.65
-```
-
-在 distance 中，`0.10` 比 `0.65` 更近。
-
-当前结果刻意保留两个字段：
-
-```text
-cosine_distance   = 0.10  # lower is better
-cosine_similarity = 0.90  # higher is better
-```
-
-它们只是同一个 cosine 关系的两种读法。SQL 排名使用原生 `cosine_distance`，诊断额外给出 similarity 帮助你承接第 10 步的直觉。
-
-不能把这些数与第 11 步的 `fts_rank` 相加：
-
-```text
-PostgreSQL FTS rank：词项匹配路线自己的排序值
-pgvector distance：向量空间路线自己的距离值
-```
-
-两个数字来源、方向和分布都不同。后续融合会使用排名，而不是假装它们处于同一个分数空间。
-
-## 向量必须和 Chunk 身份绑定
-
-下面这段调用来自真实公共入口：
-
-```python
-chunk_embeddings = embed_texts(
-    [chunk.text for chunk in chunks],
-    text_ids=[chunk.chunk_id for chunk in chunks],
-    preprocessing_version="retrieval-text-v1",
-)
-
-vector_report = PostgresVectorStore().upsert_embeddings(
-    chunks,
-    chunk_embeddings.records,
-)
-```
-
-[`PostgresVectorStore.upsert_embeddings`](../../source/packages/rag_core/vector_store/postgres.py) 不只检查“有几个向量”。它要求：
-
-- Chunk 数量和 EmbeddingRecord 数量一致。
-- 每条 `EmbeddingRecord.text_id` 等于对应 `chunk_id`。
-- `EmbeddingRecord.text` 与 `Chunk.text` 一致。
-- 一批记录属于同一个 Embedding 空间。
-- 向量真实长度与声明维度一致。
-- cosine 路线不接受零向量。
-
-这些是不变量。任何一条不成立，都应该在入库前失败，而不是保存一批无法解释的浮点数。
-
-尤其不能只依赖列表顺序：
-
-```text
-chunks  = [A, B]
-vectors = [B 的向量, A 的向量]
-```
-
-数量完全一样，也能成功写入数据库，但以后 A 会召回 B 的语义。`text_id == chunk_id` 和原文一致性检查就是为了阻止这种“能运行但结果一直不对”的错误。
-
-## Embedding 空间不是只有维度
-
-两组向量都是 1536 维，不代表它们可以比较。
-
-当前最小空间身份是：
-
-```text
-provider
-+ config_ref
-+ model
-+ dimensions
-+ preprocessing_version
-→ embedding_space_ref
-```
-
-[`EmbeddingSpace`](../../source/packages/rag_core/vector_store/models.py) 为这些字段生成稳定 fingerprint。例如，下面任一变化都会形成新空间：
-
-- 从模型 A 换到模型 B。
-- Provider 不变，但 endpoint 背后的模型实现变化。
-- 向量维度变化。
-- 从“只嵌入 Chunk 原文”改成“标题 + Chunk 原文”。
-- 文本清洗或截断策略升级。
-
-query 也必须使用兼容空间：
-
-```text
-旧模型生成的 Chunk vectors
-+ 新模型生成的 query vector
-→ 维度可能相同
-→ 数字可以计算
-→ 结果没有可解释意义
-```
-
-数据库只知道浮点数组。应用必须阻止这种混用。
-
-当前实验使用同一个 `retrieval-text-v1` 处理 Chunk 与 query，是 V0 的明确取舍，不是所有检索系统的唯一做法。未来若 query 与 document 使用不同但经过模型明确支持的编码方式，也必须把这种关系建模成正式空间契约，不能靠调用者记忆。
-
-## 过滤不是“搜完以后随便删几条”
+## 先决定哪些 Chunk 有资格参加比较
 
 需求评审助手中的 Chunk 有不同身份：
 
@@ -365,7 +384,9 @@ visible > 0, returned = 0
 
 完整 Metadata Filter、每路阈值、淘汰原因和统一无结果分类会在后续 Retriever 契约中深化。本文先让最小过滤发生在候选范围形成之前。
 
-## 为什么有 exact 以后还需要向量索引
+## 为什么 exact 以后还需要向量索引
+
+从这里开始进入向量数据库的工程边界。先掌握 exact 作为正确性基线，再知道 HNSW、IVFFlat 和 Planner 分别解决什么问题；本节不要求你现在调完所有索引参数。
 
 exact search 的成本会随可见向量数量增长。ANN 是 Approximate Nearest Neighbor，中文常译为“近似最近邻”。它尝试少检查一部分向量，更快找到“很可能接近”的候选。
 
@@ -385,7 +406,7 @@ pgvector 当前常见两种 ANN 索引：
 
 当前 V0 机制实验选择 HNSW，不是宣布 HNSW 永远优于 IVFFlat，而是因为小型增量数据上可以先建立一条较少参数的索引观察路线。
 
-## 当前 HNSW 为什么按 Embedding 空间建立
+## HNSW 为什么按 Embedding 空间建立
 
 如果一张表里同时有：
 
@@ -446,7 +467,7 @@ plan 包含 Seq Scan
 
 不要为了让截图出现 `Index Scan` 就把小 fixture 复制几万遍，然后宣称检索质量提升。索引计划观察和业务检索质量是两种证据。
 
-## ANN 与 Metadata Filter 还有一个自然边界
+## ANN 与 Metadata Filter 的自然边界
 
 在 SQL 语义上，`WHERE knowledge_scope = ...` 明确限制了最终可见结果。但 ANN 索引内部可能先扫描有限的近邻，再应用普通 Metadata 条件。
 
@@ -532,7 +553,7 @@ diagnostics  → 本次检索怎样执行
 
 诊断保存空间、范围、数量、方向、模式、索引和计划。用户最终看到的业务报告不需要展示全部字段，但学习实验和运行记录必须能回答“为什么是这些候选”。
 
-## 使用同一批问题观察两条路线
+## 用同一批问题对照两条路线
 
 共享问题位于 [`retrieval_queries.json`](../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json)。第 11、12 步使用同一个文件和同一组 Chunk，不通过更换样例制造某条路线更强。
 
@@ -565,7 +586,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py
 
 ## 三个结果很像，原因却完全不同
 
-### 1. `发起逆向服务` 在 lexical 为 0，dense 找回售后规则
+### `发起逆向服务` 在 lexical 为 0，dense 找回售后规则
 
 这说明：
 
@@ -578,7 +599,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py
 
 它能证明两路有互补可能，不能证明 Dense 已经足够上线。还要检查其他问题、噪声、成本和延迟。
 
-### 2. `虚拟商品不进入售后` 距离很近
+### `虚拟商品不进入售后` 距离很近
 
 表现：例外 Chunk 可能排在前面。
 
@@ -586,7 +607,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py
 
 后续 Context 与模型需要看到完整句子，可信生成和 Citation 校验还要继续约束结论。
 
-### 3. 过滤后返回 0 条
+### 过滤后返回 0 条
 
 先查看：
 
