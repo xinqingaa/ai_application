@@ -506,7 +506,7 @@ order_rules.md
 → RRFResult
 ```
 
-默认使用 exact dense，目的是先减少近似索引带来的额外变量。运行命令和完整参数由 [rag_retrieval_lab README](../../source/demos/rag_retrieval_lab/README.md) 维护；最小运行方式是：
+默认使用 exact dense，目的是先减少近似索引带来的额外变量。运行命令和完整参数由 [retrieval lab 步骤 13](../../source/demos/rag_retrieval_lab/docs/13-rrf.md) 维护；最小运行方式是：
 
 ```bash
 uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose

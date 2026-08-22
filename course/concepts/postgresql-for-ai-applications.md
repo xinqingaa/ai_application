@@ -1,12 +1,26 @@
-# PostgreSQL 零基础：读懂并使用项目数据库
+# PostgreSQL 零基础：读懂 AI 应用中的项目数据库
 
-> 这是一篇按需补充的概念篇，不是标准学习路径中的新步骤，也不要求所有学习者预先阅读。如果你在第 11 步遇到 Database、Schema、Table、SQL、事务、索引或 migration 等陌生概念，可以先用本文补齐，再回到正在阅读的 PostgreSQL 全文检索机制。
+> 这是一篇按需补充的概念篇，不是标准学习路径中的新步骤，也不要求所有学习者预先阅读。如果你在第 11 步遇到 Database、Schema、Table、SQL、事务、索引或 migration 等陌生概念，可以先用本文补齐，再按 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 完成环境操作，最后回到 Lexical Retrieval 机制篇。
 
 很多前端或客户端应用只需要调用远程 API，数据怎样落盘、怎样约束、怎样被多个请求安全地读写，通常由服务端隐藏。需求评审助手开始建立真实知识库后，这层不能再完全隐藏：Chunk 要长期保存，重复入库不能产生无穷副本，检索要在大量记录中形成候选，连接和权限失败也不能伪装成“没有结果”。
 
 本文只回答一个问题：
 
 > 一个完全没有数据库基础的应用开发者，需要建立哪些 PostgreSQL 心智模型，才能读懂本项目的表、migration 和 Python 数据访问代码，并安全完成日常查询与排查？
+
+先建立本项目的对象关系：
+
+```text
+PostgreSQL Server
+└── Database: review_assistant
+    └── Schema: review_assistant
+        └── Table: rag_chunks
+            ├── content / Metadata / chunk_id
+            ├── FTS: lexical_text → generated tsvector + GIN
+            └── Dense: pgvector extension → vector + distance/index
+```
+
+这里的 PostgreSQL 是关系数据库；全文检索是它内置的 FTS 能力；`pgvector` 是安装在 PostgreSQL 中的扩展，不是另一个独立数据库。第 11 步只需要 FTS，直到第 12 步才启用 pgvector。
 
 读完后，你应该能够：
 
@@ -18,7 +32,7 @@
 - 看懂 Psycopg 怎样把 Python 数据交给 PostgreSQL，并区分连接失败、鉴权失败、缺表、权限不足与成功空结果。
 - 知道什么时候应该回到数据库基础排查，什么时候问题其实属于全文检索、向量检索或证据判断。
 
-本文不会把你训练成 DBA，也不展开高可用、复制、备份恢复、分区、锁竞争、隔离级别调优、执行器实现或大规模性能治理。PostgreSQL 的安装、环境变量、migration 命令和可选 GUI 由[产品 README](../../review_assistant/README.md#postgresql-本地准备)维护；本文解释概念，不复制运行手册。
+本文不会把你训练成 DBA，也不展开高可用、复制、备份恢复、分区、锁竞争、隔离级别调优、执行器实现或大规模性能治理。PostgreSQL 的安装、环境变量、migration 命令和可选 GUI 由[产品 README](../../review_assistant/README.md#postgresql-本地准备)维护；第 11 步的固定资料入库和查询由[实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)维护。本文解释概念，不复制运行手册。
 
 ## 先理解数据库在应用里解决什么
 

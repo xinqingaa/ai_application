@@ -519,7 +519,7 @@ source/demos/rag_retrieval_lab/inspect_retrieval_contract.py
 uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --verbose
 ```
 
-完整配置准备和其他命令由 [rag_retrieval_lab README](../../source/demos/rag_retrieval_lab/README.md) 维护。阅读输出时按控制顺序进行。
+完整配置准备和其他命令由 [retrieval lab 步骤 14](../../source/demos/rag_retrieval_lab/docs/14-retriever-contract.md) 维护。阅读输出时按控制顺序进行。
 
 ### 先确认本轮实验身份
 

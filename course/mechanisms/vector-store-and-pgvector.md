@@ -546,7 +546,7 @@ diagnostics  → 本次检索怎样执行
 | `虚拟商品 售后` | 能命中包含这些词的例外 | 也可能很近，但距离不解释否定 |
 | `售前活动入口` | 可能空或出现弱词面噪声 | “售前/售后”主题接近，可能出现语义噪声 |
 
-真实实验命令由 [rag_retrieval_lab README](../../source/demos/rag_retrieval_lab/README.md) 维护。最小入口是：
+真实实验命令由 [retrieval lab 步骤 12](../../source/demos/rag_retrieval_lab/docs/12-pgvector-dense.md) 维护。最小入口是：
 
 ```bash
 uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py

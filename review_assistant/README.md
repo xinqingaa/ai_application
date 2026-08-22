@@ -212,7 +212,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --search
 uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose
 ```
 
-该入口继续调用真实 FTS、真实 Embedding 和 pgvector。它不会把两路原始分数归一化相加；完整参数和输出解读由 `rag_retrieval_lab/README.md` 维护。
+该入口继续调用真实 FTS、真实 Embedding 和 pgvector。它不会把两路原始分数归一化相加；步骤 13 的参数和输出解读由 [`docs/13-rrf.md`](../source/demos/rag_retrieval_lab/docs/13-rrf.md) 维护。
 
 ## PostgreSQL 常见排查
 

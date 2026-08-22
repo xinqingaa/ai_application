@@ -339,7 +339,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_embedding.py
 - 探针及其分组
 - focus pairs 的分数与预期说明
 
-使用 `--verbose` 可查看全部成对分数。完整参数、JSON Lines 和读码顺序由 [demo README](../../source/demos/rag_retrieval_lab/README.md) 维护。
+使用 `--verbose` 可查看全部成对分数。完整参数、JSON Lines 和读码顺序由 [retrieval lab 步骤 10](../../source/demos/rag_retrieval_lab/README.md) 维护。
 
 解读时遵守：
 

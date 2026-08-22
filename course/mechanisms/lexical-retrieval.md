@@ -1,235 +1,153 @@
 # Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索
 
-> 机制篇：第 8–9 步已经把资料切成带稳定身份的 Chunk，第 10 步观察过句子在向量空间里近不近。本节第一次回答：用户一句话过来，怎样从这批 Chunk 里按**词**找出候选。
+> 机制篇：解释固定 RAG 中“按词找候选”这一条路线。第 8–9 步已经产生带稳定身份的 Chunk；第 10 步观察了 Embedding 表示。本节只回答：词面候选怎样产生、怎样排序、怎样诊断。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第十一步。本文交付词面匹配、排序和可诊断的 lexical 候选；不实现向量检索、RRF、Context 或 Citation 校验。从空库到第一次查询，只走配对操作文档 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。
+> 课程位置：[标准学习路径](../learning-path.md) V0 第 11 步。数据库基础、安装和启动见 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md) 与 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。
 
-第 8–9 步已经有可回查的 Chunk。本节的机制是：
+## 先看这张图
 
-> 把资料和问题拆成词，看有没有相同的词或相同的字段名；有共同词的 Chunk 才能进候选，再在候选里排序。
+固定 RAG 的完整链路如下，本节只深入左侧的 Lexical route：
 
-这叫 lexical retrieval，直观说法就是**按词查找**。它能命中 `source_channel` 这种原样出现的标识，也能命中「申请售后」这种两边都写了的词。它不会因为「逆向服务」和「申请售后」意思接近就自动命中——那是后续 Dense Retrieval 要观察的机制，不是本节的任务。
+```text
+Reference Files
+    |
+    v
+Loader / Chunker
+    |
+    v
+Chunk + Metadata
+    +------------------------------+
+    |                              |
+    v                              v
+Lexical route                    Dense route (第 12 步)
+    |                              |
+词项分析                         Embedding
+    |                              |
+lexical_text                     vector
+    |                              |
+tsvector + GIN                   pgvector
+    |                              |
+tsquery + @@                    DenseHit
+    |
+ts_rank
+    |
+LexicalHit
+    +--------------+---------------+
+                   v
+                RRF (第 13 步)
+                   |
+                Context
+                   |
+                  LLM
+```
 
-读完后，你应该能够：
+PostgreSQL 在这里不是“另一个向量数据库”：它本身提供关系存储和内置 FTS；后续 `pgvector` 是安装在 PostgreSQL 中的扩展，为另一条 Dense route 增加向量类型和运算。
 
-- 用售后例子说明：查询拆成哪些词、哪些词被丢掉、字段名怎样保住。
-- 区分切开的碎片、应用决定留下的词、数据库最终收下的词。
-- 说明匹配、排序和证据判断分别回答什么问题。
-- 解释 PostgreSQL 词袋、查询条件、`@@` 和 `ts_rank` 各自做什么，以及为什么 `ts_rank` 不能叫 BM25。
-- 把「查询成功但 0 条」和「数据库执行失败」分成两类结果。
+## 本节要建立的判断
 
-## 开始阅读前先分流
+读完并完成实验后，应能回答：
 
-第 11 步有两篇成对文档，不要混着当同一篇读：
+- 查询和 Chunk 怎样使用同一套词项规则？
+- `content`、`lexical_text` 和 `search_vector` 为什么同时存在？
+- `@@` 怎样决定候选资格，`ts_rank` 怎样决定候选顺序？
+- BM25 与 PostgreSQL `ts_rank` 都属于词面排序，但为什么不能互换名称？
+- 成功的空结果、数据库连接失败、缺少 migration 和权限错误怎样区分？
+- 词面候选为什么不是最终 Context，也不是 Citation？
 
-| 你现在的状态 | 打开哪一篇 |
-| --- | --- |
-| Server 刚装好、还没有应用库、表是空的、或还没跑过词面实验 | 先做完 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)，再回到本文 |
-| `rag_chunks` 里已经有实验写入的行，并且 `--verbose` 跑通过 | 从下一节「数据库已就绪时怎样读本文」继续 |
+## 1. 先用两个 Chunk 预测结果
 
-不要在机制篇里找 createuser、migration 或 GUI 填数步骤。概念不够时再读 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。
-
-## 数据库已就绪时怎样读本文
-
-默认你已经完成实验准备：能用 `review_assistant_app` 连上 `review_assistant`，表里有售后 Chunk，并且看过至少一次命中和一次可能的空结果。
-
-阅读顺序：
-
-1. 先用两个 Chunk 把「按词找」讲圆，包括备份标识、0 条结果、匹配和排序和证据。
-2. 再认实现名：`lexical_text`、`search_vector`、`tsquery`、`@@`、`ts_rank`。
-3. 需要对终端输出或 GUI 三列时，打开准备文档里的命令，不要重装数据库。
-4. BM25 命名、错误分层和修改题放在已经理解词面匹配之后读。
-
-若准备尚未完成，先离开本文去实验准备，做完再从本节重新进入。
-
-## 先看两个 Chunk，按词会发生什么
-
-假设知识库里有：
+假设知识库中有：
 
 ```text
 A：售后接口 v2 必须提供 source_channel。
 B：仅已支付且已完成的订单可申请售后。
 ```
 
-用户问：
+查询：
 
 ```text
 source_channel 什么时候必填？
 ```
 
-普通数据库当然可以保存 A 和 B。「保存下来」并没有自动回答：查询该拆成哪些词、「什么时候」有没有检索价值、`source_channel` 会不会被拆碎、谁进候选、谁排前面。按词查找要显式做这些决定。
+当前应用规则会保留 `source_channel` 和 `必填`，过滤常见填充词。A 通常会因为字段标识命中；“必填”和“必须提供”意思接近，但不是同一个词面，因此不能假定它们一定匹配。
 
-### 查询先被拆成有用的词
+查询“发起逆向服务”时，如果资料只出现“申请售后”，可以成功返回 0 条。这是词面机制的自然边界，不是数据库故障。
 
-人说话时会带填充词。当前策略把问句里的「什么」「时候」丢掉，因为它们几乎出现在所有问法里，帮不上「找哪一条规则」。
-
-留下的检索词大致是：
+必须分开三件事：
 
 ```text
-source_channel
-必填
+匹配：谁有资格进入候选名单？
+排序：候选名单中谁更靠前？
+证据：候选内容是否足以支持最终业务结论？
 ```
 
-资料 A 写的是「必须提供」，不是「必填」。按词找时，**「必填」对不上「必须提供」**。两边意思接近，但词面不同，这一节就当它们不是同一个检索单位。
+高 rank 只回答第二个问题。
 
-### 字段名要当成一整块，并做一个备份词
+## 2. 文档和查询经过同一套词项处理
 
-`source_channel` 是接口字段名，应当整块保留。如果后面的数据库按标点或下划线把它拆成 `source` 和 `channel`，这两个词太普通，检索会飘。
-
-所以应用在留下 `source_channel` 的同时，再做一个不含下划线的备份词：去掉符号，前面加上 `techid`。
+中文没有天然空格，技术标识又不能随意拆散。因此当前实现由应用侧先做可版本化的分析，再交给 PostgreSQL 的 `simple` text search config：
 
 ```text
-source_channel  →  sourcechannel  →  techidsourcechannel
+原文
+→ NFKC + casefold
+→ jieba 搜索模式
+→ 过滤少量填充词
+→ 保留技术标识，并为其生成稳定备份词
+→ 空格分隔 lexical_text
+→ PostgreSQL 生成 tsvector
 ```
 
-`techidsourcechannel` 不是知识库里另写的一句话，而是从 `source_channel` 派生的稳定标识。资料和查询只要经过同一套规则，两边都会有这张「身份证」。Chunk A 因此同时带有：
+例如：
 
 ```text
-source_channel
-techidsourcechannel
-售后 / 接口 / v2 / 必须 / 提供
+source_channel → sourcechannel → techidsourcechannel
 ```
 
-查询侧同样会为 `source_channel` 生成备份词。真正把 A 拉进候选的，通常是这个字段名及其备份，不是「必填」理解了「必须提供」。
+备份词不是新资料，只是让字段名在下划线被切分时仍有一个稳定的匹配单位。
 
-### 没有共同词，就可以是 0 条
+需要区分三层对象：
 
-若用户改问「发起逆向服务」，资料写的是「申请售后」，两边拆完可能对不上同一个词。按词查找可以合法返回 0 条。这不是数据库坏了，而是当前机制只认词面。数据库连接或 SQL 真正失败时，代码必须返回明确错误，不能装成 0 条候选。
-
-### 三件不要混在一起
-
-```text
-匹配：谁有资格进名单
-排序：名单里谁更靠前
-证据：这段文字能不能支持最终风险结论
-```
-
-A 因字段名进了名单，只说明词面对上了。它排第一，也不等于已经证明需求缺了 `source_channel` 就违规——那要等上下文、生成和后续校验。
-
-## 资料和问题必须用同一套拆词
-
-如果资料把「售后」切成一个词，查询却切成别的碎片，共同词就对不上。所以文档和查询走同一套规则：先规范化（全角/半角、大小写），再切中文、保留技术标识、丢掉填充词。
-
-同一段文字会经过三个车间。名字不同，是为了排查时看清卡在哪一层：
-
-| 人话 | 常见叫法 | 这个查询里 |
+| 层 | 含义 | 当前例子 |
 | --- | --- | --- |
-| 刚切开的碎片，还没决定去留 | token | 「什么时候」、`source_channel`、「必填」 |
-| 应用决定留下、必要时补上备份的检索词 | term | `source_channel`、`techidsourcechannel`、「必填」；「什么」「时候」已被丢掉 |
-| 数据库最终写入词袋或查询条件的词 | lexeme | 常常长得和 term 一样，例如 `'techidsourcechannel'` |
+| token | 刚切开的碎片，尚未决定是否保留 | `什么时候`、`source_channel`、`必填` |
+| term | 应用决定写入或查询的词项 | `source_channel`、`techidsourcechannel`、`必填` |
+| lexeme | PostgreSQL 词袋最终保存或查询的词 | 通常与 term 接近 |
 
-中文没有天然空格，PostgreSQL 默认不一定按「售后」「虚拟商品」这种业务词来切。本项目先在 Python 里切好，再交给 PostgreSQL 的 `simple` 配方：几乎原样收下已经用空格排开的词，不做英语那种 `running → run` 的词形还原。这是当前可解释的工程取舍，不是中文检索的唯一答案。
+`LexicalConfig` 的 fingerprint 会记录词法配置、停用词、领域词和 PostgreSQL 配方。文档端和查询端必须使用相同的 `lexical_config_ref`；规则变化后，旧词袋不能和新查询空间混用，需要重新写入。
 
-## 倒排：从「词找到哪些 Chunk」
+### 倒排索引解决什么问题
 
-若每次查询都把全部 Chunk 扫一遍，数据变大后会越来越慢。倒排把方向反过来，先记「某个词出现在哪些 Chunk」：
+如果每次查询都把全部 Chunk 拉回 Python 再逐行比较，数据变大后成本会随记录数增长。倒排索引把方向反过来，先记录“某个词出现在哪些 Chunk”：
 
 ```text
 售后                  → Chunk A, Chunk B
 techidsourcechannel   → Chunk A
-必填                  → （没有文档用这个词）
+必填                  → （当前资料没有）
 ```
 
-查询带着 `source_channel` / `techidsourcechannel` / 「必填」到来时，先按这些词取出较小的集合。默认 OR：三个词有一个对上就进候选，A 能进。若改成 AND：三个词都必须出现；资料没有「必填」，A 可能被扔掉。
+PostgreSQL 的 GIN 索引加速这类词面候选查找。它不决定查询使用 AND 还是 OR，不产生更正确的业务排序，也不理解同义词和否定。
 
-PostgreSQL 里，加快「按词找行」的索引叫 **GIN**。它加速符合形态的词面匹配，不定义查询该用 AND 还是 OR，不产生更正确的业务排序，也不理解同义词和否定。
+## 3. PostgreSQL FTS 做了什么
 
-## 刚才那件事，实现上叫什么
+在 `review_assistant.rag_chunks` 中：
 
-下面不是另一套机制，只是把第 2–4 节已经发生的事标上代码和数据库里的名字。
-
-资料侧：
-
-```text
-Chunk 原文
-→ 应用拆词
-→ lexical_text（空格分开的检索词）
-   + lexical_config_ref（用的是哪套拆词规则）
-→ PostgreSQL 收成 search_vector（类型是 tsvector，一篇文档的词袋）
-→ GIN 倒排索引加快按词找行
-```
-
-查询侧：
-
-```text
-用户问句
-→ 同一套应用拆词
-→ websearch query（词之间是「有一个就算」还是「必须全有」）
-→ PostgreSQL 编译成 tsquery（查询条件）
-→ search_vector @@ tsquery（是否匹配，答案只有是或否）
-→ ts_rank 在已匹配的行里排序
-→ LexicalHit[] + LexicalDiagnostics
-```
-
-对照：
-
-| 刚才的人话 | 实现名 |
+| 字段 | 责任 |
 | --- | --- |
-| 拆好的检索词串 | `lexical_text` |
-| 哪套拆词规则 | `lexical_config_ref` |
-| 这篇文档有哪些词 | `search_vector` / `tsvector` |
-| 查询条件 | `tsquery` |
-| 满不满足 | `@@` |
-| 候选之间谁靠前 | `ts_rank`（结果字段 `fts_rank`） |
+| `content` | 给人阅读、回源和后续 Context 使用的原文 |
+| `lexical_text` | 应用拆好、空格分隔的词项 |
+| `search_vector` | PostgreSQL 生成的 `tsvector` 词袋 |
+| `lexical_config_ref` | 词法空间身份 |
 
-表 `review_assistant.rag_chunks` 里，`content` 仍是给人看的原文；`lexical_text` 是应用拆好的词；`search_vector` 是数据库词袋。三列同时存在，是因为原文不能从词袋反推，词袋也不能替代来源位置。
-
-数据库负责可靠存储、按已有词匹配和排序。应用仍负责 Chunk 身份、怎样拆词、AND 还是 OR、参数绑定，以及失败时不能把连接错误说成「没有候选」。
-
-本节使用 PostgreSQL 内置全文检索，不需要额外 Extension。写入走参数化 upsert，一组 Chunk 要么整批提交，要么整批回滚。
-
-## 从原文到数据库里的词袋
-
-### `tsvector` 不是 Embedding vector
-
-名字里都有 vector，保存的东西完全不同：
+`tsvector` 不是第 10 步的 Embedding vector：
 
 | 对象 | 保存什么 | 主要比较方式 |
 | --- | --- | --- |
-| `tsvector` | 词、位置和权重 | 词是否匹配 `tsquery` |
-| Embedding vector | 一串浮点数 | cosine、inner product、L2 等 |
+| `tsvector` | 词、位置和权重 | 与 `tsquery` 匹配 |
+| Embedding vector | 一串浮点数 | cosine、inner product 或 L2 |
 
-`tsvector` 看起来可能像：
+原文不能从 `tsvector` 反推，所以 `content` 仍必须保留；词袋也不能替代来源定位和 Metadata。
 
-```text
-'source':3 'channel':4 '售后':1 '接口':2
-```
-
-它不是原文，也不是第 10 步那种语义向量。原文继续在 `content` 里。
-
-### 为什么先写成 `lexical_text` 再生成词袋
-
-PostgreSQL 自己也能切词，但中文业务词边界不稳定，`source_channel` 还可能被拆开。当前路径是：
-
-```text
-原文
-→ Unicode NFKC + casefold
-→ jieba 搜索模式（HMM=False）
-→ 过滤少量问句填充词
-→ 为技术标识增加备份词
-→ 空格分隔 lexical_text
-→ to_tsvector('pg_catalog.simple', lexical_text)
-```
-
-这不是语言真理：jieba 词典会变；别的业务里「什么时候」可能有信息量；备份词提高字段稳定性，也增加词的数量。V0 要的是一条可解释、可版本化、安装成本可控的词面基线。
-
-### 拆词规则也是索引空间身份
-
-向量模型变了要重建向量；拆词规则变了，已经写入的词袋同样不能和新查询混用。
-
-[`LexicalConfig`](../../source/packages/rag_core/lexical/models.py) 的身份包含名称、版本、PostgreSQL text search config、领域词、停用词，以及由这些字段算出的 fingerprint，形成：
-
-```text
-jieba_search_simple@1.0.0:<fingerprint>
-```
-
-文档行和查询必须带同一 `lexical_config_ref`。代码会过滤不兼容行，而不是把新查询静默打到旧词上。策略改了却「突然没有结果」，应先检查身份并重新写入，而不是先怪数据库或降低阈值。
-
-AND / OR 只改变已有词怎样组成查询，不改变文档和查询的共同词空间，因此进独立的 `retriever_config_ref`。切换 operator 要记录 Retriever 配置，不必重建文档词袋。
-
-### 生成列让词袋跟着 `lexical_text` 走
-
-migration 中的定义是：
+migration 使用生成列：
 
 ```sql
 search_vector TSVECTOR GENERATED ALWAYS AS (
@@ -237,61 +155,25 @@ search_vector TSVECTOR GENERATED ALWAYS AS (
 ) STORED
 ```
 
-应用写 `lexical_text`；PostgreSQL 计算 `search_vector`；更新词串时自动重算；应用不能直接改生成列。配方显式写成 `pg_catalog.simple`，不依赖会变化的会话默认值。文档端和查询端若预处理不同，即使都叫 `simple` 也可能对不上。数据库只执行拿到的词，不能替应用发现版本混用。
+GIN 索引加速“某个词出现在哪些行”的查找，但不决定应用应该使用 AND 还是 OR，也不理解同义词、否定或证据充分性。
 
-## 查询条件怎样决定谁进名单
-
-文档端：
-
-```sql
-to_tsvector('pg_catalog.simple', lexical_text)
-```
-
-查询端：
-
-```sql
-websearch_to_tsquery('pg_catalog.simple', websearch_query)
-```
-
-匹配：
-
-```sql
-search_vector @@ ts_query
-```
-
-`@@` 只回答是或否，不回答谁更相关。
-
-查询词仍是：
+查询侧的核心数据流是：
 
 ```text
-source_channel / techidsourcechannel / 必填
+用户问题
+→ LexicalAnalyzer.analyze_query
+→ websearch_to_tsquery
+→ search_vector @@ tsquery
+→ ts_rank
+→ 稳定排序 + candidate_k
+→ LexicalHit[] + LexicalDiagnostics
 ```
 
-AND 要求全部出现：
+`@@` 只有匹配/不匹配语义；`ts_rank` 只在匹配行中排序。当前默认 OR，任一词命中即可进入候选；AND 要求所有词都存在，通常召回更窄。两者是 Retriever 配置，不是词袋空间身份。
 
-```text
-source_channel & techidsourcechannel & 必填
-```
-
-资料写「必须提供」而不是「必填」时，AND 可能扔掉本来有用的接口规则。
-
-OR 允许任一词命中：
-
-```text
-source_channel | techidsourcechannel | 必填
-```
-
-它提高召回，也可能放进只沾上通用词的噪声。当前实验默认 OR，作为召回型词面基线，并可用 `--query-operator and` 做对照。这不是永久认定 OR 更好；operator、词项、`candidate_k` 和后续阈值都属于 Retriever 配置。
-
-[`PostgresFTSRetriever.search`](../../source/packages/rag_core/retrieval/postgres_fts.py) 的核心 SQL 可以简化为：
+核心 SQL 可简化为：
 
 ```sql
-WITH query_input AS (
-    SELECT websearch_to_tsquery(
-        %(postgres_config)s::regconfig,
-        %(websearch_query)s
-    ) AS ts_query
-)
 SELECT
     chunk.chunk_id,
     ts_rank(chunk.search_vector, query_input.ts_query) AS fts_rank
@@ -303,31 +185,26 @@ ORDER BY fts_rank DESC, chunk.chunk_id ASC
 LIMIT %(candidate_k)s;
 ```
 
-各层责任：
+真实实现还会返回 query lexeme、命中词、可见数量、匹配总数和延迟，便于判断“没有候选”发生在哪一层。
 
-- `query_input` 只编译一次查询对象。
-- `lexical_config_ref` 阻止混用拆词空间。
-- `@@` 形成候选。
-- `ts_rank` 给出 PostgreSQL 原生 rank，`DESC` 表示越大越靠前。
-- `chunk_id ASC` 稳定处理并列。
-- `LIMIT` 截取本路候选。
+查询端使用 `websearch_to_tsquery`。默认 OR 时，`source_channel`、`techidsourcechannel`、`必填` 任一词命中即可进入候选；AND 时，三个词都要出现，资料使用“必须提供”而不是“必填”时，A 可能被淘汰。切换 operator 只改变查询条件，不改变已经写入的词袋，因此它记录在独立的 `retriever_config_ref` 中。
 
-真实 SQL 还会返回 query lexeme、命中词、总匹配数量和空结果诊断。参数绑定把 SQL 结构和外部字符串分开，查询内容不能拼进语句里。
-
-## 排序不是匹配，rank 也不是正确性
-
-假设两行都含「售后」：
+同一个查询可以形成两种条件：
 
 ```text
-A：仅已支付且已完成的订单可申请售后。
-B：虚拟商品不进入售后流程。
+OR: source_channel | techidsourcechannel | 必填
+AND: source_channel & techidsourcechannel & 必填
 ```
 
-查询「虚拟商品 售后」时，两行都可能进名单，但 B 含有更多查询词，通常应排得更高。匹配已经结束；`ts_rank` 只在已匹配的行里比先后。
+OR 是当前召回型基线，可能带来只命中通用词的噪声；AND 可能提高精确性，却把“必须提供/必填”这类词面不同但有用的候选淘汰。哪种更好必须由固定样例和指标验证。
 
-`ts_rank` 会用词频、位置和权重。`ts_rank_cd` 还强调匹配词在文档中靠得近不近。具体数字只在同一查询、同一函数、同一配置下可比较。
+生成列会随 `lexical_text` 更新自动重算，应用不能直接写 `search_vector`。配方显式使用 `pg_catalog.simple`，不依赖会话默认值；但数据库不会替应用发现文档端和查询端预处理版本不一致。
 
-公共结果明确写成：
+## 4. 排序不是匹配，rank 也不是正确性
+
+假设 A、B 都包含“售后”，查询是“虚拟商品 售后”。B 同时命中两个词，通常会排在 A 前面；这只说明当前排序函数认为 B 更相关。
+
+当前实现的公共诊断是：
 
 ```text
 rank_name = postgresql_ts_rank
@@ -335,17 +212,15 @@ fts_rank = ...
 higher_is_better = true
 ```
 
-不用含糊的 `score`，也不把这个值与 Dense Retrieval 的 cosine distance 直接相加。
+`ts_rank` 使用词频、位置和权重；`ts_rank_cd` 还会考虑匹配词在文档中是否靠近。具体数字只应在相同查询、相同函数和相同配置下比较，不能直接与 cosine distance 相加，也不能把高 rank 当成证据充分。
 
-高 rank 只能说明：按当前词面排序函数，它更靠前。它不能证明句子仍有效、属于允许的知识范围、不是历史材料、正确表达了否定，或足以支持最终评审结论。那些判断要由过滤、融合、Context 和后续校验继续做。
+## 5. BM25 与 `ts_rank` 的边界
 
-## BM25 为什么必须单独命名
+BM25 是一种具体的词项排序方法，通常考虑：
 
-BM25 是一种具体的词项排序方法，核心直觉包括：
-
-1. **IDF**：越少见的词通常越有区分度。
-2. **TF 饱和**：重复出现有帮助，但第 20 次不会比第 1 次多 20 倍价值。
-3. **文档长度归一化**：长文档天然含词更多，需要校正。
+- 稀有词的 IDF 区分度。
+- 词频增加的饱和效应。
+- 文档长度归一化。
 
 常见形式可以写成：
 
@@ -356,23 +231,22 @@ BM25(q, d)
     / (TF(term, d) + k1 × (1 - b + b × |d| / avgdl))
 ```
 
-理解公式是为了能预测：稀有接口名通常比「规则」更有区分力；堆砌关键词不应线性提高相关性；同一词频在很短和很长的 Chunk 中意义不同。不必手算分数。
+不需要手算这个分数，但应能预测：稀有接口名通常比“规则”更有区分度；重复堆词不会线性增加价值；同样的词频在长、短 Chunk 中意义不同。
 
-PostgreSQL 内置 `ts_rank` / `ts_rank_cd` 是它自己的全文排序函数，不等于 BM25。两者都属于 lexical ranking，不能互换名字。
+它和 `ts_rank` 都属于 lexical ranking，但不是同一个算法。当前产品明确使用 PostgreSQL 原生 `ts_rank`，公共结果名为 `postgresql_ts_rank`，不能输出成 `bm25_score`。
 
-| 判断 | 是否正确 |
+| 判断 | 结论 |
 | --- | --- |
-| PostgreSQL FTS 是 Lexical Retrieval | 是 |
-| 所有 Lexical Retrieval 都使用 BM25 | 否 |
-| `ts_rank_cd` 是 cover-density rank | 是 |
-| 可以把 `fts_rank` 输出成 `bm25_score` | 否 |
-| 可以在未来用固定评估比较 BM25 extension 与当前 rank | 可以，但要作为新实验 |
+| PostgreSQL FTS 属于 Lexical Retrieval | 正确 |
+| 所有 Lexical Retrieval 都是 BM25 | 错误 |
+| `ts_rank` 可以直接称作 BM25 | 错误 |
+| 以后可以用固定评估比较 BM25 与 `ts_rank` | 可以，但属于新实验 |
 
-V0 不在 Python 里再维护一套产品 BM25，也不为了这个名称引入数据库 extension。当前目标是先建立一条真实、可诊断的 PostgreSQL FTS 基线。
+本项目 V0 不在 Python 中维护第二套 BM25，也不为名称引入额外数据库扩展。
 
-## 真实代码怎样守住边界
+## 6. 真实代码的责任边界
 
-[`PostgresFTSRetriever`](../../source/packages/rag_core/retrieval/postgres_fts.py) 当前三个公共动作：
+公共入口是 [`PostgresFTSRetriever`](../../source/packages/rag_core/retrieval/postgres_fts.py)：
 
 ```python
 retriever.upsert_chunks(chunks)
@@ -380,181 +254,135 @@ retriever.search(query, candidate_k=5)
 retriever.delete_chunks(chunk_ids)
 ```
 
-它接收第 9 步真实 `Chunk`，不是另造一份只有文本的对象。写入时继续保存 `chunk_id`、文档身份和版本、parent、文件格式、source role、evidence eligibility、source spans、business metadata、原文和 token count。
-
-`search` 返回：
-
-```text
-LexicalSearchResult
-├── hits: LexicalHit[]
-└── diagnostics: LexicalDiagnostics
-```
-
-`LexicalHit` 是词面候选，不是最终 Context Source，也不是 Citation。
-
-核心调用链：
+实际调用链：
 
 ```text
 inspect_lexical_retrieval.main
 → load_document(order_rules.md)
-→ chunk_document(structure-aware)
+→ chunk_document
 → PostgresFTSRetriever.upsert_chunks
-   → LexicalAnalyzer.analyze_document
-   → Psycopg executemany
-   → INSERT ... ON CONFLICT DO UPDATE
-   → transaction commit / rollback
+→ 参数化 upsert + transaction
 → PostgresFTSRetriever.search
-   → LexicalAnalyzer.analyze_query
-   → websearch_to_tsquery
-   → @@ candidate match
-   → ts_rank + stable ordering
-   → LexicalHit + LexicalDiagnostics
+→ LexicalSearchResult
 ```
 
-Loader 和 Chunker 的输出在这里第一次进入可搜索存储。demo 没有另写一份手搓 Chunk 列表。
+`LexicalHit` 保留 `chunk_id`、文档版本、原文、来源角色、Metadata、命中词和原生 rank。它是候选，不是最终 Context Source，也不是 Citation。
 
-「没有相同词面」应返回成功的空名单：
+写入链还要守住几个应用不变量：
+
+- `chunk_id`、`document_id`、`document_version` 和来源定位一起保存，不能只写一段文本。
+- `lexical_text` 由应用分析器产生，`search_vector` 是数据库生成列，应用不能直接伪造后者。
+- 批量 upsert 使用参数化 SQL 和事务；整批成功才提交，中途失败则回滚，不能留下半批 Chunk。
+- 重复运行同一 fixture 是幂等更新，不应不断生成新的匿名记录。
+
+核心操作可以概括为：
 
 ```text
-hits = []
-matched_chunk_count = 0
-tsquery = 可观察
+Chunk[]
+→ analyze_document
+→ parameterized INSERT ... ON CONFLICT DO UPDATE
+→ commit / rollback
+
+query
+→ analyze_query
+→ parameterized FTS SELECT
+→ rows / psycopg.Error
+→ LexicalSearchResult / RetrievalError
 ```
 
-「数据库连接失败」不能伪装成空名单。当前错误层包括：
+应用代码负责词法策略、Chunk 身份、配置身份、过滤条件、参数绑定和错误映射；PostgreSQL 负责存储、约束、词袋匹配和排序。缺少数据库、表或权限时，代码返回结构化错误，不改用 SQLite、Mock 或 Python 内存检索。
 
-| code | 含义 |
+当前错误至少分为：
+
+| code | 含义 | stage 示例 |
+| --- | --- | --- |
+| `connection_failed` | Server、host、port、Database 或网络不可用 | connection |
+| `auth_failed` | Role 或密码错误 | connection |
+| `migration_required` | 已连接但目标表不存在 | indexing / query |
+| `permission_denied` | Role 无权执行当前动作 | indexing / query / deletion |
+| `database_error` | 其他真实 PostgreSQL 错误 | 对应执行阶段 |
+
+成功空结果必须保留 `tsquery` 和 `matched_chunk_count=0`；这些错误不能被转换成空列表。
+
+### Psycopg 和 GUI 的边界
+
+Psycopg 负责建立连接、发送 SQL 与参数、管理事务上下文，以及把 PostgreSQL 错误暴露为 Python 异常。它不决定中文怎样切词、AND 还是 OR、rank 是否代表业务正确性，也不决定哪些来源有证据资格。
+
+GUI 适合观察 Schema、Table、`content`、`lexical_text` 和 `search_vector`，但不能替代 migration、参数化查询、可重复命令和错误契约。实验手册中的窄表 SQL 是观察入口，数据库结构和写入真源仍是 migration 与 package。
+
+## 7. 实验怎么观察
+
+操作命令和环境准备见 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。真实入口是 [`inspect_lexical_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py)。
+
+实验使用固定 fixture，不代表产品已经提供用户资料管理或后台入库 API。运行前先预测：
+
+| 查询 | 预期观察 |
 | --- | --- |
-| `connection_failed` | 服务、host、port、database 或网络不可用 |
-| `auth_failed` | Role 或密码错误 |
-| `migration_required` | 当前 Database 没有目标表 |
-| `permission_denied` | Role 无权执行操作 |
-| `database_error` | 其他真实 PostgreSQL 执行错误 |
+| `source_channel` | 技术标识命中接口规则 |
+| `申请售后` | 共同词面产生候选 |
+| `发起逆向服务` | 可能成功返回 0 条 |
+| `虚拟商品 售后` | 可能命中否定规则，但 rank 不理解否定 |
 
-错误还带 `stage`：connection、indexing、query 或 deletion。应用不会在这些失败后改用 SQLite、Mock 或 Python `in` 返回伪成功。
+至少观察三类结果：
 
-跑实验时若落到这些错误，回到 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 的失败表。Server / 表 / SQL 仍陌生时，再读 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。需要能分清的基础包括：Server / Database / Schema / Table、主键与 upsert、事务、参数化 SQL，以及连接失败和成功空结果不是一回事。读机制本身不要求先背这些条目。
+1. 命中：能在 `content`、`lexical_text`、`search_vector` 和诊断中找到对应词。
+2. 成功空结果：有 `tsquery`，但 `hits=[]`，属于词面边界。
+3. 真实依赖失败：`connection_failed`、`auth_failed`、`migration_required` 或 `permission_denied`，不能解释成“资料没有答案”。
 
-## 用实验观察机制，不把实验手册写进本节
+建议一次只改变一个变量：
 
-真实运行入口是 [`inspect_lexical_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py)。命令、参数和排障以 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 为准。
-
-实验把第 8 步 Loader、第 9 步 structure-aware Chunking、真实 `rag_chunks` 和 PostgreSQL FTS 接在同一条链上，并用共享 [`retrieval_queries.json`](../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json) 提问。这些问题用来观察机制，不是冻结的 V0 验收集。
-
-运行前先预测：
-
-| 问题 | 预测 |
-| --- | --- |
-| `source_channel` | 精确技术标识应命中接口约束 |
-| `售后接口 v2` | 中英混合词项共同贡献 rank |
-| `申请售后` | 词面一致应能命中 |
-| `source_channel 什么时候必填？` | 填充词被过滤，标识仍能召回 |
-| `发起逆向服务` | 资料无相同词面时可能无结果 |
-| `虚拟商品 售后` | 能命中否定规则，但 rank 不理解否定 |
-| `售前活动入口` | 可能无结果，也可能因通用词产生噪声 |
-
-重点不是让每个问题都成功，而是解释结果为什么符合或违反当前机制。
-
-观察 OR 与 AND 时，只改 query operator。比较：应用词有没有变、`tsquery` 怎样变、命中数怎样变、带「必填」的问句会不会被 AND 淘汰、噪声是否减少。不要同时换 fixture、切分策略或停用词。
-
-词面检索比字符串包含多控制了「词」和「排序」。对照时可以先按原文包含查找，再看拆词结果和词袋：
-
-```sql
-SELECT chunk_id, content
-FROM review_assistant.rag_chunks
-WHERE content LIKE '%source_channel%';
-
-SELECT chunk_id, lexical_text, search_vector
-FROM review_assistant.rag_chunks
-ORDER BY chunk_id;
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --query-operator and --verbose
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --candidate-k 2 --verbose
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-format json
 ```
 
-这是在对比两种查找机制，不是在教如何把表用起来。`LIKE` 确认原文里有没有这段字符串；FTS 多出了检索词、词袋、查询条件和原生 rank。
+观察 OR/AND 时比较应用词、PostgreSQL query terms、`tsquery`、命中数和噪声，不要同时改变 fixture、切分策略或停用词。GIN 是否被查询计划选中可以用 `EXPLAIN` 检查；小 fixture 选择顺序扫描可能只是成本选择，不代表索引损坏。
 
-GIN 是否被查询计划选中，可以用 `EXPLAIN` 观察。小 fixture 走顺序扫描往往是成本选择，不要写成索引坏了。评估索引收益需要更有代表性的数据量和单独实验；本节只确认索引定义、查询形态和可诊断性。
+三个典型边界应按不同证据解释：
 
-## 三种现象要用不同证据解释
+- 同义改写无结果：依次检查应用词、PostgreSQL 词、`lexical_text`、`search_vector`，确认没有共同词后记录为 lexical 边界。
+- 否定规则 rank 高：词面匹配成功，但模型和后续证据逻辑尚未理解否定。
+- 数据库不可用：按连接、鉴权、migration、权限顺序排查，不能称为“没有候选”。
 
-### 同义改写无结果：词面机制的边界
+## 8. 学完后的修改题
 
-```text
-查询：发起逆向服务
-资料：申请售后
-```
+接口新增枚举 `AFTER_SALE_V3`，资料和查询大小写可能不同。修改词法规则和测试，验证：
 
-可能得到空候选。排查顺序：应用查询词 → PostgreSQL 查询词和 `tsquery` → 资料的 `lexical_text` 与 `search_vector` → 确认没有共同词 → 记为 lexical 自然边界。
+1. 大小写变化仍得到兼容的分析结果。
+2. 技术标识仍被当成一个稳定单位。
+3. 配置变化会更新 `lexical_config_ref`。
+4. 真实 PostgreSQL 查询仍返回 `postgresql_ts_rank`，不是伪造的 BM25。
 
-不要把空结果说成 PostgreSQL 故障，不要为了让案例成功把「逆向服务」改成「售后」，也不要立刻给全库加同义词并宣称质量提高。后续 Dense Retrieval 会在同一问题上观察语义表示能否补回候选；收益仍要固定评估证明。
+## 掌握检查
 
-### 否定规则 rank 高：匹配成功但还没有理解规则
+尝试独立回答：
 
-「虚拟商品不进入售后流程」可能因为同时命中「虚拟商品」和「售后」而排第一。词面对了，否定没有被推理成业务逻辑。
+1. Lexical Retrieval 为什么不能自动理解“逆向服务”和“申请售后”的同义关系？
+2. `techidsourcechannel` 从哪里来？
+3. token、term、lexeme 为什么要分开？
+4. `content`、`lexical_text`、`search_vector` 各自服务什么？
+5. `tsquery`、`@@`、`ts_rank` 分别回答什么问题？
+6. OR 为什么通常提高召回，也可能引入噪声？
+7. 为什么 AND/OR 不需要重建词袋？
+8. GIN 加速了什么，又没有解决什么？
+9. `ts_rank` 为什么不能叫 BM25，也不能和 cosine distance 直接相加？
+10. 词法规则变化后为什么需要重新入库？
+11. 成功空结果和 `migration_required` 如何区分？
+12. 高 rank 为什么不能直接作为业务证据？
 
-```text
-召回正确候选
-≠ 已经完成规则推理
-≠ 已经证明最终回答正确
-```
-
-应把原文和来源交给后续 Context 与模型，不能因为 rank 高就当成确定结论。
-
-### 数据库不可用：依赖失败，不是词面 0 条
-
-连接、鉴权、权限或缺表时，按 [第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 定位。它验证的是错误可见，不证明检索效果。离线测试里的空输入、fingerprint 和参数校验也不能代替真实 FTS 运行。
-
-## Psycopg 和 GUI 封装了什么
-
-Psycopg 封装连接、参数绑定、事务和 PostgreSQL 错误到 Python 异常的映射。它没有决定 Chunk 身份、中文怎么拆、AND 还是 OR、rank 是否等于业务质量、哪些来源有证据资格。
-
-图形客户端方便看对象和跑 SQL，同样不替代 migration、参数化查询、错误契约和检索评估。可重复的命令与代码仍是实验真源。
-
-## 修改题：让新枚举成为稳定精确标识
-
-接口新增枚举 `AFTER_SALE_V3`，资料和查询都可能大小写不同。先预测：规范化会怎样处理、技术标识规则是否把它当成一块、会生成哪个备份词、文档和查询能否得到相同检索词、改规则会不会改变 `lexical_config_ref`、需要补哪些测试和重新写入。
-
-完成后至少验证：
-
-1. `AFTER_SALE_V3` 与 `after_sale_v3` 分析结果兼容。
-2. 普通中文词没有被破坏。
-3. 有效策略改变时配置身份同步变化。
-4. 真实 PostgreSQL 查询仍返回原生 `fts_rank`。
-
-不要只改 fixture 让测试通过；词法规则、配置身份、测试和已写入数据必须一致。
-
-## 学完后应能解释什么
-
-不看代码注释，尝试回答：
-
-1. 按词查找解决什么问题？它为什么不负责「逆向服务 ≈ 申请售后」？
-2. `techidsourcechannel` 从哪来？为什么不只保留 `source_channel`？
-3. 切开的碎片、应用留下的词、数据库收下的词，为什么要分成三层？
-4. 匹配、排序和证据判断分别回答什么？
-5. `content`、`lexical_text` 和 `search_vector` 为什么要同时存在？
-6. 文档和查询为什么必须使用同一个 `lexical_config_ref`？AND / OR 为什么不进这个身份？
-7. `tsquery` 与 `@@` 分别做什么？
-8. OR 为什么提高召回，也可能增加噪声？
-9. GIN 加速了什么，又没有解决什么？
-10. `ts_rank` 为什么不能和 cosine similarity 相加，也不能叫 BM25？
-11. 同义改写得到 0 条时，怎样证明这是词面边界而不是数据库失败？
-12. 为什么高 rank 不能直接当作证据充分？
-13. 拆词规则变了，为什么要重新写入？
-14. 成功空名单和连接失败，为什么必须是不同结果？
-
-若能用售后例子讲清从原文到词面候选的变化，读懂生成列与核心查询，在实验里解释一次 OR/AND 和一次 0 条结果，并完成精确标识修改题，就已经达到本节对 Lexical Retrieval 与 PostgreSQL FTS 的要求。
+如果能用固定售后资料画出 `Chunk → lexical_text → tsvector → @@ → ts_rank → LexicalHit`，并解释一次 OR/AND、一次自然空结果和一次真实依赖错误，就达到本节机制掌握要求。
 
 ## 本节边界
 
-本节建立的是：可版本化的中文与技术标识拆词、真实 PostgreSQL 词袋与 GIN、参数化写入和查询、原生 `fts_rank`、可观察的空结果与数据库错误。
+本节建立词面候选、PostgreSQL FTS、GIN、原生 rank 和可诊断错误；不建立 Dense Retrieval、pgvector、RRF、Context、可信 Citation 或产品 Review API。
 
-本节没有建立：向量检索、ANN、RRF、完整过滤与阈值诊断、Context、可信生成，以及产品 Review API。按词找到的候选还不是经过校验的引用。
-
-正文读完后返回 [标准学习路径](../learning-path.md)；标准顺序不由本文页尾或代码目录推断。
+读完后返回 [标准学习路径](../learning-path.md)，继续第 12 步。
 
 ## 官方参考
 
 - [PostgreSQL：Full Text Search](https://www.postgresql.org/docs/current/textsearch.html)
 - [PostgreSQL：Text Search Functions and Operators](https://www.postgresql.org/docs/current/functions-textsearch.html)
-- [PostgreSQL：Tables and Indexes](https://www.postgresql.org/docs/current/textsearch-tables.html)
 - [PostgreSQL：GIN Indexes](https://www.postgresql.org/docs/current/gin.html)
 - [Psycopg 3：Basic module usage](https://www.psycopg.org/psycopg3/docs/basic/usage.html)
 - [jieba：中文分词与搜索引擎模式](https://github.com/fxsjy/jieba)

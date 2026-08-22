@@ -576,7 +576,7 @@ order_rules.md
 → BuiltContext + ContextBuildReport
 ```
 
-先按照 [rag_retrieval_lab README](../../source/demos/rag_retrieval_lab/README.md) 配置真实 PostgreSQL、migration 和 Embedding 服务，然后在仓库根目录运行：
+先按照 [产品 README 的 PostgreSQL 准备](../../review_assistant/README.md#postgresql-本地准备) 配置真实 PostgreSQL、migration 和 Embedding 服务，再参考 [retrieval lab 步骤 15](../../source/demos/rag_retrieval_lab/docs/15-context.md) 运行：
 
 ```bash
 uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py
