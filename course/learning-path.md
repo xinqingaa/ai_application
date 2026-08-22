@@ -101,7 +101,7 @@ V0 要回答：
 10. **[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)** · 可学习
     承接第 9 步的可回查 Chunk，使用真实 Embedding 服务理解距离、归一化和 Embedding 空间一致性边界。
 11. **[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)** · 可学习
-    先看机制总图，再按需补 [PostgreSQL 零基础](concepts/postgresql-for-ai-applications.md)，然后按 [第 11 步实验准备](../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 完成 Server、Database、migration、固定资料入库和第一次查询；最后回到正文解释 PostgreSQL FTS、BM25 边界和诊断结果。产品使用 PostgreSQL FTS，不把 `ts_rank` 称为 BM25。
+    先从“有很多 Chunk，怎样按词找候选”建立直觉；遇到 Server、Database、migration 时按需补 [PostgreSQL 零基础](concepts/postgresql-for-ai-applications.md)，再按 [第 11 步实验准备](../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md) 完成环境和第一次查询，最后回到正文把观察结果映射到 PostgreSQL FTS、BM25 和 `ts_rank`。产品使用 PostgreSQL FTS，不把 `ts_rank` 称为 BM25。
 12. **[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)** · 可学习
     建立向量检索，并观察索引、过滤和相似度分数。
 13. **[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)** · 可学习

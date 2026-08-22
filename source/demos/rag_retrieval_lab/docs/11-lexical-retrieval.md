@@ -10,7 +10,7 @@
 
 > 怎样从本地 PostgreSQL 已安装，到 Server、Database、migration、固定资料入库和第一次按词查询全部就绪？
 
-本文是可重复的课程操作手册，不讲词面检索原理。先读机制篇的总图和问题，再按本文操作；不要在 GUI 里手工插入课文。
+本文是可重复的课程操作手册，不讲词面检索原理。先读机制篇开头的“按词找候选”问题，再按本文操作；不要在 GUI 里手工插入课文。
 
 这里写入的是 `review_assistant/fixtures/v0/ingestion/order_rules.md` 生成的固定 Chunk，用来观察机制，不是产品用户资料管理，也不是已经存在的入库 API。
 
