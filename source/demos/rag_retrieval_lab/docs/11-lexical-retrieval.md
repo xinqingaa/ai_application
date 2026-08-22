@@ -138,6 +138,134 @@ uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-
 
 **检查点 E：** 输出显示 `Chunk 已写入 PostgreSQL FTS`，并能在查询表中看到命中数量和 `postgresql_ts_rank`。
 
+### 4.1 先看懂一次命令做了什么
+
+上面的 Python 命令不是只执行一条 SQL。它完整走过这条链路：
+
+```text
+读取固定 fixture
+→ Loader 读取文档
+→ Chunker 生成 Chunk
+→ LexicalAnalyzer 给资料和 Query 拆词
+→ 写入 PostgreSQL
+→ FTS 用 @@ 判断匹配
+→ ts_rank 排序
+→ 输出候选和诊断
+```
+
+因此，Python 命令适合观察**完整应用链路**：应用到底拆出了什么词、传给 PostgreSQL 什么查询、返回了哪些 Chunk、候选上限是否生效，以及失败发生在哪一层。它不会在 PostgreSQL 失败后偷偷改用 SQLite 或内存结果。
+
+### 4.2 终端日志逐字段阅读
+
+先关注标题中的三个变量：
+
+```text
+dataset=v0-retrieval-exploration-1.0.0 · operator=or · candidate_k=5
+```
+
+| 字段 | 含义 |
+| --- | --- |
+| `dataset` | 本次使用的固定资料和 Query 探针版本 |
+| `operator` | Query 词项如何组合：`or` 或 `and` |
+| `candidate_k` | 每个 Query 最多返回多少个候选，不是最终答案数量 |
+
+接着看入库信息：
+
+```text
+indexed=2 · lexical_config=... · index_latency=34.4 ms
+```
+
+| 字段 | 含义 |
+| --- | --- |
+| `indexed=2` | 本次写入或更新了两个 Chunk |
+| `lexical_config` | 当前词法规则的版本身份；规则变更后不能和旧词空间混用 |
+| `index_latency` | 入库耗时，只说明速度，不说明检索质量 |
+
+查询汇总表按下面顺序阅读：
+
+| 字段 | 含义 |
+| --- | --- |
+| `Query` | 原始用户问题 |
+| `Group` | 这个探针被归入的观察场景，不是 PostgreSQL 条件 |
+| `Terms` | 应用拆出的词项；先检查它是否包含你预期的词 |
+| `Hits` | 本次实际返回的候选数 |
+| `Top rank` | 返回候选中第一名的 `ts_rank`；越大越靠前，但不是答案正确率 |
+| `Expectation` | 教学实验的预期现象，不是程序自动判定的通过结论 |
+
+使用 `--verbose` 后，每个 Query 下面还会有：
+
+| 字段 | 含义 |
+| --- | --- |
+| `tsquery` | PostgreSQL 最终执行的查询条件；看其中是 `&` 还是 `|` |
+| `postgres terms` | PostgreSQL 实际收到的词项；和 `Terms` 对照可发现词在哪一层变化 |
+| `Matched` | 该 Chunk 与 Query 共同出现的词 |
+| `Chunk` | 命中 Chunk 的稳定 ID |
+| `Content` | 命中 Chunk 的原文摘要 |
+| `FTS rank` | PostgreSQL `ts_rank` 的原始分数 |
+
+可以按这条路径读一组结果：
+
+```text
+Query
+→ Terms
+→ postgres terms
+→ tsquery
+→ Matched
+→ FTS rank / Content
+```
+
+例如有 `tsquery` 但 `Hits=0`，通常是词面没有对上，或 AND 要求的词太多；这不是数据库连接失败。出现 `connection_failed`、`auth_failed`、`migration_required`、`permission_denied` 时，才应先排查依赖或表结构。
+
+### 4.3 做对照：一次只改变一个变量
+
+每次运行前先预测，再只改一个参数。
+
+**对照一：OR 与 AND**
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py \
+  --query-operator or --verbose
+
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py \
+  --query-operator and --verbose
+```
+
+只改变 `query-operator`。先看 `tsquery` 中的 `|` / `&`，再比较 `Hits` 和哪些 Query 从命中变成 0。OR 允许任意词命中，通常更宽；AND 要求所有词出现，通常更窄。资料已经入库，不需要重新执行 migration。
+
+**对照二：`candidate_k`**
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py \
+  --query-operator or --candidate-k 1 --verbose
+
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py \
+  --query-operator or --candidate-k 5 --verbose
+```
+
+只改变 `candidate_k`。如果某个 Query 实际匹配多个 Chunk，匹配总数可能不变，但返回数量会受 `candidate_k` 限制；排名靠后的候选可能不再显示。要精确比较 `matched_chunk_count` 和 `returned_chunk_count`，再运行 JSON 诊断：
+
+```bash
+uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py \
+  --query-operator or --candidate-k 1 --log-format json
+```
+
+JSON 中每个 `lexical.query_observed` 事件的 `matched_chunks` 是匹配总数，`returned_chunks` 是实际返回数，`candidate_k` 是上限。普通 `--verbose` 更适合人眼阅读候选内容。
+
+**对照三：倒排索引中的两个词**
+
+在[调试 SQL 说明](../sql/README.md#对照查询)中复制两条查询，分别查询 `售后` 和 `techidsourcechannel`。预测 `售后` 可以找到 Chunk A、B，而 `techidsourcechannel` 只能找到 Chunk A。这组对照观察的是“词 → Chunk”的映射，不是语义相似度。
+
+**对照四：Python 命令和直接 SQL**
+
+两者最终都可以调用 PostgreSQL FTS，但观察范围不同：
+
+| 方式 | 能看到什么 |
+| --- | --- |
+| Python 命令 | Loader、Chunker、应用拆词、`tsquery`、候选、rank、配置版本、结构化错误和完整诊断 |
+| 直接 SQL | 数据库保存的 `search_vector`、SQL 生成的 `tsquery`、`@@` 匹配行和 `ts_rank` |
+
+所以 SQL 不是 Python 命令的完全替代品；SQL 适合孤立观察数据库层，Python 命令适合确认真实应用传入和接收了什么。如果两者结果不同，先对照 Python 输出中的 `postgres terms` 和 `tsquery`，不要直接把差异归因于 PostgreSQL。
+
 ## 5. 在 GUI 里核对三列
 
 Cursor / VS Code 的 PostgreSQL 插件连接：

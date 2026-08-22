@@ -6,19 +6,19 @@
 
 第 10 步只比较几段已知文本在 Embedding 空间中是否接近；本节把用户问题真正拿去和一批 Chunk 做词面候选检索；第 12 步会沿用同一批 Chunk 和问题，用向量距离再做一次候选检索。这样后面比较 lexical、dense 和 RRF 时，变化来自检索路线，而不是偷偷更换资料。
 
-## 先从一个问题开始
+## 先学会按词找候选
 
 假设资料中有两段话：
 
 ```text
-A：售后接口 v2 必须提供 source_channel。
-B：仅已支付且已完成的订单可申请售后。
+Chunk A：售后接口 v2 必须提供 source_channel。
+Chunk B：仅已支付且已完成的订单可申请售后。
 ```
 
 用户问：
 
 ```text
-source_channel 什么时候必填？
+Query：source_channel 什么时候必填？
 ```
 
 我们希望先找到 A。最直接的办法不是让模型猜，而是：
@@ -44,7 +44,7 @@ source_channel 什么时候必填？
 
 按词找到 A，不等于 A 已经证明了最终风险。
 
-## 资料和问题必须用同一套规则
+## 资料和 Query 必须使用同一套词法规则
 
 如果资料把一个词切成两块，而问题保留成一块，两边就可能匹配不上。因此应用会让资料和问题经过同一套预处理：统一大小写和字符形式，切分中文，保留技术标识，过滤少量没有区分力的填充词。
 
@@ -60,14 +60,17 @@ source_channel → sourcechannel → techidsourcechannel
 
 当前规则由 `LexicalConfig` 标识。它记录分词版本、停用词、领域词和 PostgreSQL 配置，并生成 `lexical_config_ref`。规则改变后，旧资料和新问题可能不在同一个词空间，应用会拒绝混用并要求重新写入。
 
-## 词是怎样被保存和查找的
+## 倒排索引：一个词出现在哪些 Chunk
 
 如果每次查询都把全部资料取回 Python 再逐行比较，资料变多后会越来越慢。数据库会建立一种反向索引：先记录某个词出现在哪些 Chunk 中。
 
 ```text
-售后                → A、B
-techidsourcechannel → A
+词项                     → 出现在哪些 Chunk
+售后                     → Chunk A、Chunk B
+techidsourcechannel      → Chunk A
 ```
+
+这里的 A、B 是上面资料中的两个 Chunk，不是两个 Query。倒排索引把“词”映射到“包含这个词的 Chunk”；Query 先被拆成词，再用这些词查回候选。例如 `售后` 可以查回 A、B，而 `techidsourcechannel` 只能查回 A。
 
 PostgreSQL 用 GIN 索引加速这种“按词找行”的查询。GIN 只负责让查找更快，不决定你应该使用 AND 还是 OR，也不理解同义词、否定或业务证据。
 
@@ -91,7 +94,7 @@ search_vector TSVECTOR GENERATED ALWAYS AS (
 
 应用写入 `lexical_text`，数据库自动计算 `search_vector`。词法规则仍由应用控制，数据库不会替你判断中文业务词是否合理。
 
-## 查询怎样得到候选
+## FTS 查询：OR 和 AND 怎样改变候选范围
 
 用户问题经过同一套分析后，应用把词交给 PostgreSQL。PostgreSQL 将这些词编译成查询条件，这个查询条件的类型叫 `tsquery`。
 
@@ -113,7 +116,7 @@ search_vector @@ tsquery
 
 它只回答是或否，不回答哪个候选更相关。
 
-当前实验默认使用 OR：查询词中任意一个匹配，Chunk 就有资格进入候选。切换成 AND 后，所有词都要出现，结果通常更窄。
+当前实验默认使用 **OR**：查询词中任意一个匹配，Chunk 就有资格进入候选。切换成 **AND** 后，所有词都要出现，结果通常更窄。
 
 例如：
 
@@ -122,11 +125,13 @@ OR：source_channel | techidsourcechannel | 必填
 AND：source_channel & techidsourcechannel & 必填
 ```
 
+在 FTS 里，OR 表示“任意一个词匹配即可”，AND 表示“所有词都匹配才可以”。这里的 `|` 和 `&` 是 `tsquery` 的查询运算符，不要直接等同于编程语言中的 `||` 和 `&&`。OR 通常召回更多候选，AND 通常更严格；它们只改变查询条件，不需要重新写入 Chunk。
+
 OR 可能带来更多噪声，AND 可能错过使用“必须提供”而没有写“必填”的资料。它们是检索配置，不需要重新生成资料的词袋。
 
 数据库还需要决定最多返回多少条候选，这就是 `candidate_k`。它不是“答案最多有几条”，而是这一条检索路线交给后续融合或 Context Builder 的候选上限。当前查询按 `ts_rank DESC, chunk_id ASC` 排序；第二个排序键让 rank 并列时结果仍然稳定，便于实验复现和后续 RRF 对齐。
 
-## 候选为什么还要排序
+## 命中后如何排序：`ts_rank` 做什么
 
 查询可能匹配多个 Chunk。数据库还需要给它们排序，例如同时包含“虚拟商品”和“售后”的片段，通常应排在只包含“售后”的片段前面。
 
@@ -151,7 +156,7 @@ LexicalSearchResult
 
 `LexicalHit` 说明“哪些 Chunk 被返回”；`LexicalDiagnostics` 说明“这次查询到底做了什么”。当前诊断包括原始查询、规范化查询、应用词项、PostgreSQL query terms、`tsquery`、词法配置身份、可见 Chunk 数、匹配 Chunk 总数、实际返回数、`candidate_k`、rank 名称、方向和延迟。看到 0 条时，必须依靠这些字段判断是词没对上、资料不可见、候选上限太小，还是数据库失败。
 
-## BM25 是什么，为什么不能把 `ts_rank` 叫 BM25
+## BM25 是相近但不同的词面排序算法
 
 当人们讨论“按词匹配后如何排序”时，常会提到 BM25。BM25 是一种具体的词面排序算法，它通常考虑三件事：
 
@@ -182,7 +187,7 @@ ts_rank 是 PostgreSQL 当前使用的排序函数
 
 V0 使用真实 PostgreSQL FTS 和 `ts_rank`，不把结果字段命名为 `bm25_score`，也不为了这个名称额外引入 BM25 扩展。以后可以用固定数据集比较 BM25 与 `ts_rank`，但那是新的实验。
 
-## 真实代码怎样把它们接起来
+## 从代码到日志：一次查询经过哪些步骤
 
 实验入口是 [`inspect_lexical_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py)。它不会手写一份简化资料，而是复用第 8 步 Loader、第 9 步 Chunker 和固定 fixture：
 
@@ -213,7 +218,7 @@ retriever.delete_chunks(chunk_ids)
 
 Psycopg 负责 Python 与 PostgreSQL 之间的连接、参数、事务和异常传递；它不决定分词策略、AND/OR、证据资格或业务正确性。
 
-## 实验中要观察什么
+## 动手做对照：每次只改变一个变量
 
 操作顺序、安装、启动、Role、Database、`.env`、migration 和固定资料入库见[第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。正文只保留观察问题：
 
