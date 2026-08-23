@@ -1,10 +1,12 @@
-# 步骤 12：pgvector Dense Retrieval
+# 第 12 步实验准备：pgvector Dense Retrieval
 
-> 这是第 12 步的操作文档。它回答“怎样准备 pgvector、运行 Dense Retrieval、阅读输出和做 exact/HNSW 对照”，不重复机制正文的完整原理。
+> 这是第 12 步的操作文档，和机制篇成对。它回答“怎样准备 pgvector、运行 Dense Retrieval、阅读输出和做 exact/HNSW 对照”，不重复机制正文的完整原理。
 >
 > - 机制：[pgvector、Dense Retrieval 与向量索引](../../../../course/mechanisms/vector-store-and-pgvector.md)
 > - 第 10 步概念：[Embedding 表示与向量相似度](../../../../course/mechanisms/embedding-and-similarity.md)
 > - 第 11 步对照：[Lexical Retrieval、BM25 边界与 PostgreSQL FTS](../../../../course/mechanisms/lexical-retrieval.md)
+
+本文只回答：怎样从第 11 步已经准备好的 PostgreSQL 和 Chunk 数据，继续完成 pgvector migration、真实 Embedding 入库、Dense Retrieval 查询和 exact/HNSW 对照？
 
 第 11 步按词查找，第 12 步按向量距离查找。两步使用同一批 Chunk 和 Query，但检索维度不同：第 11 步比较词项，第 12 步比较 Embedding 空间中的位置。
 
