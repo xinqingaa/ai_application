@@ -125,6 +125,14 @@ ai_application/other/<project_name>/
 | RAGFlow | `/ragflow` | `ai_application/other/ragflow` | [架构与领域模型](./ragflow/01_ragflow_architecture_and_domain_model.md), [RAG 主链路](./ragflow/02_ragflow_core_rag_pipeline.md), [Workflow / Agent / 业务迁移](./ragflow/03_ragflow_workflow_agent_and_business_playbook.md) |
 | MaxKB | `/MaxKB` | `ai_application/other/MaxKB` | [架构与领域模型](./MaxKB/01_MaxKB_architecture_and_domain_model.md), [核心链路](./MaxKB/02_MaxKB_core_pipeline.md), [Workflow / Agent / 业务迁移](./MaxKB/03_MaxKB_workflow_agent_and_business_playbook.md) |
 
+## 外部平台调研
+
+这里放尚未做成源码拆解、也未编排进 `course/` 或 `docs/` 真源的调研笔记。它不是 RAGFlow / MaxKB 那类三份拆解文档，只作能力盘点和后续编排底稿。
+
+| 主题 | 文档 | 当前分级 |
+| --- | --- | --- |
+| 飞书知识库、CLI、MCP 与 Agent 接入 | [wiki-agent-integration-research.md](./feishu/wiki-agent-integration-research.md) | 未来认知；未进入课程或产品 |
+
 ## 横向对比
 
 详细横向对比统一沉淀到 [comparisons.md](./comparisons.md)，README 只保留索引。
