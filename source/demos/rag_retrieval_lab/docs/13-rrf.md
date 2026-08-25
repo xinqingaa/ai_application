@@ -87,7 +87,7 @@ load_retrieval_chunks
 标题会显示类似：
 
 ```text
-dataset=v0-retrieval-exploration-1.0.0
+dataset=rag-retrieval-exploration-1.0.0
 candidate_k=5 · rrf_k=60 · dense=exact
 scope=after_sale · source=reference_knowledge · evidence=current_evidence
 space=... · model=... · dimensions=...

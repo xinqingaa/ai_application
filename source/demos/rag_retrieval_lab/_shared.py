@@ -47,7 +47,7 @@ def load_retrieval_chunks():
     result = chunk_document(
         document,
         ChunkPolicy(
-            name="v0_retrieval_structure_aware",
+            name="rag_retrieval_structure_aware",
             version="1.0.0",
             strategy=ChunkStrategy.STRUCTURE_AWARE,
             max_tokens=48,

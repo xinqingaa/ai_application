@@ -76,7 +76,7 @@ review_assistant/
 - `source/demos/`
 - `source/apps/llm_streaming_api/`
 
-第一阶段受控格式对照 fixtures 当前位于 `fixtures/v0/ingestion/`；这里的目录名是已有数据命名空间，不再代表课程版本轴。它们供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
+`review_assistant/fixtures/v0/` 是受控 RAG 实验数据的稳定物理路径；路径中的 `v0` 只表示 fixture 命名空间，不表示课程阶段或课程序号。其中的 ingestion fixtures 供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
 步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS；步骤 12 使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；步骤 13 在应用侧按稳定 `chunk_id` 运行 RRF 并保留两路贡献；步骤 14 固定 Metadata pre-filter、每路候选和阈值、RRF、`final_top_k` 的顺序并返回诊断报告；步骤 15 把最终候选连同文档版本、locator 和路线诊断接入共享 Context Builder；步骤 16 调用真实模型生成结构化风险并检查 claimed source ID 是否属于本轮 Citation Candidate。当前这些仍是共享 package 与机制实验入口，不表示产品已经提供资料管理 API、后台入库任务或 Review API；Citation 内容支持性、Refusal 和证据充分性仍未实现。
 

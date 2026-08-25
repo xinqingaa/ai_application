@@ -105,7 +105,7 @@ load_retrieval_chunks
 常见标题类似：
 
 ```text
-dataset=v0-retrieval-exploration-1.0.0 · mode=compare · candidate_k=5
+dataset=rag-retrieval-exploration-1.0.0 · mode=compare · candidate_k=5
 chunks=2 · vectors=2 · space=...
 provider=... · model=... · dimensions=... · preprocessing=retrieval-text-v1
 chunk_embedding=... ms · query_embedding=... ms

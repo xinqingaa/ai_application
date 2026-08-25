@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型增量如何变成前端可消费的事件，以及稳定会话历史为什么不能混入一次运行的全部中间态。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第二阶段第 38 节的已有材料，当前状态为“待重切”。Token Stream、Event Stream 与 SSE 将保留在第 38 节；Conversation 边界将进入第 35 节，取消、重连和状态同步进入第 39–40 节。在完成职责拆分前，本文不能作为新的完整主线正文。
+> 补充参考：本文通过一个组合实验同时观察 Token Stream、Event Stream、SSE 与 Conversation History，不作为[标准学习路径](../learning-path.md)中单节课程的正式正文。学习主线中的 Conversation、SSE、状态同步与运行界面以标准学习路径各自定义的知识边界为准。
 
 ---
 

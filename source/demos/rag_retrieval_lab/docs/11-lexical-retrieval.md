@@ -160,7 +160,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-
 先关注标题中的三个变量：
 
 ```text
-dataset=v0-retrieval-exploration-1.0.0 · operator=or · candidate_k=5
+dataset=rag-retrieval-exploration-1.0.0 · operator=or · candidate_k=5
 ```
 
 | 字段 | 含义 |

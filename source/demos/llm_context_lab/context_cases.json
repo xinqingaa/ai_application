@@ -58,7 +58,7 @@
       "priority": 70,
       "score": 0.73,
       "metadata": {
-        "producer": "risk_agent_v0"
+        "producer": "upstream_risk_summary"
       },
       "content": "上游 Agent 初步判断：主要风险集中在状态机一致性、接口 v2 参数兼容、三端展示一致性、重复申请拦截、错误码到 UI 提示的映射。该摘要只是中间结论，不能替代证据引用。"
     },

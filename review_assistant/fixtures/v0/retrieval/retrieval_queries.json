@@ -1,5 +1,5 @@
 {
-  "dataset_version": "v0-retrieval-exploration-1.0.0",
+  "dataset_version": "rag-retrieval-exploration-1.0.0",
   "fixture_kind": "valid_business_queries_for_retrieval_observation",
   "description": "第一阶段第 11 节起共享的探索性检索问题；用于比较 lexical、dense 和后续融合路线，不是 acceptance 数据集。",
   "queries": [

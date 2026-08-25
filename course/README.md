@@ -72,13 +72,13 @@ RAG 应用基础
 
 ## 必备基础
 
-Python、HTTP、JSON、异步、配置和 PostgreSQL 不再是可有可无的“按需支撑”。它们属于必备基础：
+Python、HTTP、JSON、异步、配置和 PostgreSQL 属于必备基础：
 
 - 已经具备时，通过学习路径中的检查直接进入主线。
 - 不足时，回查 `source/python_base/`、PostgreSQL 概念篇和对应操作文档。
 - 不要求为了形式重新通关已经掌握的基础课。
 
-Streaming、Conversation 和事件协议属于第二阶段 Agent 产品主线，不再作为边缘补充。
+Streaming、Conversation 和事件协议属于第二阶段 Agent 产品主线。
 
 ## 文档和代码分别负责什么
 

@@ -36,7 +36,6 @@
 | 未来认知 | 保留视野，当前项目不实现 |
 | 已落地 | 正文与该文档类型所需的必要实验已经存在；产品是否接入另看代码入口和项目篇 |
 | 待编写 | 知识位置已确认，正文与真实代码按学习需要逐步落地 |
-| 待重切 | 已有正文或代码材料，但职责仍需按新路径拆分 |
 | 等待前置 | 正文或项目契约已存在，但必须先完成前面的知识或产品能力 |
 
 表格中的“正文状态”只回答当前能否按正文学习，不表示产品已经启用。代码入口独立说明实现位置：`后续` 表示尚未实现，真实路径表示已有实现，`无项目实现` 表示当前只做认知，`条件准入` 表示必须先实验但未必进入产品。
@@ -280,7 +279,7 @@ State / Node / Edge
 | AI Native 问题空间与不确定性表达 | 概念 | 主线 | 第一阶段 | LLM 应用边界 | `concepts/ai-native-interface.md` | 产品 workbench | 待编写 |
 | 最小请求状态与结构化评审界面 | 机制 | 主线 | 第一阶段 | Structured Output、Review API | `mechanisms/review-request-state.md` | 产品 workbench | 待编写 |
 | Sources、Citation、Refusal 与补充信息交互 | 机制 | 主线 | 第一阶段 | Citation、Refusal | `mechanisms/evidence-and-refusal-ui.md` | 产品 workbench | 待编写 |
-| SSE 结构化事件协议 | 机制 | 主线 | 第二阶段 | Agent Loop、FastAPI | [现有正文待重切](mechanisms/streaming-and-conversation.md) | `llm_core/streaming`、产品 app | 待重切 |
+| SSE 结构化事件协议 | 机制 | 主线 | 第二阶段 | Agent Loop、FastAPI | `mechanisms/sse-event-protocol.md` | `llm_core/streaming`、产品 app | 待编写 |
 | Streaming State Synchronization | 机制 | 主线 | 第二阶段 | SSE 事件协议 | `mechanisms/streaming-state.md` | 产品 workbench | 待编写 |
 | AI Response State Machine 与 Agent Runtime UI | 机制 | 主线 | 第二阶段 | Streaming、Agent Loop | `mechanisms/response-state-machine.md`、`mechanisms/agent-runtime-ui.md` | 产品 workbench | 待编写 |
 | Multi-Agent 运行观测与协作界面 | 机制 | 主线 | 第二阶段 | Multi-Agent 执行与冲突 | `mechanisms/multi-agent-ux.md` | 产品 workbench | 待编写 |
