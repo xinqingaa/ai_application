@@ -26,6 +26,9 @@ from rag_core import (
 )
 
 PREPROCESSING_VERSION = "retrieval-text-v1"
+KNOWLEDGE_SCOPE = "after_sale"
+SOURCE_ROLES = (SourceRole.REFERENCE_KNOWLEDGE,)
+EVIDENCE_ELIGIBILITIES = (EvidenceEligibility.CURRENT_EVIDENCE,)
 log = get_logger("rag_retrieval_lab.rrf")
 
 
@@ -65,7 +68,9 @@ def main() -> int:
             "RAG Retrieval Lab · Reciprocal Rank Fusion",
             "同一 Chunk、同一问题下比较 lexical / dense / RRF\n"
             f"dataset={payload['dataset_version']} · candidate_k={args.candidate_k} "
-            f"· rrf_k={args.rrf_k} · dense={dense_mode.value}",
+            f"· rrf_k={args.rrf_k} · dense={dense_mode.value}\n"
+            f"scope={KNOWLEDGE_SCOPE} · source={SOURCE_ROLES[0].value} "
+            f"· evidence={EVIDENCE_ELIGIBILITIES[0].value}",
         )
 
     try:
@@ -124,7 +129,14 @@ def main() -> int:
 
 def _lexical_route(retriever, query: str, *, candidate_k: int):
     try:
-        return lexical_ranked_route(retriever.search(query, candidate_k=candidate_k))
+        result = retriever.search(
+            query,
+            candidate_k=candidate_k,
+            knowledge_scope=KNOWLEDGE_SCOPE,
+            source_roles=SOURCE_ROLES,
+            evidence_eligibilities=EVIDENCE_ELIGIBILITIES,
+        )
+        return lexical_ranked_route(result)
     except RetrievalError as exc:
         return failed_ranked_route(
             "lexical",
@@ -138,9 +150,9 @@ def _dense_route(retriever, query_record, *, candidate_k: int, mode):
         result = retriever.search(
             query_record,
             candidate_k=candidate_k,
-            knowledge_scope="after_sale",
-            source_roles=(SourceRole.REFERENCE_KNOWLEDGE,),
-            evidence_eligibilities=(EvidenceEligibility.CURRENT_EVIDENCE,),
+            knowledge_scope=KNOWLEDGE_SCOPE,
+            source_roles=SOURCE_ROLES,
+            evidence_eligibilities=EVIDENCE_ELIGIBILITIES,
             mode=mode,
         )
         return dense_ranked_route(result)
@@ -246,6 +258,9 @@ def _emit_json(payload, space, observations) -> None:
         "RRF 共享实验已准备",
         dataset_version=payload["dataset_version"],
         embedding_space_ref=space.space_ref,
+        knowledge_scope=KNOWLEDGE_SCOPE,
+        source_roles=[item.value for item in SOURCE_ROLES],
+        evidence_eligibilities=[item.value for item in EVIDENCE_ELIGIBILITIES],
     )
     for probe, lexical, dense, fused in observations:
         log.info(

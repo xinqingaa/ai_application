@@ -1,10 +1,12 @@
 # 多路召回与 RRF 融合
 
-> 这是一篇机制篇。[第 11 步](lexical-retrieval.md)和[第 12 步](vector-store-and-pgvector.md)已经让同一批 Chunk 分别经过 PostgreSQL FTS 和 pgvector，得到 lexical 与 dense 两份排名；本节继续回答：两份排名怎样合并成一份可解释、可追踪的候选列表？读完后，你应该能手算一个最小 RRF 例子，运行真实实验，并判断问题来自上游召回还是排名融合。本文只形成 `RRFResult`，不决定每路阈值、最终 `top_k`、Context 预算或证据是否足以支持结论。
+> [第 11 步](lexical-retrieval.md)和[第 12 步](vector-store-and-pgvector.md)已经让同一批 Chunk 分别经过 PostgreSQL FTS 和 pgvector，得到 lexical 与 dense 两份排名。本节继续回答：同一个候选可能出现在两份列表里，而且顺序不同，应用怎样把它们合并成一份可解释、可追踪的候选列表？
+>
+> 读完后，你应该能手算一个最小融合例子，运行真实实验，并判断问题来自上游召回还是排名融合。完整命令、输出字段和排障步骤见[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)。
 
 ## 两条路线都正常，应用却还没有最终候选
 
-先沿用前面的“售后入口与订单状态”资料。知识库里有四个可检索 Chunk：
+先沿用前面的“售后入口与订单状态”资料。为了只观察融合问题，下面暂时把四条业务规则抽象成 A、B、C、D 四个候选单元：
 
 ```text
 Chunk A：售后接口 v2 必须提供 source_channel。
@@ -33,7 +35,7 @@ Lexical Retrieval 和 Dense Retrieval 可能返回不同顺序：
 | 2 | Chunk B | “申请售后”与问题整体语义接近 |
 | 3 | Chunk A | 接口约束与“入口需要什么条件”相关 |
 
-这两份排名只是为了建立心智模型，不是对真实 Embedding 输出的承诺。换一个真实模型、Chunk 策略或查询，dense 顺序都可能变化。
+这两份排名只是为了建立心智模型，不是第 11、12 步固定实验的真实输出。真实 fixture 经过当前 Chunk 策略会得到两个 Chunk，而不是这里的四个候选单元；本例暂时拆细，是为了同时展示“多路重合”和“只在单路出现”两种融合输入。换一个真实模型、Chunk 策略或查询，候选数量和 dense 顺序都可能变化。
 
 现在应用还必须回答：
 
@@ -41,7 +43,9 @@ Lexical Retrieval 和 Dense Retrieval 可能返回不同顺序：
 2. 只在 lexical 出现的 Chunk C 和只在 dense 出现的 Chunk D 谁排在前面？
 3. 最终顺序为什么这样产生，之后还能不能回到每一路的原始结果？
 
-这就是排名融合要解决的问题。
+这就是**排名融合**要解决的问题：它接收多条检索路线已经排好序的候选列表，再生成一份统一排名。V0 使用其中一种简单方法——**RRF**，全称 Reciprocal Rank Fusion，中文可理解为“倒数排名融合”。
+
+本节只解决“已有候选怎样合并和排序”。哪些资料有资格进入每条路线、融合后最终保留几条、哪些候选进入模型，以及候选能否支持最终结论，分别由上游过滤和后续 Retriever、Context、可信生成机制负责。先不要记公式，下面先看几个更直觉的方案为什么不够。
 
 ## 先尝试三个直觉方案
 
@@ -98,7 +102,9 @@ cosine_distance      越小越靠前
 - cosine distance 属于当前 Embedding 模型和预处理形成的向量空间。
 - 任一侧更换配置，原始数值的分布都可能变化。
 
-也可以先做 min-max normalization 再相加，但小候选集的最大值和最小值很不稳定。增加一条噪声候选，就可能让其他候选的归一化分数一起变化。若要使用 Score Fusion，需要为分数标定、权重和数据分布建立额外评估证据。
+一种补救思路是先把每路分数映射到可比较范围，再加权相加，这类方案叫 **Score Fusion**。例如 min-max normalization 会用当前列表的最大值和最小值把分数缩放到 `0～1`；但在很小的候选集里，新增一条极高或极低的噪声候选，就会让其他候选的缩放结果一起变化。
+
+更可靠的 Score Fusion 需要用固定数据判断“某一路的某个分数通常代表多强的相关性”，这个过程叫分数标定；还要决定每路权重，并验证数据分布变化后是否仍然成立。这些都不是本节要新增的变量。
 
 V0 先采用更简单的约束：
 
@@ -106,7 +112,7 @@ V0 先采用更简单的约束：
 
 ## Rank Fusion 到底接收什么
 
-多路召回、排名融合和重排经常被混在一起。先把它们放回数据流：
+让同一个 query 分别进入多个检索器、得到多份候选列表，就是**多路召回**。多路召回、排名融合和重排经常被混在一起，先把它们放回数据流：
 
 ```text
 同一个 query
@@ -121,11 +127,11 @@ V0 先采用更简单的约束：
 | 动作 | 读取的信息 | 是否重新阅读候选内容 | 当前进入 V0 |
 | --- | --- | --- | --- |
 | Multi-retrieval | query、各检索器和知识库 | 各检索器按自己的机制读取 | lexical + dense 已进入 |
-| Score Fusion | 多路经过标定的原始分数 | 通常不需要 | 未进入 |
+| Score Fusion | 多路已经变得可比较的原始分数 | 通常不需要 | 未进入 |
 | Rank Fusion | 候选身份和每路名次 | 不需要 | 使用 RRF |
-| Reranker | query 与候选内容 | 需要重新计算相关性 | V2 先实验再准入 |
+| Reranker | query 与候选内容 | 需要重新阅读二者并计算新的相关性 | V2 先实验再准入 |
 
-RRF 是 Rank Fusion 的一种。它不知道 Chunk B 写了什么，只知道：
+Reranker 是召回后的二次排序器：它重新阅读 query 和候选内容，再给候选排序。RRF 不做这次内容理解，它只是 Rank Fusion 的一种，只知道：
 
 ```text
 Chunk B 在 lexical 排第 1
@@ -231,63 +237,29 @@ Dense 为什么把它排第 1？
 它们的原生数值和方向分别是什么？
 ```
 
-因此，进入融合前的统一候选同时保存：
-
-```text
-route_rank = 2
-native_score_name = postgresql_ts_rank
-native_score = 0.31
-higher_is_better = true
-```
-
-或：
-
-```text
-route_rank = 1
-native_score_name = pgvector_cosine_distance
-native_score = 0.08
-higher_is_better = false
-```
+因此，进入融合前的每条候选同时保留四项诊断事实：来自哪条路线、在该路线排第几、原生数值叫什么，以及这个数值应该按越大越好还是越小越好阅读。例如 lexical 可以记录“第 2 名、`postgresql_ts_rank=0.31`、越大越靠前”，dense 可以记录“第 1 名、`pgvector_cosine_distance=0.08`、越小越靠前”。
 
 RRF 只读取 `route_rank` 做计算；原生分数用于回查上游排序。保留与参与计算是两件不同的事。
 
 不要把这两个字段重新包装成一个含义模糊的 `score`。否则调试时很容易把“0.08”误读成很差的相似度，或者把不同配置下的数值直接比较。
 
-## 两路结果怎样变成同一种输入
+## 融合前先统一候选契约
 
-真实代码不会直接把 `LexicalHit` 和 `DenseHit` 塞进公式。两种对象先分别经过适配：
+Lexical 和 dense 的原始结果结构不同，但 RRF 只需要一份最小的共同输入。每条候选必须能回答：
 
-```text
-LexicalSearchResult
-→ lexical_ranked_route
-→ RankedRoute("lexical")
+- 它来自哪条检索路线。
+- 它指向哪个稳定 Chunk 及哪个文档版本。
+- 它在本路线排第几。
+- 它的原生分数或距离叫什么、方向是什么。
+- 它携带的原文、来源位置、资料角色和业务范围是什么。
 
-DenseSearchResult
-→ dense_ranked_route
-→ RankedRoute("dense")
-```
-
-它们最终都包含 `RankedCandidate`：
-
-```text
-RankedCandidate
-├── chunk_id
-├── document_id / document_version
-├── content / source_spans
-├── source_role / evidence_eligibility
-├── business_metadata
-├── route_rank
-├── native_score_name / native_score
-└── higher_is_better
-```
-
-这一步不是为了把两种检索器伪装成完全相同。统一的是融合所需的候选契约；每条路线的原生名称、数值和方向仍然保留。
+统一的是融合所需的这些事实，不是把两种检索器伪装成同一种算法。Lexical 仍然按词排序，dense 仍然按向量距离排序；RRF 只在它们已经各自排好序之后工作。
 
 ### `route_rank` 必须从 1 开始且连续
 
 RRF 公式把名次直接放进分母。如果一条路线返回 `1, 2, 5`，我们无法判断 3、4 是真的存在但被隐藏，还是调用者错误地跳过了名次。
 
-当前 `RankedRoute` 因此要求：
+因此，交给 RRF 的每条路线都应该满足：
 
 ```text
 1, 2, 3, ..., n
@@ -306,18 +278,13 @@ RRF 公式把名次直接放进分母。如果一条路线返回 `1, 2, 5`，我
 - 文件名：一份文件包含多个 Chunk。
 - 当前文本：不同 Chunk 可能恰好内容相同，文本也可能经过清洗或截断。
 
-如果 lexical 和 dense 都返回 Chunk A，融合后只产生一个 `RRFCandidate`，其中保存两份 `RRFContribution`。
+如果 lexical 和 dense 都返回 Chunk A，融合后只产生一个候选，同时保存 lexical 和 dense 两份排名贡献。
 
 ### 相同 ID 还必须是相同内容
 
 只比较 ID 仍不够。假设 lexical 表里保存 Chunk A 的旧版本，dense 表里却把同一个 ID 指向新文本。此时继续融合会生成一个无法回答“到底引用了哪一版”的候选。
 
-当前实现会检查同一 `chunk_id` 的：
-
-- `document_id` 和 `document_version`。
-- `content` 和 `source_spans`。
-- `source_role` 和 `evidence_eligibility`。
-- `business_metadata`。
+当前实现会继续核对文档及版本、原文与来源位置、资料角色与证据资格、业务 Metadata。稳定 ID 相同而这些来源事实不同，说明两路索引对“这个 Chunk 是什么”没有达成一致。
 
 任一身份事实不一致都会明确失败。这里的失败不是 RRF 质量不好，而是上游索引没有遵守稳定身份契约。
 
@@ -343,7 +310,7 @@ FAILED
 
 如果数据库连接失败，lexical 也会有 0 条候选，但这时不能推断“资料中没有答案”。它必须是 `FAILED`。
 
-`RankedRoute` 用对象约束守住这个区别：
+融合输入契约用下面三条规则守住这个区别：
 
 | 状态 | candidates | error |
 | --- | --- | --- |
@@ -353,80 +320,13 @@ FAILED
 
 RRF 可以继续融合其他成功路线，并把失败路线写入 `failed_routes`。但“算法还能产生候选”不等于“产品可以宣称完整成功”。当前真实 demo 发现任一路失败时会保留诊断并返回非零退出码，不会用单路结果冒充完整的两路融合。
 
-## 把手算过程映射到真实代码
+## 从机制到真实实现只需要一座小桥
 
-公共入口位于 `source/packages/rag_core/retrieval/fusion.py`：
+真实公共入口是 [`fusion.py`](../../source/packages/rag_core/retrieval/fusion.py) 中的 `reciprocal_rank_fusion`。它接收至少两条已经排好序且名称不重复的路线，以及本次 `rrf_k`，返回融合候选和诊断。
 
-```python
-fused = reciprocal_rank_fusion(
-    (
-        lexical_ranked_route(lexical_result),
-        dense_ranked_route(dense_result),
-    ),
-    rrf_k=60,
-)
-```
+实现内部仍然只是刚才的手算过程：先校验路线和名次，再为每条候选计算倒数排名贡献；随后按稳定 Chunk 身份聚合、核对来源一致性、累加贡献、稳定排序，最后组装诊断。应用代码负责把这些不变量变成强制校验，而不是依赖调用者记住规则。
 
-它接收至少两条名称不重复的 `RankedRoute`，返回 `RRFResult`：
-
-```text
-RRFResult
-├── candidates: RRFCandidate[]
-└── diagnostics: RRFDiagnostics
-```
-
-核心调用链可以按刚才的手算过程理解，而不需要先背源码：
-
-```text
-1. 检查 route 数量、名称和 rrf_k
-2. 遍历每条路线的每个候选
-3. 计算 1 / (rrf_k + route_rank)
-4. 按 chunk_id 放入聚合表
-5. 相同 chunk_id 先检查来源身份是否一致
-6. 汇总每个候选的 contributions 和 rrf_score
-7. 使用稳定规则排序并写入 fusion_rank
-8. 组装候选与 diagnostics
-```
-
-聚合表可以想象成：
-
-```text
-aggregated = {
-  "chunk-a": {
-    candidate: Chunk A 的来源事实,
-    contributions: [lexical rank 1, dense rank 3]
-  },
-  "chunk-b": {
-    candidate: Chunk B 的来源事实,
-    contributions: [lexical rank 2, dense rank 1]
-  }
-}
-```
-
-最终 `RRFCandidate` 不只保存总分：
-
-```text
-RRFCandidate
-├── chunk_id / document identity / content / source_spans
-├── contributions[]
-│   ├── route_name
-│   ├── route_rank
-│   ├── reciprocal_rank
-│   ├── native_score_name / native_score
-│   └── higher_is_better
-├── rrf_score
-└── fusion_rank
-```
-
-所以看到融合第一名时，可以给出可检查的解释：
-
-```text
-Chunk B 融合后排第 1。
-它在 lexical 排第 2，贡献 1/62；
-在 dense 排第 1，贡献 1/61；
-总分约为 0.032522。
-fts_rank 和 cosine distance 被保留用于回查，但没有互相相加。
-```
+理解机制时不需要先背类名和内部字段。完整对象结构、源码调用和测试修改任务放在[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)中。
 
 ## 分数相同时为什么还要规定顺序
 
@@ -453,17 +353,7 @@ fts_rank 和 cosine distance 被保留用于回查，但没有互相相加。
 
 ## 诊断信息怎样说明一次融合发生了什么
 
-`RRFDiagnostics` 保存：
-
-```text
-rrf_k
-fusion_config_ref
-route_statuses
-route_candidate_counts
-distinct_candidate_count
-overlap_candidate_count
-failed_routes
-```
+融合结果不能只有一个最终列表。诊断至少要回答：本次使用哪个 `rrf_k`，每条路线是成功、空结果还是失败，每路带来了多少候选，去重后剩多少候选，其中多少候选被多路共同命中，以及哪些路线失败。
 
 假设两路各返回 3 条，其中 2 个 `chunk_id` 重合：
 
@@ -481,38 +371,25 @@ overlap_candidate_count = 2
 = 融合后的 4 个不同候选
 ```
 
-`fusion_config_ref` 由算法版本、路由名称和 `rrf_k` 共同形成。修改 `rrf_k` 或新增路线后，即使代码入口相同，也不能把结果当作同一个融合配置。
+当前实现还会用算法版本、路由名称和 `rrf_k` 形成融合配置身份。修改 `rrf_k` 或新增路线后，即使代码入口相同，也不能把结果当作同一个融合配置。
 
 不过它还不是完整的 Retrieval 诊断。每路 Metadata Filter、阈值淘汰、最终截断和统一无结果原因会在下一步由 `RetrievalReport` 继续承接。
 
 ## 运行真实实验前先做预测
 
-真实入口是：
-
-```text
-source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py
-```
-
-实验复用第 11、12 步的相同资料和 `retrieval_queries.json`，调用真实 PostgreSQL、真实 Embedding 服务和 pgvector：
+实验复用第 11、12 步的相同资料和 `retrieval_queries.json`，调用真实 PostgreSQL、真实 Embedding 服务和 pgvector。两路还必须使用相同的 `knowledge_scope`、来源角色和证据资格，保证变化来自检索路线，而不是候选可见范围不同：
 
 ```text
 order_rules.md
 → Loader + Chunker
-→ 同一批 Chunk 写入 PostgreSQL FTS 与 pgvector
-→ 同一 query 分别进入 lexical / dense
-→ LexicalSearchResult + DenseSearchResult
-→ RankedRoute("lexical") + RankedRoute("dense")
-→ reciprocal_rank_fusion
-→ RRFResult
+→ 同一批可见 Chunk 写入 PostgreSQL FTS 与 pgvector
+→ 同一 query、同一可见范围分别进入 lexical / dense
+→ 两份各自排好序的候选列表
+→ 按稳定身份合并并累加排名贡献
+→ 一份融合候选与诊断
 ```
 
-默认使用 exact dense，目的是先减少近似索引带来的额外变量。运行命令和完整参数由 [retrieval lab 步骤 13](../../source/demos/rag_retrieval_lab/docs/13-rrf.md) 维护；最小运行方式是：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose
-```
-
-运行前，不要先猜具体 distance 或融合名次。真实 Embedding 空间可能变化。先写下可以由机制推出的预测：
+默认基线固定 `candidate_k=5`、`rrf_k=60` 和 exact dense，先减少近似索引带来的额外变量。运行前不要猜具体 distance 或最终名次，因为真实 Embedding 空间可能变化；先写下可以由机制推出的预测：
 
 | Query | 先预测什么 | 重点观察什么 |
 | --- | --- | --- |
@@ -521,60 +398,15 @@ uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose
 | `申请售后` | 两路都有机会命中同一规则 | 重合候选是否只出现一次并获得两份贡献 |
 | `售前活动入口` | dense 可能返回主题接近的售后噪声 | RRF 是否会如实保留单路或共同噪声 |
 
-## 怎样读 verbose 输出
+真实运行时不要只看 `RRF top`。一条结果至少要能证明五件事：
 
-不要只看 `RRF top`。按下面的顺序检查一条 query。
+1. lexical 和 dense 是 `SUCCESS`、`EMPTY` 还是 `FAILED`。
+2. 融合前每个候选在各路的 `route_rank` 是多少。
+3. 每份 `reciprocal_rank` 是否符合公式，总和是否等于 `rrf_score`。
+4. `postgresql_ts_rank` 和 `pgvector_cosine_distance` 是否只保留作诊断，没有参与相加。
+5. 相同 `chunk_id` 是否只保留一条融合候选，同时记录两路贡献。
 
-### 第一步：看两路是否真的成功
-
-```text
-routes = lexical=success:3 · dense=success:3
-```
-
-如果出现 `empty`，说明查询成功但没有候选；如果出现 `failed`，先处理错误，不能继续把候选差异解释成检索能力差异。
-
-### 第二步：看融合前各路名次
-
-例如一条融合记录可能显示：
-
-```text
-Route ranks = lexical:2 / dense:1
-```
-
-先回到两路原始结果确认这两个名次，而不是从 RRF 总分反推原始相关性。
-
-### 第三步：手算一条候选
-
-若 `rrf_k=60`：
-
-```text
-1/62 + 1/61 ≈ 0.032522
-```
-
-输出中的 `RRF` 应与贡献和一致。这一步能发现公式、route rank 或输出解释是否错位。
-
-### 第四步：核对原生值只用于诊断
-
-```text
-postgresql_ts_rank=...
-pgvector_cosine_distance=...
-```
-
-确认两种名称和方向没有被抹成通用 score，也不要尝试从它们相加得到当前 RRF 值。
-
-### 第五步：检查身份合并
-
-同一 `chunk_id` 在两路命中时，融合结果应只有一行，但 `Routes` 中同时出现 `lexical + dense`。若出现两行相同内容，先核对它们是否真的是同一个稳定 Chunk，而不是只凭文本外观判断。
-
-## 做一次只改变 `rrf_k` 的对照
-
-先保存默认运行，再执行：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --rrf-k 20 --verbose
-```
-
-这次只改变 `rrf_k`，应预期：
+本节的主要对照只修改 `rrf_k`。从 60 改为 20 时，应预期：
 
 - lexical 和 dense 的原始候选、原生分数及 `route_rank` 不变。
 - `reciprocal_rank` 和 `rrf_score` 改变。
@@ -583,7 +415,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --rrf-k 20
 
 如果两路候选本身变了，就不能把差异只归因于 `rrf_k`。先检查是否同时更换了 Embedding 模型、query、Chunk、`candidate_k` 或 dense mode。
 
-切换 `--dense-mode hnsw` 也有价值，但它改变了 dense 候选产生方式，研究的是“近似检索输入变化后融合怎样变化”，不再是纯粹的 RRF 参数对照。
+完整运行顺序、verbose 字段解读、手算核对、JSON 输出和排障见[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)。切换 HNSW 或 `candidate_k` 也可以观察融合，但它们会改变上游候选，不能与“只修改 `rrf_k`”混为同一个对照。
 
 ## 一个正常 bad case：两路共同放大了噪声
 
@@ -620,9 +452,9 @@ uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --rrf-k 20
 
 ### 融合结果没有某个 Chunk
 
-先检查它是否存在于任一路的 `RankedRoute`。如果两路都没有，问题发生在上游召回，不是 RRF 删除了它。
+先检查它是否存在于任一路的输入列表。如果两路都没有，问题发生在上游召回，不是 RRF 删除了它。
 
-本节的 `reciprocal_rank_fusion` 会保留所有输入候选；它不执行 threshold 或 `final_top_k`。
+本节的 RRF 会保留所有输入候选；它不执行 threshold 或 `final_top_k`。
 
 ### 融合结果顺序出乎预期
 
@@ -647,22 +479,14 @@ uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --rrf-k 20
 
 ## 确定性测试能证明什么
 
-`source/packages/rag_core/tests/test_rrf.py` 使用人工构造的排名验证：
-
-- 公式只使用 `route_rank`。
-- 两路重合候选得到两份贡献。
-- `EMPTY` 与 `FAILED` 不会混成同一个状态。
-- 同一路线不能重复出现一个 `chunk_id`。
-- 同一 ID 指向不同来源内容时拒绝融合。
-
-这些测试适合证明确定性算法和对象契约。它们不能证明：
+使用人工构造的排名，可以稳定验证公式只读取路线名次、重合候选得到多份贡献、空结果与失败不会混淆、重复身份和来源不一致会被拒绝。这类测试适合证明确定性算法和输入契约，却不能证明：
 
 - 真实 lexical 找到了正确 Chunk。
 - 真实 Embedding 表示了业务同义关系。
 - RRF 比任一单路更好。
 - 融合候选足以支持模型结论。
 
-后四项必须分别通过真实检索实验、固定数据集和后续生成/Citation 评估获得。
+后四项必须分别通过真实检索实验、固定数据集和后续生成/Citation 评估获得。具体测试入口和修改任务见[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)。
 
 ## 框架可以隐藏调用，但不能替你决定边界
 
@@ -677,26 +501,17 @@ uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --rrf-k 20
 
 当前项目在 `rag_core` 中显式实现应用侧 RRF，是为了先看清输入、贡献、身份和状态，而不是把某个框架写成唯一标准。以后更换实现时，这些契约和评估问题仍然存在。
 
-## 亲手完成一次小改动
+## 用增加第三条路线检验理解
 
-先不要急着增加第三条检索路线。为 `test_rrf.py` 增加一个四候选测试，使用本文的手算排名：
+假设以后增加一条只匹配标题和精确标识的 `title_exact` 路线。RRF 公式不需要改写，但你必须重新判断：
 
-```text
-Lexical：A(1), B(2), D(3)
-Dense：  B(1), C(2), A(3)
-rrf_k：  60
-```
+1. 新路线与 lexical 是否高度相关，会不会重复放大同一种词面信号？
+2. 三条路线是否仍搜索同一个可见知识范围？
+3. 同一个 Chunk 在三路出现时，应该保存几份贡献？
+4. 哪些诊断和融合配置身份必须变化？
+5. 怎样用固定问题集证明新路线带来的收益大于噪声？
 
-完成下面四件事：
-
-1. 写测试前先手算 A、B、C、D 的 RRF 分数和最终顺序。
-2. 断言 B 排在 A 前面，并检查 B 的两份 contribution。
-3. 断言 distinct candidate 是 4、overlap candidate 是 2。
-4. 把 `rrf_k` 改为 20，说明哪些值一定改变、哪些输入事实必须不变。
-
-这项修改验证你是否真的理解“按身份聚合、按名次贡献、保留原生诊断”，而不只是会运行 demo。
-
-完成后再考虑扩展题：增加一条 `title_exact` 路线时，RRF 公式不需要改写，但必须回答新路线是否与 lexical 高度相关、是否会重复放大词面信号，以及 `fusion_config_ref` 和固定评估集为什么必须更新。
+这道题检查的是机制能否扩展，不要求现在把第三条路线接入 V0。对应的代码修改题位于实验文档。
 
 ## 学完后的自检
 
@@ -715,7 +530,7 @@ rrf_k：  60
 11. 分数相同时，稳定 tie-break 解决了什么，又没有证明什么？
 12. 修改 `rrf_k` 后，怎样确认实验没有同时改变上游候选？
 
-如果你能画出 `LexicalHit / DenseHit → RankedRoute → RRFContribution → RRFCandidate` 的数据流，手算一条真实输出中的候选，运行单变量对照，并能把“没有召回”“路线失败”和“融合排序不符合预期”分别定位，就完成了本节目标。
+如果你能画出“lexical / dense 排名 → 按稳定身份聚合 → 计算每路贡献 → 形成融合候选”的数据流，手算一条真实输出中的候选，运行单变量对照，并能把“没有召回”“路线失败”和“融合排序不符合预期”分别定位，就完成了本节目标。
 
 ## 本节真正交付到哪里
 
@@ -729,7 +544,7 @@ rrf_k：  60
 - 可复现的融合排序和 `fusion_config_ref`。
 - 使用真实 PostgreSQL、Embedding 和 pgvector 的两路融合实验。
 
-但 `RRFResult` 仍然只是融合候选，不是最终模型证据。它还没有决定：
+但这份融合输出仍然只是候选，不是最终模型证据。它还没有决定：
 
 - 哪些 Metadata 对当前请求可见。
 - 每路最多召回多少候选。
