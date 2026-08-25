@@ -2,7 +2,7 @@
 
 > 机制篇：解释为什么“像 JSON”还不够，以及生成约束、JSON 解析、Schema 校验和业务消费如何形成可信输出链路。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第五步。必要前置是 [Prompt Engineering](prompt-engineering.md)；本文交付模型结果的生成约束、解析、Schema 校验和业务接受边界。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 5 节。必要前置是 [Prompt Engineering](prompt-engineering.md)；本文交付模型结果的生成约束、解析、Schema 校验和业务接受边界。
 
 ---
 

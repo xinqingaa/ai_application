@@ -2,39 +2,39 @@
 
 这是一个面向前端、Flutter 和跨端开发者的 AI 应用开发学习与项目实践仓库。
 
-本仓库不以转向纯算法、纯 AI Infra 或纯后端平台为目标，而是通过唯一主项目“需求评审助手”，补齐 LLM、RAG、Agent、Workflow、FastAPI、评估观测和 AI Native 产品能力，形成完整 AI 应用闭环。
+本仓库不以转向纯算法、纯 AI Infra 或纯后端平台为目标，而是通过唯一主项目“需求评审助手”，补齐 LLM、RAG、Agent Harness、Tool、MCP、Multi-Agent、必要 Workflow、评估观测和 AI Native 产品能力，形成完整 AI 应用闭环。
 
 ## 唯一主项目
 
-需求评审助手从可信 RAG + 单 Agent 演进为多 Agent + Workflow 评审系统。
+需求评审助手从固定 RAG 应用演进为以 Agentic RAG 为知识基础的多 Agent 协作系统。
 
 项目分为两个阶段：
 
-1. 可信 RAG + 单 Agent：先完成可用、可信、可评估的需求评审助手。
-2. Workflow + 多 Agent：再增加显式流程、人工介入、多角色协作和产品化能力。
+1. RAG 应用基础：完成真实知识生产、多路检索、可信生成、API、最小 Web 工作台和固定对照。
+2. Agent、Tools 与 Multi-Agent：增加 Agent Harness、Tool Runtime、MCP、Agent Skills、Deep Research、Multi-Agent、A2A 和必要 Workflow 控制。
 
-V0–V6 是唯一项目里程碑，学习时由 [标准学习路径](course/learning-path.md) 依次接入。
+全课程使用从第一阶段连续到第二阶段的一套编号，学习时由[标准学习路径](course/learning-path.md)依次接入。
 
 ## 学习方式
 
-课程内容由项目版本反推，学习者则按照标准学习路径正向进入，不从项目规格倒着读，也不按 LLM、RAG、Agent 目录机械通关：
+课程内容由项目阶段目标反推，学习者则按照标准学习路径正向进入，不从项目规格倒着读，也不按 LLM、RAG、Agent 目录机械通关：
 
 ```text
 项目愿景建立方向
-→ 读取当前版本的业务契约与非目标
+→ 读取当前阶段的业务契约与非目标
 → 按认知前置阅读概念篇与机制篇
 → 通过真实实验观察机制
 → 回到同一项目篇将能力组合进产品
 → 复现真实 bad case 或观察自然边界，并定位运行中出现的真实依赖故障
 → 用评估证明改动
-→ 完成版本验收
+→ 完成阶段验收
 ```
 
 课程正文分为三类：
 
 - 概念篇：解释是什么、为什么需要和边界在哪里。
 - 机制篇：解释内部数据流、为什么有效和失败时如何定位。
-- 项目篇：定义当前版本的业务目标、设计选择、实现任务和验收。
+- 项目篇：定义当前阶段的业务目标、集成检查点、设计选择、实现任务和验收。
 
 “真实问题 → 基础原理 → 最小实现 → 主流框架 → 失败边界”是全课程的认知方法，不是每篇文档的固定模板。
 
@@ -51,7 +51,7 @@ V0–V6 是唯一项目里程碑，学习时由 [标准学习路径](course/lear
 │   ├── demos/            # 机制实验、对照和失败复现
 │   ├── apps/             # 学习期组合实验
 │   └── python_base/      # 已完成的 Python 基础练习
-├── review_assistant/     # 从阶段一开始演进的可运行产品真源
+├── review_assistant/     # 从第一阶段开始演进的可运行产品真源
 ├── other/                # RAGFlow、MaxKB 等项目拆解材料
 ├── archive/              # 历史课程资料，当前主线不依赖
 ├── pyproject.toml        # Python 依赖和 editable package 真源
@@ -61,7 +61,7 @@ V0–V6 是唯一项目里程碑，学习时由 [标准学习路径](course/lear
 项目相关目录不是重复实现：
 
 ```text
-course/project/       项目篇教材：组合任务、设计选择、失败题和版本验收
+course/project/       项目篇教材：阶段契约、组合任务、设计选择、失败题和验收
 review_assistant/     产品真源：安装、运行、测试、API 和部署
 ```
 

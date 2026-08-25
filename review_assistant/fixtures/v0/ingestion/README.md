@@ -1,6 +1,6 @@
-# V0 ingestion fixtures
+# 第一阶段 ingestion fixtures
 
-这里保存 V0 “售后入口与订单状态”垂直切片的受控教学 fixtures。内容由课程人为编写（中文业务事实），不是生产资料；文件本身使用真实 TXT、Markdown、DOCX 和 PDF 格式，并由真实 Parser 处理，不使用 Mock 解析结果。
+这里保存第一阶段“售后入口与订单状态”垂直切片的受控教学 fixtures。内容由课程人为编写（中文业务事实），不是生产资料；文件本身使用真实 TXT、Markdown、DOCX 和 PDF 格式，并由真实 Parser 处理，不使用 Mock 解析结果。
 
 `canonical_content.json` 是四种正常格式共同使用的业务事实。`manifest.json` 将它们声明为同一业务文档版本的互斥格式表示：每次实验独立加载其中一个，不能把四份内容同时写入同一知识库。
 

@@ -1,8 +1,8 @@
 # 可信生成：模型写了来源编号，为什么还不能直接相信
 
-> 这是一篇机制篇。第 15 步已经把检索候选装配成模型真正能看到的 `BuiltContext`，并产生本轮 `Citation Candidate`。本节继续完成 V0 固定 RAG 的最后一段核心机制：调用真实模型生成结构化风险，并由应用检查模型声明的 `source_id` 是否来自本轮候选。
+> 这是一篇机制篇。第 15 节已经把检索候选装配成模型真正能看到的 `BuiltContext`，并产生本轮 `Citation Candidate`。本节继续完成第一阶段固定 RAG 的生成核心机制：调用真实模型生成结构化风险，并由应用检查模型声明的 `source_id` 是否来自本轮候选。
 >
-> 学完后，你应该能区分“JSON 合法”“来源编号属于本轮候选”和“证据真的支持结论”这三个完全不同的判断。V0 只实现前两个层次，不提前宣称完成 Citation 支持性、证据充分性或 Refusal。
+> 学完后，你应该能区分“JSON 合法”“来源编号属于本轮候选”和“证据真的支持结论”这三个完全不同的判断。本节只实现前两个层次；第 17 节继续完成 Citation 支持性、证据充分性和 Refusal。
 
 ## 先看一个很像成功的结果
 
@@ -42,12 +42,12 @@
 来源内容支持当前结论
 ```
 
-当前 V0 代码完成前两层：
+当前第 16 节代码完成前两层：
 
 - 使用 Structured Output 和本地解析检查结构；
 - 使用 Citation Candidate allowlist 检查来源声明。
 
-第三层需要读取声明对应的证据，并判断它与具体风险之间的支持关系。这是 V1 的 Citation 校验，不在本节伪装成已经完成。
+第三层需要读取声明对应的证据，并判断它与具体风险之间的支持关系。这是第 17 节的 Citation 校验，不在本节伪装成已经完成。
 
 因此，本节标题里的“可信生成”应理解为：
 
@@ -66,7 +66,7 @@ Citation Candidate
   ↓ 模型在输出中声明
 Claimed Citation
   ↓ 应用检查内容支持关系
-Validated Citation（V1）
+Validated Citation（第 17 节）
 ```
 
 ### Source
@@ -98,7 +98,7 @@ Retriever 为当前问题找到的候选。它可能通过 Lexical、Dense 或�
 
 ### Validated Citation
 
-应用已经确认：来源存在、可定位、版本有效，而且它的内容确实支持当前结论。V0 还没有交付这一层。
+应用已经确认：来源存在、可定位、版本有效，而且它的内容确实支持当前结论。第 16 节还没有交付这一层。
 
 所以必须避免下面这个跳跃：
 
@@ -108,7 +108,7 @@ Retriever 为当前问题找到的候选。它可能通过 Lexical、Dense 或�
 界面立即显示“已验证依据”
 ```
 
-V0 最多能显示“模型声明的来源候选”，并保留当前检查边界。
+第 16 节最多能显示“模型声明的来源候选”，并保留当前检查边界。
 
 ## 第 16 步怎样接上前面的数据
 
@@ -228,7 +228,7 @@ Prompt 同时规定：
 
 这已经是在陈述外部规则，应当声明对应的 Current Evidence。
 
-因此，“风险没有 citation”不自动等于错误；应用必须先区分它是在评审 Requirement 自身，还是在引用外部事实。当前 V0 只统计 `risk_without_citation_count`，还没有自动完成这种语义分类。
+因此，“风险没有 citation”不自动等于错误；应用必须先区分它是在评审 Requirement 自身，还是在引用外部事实。当前第 16 节只统计 `risk_without_citation_count`，还没有自动完成这种语义分类。
 
 ## 第二道约束：Schema 检查输出形状
 
@@ -351,9 +351,9 @@ parse ok?
     └── 不存在 unknown      → succeeded
 ```
 
-| 状态 | 确定知道什么 | V0 应怎样处理 |
+| 状态 | 确定知道什么 | 第 16 节应怎样处理 |
 | --- | --- | --- |
-| `succeeded` | 结构合法；所有已声明的 source ID 都属于候选 | 可以作为 V0 生成结果，但不能标成已验证 Citation |
+| `succeeded` | 结构合法；所有已声明的 source ID 都属于候选 | 可以作为本节生成结果，但不能标成已验证 Citation |
 | `structured_output_invalid` | 模型结果未通过 JSON / Schema 解析 | 生成失败，不进入业务成功结果 |
 | `unknown_citation_source` | 结构合法，但至少一个声明不在 allowlist | 生成失败，不能把未知 ID 做成可信链接 |
 
@@ -432,7 +432,7 @@ evidence_state = no_citation_candidates
 
 因为这个事实既不在 Requirement，也没有外部 Evidence 支持。
 
-当前实现会检查空 allowlist 下模型是否编造了 source ID：任何 citation 都会成为 `unknown_source`。但如果模型写了一条无 citation 的外部事实，V0 的集合检查看不出来。
+当前实现会检查空 allowlist 下模型是否编造了 source ID：任何 citation 都会成为 `unknown_source`。但如果模型写了一条无 citation 的外部事实，第 16 节的集合检查看不出来。
 
 这正是为什么：
 
@@ -443,7 +443,7 @@ NO_CITATION_CANDIDATES
 ≠ 所有无 citation 结论都合理
 ```
 
-完整 Refusal、补充问题和证据充分性策略在 V1 建立。
+完整 Refusal、补充问题和证据充分性策略在第 17 节建立。
 
 ## 一个合法 ID 仍可能引用错误内容
 
@@ -470,7 +470,7 @@ NO_CITATION_CANDIDATES
 
 `chunk-api` 确实属于本轮 allowlist，所以当前状态会是 `succeeded`。但这条 excerpt 并不存在，来源内容也不支持该结论。
 
-V0 没有检查：
+第 16 节没有检查：
 
 - excerpt 是否出现在来源原文；
 - 引用定位是否仍对应正确版本；
@@ -478,7 +478,7 @@ V0 没有检查：
 - 一条风险的证据是否充分；
 - 多条证据之间是否冲突。
 
-这个例子不是代码 bug，而是当前版本刻意保留的能力边界。若正文把 `candidate` 翻译成“引用正确”，就会把尚未实现的 V1 能力写成成功事实。
+这个例子不是代码 bug，而是当前机制刻意保留的能力边界。若正文把 `candidate` 翻译成“引用正确”，就会把尚未实现的第 17 节能力写成成功事实。
 
 ## 为什么真实实验要比较三种 Context
 
@@ -660,7 +660,7 @@ claim check
 内容结构合法但来源声明越界
   → unknown_citation_source
 
-结构与已声明 ID 都通过 V0 边界
+结构与已声明 ID 都通过第 16 节边界
   → succeeded
 ```
 
@@ -745,7 +745,7 @@ BuiltContext
 - 某条证据是否真正支持当前风险；
 - 空证据时应该继续评审、拒答还是追问。
 
-这些是需求评审助手的证据责任和版本边界，必须由应用契约、代码与后续 Eval 共同建立。
+这些是需求评审助手的证据责任和阶段边界，必须由应用契约、代码与后续 Eval 共同建立。
 
 ## 到第 16 步，固定 RAG 学到了什么程度
 
@@ -767,10 +767,8 @@ BuiltContext
 
 但“第 16 步读完”不等于“RAG 全部掌握”。还需要：
 
-- V0 后续产品步骤：API、Web 工作台、固定对照、最小评估和项目验收；
-- V1：Citation 内容支持性、来源定位、证据充分性、Refusal、补充问题和知识版本；
-- V2：Retrieval / Generation / Citation Eval、回归、bad case 与反馈闭环；
-- V3：需要动态决策时，再进入 Query Rewrite、Source Routing 和单 Agent RAG。
+- 第一阶段后续：Citation 内容支持性、来源定位、证据充分性、Refusal、补充问题、API、Web 工作台、固定对照、最小评估和阶段验收；
+- 第二阶段：需要动态决策时，再进入 Query Rewrite、Source Routing、Retriever as Tool 和单 Agent RAG；完整 Trace、回归、bad case 与反馈在第二阶段后部收束。
 
 判断自己是否“掌握”，不看读了多少篇，而看能否解释、验证、修改、调试和取舍这条链。
 
@@ -778,7 +776,7 @@ BuiltContext
 
 不要新增“候选声明率”，因为单个比率容易让初学者误读成引用质量。更适合本节机制的练习是增加一个确定性测试：
 
-> 使用同一个合法候选 ID，故意让 `excerpt` 与来源内容不一致，观察当前状态仍为 `succeeded`，并用测试名称明确记录“V0 不验证 excerpt”。
+> 使用同一个合法候选 ID，故意让 `excerpt` 与来源内容不一致，观察当前状态仍为 `succeeded`，并用测试名称明确记录“第 16 节不验证 excerpt”。
 
 约束如下：
 
@@ -798,9 +796,9 @@ candidate_claim_count = 1
 unknown_source_count = 0
 ```
 
-若结果符合预测，说明你已经理解当前代码检查的是 ID 集合，不是 excerpt 和支持关系。这不是要求你现在实现 V1，而是让未实现边界变成自己亲手验证过的事实。
+若结果符合预测，说明你已经理解当前代码检查的是 ID 集合，不是 excerpt 和支持关系。这不是要求你现在实现第 17 节，而是让未实现边界变成自己亲手验证过的事实。
 
-如果你决定继续实现 excerpt 校验，任务范围已经从“学习 V0 边界”扩大到 V1 证据校验，不能顺手混进本节练习。
+如果你决定继续实现 excerpt 校验，任务范围已经从“学习第 16 节边界”扩大到第 17 节证据校验，不能顺手混进本节练习。
 
 ## 学完后的自检
 
@@ -810,7 +808,7 @@ unknown_source_count = 0
 - Source、Retrieved Candidate、Citation Candidate、Claimed Citation 和 Validated Citation 分别是什么？
 - `candidate` 状态具体证明了什么，又没有证明什么？
 - 为什么 Requirement 内部缺失风险可以没有 citation？
-- 为什么无 citation 风险仍可能让当前 V0 状态成为 `succeeded`？
+- 为什么无 citation 风险仍可能让当前第 16 节状态成为 `succeeded`？
 - 空 Evidence 时，为什么不能简单理解成“模型必须什么都不说”？
 - 合法 source ID 搭配虚假 excerpt 时，当前代码为什么仍可能通过？
 - `unknown_citation_source` 为什么不能自动按标题匹配一个来源？
@@ -821,4 +819,4 @@ unknown_source_count = 0
 
 如果你能完成这条追踪，并且不会把 `succeeded` 解释成“引用内容已验证”，就完成了第 16 步的核心目标。
 
-回到 [标准学习路径](../learning-path.md)，继续把这条固定 RAG 核心机制交付为 API、Web 工作台和可比较的 V0 产品基线。
+回到[标准学习路径](../learning-path.md)，先完成第 17 节证据校验，再把这条固定 RAG 核心机制交付为 API、Web 工作台和可比较的第一阶段产品基线。

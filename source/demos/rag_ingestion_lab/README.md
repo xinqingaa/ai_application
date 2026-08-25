@@ -1,6 +1,6 @@
 # rag_ingestion_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 8–9。步骤 8 先读 [文档内容识别、解析路由、结构还原与来源保留](../../../course/mechanisms/document-loading-and-cleaning.md)，步骤 9 再读 [Chunking、父子块与 Metadata](../../../course/mechanisms/chunking-and-metadata.md)。
+> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 8–9 节。第 8 节先读[文档内容识别、解析路由、结构还原与来源保留](../../../course/mechanisms/document-loading-and-cleaning.md)，第 9 节再读[Chunking、父子块与 Metadata](../../../course/mechanisms/chunking-and-metadata.md)。
 
 本实验负责运行方式、输出解读和代码阅读路径。机制原理在课程正文，核心实现位于 [`rag_core.ingestion`](../../packages/rag_core/ingestion/) 和 [`rag_core.chunking`](../../packages/rag_core/chunking/)；demo 只读取 fixture、调用公共 API，并使用全仓共享的 [`app_log`](../../packages/app_log/) 呈现结果。
 

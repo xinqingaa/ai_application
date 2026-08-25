@@ -1,6 +1,6 @@
 {
   "domain": "after_sale",
-  "description": "V0 步骤 10 成对相似度探针；观察表示空间，不建立 Retriever。",
+  "description": "第一阶段第 10 节成对相似度探针；观察表示空间，不建立 Retriever。",
   "probes": [
     {
       "id": "synonym_apply",

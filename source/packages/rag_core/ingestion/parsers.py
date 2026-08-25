@@ -272,7 +272,7 @@ def _parse_pdf(artifact: FileArtifact) -> ParseOutput:
         raise IngestionError(
             code=IngestionErrorCode.PDF_TEXT_LAYER_MISSING,
             stage=IngestionStage.EMPTY_CONTENT,
-            message="PDF 没有可提取文本层；V0 不会静默调用 OCR/VLM",
+            message="PDF 没有可提取文本层；第一阶段主线不会静默调用 OCR/VLM",
             filename=artifact.filename,
         )
 

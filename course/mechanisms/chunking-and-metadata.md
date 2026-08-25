@@ -2,7 +2,7 @@
 
 > 机制篇：理解为什么解析得到的文档元素还不能直接作为检索单元，以及应用怎样在检索粒度、上下文完整性、来源回查和更新语义之间作出可观察的取舍。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第九步。必要前置是 [文档内容识别、解析路由、结构还原与来源保留](document-loading-and-cleaning.md)。本文产生可追踪 Chunk，但不建立 Embedding、全文索引、向量索引或 Retriever，也不使用最终回答判断策略质量。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 9 节。必要前置是 [文档内容识别、解析路由、结构还原与来源保留](document-loading-and-cleaning.md)。本文产生可追踪 Chunk，但不建立 Embedding、全文索引、向量索引或 Retriever，也不使用最终回答判断策略质量。
 
 ## 第八步已经得到 Element，为什么还要继续加工
 
@@ -457,7 +457,7 @@ KnowledgeDocument
 + ChunkReport
 ```
 
-V0 后续机制仍要完成：
+第一阶段后续机制仍要完成：
 
 - 使用真实 Embedding 服务表示 Chunk。
 - 建立 PostgreSQL FTS 和 pgvector 索引。

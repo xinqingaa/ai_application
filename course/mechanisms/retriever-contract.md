@@ -253,7 +253,7 @@ dense_max_distance：pgvector_cosine_distance <= threshold
 
 ## Metadata Filter 不是相关度，也不是完整权限系统
 
-当前 V0 使用三类字段表达检索范围：
+当前第一阶段实现使用三类字段表达检索范围：
 
 | 字段 | 当前作用 | 示例 |
 | --- | --- | --- |
@@ -265,7 +265,7 @@ dense_max_distance：pgvector_cosine_distance <= threshold
 
 Dense 路线还有一个额外硬约束：query 与存储向量必须属于兼容的 Embedding 空间。Embedding space filter 解决表示兼容性，业务 Metadata 解决可见范围；二者不能互相替代。
 
-V0 当前是单用户固定项目，这些字段也不等于完整的租户权限或文档 ACL。未来若有用户权限，权限过滤仍必须在召回前生效，但不能假装现有 `knowledge_scope` 已经实现了企业权限系统。
+第一阶段当前是单用户固定项目，这些字段也不等于完整的租户权限或文档 ACL。未来若有用户权限，权限过滤仍必须在召回前生效，但不能假装现有 `knowledge_scope` 已经实现了企业权限系统。
 
 ## 数量看起来相似，含义却不同
 
@@ -693,7 +693,7 @@ no_result_reason = visible_scope_empty
 - 空结果应该归类为范围为空、无匹配还是阈值过严。
 - 哪组参数在需求评审数据上真正更好。
 
-当前使用显式 `FixedHybridRetriever`，不是宣称手写编排永远优于框架，而是让 V0 的固定顺序、状态和报告先成为稳定契约。以后替换底层实现时，仍需要保留这些可观察事实。
+当前使用显式 `FixedHybridRetriever`，不是宣称手写编排永远优于框架，而是让第一阶段的固定顺序、状态和报告先成为稳定契约。以后替换底层实现时，仍需要保留这些可观察事实。
 
 它也不是 Agent：查询流程由应用预先固定，模型没有选择检索路线、改写 query 或决定是否再次检索。
 

@@ -1,6 +1,6 @@
 # rag_retrieval_lab
 
-这是 V0 固定 RAG 的机制实验入口。每个步骤只维护自己的运行命令、实验变量、输出观察和代码阅读路径；课程原理仍在 `course/`，产品安装和配置仍在 `review_assistant/README.md`。
+这是第一阶段固定 RAG 的机制实验入口。每个步骤只维护自己的运行命令、实验变量、输出观察和代码阅读路径；课程原理仍在 `course/`，产品安装和配置仍在 `review_assistant/README.md`。
 
 ## 学习顺序
 

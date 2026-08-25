@@ -153,7 +153,7 @@ class RetrievalResult:
 
 
 class FixedHybridRetriever:
-    """Execute the V0 pre-filter → routes → thresholds → RRF → final top-k contract."""
+    """Execute the first-stage pre-filter → routes → thresholds → RRF → final top-k contract."""
 
     def __init__(
         self,

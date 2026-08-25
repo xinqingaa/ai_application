@@ -2,7 +2,7 @@
 
 > 机制篇：解释任务描述如何成为可命名、可版本化、可回归的 Prompt 协议，以及它如何与 Schema 和检索证据分工。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第四步。必要前置是 [模型输入输出契约](../concepts/model-input-output-contracts.md)和 [模型 API 与 Provider](model-api-and-provider.md)；本文交付可命名、可版本化、可比较的任务协议。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 4 节。必要前置是 [模型输入输出契约](../concepts/model-input-output-contracts.md)和 [模型 API 与 Provider](model-api-and-provider.md)；本文交付可命名、可版本化、可比较的任务协议。
 
 ---
 

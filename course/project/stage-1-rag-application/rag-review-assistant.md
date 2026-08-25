@@ -1,14 +1,14 @@
-# V0：固定 RAG 需求评审基线
+# 第一阶段：固定 RAG 需求评审助手
 
-> 课程位置：本文是 V0 业务契约、综合实践与验收的唯一真源，但分两次使用。V0 开始时只读“业务场景”“V0 Definition of Ready”“输入与输出契约”和“V0 明确不做”，为后续实验取得固定业务契约；完成 [V0 标准学习路径](../../learning-path.md) 的核心概念、机制和小实验后，再回到本文完成实现、真实 bad case / 边界题、变更题和版本验收。
+> 课程位置：本文是第一阶段业务契约、综合实践与验收的唯一真源，但分两次使用。第一阶段开始时只读“业务场景”“Definition of Ready”“输入与输出契约”和“明确不做”，为后续实验取得固定业务契约；完成[第一阶段标准学习路径](../../learning-path.md)的核心概念、机制和小实验后，再回到本文完成实现、真实 bad case / 边界题、变更题和阶段验收。
 
-V0 是需求评审助手的第一个可运行产品版本。
+第一阶段要交付需求评审助手的第一个可运行产品。
 
-它不是“上传文件后聊天”的 Demo，也不是单纯比较几个模型调用脚本。V0 要回答一个具体问题：
+它不是“上传文件后聊天”的 Demo，也不是单纯比较几个模型调用脚本。第一阶段要回答一个具体问题：
 
 > 给定一份待评审 PRD 和一组固定业务资料，应用能否先检索相关证据，再基于证据输出可观察、可重复比较的需求风险结果？
 
-V0 使用固定 RAG Pipeline，不使用 Agent 动态决策。直接调用 LLM 只作为对照基线，用来证明外部知识和检索链路是否真的带来价值。
+第一阶段使用固定 RAG Pipeline，不使用 Agent 动态决策。直接调用 LLM 只作为对照基线，用来证明外部知识和检索链路是否真的带来价值。
 
 ## 业务场景
 
@@ -20,11 +20,11 @@ V0 使用固定 RAG Pipeline，不使用 Agent 动态决策。直接调用 LLM �
 - **Reference Knowledge**：订单状态规则、售后接口文档和客户端展示规则，是当前有效、允许成为业务证据的参考知识。
 - **Historical Material**：历史需求评审记录，用于提供历史背景或已知 bad case；必须标明历史属性，不能自动覆盖当前有效规则。
 
-Reference Knowledge 与 Historical Material 必须共同覆盖 TXT 或 Markdown、DOCX 和文本型 PDF，不能只用手写 JSON 或已经整理好的字符串替代真实文档加载。扫描 PDF、OCR、图片、音频和视频不作为 V0 产品输入。
+Reference Knowledge 与 Historical Material 必须共同覆盖 TXT 或 Markdown、DOCX 和文本型 PDF，不能只用手写 JSON 或已经整理好的字符串替代真实文档加载。扫描 PDF、OCR、图片、音频和视频不作为第一阶段产品输入。
 
-V0 默认不把 Target Requirement 与 Reference Knowledge 混在同一个 Retriever 候选池。若后续出现超长 PRD 需要对目标文档内部检索，应建立独立的 target-document 通道、作用域和诊断，不能无说明地把当前 PRD 当作外部证据。
+第一阶段默认不把 Target Requirement 与 Reference Knowledge 混在同一个 Retriever 候选池。若后续出现超长 PRD 需要对目标文档内部检索，应建立独立的 target-document 通道、作用域和诊断，不能无说明地把当前 PRD 当作外部证据。
 
-这些资料在 V0–V6 持续复用。后续版本可以增加样例覆盖新问题，但不能通过更换整套案例规避回归比较。
+这些资料在两个阶段持续复用。第二阶段可以增加样例覆盖 Agent、Tool 和协作问题，但不能通过更换整套案例规避回归比较。
 
 典型评审问题包括：
 
@@ -34,7 +34,7 @@ V0 默认不把 Target Requirement 与 Reference Knowledge 混在同一个 Retri
 - 需求中有哪些证据不足、无法确认的结论？
 - 哪些风险来自当前资料，哪些只是模型猜测？
 
-## V0 已有基础
+## 已有基础
 
 仓库已经具备：
 
@@ -46,11 +46,11 @@ V0 默认不把 Target Requirement 与 Reference Knowledge 混在同一个 Retri
 
 这些能力位于 `source/packages/llm_core/` 和现有 LLM demos。
 
-V0 不重新实现这些能力，而是在此基础上增加唯一 `rag_core`，并在 `review_assistant/` 组合成产品入口。
+第一阶段不重新实现这些能力，而是在此基础上增加唯一 `rag_core`，并在 `review_assistant/` 组合成产品入口。
 
-## V0 Definition of Ready
+## Definition of Ready
 
-V0 可以分段实现，但进入产品组合前必须先确定下面这些契约。这里检查的是设计是否具备实施条件，不要求产品已经完成：
+第一阶段可以分段实现，但进入产品组合前必须先确定下面这些契约。这里检查的是设计是否具备实施条件，不要求产品已经完成：
 
 - 固定“售后入口与订单状态”的 Target Requirement、Reference Knowledge、Historical Material、问题集和数据集版本；后续只增量补样例，不替换基线。
 - 明确三类对象的身份、作用域和证据资格：当前 PRD 是评审主体，现行规则是主要证据，历史材料只能以明确的历史角色进入 Context。
@@ -58,15 +58,16 @@ V0 可以分段实现，但进入产品组合前必须先确定下面这些契�
 - 明确 `KnowledgeDocument`、`Chunk`、来源定位和稳定标识契约。
 - 明确 PostgreSQL 与 pgvector 版本、迁移方式，以及 Embedding Provider、配置、模型、向量维度和预处理版本共同构成的空间身份。
 - 明确 lexical、dense、RRF 的参数语义、过滤顺序、阈值位置和诊断字段。
+- 明确 Citation 支持性、证据充分性、Refusal 和补充问题的最小业务语义。
 - 明确 Review API 的业务结果与错误分层，以及唯一 Web 工作台入口。
 - 为第一次基线实验登记数据集、对照组、参数、指标、通过条件、成本和延迟预算。
-- 确认不需要 Agent、Reranker、OCR、多模态平台、Flutter App 或其他 V0 非目标。
+- 确认不需要 Agent、Reranker、OCR、多模态平台、Flutter App 或其他第一阶段非目标。
 
 某项真实依赖只有在对应正文、代码和运行入口一起落地时才加入；Definition of Ready 不授权创建空 package、空产品目录或占位配置。
 
-## 本版本新增结果
+## 本阶段新增结果
 
-V0 需要跑通：
+第一阶段需要跑通：
 
 ```text
 Reference Knowledge + Historical Material
@@ -83,11 +84,13 @@ Target Requirement
 → Retriever 返回候选证据和诊断
 → Context Construction
 → 真实 LLM 生成结构化风险结果
+→ 应用校验 Citation 支持性和证据充分性
+→ 证据不足时 Refusal 或提出补充问题
 → Review API 返回业务结果与诊断
 → 最小工作台展示评审、来源、状态和真实失败
 ```
 
-V0 的核心不是追求高级检索，而是让每一层都可以观察和替换。
+第一阶段的核心不是追求高级检索，而是让每一层都可以观察和替换。
 
 ## 输入与输出契约
 
@@ -109,7 +112,7 @@ V0 的核心不是追求高级检索，而是让每一层都可以观察和替�
 
 ### 知识候选
 
-V0 中只有 Reference Knowledge 和 Historical Material 进入通用知识生产链。`KnowledgeDocument` 至少保留：
+第一阶段中只有 Reference Knowledge 和 Historical Material 进入通用知识生产链。`KnowledgeDocument` 至少保留：
 
 - 稳定 `document_id`。
 - `document_version` 或内容版本。
@@ -136,17 +139,18 @@ V0 中只有 Reference Knowledge 和 Historical Material 进入通用知识生�
 - 本次评审摘要。
 - 风险项列表。
 - 每项风险的分类、严重程度、说明和建议。
-- 检索到的来源候选。
-- 无法确认或需要补充的信息。
+- 每项外部事实风险对应的已校验 Citation，以及无法建立支持关系时的明确状态。
+- 本轮检索到的来源候选和实际使用的证据。
+- 证据充分性、Refusal、无法确认的信息和需要用户回答的补充问题。
 - 模型、Prompt、Retriever、Token、延迟和错误等诊断。
 
-V0 可以展示来源候选，但不把“模型写出了来源编号”视为已经完成 Citation 校验。严格 Citation、Refusal 和证据充分性进入 V1。
+第一阶段先在第 16 节展示来源候选并校验模型声明的来源是否属于本轮候选；第 17 节继续完成 Citation 支持性、证据充分性、Refusal 和补充问题。项目验收不能把“模型写出了来源编号”当成证据已经支持结论。
 
-V0 的产品交互使用普通请求响应即可，至少区分 `idle`、`submitting`、`success` 和 `error`。Streaming、SSE 和 Agent 运行轨迹不是本版本门禁。
+第一阶段的产品交互使用普通请求响应即可，至少区分 `idle`、`submitting`、`success` 和 `error`。Streaming、SSE 和 Agent 运行轨迹不是本阶段门禁。
 
 ## 进入项目之前
 
-V0 不从头教授下面这些知识。开始综合实现前，应当已经能够：
+第一阶段项目篇不从头教授下面这些知识。开始综合实现前，应当已经能够：
 
 - 解释 [LLM 在 AI 应用中的位置与边界](../../concepts/llm-in-ai-applications.md)，知道固定 RAG 为什么仍然需要真实模型调用。
 - 使用 [Prompt、Context 与 Schema 的模型契约](../../concepts/model-input-output-contracts.md)描述一次评审调用的任务、证据和结果边界。
@@ -156,6 +160,7 @@ V0 不从头教授下面这些知识。开始综合实现前，应当已经能�
 - 区分 PostgreSQL FTS 的词项排序、BM25 原理、pgvector Dense Retrieval 和 RRF 排名融合，不能把 PostgreSQL 原生全文排序直接称为 BM25。
 - 解释 Top-k、阈值、Metadata Filter 怎样改变候选集，并读懂每路排名、融合排名和淘汰原因。
 - 说明 Retriever 产生候选证据，Context Builder 决定哪些证据真正进入模型，两者不是同一机制。
+- 区分 Citation Candidate、模型声明的来源和应用校验后的 Citation，并解释证据不足时为什么应拒答或追问。
 - 区分检索失败、上下文失败、模型调用失败和结构化校验失败。
 - 使用固定样例记录检索命中、风险覆盖、无依据结论、Token 和延迟。
 
@@ -167,7 +172,7 @@ V0 不从头教授下面这些知识。开始综合实现前，应当已经能�
 
 ### 1. 为什么固定 Pipeline 足够
 
-V0 的步骤是已知的：
+第一阶段固定 RAG 的步骤是已知的：
 
 ```text
 加载
@@ -181,9 +186,9 @@ V0 的步骤是已知的：
 
 ### 2. 第一版支持哪些知识资料
 
-V0 的 Reference Knowledge 与 Historical Material 必须支持 TXT、Markdown、DOCX 和带文本层的 PDF，并保留文档、章节、页码或段落位置。Target Requirement 作为直接输入，不靠重复入库来满足格式数量。允许先覆盖项目固定资料中实际出现的 DOCX 和 PDF 结构，不要求建设通用 Office 解析平台。
+第一阶段的 Reference Knowledge 与 Historical Material 必须支持 TXT、Markdown、DOCX 和带文本层的 PDF，并保留文档、章节、页码或段落位置。Target Requirement 作为直接输入，不靠重复入库来满足格式数量。允许先覆盖项目固定资料中实际出现的 DOCX 和 PDF 结构，不要求建设通用 Office 解析平台。
 
-扫描 PDF、复杂版面、表格语义、图片 OCR/VLM、音频 ASR 和视频理解进入概念或机制实验，不阻塞 V0 产品链路。
+扫描 PDF、复杂版面、表格语义、图片 OCR/VLM、音频 ASR 和视频理解进入扩展概念或机制实验，不阻塞第一阶段产品链路。
 
 ### 3. 怎样比较检索
 
@@ -193,17 +198,17 @@ V0 的 Reference Knowledge 与 Historical Material 必须支持 TXT、Markdown�
 - 同义改写的问题。
 - 精确接口名、状态码或枚举问题。
 
-先用 PostgreSQL FTS 建立可解释的 Lexical Retrieval，再使用真实 Embedding 服务和 pgvector 建立 Dense Retrieval，最后在应用层用 RRF 融合两路排名。V0 必须在同一组样例上比较 lexical、dense 和 RRF 三条检索路径。
+先用 PostgreSQL FTS 建立可解释的 Lexical Retrieval，再使用真实 Embedding 服务和 pgvector 建立 Dense Retrieval，最后在应用层用 RRF 融合两路排名。第一阶段必须在同一组样例上比较 lexical、dense 和 RRF 三条检索路径。
 
-RRF 只融合名次，不假装不同检索器的原始分数可以直接相加。Reranker 会增加模型调用、延迟和调试面，进入 V2 机制实验；只有评估证明收益大于复杂度时才进入产品默认链路。
+RRF 只融合名次，不假装不同检索器的原始分数可以直接相加。Reranker 会增加模型调用、延迟和调试面，保留为扩展机制；只有评估证明收益大于复杂度时才进入产品默认链路。
 
-V0 的检索参数遵守下面的固定语义：
+第一阶段的检索参数遵守下面的固定语义：
 
 1. `knowledge_scope`、`source_role` 与 Metadata Filter 在 lexical 和 dense 两路检索前应用，保证两路候选来自同一可见文档池，并防止 Target Requirement 无说明地进入参考知识检索。
 2. 每路分别设置 `candidate_k` 和该路原生分数阈值；FTS 相关性与向量相似度保留各自名称、方向和原始值。
 3. 每路阈值在 RRF 前执行。不同检索器的原始分数不归一化相加，也不互相比较。
 4. RRF 只接收通过过滤和阈值的排名列表，使用固定 `rrf_k`，按稳定 `chunk_id` 去重并保留命中路由。
-5. `final_top_k` 在融合后执行。V0 默认不再用另一个模糊的“统一相关性阈值”过滤 RRF 结果；若实验需要 fused threshold，必须单独命名、解释分数含义并提前登记。
+5. `final_top_k` 在融合后执行。第一阶段默认不再用另一个模糊的“统一相关性阈值”过滤 RRF 结果；若实验需要 fused threshold，必须单独命名、解释分数含义并提前登记。
 6. 任一参数变化都属于 Retriever 配置版本变化，必须进入运行记录，不能只修改代码常量。
 
 一次 Retrieval 诊断至少返回：查询、知识范围、每路配置、过滤前后数量、候选 `chunk_id`、原生分数与方向、路由排名、阈值淘汰原因、RRF 分数、融合排名、最终入选结果、耗时和结构化错误。面向普通用户的业务结果不直接暴露全部工程字段，调试视图和运行记录必须可以查看。
@@ -229,7 +234,7 @@ V0 的检索参数遵守下面的固定语义：
 
 ### 6. 唯一前端入口
 
-V0 只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/apps/` 维护第二份产品页面。工作台至少支持提交待评审需求，展示请求状态、结构化风险、来源候选、最终上下文摘要和真实错误；诊断信息可以使用独立调试区域，不要求做通用知识库后台。
+第一阶段只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/apps/` 维护第二份产品页面。工作台至少支持提交待评审需求，展示请求状态、结构化风险、Citation、Refusal、补充问题、最终上下文摘要和真实错误；诊断信息可以使用独立调试区域，不要求做通用知识库后台。
 
 ## 代码职责
 
@@ -245,6 +250,7 @@ V0 只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/app
 - Top-k、阈值、Metadata Filter 与检索诊断。
 - RAG Context Construction。
 - 固定 RAG Pipeline。
+- Citation 支持性、证据充分性、Refusal 和补充问题的通用校验能力。
 
 ### `review_assistant/`
 
@@ -260,7 +266,7 @@ V0 只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/app
 
 产品的真实运行入口和命令由 [review_assistant README](../../../review_assistant/README.md) 维护，项目篇不复制产品运行手册。
 
-## V0 运行契约
+## 运行契约
 
 真实代码开始落地时，产品 README、配置和迁移必须共同说明：
 
@@ -273,9 +279,9 @@ V0 只建设一个 Web 工作台，不建设 Flutter App，也不在 `source/app
 
 这些选择是产品运行事实，不在项目篇长期固定供应商、库版本或秘密配置。实现发生变化时更新产品 README 和锁文件，项目篇只维护必须可运行、可诊断和可重建的契约。
 
-## V0 分段实现顺序
+## 分段实现顺序
 
-V0 的范围必须按纵向切片推进，每一段都留下可观察结果，再进入下一段：
+第一阶段的范围必须按纵向切片推进，每一段都留下可观察结果，再进入下一段：
 
 1. **契约与资料**：固定三类 fixtures，完成 Target Requirement 与知识资料的身份边界，以及 `KnowledgeDocument` / `Chunk` / locator / Metadata 契约和 TXT、Markdown、DOCX、文本型 PDF 的解析对照。
 2. **Lexical 基线**：先让 PostgreSQL FTS 单路检索可运行，记录词项命中、原生 rank、阈值和过滤诊断。
@@ -283,7 +289,7 @@ V0 的范围必须按纵向切片推进，每一段都留下可观察结果，�
 4. **RRF 融合**：在两路结果之上实现应用侧 rank fusion、去重、`rrf_k`、`final_top_k` 和完整诊断。
 5. **Context 与生成**：将 RetrievalResult 交给已有 Context Builder 和真实结构化 LLM，区分检索、上下文、生成和 Schema 失败。
 6. **Review API 与 Web**：组合唯一产品入口，先完成普通请求响应、状态、风险、来源候选、上下文摘要和真实错误展示。
-7. **评估与验收**：运行四路对照、真实 bad case / 策略边界、需求变更和实验前登记的质量门槛，形成 V0 运行记录。
+7. **评估与验收**：运行四路对照、真实 bad case / 策略边界、需求变更和实验前登记的质量门槛，形成第一阶段运行记录。
 
 某一段暂时失败时，优先修复该段的契约或诊断，不通过增加新框架或跳过前置段落推进。
 
@@ -307,7 +313,7 @@ Target Requirement ──────────┘
 
 ### 状态流
 
-V0 即使不建立后台任务，也要能够区分：
+第一阶段即使不建立后台任务，也要能够区分：
 
 - 资料未加载。
 - 加载成功。
@@ -360,7 +366,7 @@ V0 即使不建立后台任务，也要能够区分：
 
 ## 需求变更题
 
-在 V0 跑通后，完成一次真实变更：
+在第一阶段主链跑通后，完成一次真实变更：
 
 > 新增“客户端影响范围”，要求每个风险项标明影响 Web、Flutter、服务端还是多端共同修改。
 
@@ -372,15 +378,15 @@ V0 即使不建立后台任务，也要能够区分：
 - UI 如何展示。
 - 旧结果如何兼容或明确不兼容。
 
-## V0 评估与通过条件
+## 评估与通过条件
 
 ### 固定评估数据
 
-V0 使用版本化的小型固定数据集。每个 Case 至少记录：
+第一阶段使用版本化的小型固定数据集。每个 Case 至少记录：
 
 - `case_id`、问题和所属问题类型。
 - `requirement_id`、`requirement_version` 和对应 Target Requirement。
-- `split`，取值为用于开发诊断和调参的 `development`，或只用于版本验收的 `acceptance`。
+- `split`，取值为用于开发诊断和调参的 `development`，或只用于阶段验收的 `acceptance`。
 - `dataset_version` 和允许的 `knowledge_scope`。
 - 期望命中的 `document_id` / `chunk_id` 或可验证来源范围。
 - 不应命中的来源。
@@ -389,7 +395,7 @@ V0 使用版本化的小型固定数据集。每个 Case 至少记录：
 
 `development` Case 用于观察失败、选择 Chunk 策略和调整 Retriever 参数；`acceptance` Case 在首次验收运行前冻结，不能用于选择参数。两部分都至少覆盖词面一致、同义改写、精确接口名或枚举、无答案、噪声相似和 Metadata Filter 六类问题，每类至少有一个稳定 Case。Reference Knowledge 与 Historical Material 至少各有明确角色，知识资料格式至少各有一个可重复解析的 TXT 或 Markdown、DOCX 和文本型 PDF fixture。
 
-样例数量可以增长，但删除、改写或改变 Case 的 split 必须提升 `dataset_version` 并说明原因。验收失败后可以保留失败记录并创建新实验，但不能根据 acceptance 结果删除 Case、降低门槛或把 Case 移入 development；若要改变验收集，必须发布新的数据集版本，并把原结果保留为历史证据。V0 只建立小型基线，V2 再扩大数据集和隔离程度。
+样例数量可以增长，但删除、改写或改变 Case 的 split 必须提升 `dataset_version` 并说明原因。验收失败后可以保留失败记录并创建新实验，但不能根据 acceptance 结果删除 Case、降低门槛或把 Case 移入 development；若要改变验收集，必须发布新的数据集版本，并把原结果保留为历史证据。第一阶段只建立小型基线，完整数据集治理和评估平台保留为后续质量收束或扩展能力。
 
 ### 对照路径
 
@@ -404,14 +410,14 @@ V0 使用版本化的小型固定数据集。每个 Case 至少记录：
 
 ### 指标契约
 
-| 维度 | V0 必须记录 | 能证明什么 |
+| 维度 | 第一阶段必须记录 | 能证明什么 |
 | --- | --- | --- |
 | 解析 | 文件成功/失败、文档与 Chunk 数、来源角色、证据资格和定位完整性 | 参考与历史资料能否稳定进入知识系统且不混淆角色 |
 | Retrieval | 每路与融合后的 Source Hit@k、Source Recall@k、MRR@k、禁止来源命中、无结果原因 | 是否命中、是否覆盖完整及排序是否改善 |
 | Generation | Schema 结果、风险类别覆盖、无依据结论、证据不足行为 | 检索结果是否转化为更可靠的评审结果 |
 | 工程 | 成功/失败层级、Token、成本、各阶段耗时和总延迟 | 改进是否付出不可接受的工程代价 |
 
-每个 Case 必须在运行前确定相关性判断单位是 `document_id`、`chunk_id` 还是可验证来源范围，运行后不能为了提高结果更换单位。V0 使用以下定义：
+每个 Case 必须在运行前确定相关性判断单位是 `document_id`、`chunk_id` 还是可验证来源范围，运行后不能为了提高结果更换单位。第一阶段使用以下定义：
 
 - Source Hit@k：期望来源集合中至少有一个来源出现在前 `k` 个结果中，命中记为 `1`，否则为 `0`。
 - Source Recall@k：前 `k` 个结果命中的期望来源数除以该 Case 的全部期望来源数。
@@ -419,7 +425,7 @@ V0 使用版本化的小型固定数据集。每个 Case 至少记录：
 
 无答案 Case 的期望来源集合为空，Hit@k、Recall@k 和 MRR@k 记为 `N/A`，不混入有答案 Case 的均值；它通过禁止来源命中、无结果原因、证据不足行为和无依据结论单独验收。汇总时至少同时保留 Case 结果、问题类型的宏平均和整体宏平均，不能用高频类别掩盖弱项。禁止来源命中也必须独立记录，不能被总体 Hit 或 Recall 抵消。风险覆盖和无依据结论需要保存 Case 级判断依据。
 
-V0 不使用“感觉更好”作为指标，也不要求 RRF 在每个 Case 都排名第一。人工判断风险覆盖或无依据结论时，必须保存判断依据，不能只保留总分。
+第一阶段不使用“感觉更好”作为指标，也不要求 RRF 在每个 Case 都排名第一。人工判断风险覆盖或无依据结论时，必须保存判断依据，不能只保留总分。
 
 ### 实验前登记
 
@@ -434,43 +440,44 @@ V0 不使用“感觉更好”作为指标，也不要求 RRF 在每个 Case 都
 
 具体数值按数据规模和运行环境在实验前确定，不写成全课程永久常量。运行后修改任一项都必须创建新的 `experiment_id`，不得覆盖原记录。
 
-### V0 质量通过条件
+### 质量通过条件
 
 除下方完成标准外，本轮基线必须同时满足：
 
 1. 所有固定 Case 都在四条路径留下可关联配置版本的运行记录；真实服务失败可以记为失败，不能被删除或替换成 Mock 成功。
 2. 三种必需资料格式都有成功解析样例，来源定位和稳定标识满足契约；不支持结构以明确错误暴露。
 3. 每个成功模型响应都通过业务 Schema；解析失败作为生成失败记录，不进入成功结果。
-4. RRF 在冻结的 acceptance Case 上达到实验前按问题类型登记的 Source Hit@k / Recall@k 最低门槛；无答案 Case 按独立门槛验收，不参与这些指标的平均。
-5. 在相同 `final_top_k` 下，RRF 至少在一种已登记的 lexical 或 dense 单路弱项问题中恢复期望来源，证明两路召回具有互补价值；V0 小型数据集不要求 RRF 的整体均值机械高于每个单路基线。
-6. RRF 的禁止来源命中和无依据结论不超过实验前登记的上限；成本和延迟不超过实验前登记的 V0 预算。lexical、dense 与 RRF 的分类结果仍必须并列保存，不能只报告融合结果。
-7. 若第 4–6 项不满足，V0 不能宣称混合检索基线成立。应在 development Case 上调整数据、Chunk、阈值或融合配置并创建新实验，保留失败的 acceptance 记录，而不是删除验收 Case、降低原实验标准或用新的总体均值掩盖分类弱项。
+4. 每项声称依赖外部事实的风险都能回到经过应用校验的 Citation；证据不足时进入 Refusal 或补充问题，而不是生成无依据结论。
+5. RRF 在冻结的 acceptance Case 上达到实验前按问题类型登记的 Source Hit@k / Recall@k 最低门槛；无答案 Case 按独立门槛验收，不参与这些指标的平均。
+6. 在相同 `final_top_k` 下，RRF 至少在一种已登记的 lexical 或 dense 单路弱项问题中恢复期望来源，证明两路召回具有互补价值；第一阶段小型数据集不要求 RRF 的整体均值机械高于每个单路基线。
+7. RRF 的禁止来源命中和无依据结论不超过实验前登记的上限；成本和延迟不超过实验前登记的第一阶段预算。lexical、dense 与 RRF 的分类结果仍必须并列保存，不能只报告融合结果。
+8. 若第 4–7 项不满足，第一阶段不能宣称可信混合检索基线成立。应在 development Case 上调整数据、Chunk、阈值、证据策略或融合配置并创建新实验，保留失败的 acceptance 记录，而不是删除验收 Case、降低原实验标准或用新的总体均值掩盖分类弱项。
 
-这里验收的是可重复的产品基线，不是完整评估平台。V2 再扩展数据集、自动评审、实验管理、反馈和质量工作台。
+这里验收的是可重复的产品基线，不是完整评估平台。自动评审、实验管理、反馈和质量工作台在第二阶段质量收束或扩展能力中进入。
 
-## V0 范围冻结与变更规则
+## 范围冻结与变更规则
 
-Definition of Ready 完成后，V0 主路径默认冻结：
+Definition of Ready 完成后，第一阶段主路径默认冻结：
 
-- 只有缺少某项能力会使 V0 输入、输出、可信性、可用性或验收契约不成立，或者现有内容无法解释已复现的阻塞失败时，才允许增加 V0 主线知识。
+- 只有缺少某项能力会使第一阶段输入、输出、可信性、可用性或验收契约不成立，或者现有内容无法解释已复现的阻塞失败时，才允许增加第一阶段主线知识。
 - 新框架、数据库、模型或平台功能本身不是扩展理由；优先合并进现有机制，或按分级准入进入概念、机制和未来认知。
-- 改变支持格式、检索路线、产品入口、评估基线或硬门槛时，必须先更新版本契约，再实现代码，并提升受影响的数据集或实验版本。
+- 改变支持格式、检索路线、产品入口、评估基线或硬门槛时，必须先更新阶段契约，再实现代码，并提升受影响的数据集或实验版本。
 - 实现中的任务拆分、实时进度和运行结果不写回 `course/learning-path.md`；它们进入代码、产品 README、测试、eval 配置和运行记录。
 
-## V0 明确不做
+## 明确不做
 
 - Query Rewrite 和 Source Routing。
 - Retriever as Tool。
 - Agent Loop。
 - Workflow、Checkpoint 和 Human-in-the-loop。
 - Multi-Agent。
-- 完整 Citation 校验。
+- 完整 Citation 运营后台、跨版本知识治理和自动化证据标注平台。
 - Reranker 进入产品默认链路。
 - 完整知识库运营平台。
 - 多租户、权限中台和通用连接器。
 - GraphRAG、RAPTOR、Neo4j 和复杂 OCR / 多模态解析平台。
 
-这些能力只有在后续版本解决真实问题时进入。
+这些能力只有在第二阶段或扩展机制解决真实问题时进入。
 
 ## 完成标准
 
@@ -481,13 +488,14 @@ Definition of Ready 完成后，V0 主路径默认冻结：
 - [ ] 使用 PostgreSQL FTS、pgvector 和应用侧 RRF 完成 lexical、dense 与多路融合召回。
 - [ ] 能看到 Chunk、Metadata、每路排名、融合排名、Top-k、阈值、过滤结果和最终上下文。
 - [ ] 输出通过本地业务 Schema 校验。
+- [ ] 外部事实风险能回到经过应用校验的 Citation；证据不足时 Refusal 或提出补充问题。
 - [ ] 直接 LLM、Lexical RAG、Dense RAG 和 RRF RAG 使用同一组样例比较。
 - [ ] 能区分检索失败、上下文失败和生成失败。
 - [ ] 至少完成一个真实 bad case / 策略边界观察和一个需求变更。
 - [ ] 有最小固定评估样例和运行记录。
 - [ ] 通用能力只存在于唯一 `rag_core`。
 - [ ] 产品入口位于 `review_assistant/`，没有在 `source/apps/` 维护第二份产品。
-- [ ] 最小工作台能提交需求、展示结构化风险和来源候选，并区分运行、成功与真实失败。
-- [ ] 能解释为什么 V0 不需要 Agent。
+- [ ] 最小工作台能提交需求、展示结构化风险、Citation、Refusal、补充问题和来源候选，并区分运行、成功与真实失败。
+- [ ] 能解释为什么第一阶段不需要 Agent。
 
-达到这些标准后，才进入 V1 的 Citation 校验、Refusal 和证据充分性。
+达到这些标准后，固定 RAG 已具备进入第二阶段 Agent Harness 与 Retriever as Tool 的稳定契约。

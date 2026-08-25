@@ -2,7 +2,7 @@
 
 > 机制篇：观察一次真实模型调用如何从业务配置进入 Provider、返回统一响应并暴露供应商差异。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第三步。必要前置是 [模型输入输出契约](../concepts/model-input-output-contracts.md)；本文交付可运行、可切换、可观察的真实模型调用入口。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 3 节。必要前置是 [模型输入输出契约](../concepts/model-input-output-contracts.md)；本文交付可运行、可切换、可观察的真实模型调用入口。
 
 ---
 

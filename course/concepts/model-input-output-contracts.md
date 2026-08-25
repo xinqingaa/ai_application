@@ -2,7 +2,7 @@
 
 > 概念篇：建立一条统一主线，理解应用如何把“希望模型完成什么、允许模型依据什么、程序最终接受什么”变成可验证契约。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第二步。必要前置是 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)；本文交付 Prompt、Context 与 Schema 的统一契约心智。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 2 节。必要前置是 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)；本文交付 Prompt、Context 与 Schema 的统一契约心智。
 
 ---
 
@@ -320,13 +320,10 @@ Schema 回答：
 
 ## 在需求评审助手中的位置
 
-模型契约从 V0 就进入项目：
+模型契约从第一阶段就进入项目，并在第二阶段扩展：
 
-- V0 使用 Prompt、Context 和 Structured Output 建立固定 RAG 输出。
-- V1 增加 Citation、Refusal 和证据充分性。
-- V2 用固定样例回归 Prompt、Schema 和 Context 变化。
-- V3 让单 Agent 在契约内选择知识源、补检索或追问。
-- V4–V5 将契约扩展到 Tool、Node、State 和 Agent 之间。
+- 第一阶段使用 Prompt、Context 和 Structured Output 建立固定 RAG 输出，并增加 Citation、Refusal、证据充分性和固定样例对照。
+- 第二阶段让单 Agent 在契约内选择知识源、补检索或追问，再把契约扩展到 Tool、State、Workflow Node 和多个 Agent 之间。
 
 后续 Agent 系统中的 Tool Schema、Workflow State 和 Agent 输出契约，本质上都是同一种工程思想：模型参与判断，但应用必须定义可校验边界。
 

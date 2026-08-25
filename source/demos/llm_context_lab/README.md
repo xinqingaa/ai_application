@@ -1,6 +1,6 @@
 # llm_context_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 15。主线真实入口是 [`rag_retrieval_lab/inspect_rag_context.py`](../rag_retrieval_lab/inspect_rag_context.py)；本 lab 使用静态材料，适合离线观察 Context Builder 策略，不证明 RAG 已接通。
+> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 15 节。主线真实入口是 [`rag_retrieval_lab/inspect_rag_context.py`](../rag_retrieval_lab/inspect_rag_context.py)；本 lab 使用静态材料，适合离线观察 Context Builder 策略，不证明 RAG 已接通。
 
 Context Engineering 观察 demo。核心逻辑在 [`llm_core.context`](../../packages/llm_core/context/)；本 demo 只加载样例、选择策略、调用 package API 并打印诊断报告。
 

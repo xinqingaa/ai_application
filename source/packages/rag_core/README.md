@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径 V0 步骤 8 的文档加载、确定性清洗和来源定位，步骤 9 的可回查 Chunking，步骤 10 的 Embedding 表示与成对相似度观察，步骤 11 的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，步骤 12 的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，步骤 13 的应用侧 RRF，步骤 14 的固定 Retrieval 控制与诊断，步骤 15 从检索候选到共享 Context Builder 的来源适配，以及步骤 16 的真实结构化生成与 Citation Candidate membership 检查。
+当前实现标准学习路径第一阶段第 8 节的文档加载、确定性清洗和来源定位，第 9 节的可回查 Chunking，第 10 节的 Embedding 表示与成对相似度观察，第 11 节的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，第 12 节的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，第 13 节的应用侧 RRF，第 14 节的固定 Retrieval 控制与诊断，第 15 节从检索候选到共享 Context Builder 的来源适配，以及第 16 节的真实结构化生成与 Citation Candidate membership 检查。
 
 ## 当前数据流
 

@@ -1,6 +1,6 @@
 # llm_invoke_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 3–5（可学习）。  
+> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 3–5 节（可学习）。
 > 本 lab 观察「怎样调用模型 → 怎样定任务 → 怎样收结果」。不要在本目录寻找 Context / Harness / Streaming 入口。
 
 ```text

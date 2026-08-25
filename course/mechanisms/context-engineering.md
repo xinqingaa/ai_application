@@ -153,7 +153,7 @@ source_id 只能回答“是哪条材料”
 locator 才能回答“原文在哪里”
 ```
 
-缺少 locator 时，后续点击 Citation、复盘 bad case、核对文档版本都会失去依据。V0 宁可暴露这类契约错误，也不伪装成可追踪证据。
+缺少 locator 时，后续点击 Citation、复盘 bad case、核对文档版本都会失去依据。第一阶段宁可暴露这类契约错误，也不伪装成可追踪证据。
 
 ### 检索信息保留在哪里
 
@@ -486,7 +486,7 @@ report.warnings
 
 若 Requirement 本身超过 `requirement` 分区预算，Builder 会产生 `requirement_over_section_budget`，但不会截断被评审需求。若 Requirement 已经长于整个 `token_budget`，`estimated_tokens` 可能大于预算。
 
-这是当前 V0 的选择：宁可暴露超预算，也不静默删掉需求正文。
+这是当前第一阶段的选择：宁可暴露超预算，也不静默删掉需求正文。
 
 ### 最终 Prompt 还有额外开销
 

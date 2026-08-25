@@ -1,4 +1,4 @@
-"""Observe the fixed V0 retrieval control order and diagnostic report."""
+"""Observe the fixed first-stage retrieval control order and diagnostic report."""
 
 from __future__ import annotations
 

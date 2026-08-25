@@ -56,7 +56,7 @@ demo 按标准学习路径的观察段落组织，使用语义名称，不携带
 ```text
 course/concepts/      解释概念
 course/mechanisms/    解释机制并引用 package / demo
-course/project/       定义项目版本学习与验收
+course/project/       定义阶段项目学习、检查点与验收
 source/packages/      实现通用能力
 source/demos/         观察和验证机制
 source/apps/          学习期组合实验

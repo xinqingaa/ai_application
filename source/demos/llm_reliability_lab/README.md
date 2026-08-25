@@ -1,7 +1,7 @@
 # llm_reliability_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md) V0 步骤 6（可学习）。  
-> 必要前置：步骤 3–5（Provider、Prompt、Structured）。  
+> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 6 节（可学习）。
+> 必要前置：步骤 3–5（Provider、Prompt、Structured）。
 > 本 lab **不包含** Harness / Cost；那些在后续 [`llm_regression_lab`](../llm_regression_lab/)。
 
 观察可靠调用外壳如何记录 attempt、重试、fallback 与显式失败。
@@ -33,8 +33,8 @@ uv run python source/demos/llm_reliability_lab/reliability_compare.py
 → [lesson]
 ```
 
-1. `[call_plan]`：允许重试几次，有没有 fallback。  
-2. `[attempts]`：每次成功、超时、限流或其他错误。  
+1. `[call_plan]`：允许重试几次，有没有 fallback。
+2. `[attempts]`：每次成功、超时、限流或其他错误。
 3. `[final]`：最终成功、失败，还是降级成功。
 
 ## 实验开关

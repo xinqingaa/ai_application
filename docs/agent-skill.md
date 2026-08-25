@@ -10,7 +10,7 @@ AI Agent 按以下顺序处理约束：
 
 1. 用户当前明确提出的目标、范围和规则。
 2. 根目录 `AGENTS.md`。
-3. [strategy.md](strategy.md)：长期目标、两个阶段和 V0–V6。
+3. [strategy.md](strategy.md)：长期目标和两个阶段。
 4. [learning-guide.md](learning-guide.md)：课程、文档、代码、运行和真实模型规则。
 5. [ai-coding-mastery.md](ai-coding-mastery.md)：掌握标准和代码所有权。
 6. 当前项目篇、概念篇、机制篇和代码 README。
@@ -53,7 +53,7 @@ AI Agent 按以下顺序处理约束：
 | 调整学习方式或目录规则 | `learning-guide.md` | 是否引入第二套顺序或重复真源 |
 | 编写概念篇 | `learning-guide.md` + course-writing skill | 是否讲清定义、区别和边界 |
 | 编写机制篇 | `learning-guide.md` + course-writing skill | 是否讲清数据流、实验和失败 |
-| 编写项目篇 | `strategy.md` + `learning-guide.md` | 是否服务当前 V0–V6 版本 |
+| 编写项目篇 | `strategy.md` + `learning-guide.md` | 是否服务第一阶段或第二阶段的业务契约与检查点 |
 | 实现代码 | `learning-guide.md` + `ai-coding-mastery.md` | 入口、真实调用、验证和所有权 |
 | 代码审查 | `ai-coding-mastery.md` | 数据流、状态流、异常流和回归风险 |
 | 设计平台能力 | `ai-application-platform.md` | 当前是否真的需要，边界是否过重 |
@@ -110,14 +110,14 @@ review_assistant/     可运行产品
 
 AI Agent 必须遵守：
 
-- 项目学习目标、设计题、真实 bad case / 边界题和版本验收写入 `course/project/`。
+- 项目学习目标、设计题、真实 bad case / 边界题、集成检查点和阶段验收写入 `course/project/`。
 - 产品代码、测试、配置、API、安装和部署写入 `review_assistant/`。
 - 通用能力实现写入 `source/packages/`。
 - 机制实验写入 `source/demos/`。
 - 项目篇引用产品入口，不复制产品 README。
 - 产品 README 标明运行事实，不复制课程原理。
 
-V0–V6 是唯一项目版本顺序。不得增加 M0–M6 或另一套同义里程碑。
+课程只维护第一阶段、第二阶段和一套全局连续课程序号。不得增加阶段内版本轴、另一套同义里程碑或与 `course/learning-path.md` 竞争的课表。
 
 ## 6. 处理代码任务
 
@@ -125,7 +125,7 @@ V0–V6 是唯一项目版本顺序。不得增加 M0–M6 或另一套同义里
 
 - 每个能力域只有一个 package 实例。
 - demo、app 和产品通过 import 复用 package。
-- 不为课程目录、文档类型或项目版本 copy 平行实现。
+- 不为课程目录、文档类型或阶段检查点 copy 平行实现。
 - 不预建空 package、空 demo、空 app、空产品目录或 `.gitkeep`。
 - 新能力优先扩展已有职责边界清晰的 package。
 
@@ -180,7 +180,7 @@ AI Agent 不只交付生成结果，还应帮助用户理解：
 - 企业权限中台。
 - 大规模任务和部署体系。
 
-任何平台能力进入当前项目，必须能说明当前版本的真实问题、最小实现、验证方式和明确非目标。
+任何平台能力进入当前项目，必须能说明当前阶段的真实问题、最小实现、验证方式和明确非目标。
 
 ## 8. 禁止行为
 

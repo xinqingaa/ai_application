@@ -1,10 +1,10 @@
 # Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索
 
-> 第 8–9 步已经把资料切成 Chunk，第 10 步让你观察了 Embedding。现在换一个更容易验证的问题：用户输入一句话时，怎样先从已有资料中找出可能相关的片段？
+> 第 8–9 节已经把资料切成 Chunk，第 10 节让你观察了 Embedding。现在换一个更容易验证的问题：用户输入一句话时，怎样先从已有资料中找出可能相关的片段？
 >
-> 本文先建立“按词找”的直觉，再逐步认识 PostgreSQL 用来实现它的名称。数据库安装和实验命令见[第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)；数据库基础陌生时，先按需阅读[PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。
+> 本文先建立“按词找”的直觉，再逐步认识 PostgreSQL 用来实现它的名称。数据库安装和实验命令见[第 11 节实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)；若尚未通过学习路径中的 PostgreSQL 必备基础检查，先阅读[PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。
 
-第 10 步只比较几段已知文本在 Embedding 空间中是否接近；本节把用户问题真正拿去和一批 Chunk 做词面候选检索；第 12 步会沿用同一批 Chunk 和问题，用向量距离再做一次候选检索。这样后面比较 lexical、dense 和 RRF 时，变化来自检索路线，而不是偷偷更换资料。
+第 10 节只比较几段已知文本在 Embedding 空间中是否接近；本节把用户问题真正拿去和一批 Chunk 做词面候选检索；第 12 节会沿用同一批 Chunk 和问题，用向量距离再做一次候选检索。这样后面比较 lexical、dense 和 RRF 时，变化来自检索路线，而不是偷偷更换资料。
 
 ## 先学会按词找候选
 
@@ -185,7 +185,7 @@ BM25 是一种词面排序算法
 ts_rank 是 PostgreSQL 当前使用的排序函数
 ```
 
-V0 使用真实 PostgreSQL FTS 和 `ts_rank`，不把结果字段命名为 `bm25_score`，也不为了这个名称额外引入 BM25 扩展。以后可以用固定数据集比较 BM25 与 `ts_rank`，但那是新的实验。
+第一阶段使用真实 PostgreSQL FTS 和 `ts_rank`，不把结果字段命名为 `bm25_score`，也不为了这个名称额外引入 BM25 扩展。以后可以用固定数据集比较 BM25 与 `ts_rank`，但那是新的扩展实验。
 
 ## 从代码到日志：一次查询经过哪些步骤
 

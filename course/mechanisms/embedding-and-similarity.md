@@ -2,7 +2,7 @@
 
 > 机制篇：理解文本怎样变成可比较的向量，以及相似度分数能说明什么、不能说明什么。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第十步。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md) 和 [Chunking](chunking-and-metadata.md)；后者已经建立在文档加载之上。本文交付真实 Embedding 调用与成对相似度观察；分数只说明表示空间中的接近程度，不证明事实正确，也不代替后续的匹配、排名与证据判断。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 10 节。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md) 和 [Chunking](chunking-and-metadata.md)；后者已经建立在文档加载之上。本文交付真实 Embedding 调用与成对相似度观察；分数只说明表示空间中的接近程度，不证明事实正确，也不代替后续的匹配、排名与证据判断。
 
 ## 第九步已经有 Chunk，为什么还不够
 

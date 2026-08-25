@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型调用失败如何被分类、有限重试、显式降级，并保留完整 attempt 记录。
 >
-> 课程位置：[标准学习路径](../learning-path.md) V0 第六步。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)和 [Structured Output](structured-output.md)；本文交付错误分类、有限重试、显式降级和 Attempt Report。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 6 节。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)和 [Structured Output](structured-output.md)；本文交付错误分类、有限重试、显式降级和 Attempt Report。
 
 ---
 

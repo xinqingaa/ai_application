@@ -1,4 +1,4 @@
-"""V0 structured generation with Citation Candidate membership checks."""
+"""First-stage structured generation with Citation Candidate membership checks."""
 
 from __future__ import annotations
 

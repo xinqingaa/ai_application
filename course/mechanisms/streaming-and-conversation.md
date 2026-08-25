@@ -2,7 +2,7 @@
 
 > 机制篇：解释模型增量如何变成前端可消费的事件，以及稳定会话历史为什么不能混入一次运行的全部中间态。
 >
-> 课程位置：[标准学习路径](../learning-path.md) 中的按需交互支撑，不是固定 RAG 前置。必要前置是 [模型 API 与 Provider](model-api-and-provider.md)；本文交付 Provider Chunk、应用事件、SSE、前端状态和稳定会话之间的边界。
+> 课程位置：[标准学习路径](../learning-path.md)第二阶段第 38 节的已有材料，当前状态为“待重切”。Token Stream、Event Stream 与 SSE 将保留在第 38 节；Conversation 边界将进入第 35 节，取消、重连和状态同步进入第 39–40 节。在完成职责拆分前，本文不能作为新的完整主线正文。
 
 ---
 

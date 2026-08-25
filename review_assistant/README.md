@@ -1,6 +1,6 @@
 # 需求评审助手
 
-`review_assistant/` 是需求评审助手的可运行产品真源，从阶段一 V0 开始逐步演进。
+`review_assistant/` 是需求评审助手的可运行产品真源，从第一阶段固定 RAG 开始逐步演进。
 
 它负责产品代码、API、测试、配置、运行和部署，不承担课程概念教学。
 
@@ -11,25 +11,24 @@
 ```text
 真实文档解析与 PostgreSQL FTS / pgvector 检索
 → 应用侧 RRF 多路召回与 Retrieval 诊断
-→ 最小评审工作台
-→ 结构化评审与证据引用
-→ 可信证据界面
-→ 评估、bad case 和质量工作台
-→ 经评估达到准入门槛的检索增强
-→ 带短期记忆和用户确认偏好/约束长期记忆的单 Agent 补检索、追问和运行界面
-→ Workflow 与人工审核
-→ 多 Agent 协作
-→ 工作台整合、部署与产品化
+→ Context、结构化评审、Citation、Refusal 与补充问题
+→ Review API、最小评审工作台和固定 RAG 对照
+→ Agent Harness、Tool Runtime 与单 Agent 动态补检索、追问和运行界面
+→ MCP、Agent Skills 与 Browser / Search / Code / File Tool
+→ Deep Research 多步研究任务
+→ Multi-Agent 分工、并行、汇总、冲突处理与 A2A
+→ 必要 Workflow、恢复和人工介入
+→ Trace、评估、bad case、反馈、部署与产品化
 ```
 
 两个阶段怎样进入学习与项目实现，见 [标准学习路径](../course/learning-path.md)。
 
-这里的“检索增强”不预设额外技术栈。V0 固定采用 PostgreSQL 全文检索、pgvector 和应用侧 RRF；Reranker 等候选能力只有在固定评估集上证明收益大于延迟、成本和维护复杂度后，才进入后续产品版本。
+这里的“检索增强”不预设额外技术栈。第一阶段固定采用 PostgreSQL 全文检索、pgvector 和应用侧 RRF；Reranker 等候选能力只有在固定评估集上证明收益大于延迟、成本和维护复杂度后，才进入产品默认链路。
 
 ## 与课程的边界
 
 ```text
-course/project/       项目篇教材：组合任务、设计选择、失败题和版本验收
+course/project/       项目篇教材：阶段契约、组合任务、设计选择、失败题和验收
 review_assistant/     产品真源：代码、API、测试、配置、运行和部署
 ```
 
@@ -66,18 +65,18 @@ review_assistant/
 
 这是一张职责地图，不授权预建空目录。只有对应版本的文档、代码和运行入口同时落地时才创建实际目录。
 
-当前产品只维护 Web 工作台，不建设或并行维护 Flutter App。课程中的 Flutter 仍可作为业务影响范围和学习者既有经验出现，但不是 V0–V6 的产品入口或验收项。
+当前产品只维护 Web 工作台，不建设或并行维护 Flutter App。课程中的 Flutter 仍可作为业务影响范围和学习者既有经验出现，但不是当前两个阶段的产品入口或验收项。
 
 ## 当前已落地的运行能力
 
-当前目录尚未形成完整 Review API 和 Web 产品入口，但 V0 的真实资料 fixture、PostgreSQL FTS 与 pgvector 基础设施已经开始落地。已有通用能力和学习期实验分别位于：
+当前目录尚未形成完整 Review API 和 Web 产品入口，但第一阶段的真实资料 fixture、PostgreSQL FTS 与 pgvector 基础设施已经开始落地。已有通用能力和学习期实验分别位于：
 
 - `source/packages/llm_core/`
 - `source/packages/rag_core/`（当前已实现文档加载、Chunking、Embedding 表示实验、中文词法分析、PostgreSQL FTS、pgvector 持久化与 Dense Retrieval）
 - `source/demos/`
 - `source/apps/llm_streaming_api/`
 
-V0 受控格式对照 fixtures 已经位于 `fixtures/v0/ingestion/`，供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
+第一阶段受控格式对照 fixtures 当前位于 `fixtures/v0/ingestion/`；这里的目录名是已有数据命名空间，不再代表课程版本轴。它们供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
 步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS；步骤 12 使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；步骤 13 在应用侧按稳定 `chunk_id` 运行 RRF 并保留两路贡献；步骤 14 固定 Metadata pre-filter、每路候选和阈值、RRF、`final_top_k` 的顺序并返回诊断报告；步骤 15 把最终候选连同文档版本、locator 和路线诊断接入共享 Context Builder；步骤 16 调用真实模型生成结构化风险并检查 claimed source ID 是否属于本轮 Citation Candidate。当前这些仍是共享 package 与机制实验入口，不表示产品已经提供资料管理 API、后台入库任务或 Review API；Citation 内容支持性、Refusal 和证据充分性仍未实现。
 

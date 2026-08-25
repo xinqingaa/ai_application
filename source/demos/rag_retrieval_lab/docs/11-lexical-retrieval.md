@@ -3,7 +3,7 @@
 > 这是第 11 步的**操作文档**，和机制篇成对，不讲按词检索的原理。
 >
 > - 机制：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../../course/mechanisms/lexical-retrieval.md)
-> - 课表：[标准学习路径](../../../../course/learning-path.md) V0 第 11 步
+> - 课表：[标准学习路径](../../../../course/learning-path.md)第一阶段第 11 节
 > - 数据库概念不够时，按需阅读 [PostgreSQL 零基础](../../../../course/concepts/postgresql-for-ai-applications.md)
 
 本文只回答：
@@ -18,7 +18,7 @@
 
 ## 0. 安装并确认 Server 在跑
 
-课程推荐 macOS 使用 [Postgres.app](https://postgresapp.com/)，也可以使用 Homebrew、EDB installer 或已有远程 PostgreSQL。安装方式不是本实验的变量；只要能提供 PostgreSQL Server、`psql` 和后续连接参数即可。产品级安装说明和版本边界见 [`review_assistant/README.md`](../../../../review_assistant/README.md#postgresql-本地准备)。
+课程推荐 macOS 使用 [Postgres.app](https://postgresapp.com/)，也可以使用 Homebrew、EDB installer 或已有远程 PostgreSQL。安装方式不是本实验的变量；只要能提供 PostgreSQL Server、`psql` 和后续连接参数即可。产品级安装说明和运行边界见 [`review_assistant/README.md`](../../../../review_assistant/README.md#postgresql-本地准备)。
 
 Postgres.app 窗口应显示 PostgreSQL **Running**，端口一般为 `5432`。窗口里可能已有 `lrq`、`postgres`、`template1` 等默认库，那是安装自带的，**课程不用它们**。不要改 `template1`。
 
@@ -134,7 +134,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-
 
 默认输出里应能看到：原始查询、应用拆出的词、PostgreSQL 查询词和 `tsquery`、命中数、`chunk_id`、`fts_rank`、匹配词。若出现 `connection_failed`、`auth_failed`、`migration_required` 等，先看本文第 6 节，不要当成「资料里没有答案」。
 
-探针问题在 [`retrieval_queries.json`](../../../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json)。它们用来观察机制，不是冻结的 V0 验收集。
+探针问题在 [`retrieval_queries.json`](../../../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json)。它们用来观察机制，不是冻结的第一阶段验收集。
 
 **检查点 E：** 输出显示 `Chunk 已写入 PostgreSQL FTS`，并能在查询表中看到命中数量和 `postgresql_ts_rank`。
 

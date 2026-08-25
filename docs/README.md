@@ -2,11 +2,11 @@
 
 `docs/` 保存本仓库长期有效的战略与协作规范。
 
-这里不保存课程正文、项目版本任务、产品运行手册、迁移计划或实时学习进度。
+这里不保存课程正文、阶段项目任务、产品运行手册、迁移计划或实时学习进度。
 
 ## 推荐阅读顺序
 
-1. [strategy.md](strategy.md)：为什么学习、唯一主项目、两个阶段和 V0–V6。
+1. [strategy.md](strategy.md)：为什么学习、唯一主项目和两个阶段。
 2. [learning-guide.md](learning-guide.md)：如何学习、如何阅读、三类文档、代码与项目如何组织。
 3. [ai-coding-mastery.md](ai-coding-mastery.md)：AI Coding 参与下怎样算真正掌握。
 4. [agent-skill.md](agent-skill.md)：AI Agent 如何选择真源、执行任务和避免越界。
@@ -16,7 +16,7 @@
 
 | 文档 | 负责 | 不负责 |
 | --- | --- | --- |
-| `strategy.md` | 职业定位、唯一目标、两个阶段、V0–V6、高层边界 | 课程模板、代码目录细节、单版本任务 |
+| `strategy.md` | 职业定位、唯一目标、两个阶段、高层边界 | 课程模板、代码目录细节、单节任务 |
 | `learning-guide.md` | 学习方式、三类文档、阅读路径、知识清单、代码与运行规范 | 职业背景、具体专题清单、产品实现 |
 | `ai-coding-mastery.md` | 掌握标准、代码所有权、调试与迁移能力 | 课程目录、工程依赖规则 |
 | `agent-skill.md` | AI Agent 的读取路由、任务判断和执行边界 | 重复其他文档的完整规范 |
