@@ -129,7 +129,7 @@ AI 可以生成草稿、补测试、列风险和提出重构方案；学习者�
 
 ### Agent 与 Tool
 
-至少能解释 Harness、Tool Schema、Runtime、权限、循环、预算和停止；能展示正常调用、参数错误、权限拒绝、超时、取消和达到上限；能判断 File、Code 或 MCP 能力是否应进入产品。
+至少能解释 Harness、Tool Schema、Runtime、权限、循环、预算和停止；能展示正常调用、参数错误、权限拒绝、超时、取消和达到上限；能判断 File、Code 或 MCP 能力是否应进入产品。对 Agent Skills，至少能区分格式与客户端行为，解释发现、激活、渐进加载、脚本执行和权限边界，并能定位版本或兼容性失败。
 
 ### Deep Research
 
@@ -137,7 +137,7 @@ AI 可以生成草稿、补测试、列风险和提出重构方案；学习者�
 
 ### Multi-Agent 与 A2A
 
-至少能解释拆分责任、上下文、工具、共享状态、证据归属、局部失败和冲突裁决；能用固定任务比较单 Agent 与 Multi-Agent 的质量、成本、延迟和失败定位。
+至少能解释拆分责任、上下文、工具、共享状态、证据归属、局部失败和冲突裁决；能用固定任务比较单 Agent 与 Multi-Agent 的质量、成本、延迟和失败定位。对 A2A，至少能解释 Agent Card、Message、Task、Part、Artifact、任务生命周期和协议绑定，区分 Agent Card 中的能力 Skill 与 Agent Skills，并完成一次固定规范和 SDK 版本下的真实互操作验证。
 
 ### Workflow
 

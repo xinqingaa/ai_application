@@ -4,7 +4,7 @@
 
 ## 从哪里开始
 
-按 [标准学习路径](learning-path.md) 学习。它是第 1–88 节编号和阅读顺序的唯一真源；不要根据目录、文件名、知识地图或代码结构推断课程顺序。
+按 [标准学习路径](learning-path.md) 学习。它是当前第 1–91 节编号和阅读顺序的唯一真源；不要根据目录、文件名、知识地图或代码结构推断课程顺序。
 
 需要查某项知识的边界、依赖和落点时，使用 [知识地图](knowledge-map.md)。知识地图不是第二套课表。
 
@@ -15,7 +15,7 @@
 | 阶段 | 连续编号 | 交付目标 |
 | --- | --- | --- |
 | 第一阶段：RAG 应用基础 | 第 1–27 节 | 固定 RAG、可信证据边界、Review API、Web 工作台和最小质量基线 |
-| 第二阶段：Agent、Tools 与 Multi-Agent | 第 28–88 节 | Agent Harness、MCP、通用工具、Agentic RAG、Agent Skills、Deep Research、Multi-Agent、A2A、必要 Workflow 和质量收束 |
+| 第二阶段：Agent、Tools 与 Multi-Agent | 第 28–91 节 | Agent Harness、MCP、通用工具、Agentic RAG、Agent Skills、Deep Research、Multi-Agent、A2A、必要 Workflow 和质量收束 |
 
 第二阶段承接第一阶段编号，不重新从 1 开始，也不建立阶段内版本轴。
 

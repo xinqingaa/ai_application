@@ -73,11 +73,11 @@
 
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
-| MCP 解决的问题与协议边界 | 主线 | 第二阶段 | 标准化外部能力的连接、发现和交换，区分 MCP、Function Calling 与内部 Runtime | Tool Runtime | `concepts/mcp-and-tool-connectivity.md` | 产品必接；真实只读 MCP |
-| MCP Host、Client、Server 职责 | 主线 | 第二阶段 | 明确谁管理会话、谁发起连接、谁提供能力，连接成功不代表信任成立 | MCP 边界 | 同上 | 产品必接；MCP 适配层 |
-| MCP 能力模型与内部映射 | 主线 | 第二阶段 | 将 Tool、Resource 等外部能力映射为内部 Schema、权限、来源和结构化结果 | MCP 角色、Tool Runtime | `mechanisms/mcp-capability-mapping.md` | 产品必接；后续 `agent_core/mcp` |
-| MCP 初始化、发现、调用、错误与取消 | 主线 | 第二阶段 | 跟踪真实连接生命周期和能力变化，断连或 Schema 不兼容必须显式失败 | MCP 能力模型 | `mechanisms/mcp-lifecycle.md` 与配套实验 | 产品必接；后续 `agent_core/mcp` |
-| MCP 信任、权限与 Runtime 边界 | 主线 | 第二阶段 | 外部能力不能自行获得本地权限，所有调用仍受内部治理与审计 | MCP 生命周期、Tool 治理 | 并入 MCP 机制与实验 | 产品必接；产品权限策略 |
+| MCP 解决的问题、协议版本与责任边界 | 主线 | 第二阶段 | 标准化外部能力的描述和交换，区分 MCP、Function Calling 与内部 Runtime，并把跨版本稳定机制和当前版本特性分开 | Tool Runtime | `concepts/mcp-and-tool-connectivity.md` | 产品必接；真实只读 MCP |
+| MCP Host、Client、Server 职责 | 主线 | 第二阶段 | 明确谁承载应用、谁发起协议请求、谁提供能力；接入可用不代表能力可信或已经获得执行权限 | MCP 边界 | 同上 | 产品必接；MCP 适配层 |
+| MCP 能力发现、能力模型与内部映射 | 主线 | 第二阶段 | 发现并描述 Tool、Resource、Prompt 等能力，再映射为内部 Schema、权限、来源和结构化结果 | MCP 角色、Tool Runtime | `mechanisms/mcp-capability-mapping.md` | 产品必接；后续 `agent_core/mcp` |
+| MCP 请求生命周期、传输、错误与取消 | 主线 | 第二阶段 | 按明确规范修订跟踪发现、请求、结果和取消，区分无状态协议请求、业务显式状态和旧版会话机制 | MCP 能力模型 | `mechanisms/mcp-lifecycle.md` 与配套实验 | 产品必接；后续 `agent_core/mcp` |
+| MCP 信任、权限与 Runtime 边界 | 主线 | 第二阶段 | 外部能力不能自行获得本地权限，版本或 Schema 不兼容必须显式失败，所有调用仍受内部治理与审计 | MCP 请求生命周期、Tool 治理 | 并入 MCP 机制与实验 | 产品必接；产品权限策略 |
 | Search Tool | 主线 | 第二阶段 | 生成查询并发现候选来源，搜索摘要只用于导航，不直接成为 Citation | Tool Runtime、Citation | `mechanisms/search-tool.md` | 产品必接；外部研究 |
 | Browser Tool | 主线 | 第二阶段 | 打开、导航和抽取候选页面，保留 URL、标题、时间和内容定位并防注入 | Search、Tool 治理 | `mechanisms/browser-tool.md` | 产品必接；外部研究 |
 | File Read 与来源身份 | 主线 | 第二阶段 | 在批准工作区选择性读取 PRD、OpenAPI、客户端模型和配置，防路径逃逸并保留哈希与定位 | Tool Runtime、来源模型 | `mechanisms/file-read-tool.md` | 产品必接；受控评审工作区 |
@@ -85,8 +85,9 @@
 | Code Tool 准入与任务契约 | 主线 | 第二阶段 | 判断专用 Validator 是否足够，只有项目已有脚本或测试需要执行时才使用通用 Code | Tool Runtime、File Read | `concepts/code-tool-admission.md` | 产品必接于契约验证场景；不开放任意 Shell |
 | Code Tool 沙箱与结构化执行 | 主线 | 第二阶段 | 隔离输入输出，限制命令、环境、网络和资源，并返回退出码、日志、超时和产物 | Code 准入、Tool 治理 | `mechanisms/code-tool-runtime.md` | 产品必接；受控执行实验与产品策略 |
 | Skill 与 Prompt、Tool、MCP 的边界 | 主线 | 第二阶段 | Skill 封装任务说明、资源和流程知识，不等于 Prompt、可执行 Tool 或外部协议 | Agent Loop、MCP | `concepts/agent-skills.md` | 产品必接；领域 Skill Registry |
-| Skill 说明、资源、脚本与按需加载 | 主线 | 第二阶段 | 根据任务匹配并加载必要说明和资源，脚本仍通过受治理执行边界 | Skill 边界 | `mechanisms/agent-skill-loading.md` | 产品必接；接口契约或客户端兼容 Skill |
-| Skill 作用域、Context Budget、版本与安全 | 主线 | 第二阶段 | 防止无关 Skill 占用上下文或旧资源悄悄改变行为，记录版本和权限 | Skill 加载 | 并入 Skill 机制与实验 | 产品必接；后续 `agent_core/skills` |
+| Skill 格式、元数据与资源组织 | 主线 | 第二阶段 | 用最小元数据声明用途和适用任务，区分说明、参考资料、脚本、资产以及客户端特有扩展 | Skill 边界 | `mechanisms/agent-skill-format.md` | 产品必接；接口契约或客户端兼容 Skill |
+| Skill 发现、激活与渐进加载 | 主线 | 第二阶段 | 先发现最小描述，任务匹配后才加载说明和必要资源，避免无关 Skill 占用 Context | Skill 格式、Context Budget | `mechanisms/agent-skill-loading.md` | 产品必接；后续 `agent_core/skills` |
+| Skill 脚本执行、版本与安全 | 主线 | 第二阶段 | 脚本仍通过受治理执行边界，记录 Skill 与资源版本，处理兼容性、权限、确认和失败 | Skill 加载、Tool 治理 | 并入 Skill 机制与实验 | 产品必接；领域 Skill Runtime |
 | 多模态 Agent Tool | 扩展 | 第二阶段 | 让 Agent 观察图片或复杂视觉材料，同时保留来源、权限和模型能力边界 | Browser、File Tool | 按需概念篇 | 条件接入；当前不实现 |
 
 根 `skills/` 是 Codex 维护仓库使用的 Skill 示例，不是产品 Agent Skills 的运行目录。
@@ -134,8 +135,11 @@
 | 共享状态、私有上下文与证据 | 主线 | 第二阶段 | 在共享任务和批准证据的同时隔离私有上下文与权限 | Run State、Agent 契约 | `mechanisms/multi-agent-state.md` | 产品必接；协作状态 |
 | 并行、依赖、取消与失败隔离 | 主线 | 第二阶段 | 调度独立和依赖任务，传播取消并防止局部失败被误判为无风险 | Delegation | `mechanisms/multi-agent-execution.md` | 产品必接；协作运行时 |
 | 结果合并、证据归属与冲突裁决 | 主线 | 第二阶段 | 去重结果、保留责任人与证据，区分自动合并和必须暴露的分歧 | 共享状态 | `mechanisms/result-merge-and-conflict.md` | 产品必接；汇总策略 |
-| A2A 角色、任务与协议边界 | 主线 | 第二阶段 | 区分跨 Agent 任务协议、本地委派、MCP 能力连接和普通函数调用 | Multi-Agent 契约 | `concepts/a2a-boundaries.md` | 产品必接于互操作实验 |
-| A2A 任务生命周期、结果、错误与取消 | 主线 | 第二阶段 | 交换任务接受、进度、产物、完成、失败和取消等可互操作事实 | A2A 边界 | `mechanisms/a2a-lifecycle.md` | 产品必接于互操作实验 |
+| A2A 角色与协议边界 | 主线 | 第二阶段 | 区分跨 Agent 任务协议、本地委派、MCP 能力连接和普通函数调用 | Multi-Agent 契约 | `concepts/a2a-boundaries.md` | 产品必接于互操作实验 |
+| Agent Card 与能力发现 | 主线 | 第二阶段 | 描述远程 Agent 的身份、能力、端点和安全要求，并区分能力 Skill 描述与 Agent Skills 文件格式 | A2A 边界 | 并入 A2A 概念篇 | 产品必接于远程 Agent 发现 |
+| A2A Message、Task、Part 与 Artifact | 主线 | 第二阶段 | 区分交互消息、可跟踪工作、内容片段和任务产物，避免把对话文本当成任务状态或最终交付 | Agent Card | `mechanisms/a2a-data-model.md` | 产品必接于互操作契约 |
+| A2A Task 生命周期与更新 | 主线 | 第二阶段 | 交换提交、执行、等待输入或鉴权、完成、失败、拒绝、取消和流式更新等可互操作事实 | A2A 数据模型 | `mechanisms/a2a-lifecycle.md` | 产品必接于互操作实验 |
+| A2A 协议绑定、安全、版本与互操作 | 主线 | 第二阶段 | 保持抽象语义独立于具体传输，固定规范与 SDK 版本验证鉴权、错误和两个实现的解释一致性 | A2A 生命周期 | 配套机制、实验与项目检查点 | 产品必接于真实互操作实验 |
 | Multi-Agent 运行观测与界面 | 主线 | 第二阶段 | 展示角色、进度、局部失败、证据和冲突，不暴露无意义内部对话 | 并行与冲突 | `mechanisms/multi-agent-ux.md` | 产品必接；产品工作台 |
 | Multi-Agent 协作收益评估 | 主线 | 第二阶段 | 与单 Agent 比较质量、成本、延迟、证据一致性和失败定位 | 完整协作链 | 项目检查点 | 产品必接；没有收益时保留单 Agent |
 

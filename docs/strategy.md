@@ -62,7 +62,7 @@ RAG
 
 质量不是最后才出现：每一层保留与复杂度相称的最小固定样例、运行记录和失败证据，完整 Trace、Regression、Human Eval 与 Feedback 在后部统一收束。
 
-Python、HTTP、JSON、异步、配置、FastAPI、SSE 和 PostgreSQL 是必备基础，不是保守的按需能力；已掌握时可以通过检查。
+Python、HTTP、JSON、异步、配置和 PostgreSQL 是必备基础，已掌握时可以通过检查。FastAPI、SSE、Conversation 和事件协议是必须学习的产品主线能力；二者都不是保守的按需支持。
 
 ## 扩展与非目标
 

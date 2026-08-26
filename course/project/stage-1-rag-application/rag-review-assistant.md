@@ -43,7 +43,7 @@ Reference Knowledge 与 Historical Material 必须共同覆盖 TXT 或 Markdown�
 - 真实模型与 OpenAI-compatible Provider 调用。
 - Prompt 版本和 Structured Output。
 - Context Builder。
-- Streaming、错误分类、可靠调用和基础 Harness。
+- 错误分类、可靠调用和基础 Harness。
 - Token、成本、延迟和缓存实验。
 
 这些能力位于 `source/packages/llm_core/` 和现有 LLM demos。
@@ -146,7 +146,7 @@ Target Requirement
 - 证据充分性、Refusal、无法确认的信息和需要用户回答的补充问题。
 - 模型、Prompt、Retriever、Token、延迟和错误等诊断。
 
-第一阶段先在第 16 节展示来源候选并校验模型声明的来源是否属于本轮候选；第 17 节继续完成 Citation 支持性、证据充分性、Refusal 和补充问题。项目验收不能把“模型写出了来源编号”当成证据已经支持结论。
+第一阶段先在第 16 节展示来源候选并校验模型声明的来源是否属于本轮候选；第 17 节完成 Citation 支持性校验，第 18 节继续完成证据充分性、Refusal 和补充问题。项目验收不能把“模型写出了来源编号”当成证据已经支持结论。
 
 第一阶段的产品交互使用普通请求响应即可，至少区分 `idle`、`submitting`、`success` 和 `error`。Streaming、SSE 和 Agent 运行轨迹不是本阶段门禁。
 
