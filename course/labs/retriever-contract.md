@@ -1,4 +1,6 @@
-# 步骤 14：固定 Retriever 控制与诊断
+# 固定 Retriever 控制与诊断实验
+
+配套机制：[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](../mechanisms/retriever-contract.md)。
 
 运行：
 

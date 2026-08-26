@@ -2,11 +2,11 @@
 
 > 机制篇：理解文本怎样变成可比较的向量，以及相似度分数能说明什么、不能说明什么。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 10 节。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md) 和 [Chunking](chunking-and-metadata.md)；后者已经建立在文档加载之上。本文交付真实 Embedding 调用与成对相似度观察；分数只说明表示空间中的接近程度，不证明事实正确，也不代替后续的匹配、排名与证据判断。
+> 课程位置：[标准学习路径](../learning-path.md)。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md) 和 [Chunking](chunking-and-metadata.md)；后者已经建立在文档加载之上。本文交付真实 Embedding 调用与成对相似度观察；分数只说明表示空间中的接近程度，不证明事实正确，也不代替后续的匹配、排名与证据判断。
 
-## 第九步已经有 Chunk，为什么还不够
+## Chunking 阶段已经有 Chunk，为什么还不够
 
-第九步已经把售后规则组织成可回查的 Chunk。例如，Markdown 路径会得到类似下面的检索单元素材：
+Chunking 阶段已经把售后规则组织成可回查的 Chunk。例如，Markdown 路径会得到类似下面的检索单元素材：
 
 ```text
 仅已支付且已完成的订单可申请售后。
@@ -28,7 +28,7 @@ Flutter 客户端必须使用相同的入口可见性规则。
 1. **表示太死**：只认字面，同义改写失败。
 2. **表示太漂**：只认“向量很近”，把例外、否定和无关近邻一起抬进来。
 
-第十步要解决的不是“把 Chunk 再切短一点”，而是：
+Embedding 阶段要解决的不是“把 Chunk 再切短一点”，而是：
 
 > 文本怎样进入一个可比较的表示空间？得到的分数能说明接近程度，却不能自动证明事实正确或证据充分。
 
@@ -207,93 +207,15 @@ Chunk.text / probe.text / query.text
 4. **Chat 模型不能冒充 Embedding 模型。**  
    Chat 回答问题和 Embedding 生成向量走不同 API、不同配置角色。
 
-当前代码把这些约束落成早失败：
-
-- [`LLMClient.embed`](../../source/packages/llm_core/client/service.py) 要求 `role == "embedding"`。
-- [`embed_texts`](../../source/packages/rag_core/embedding/models.py) 为记录保存 `provider`、`config_ref`、`model`、`dimensions` 与 `preprocessing_version`。
-- [`pairwise_similarity`](../../source/packages/rag_core/embedding/models.py) 拒绝上述空间身份任一部分不一致的记录。
+应用应在生成表示时保存 Provider、配置引用、模型、维度和预处理版本，并在比较前拒绝空间身份不一致的记录，让错误尽早暴露。
 
 这比事后看到一个“看起来还行”的错误分数更安全。
 
 当前空间身份仍是应用契约，不是供应商给出的全球唯一模型版本。若同一个 `config_ref` 背后的 endpoint 或模型实现发生不兼容变化，调用方必须升级配置或预处理版本并重建向量，不能仅因名称相同就复用旧记录。
 
-## 公共入口与核心调用链
+## 表示与比较怎样形成稳定边界
 
-### `llm_core` 负责真实调用
-
-```python
-from llm_core import LLMClient
-
-response = LLMClient.from_default_config().embed(
-    ["申请售后", "发起逆向服务"],
-    "embedding.default_embed",
-)
-```
-
-[`LLMClient.embed`](../../source/packages/llm_core/client/service.py) 的关键步骤：
-
-1. 用 `config_ref` 取出配置，确认 `role == "embedding"`。
-2. 规范化输入：单字符串变成列表。
-3. 拒绝空列表、空字符串或仅空白文本。
-4. 调用 [`OpenAICompatProvider.embed`](../../source/packages/llm_core/providers/openai_compat.py)。
-5. 通过 `embeddings.create` 访问真实服务。
-6. 校验返回条数与输入一致、维度非空且一致。
-7. 返回 `EmbeddingResponse`：按输入顺序的向量、维度、usage、latency、model、provider。
-
-Chat 配置不能拿去 embed；Embedding 配置也不能拿去 chat。这是能力守卫，避免请求发出后才遇到难懂的供应商错误。
-
-### `rag_core.embedding` 负责 RAG 侧记录与比较
-
-```python
-from rag_core import SimilarityMetric, embed_texts, pairwise_similarity
-
-batch = embed_texts(
-    ["申请售后", "发起逆向服务", "售前活动规则"],
-    text_ids=["synonym_a", "synonym_b", "noise"],
-    preprocessing_version="raw-v1",
-)
-for item in pairwise_similarity(batch.records, metric=SimilarityMetric.COSINE):
-    print(item.left_id, item.right_id, round(item.score, 4))
-```
-
-[`embed_texts`](../../source/packages/rag_core/embedding/models.py) 不重新发明 Provider，只是把 `EmbeddingResponse` 整理成带可选 `text_id` 的 `EmbeddingRecord`。  
-[`pairwise_similarity`](../../source/packages/rag_core/embedding/models.py) 产出全部无序对观察，并带上 `higher_is_closer`。
-
-这样分工的原因：
-
-| 包 | 该管什么 | 不该管什么 |
-| --- | --- | --- |
-| `llm_core` | API key、base_url、role、HTTP、usage、供应商错误 | Chunk 身份、业务探针、检索策略 |
-| `rag_core.embedding` | 表示记录、成对相似度、Embedding 空间一致性 | 自己再维护一套 Provider 配置 |
-
-### 配置为什么要和 Chat 分开
-
-`models.yaml` 里 Embedding 使用独立环境变量：
-
-```text
-OPENAI_EMBEDDING_API_KEY
-OPENAI_EMBEDDING_BASE_URL
-OPENAI_EMBEDDING_MODEL
-```
-
-这不是多余配置。一个常见真实边界是：
-
-```text
-Chat：DeepSeek / 其他仅聊天兼容平台
-Embedding：需要支持 /embeddings 的平台
-```
-
-若把 chat 的 `OPENAI_BASE_URL` 直接拿去 embed，常见结果是 `404`。本仓库选择让 Embedding **默认不继承** chat base URL，逼着配置显式化，而不是静默打到错误端点后再把问题误判成“向量效果差”。
-
-默认配置要求显式提供 `OPENAI_EMBEDDING_API_KEY`，不自动复用 chat 的 `OPENAI_API_KEY`。即使两端都使用 OpenAI，也应显式声明 Embedding 凭证；这样 chat 切换供应商时不会把另一家服务的 key 误发到默认 Embedding endpoint。
-
-### 批量调用不是无限输入
-
-当前公共入口可以一次传入多条文本，但这只表示 Provider API 支持批量输入，不表示调用方可以无限堆积 Chunk：
-
-- 单条文本和整批请求的 Token、条数与载荷限制由真实 Provider 和模型决定。
-- 当前实现按调用方提供的列表发起一次请求，不自动拆批，也不静默截断超长文本。
-- 超过真实服务限制时应保留 Provider 错误；后续入库链路若需要自动拆批，必须显式记录批次、重试和部分失败，而不是藏在本篇成对观察中。
+Embedding 调用负责把一批文本映射到同一向量空间，并把 Provider、模型、维度和预处理身份随结果保存。相似度比较只接受空间身份一致的记录，并显式说明分数方向。批量、限流和真实服务错误属于调用边界，不能被零向量或静态向量掩盖。
 
 ## 用售后探针理解分数边界
 
@@ -313,45 +235,13 @@ Embedding：需要支持 /embeddings 的平台
 3. **精确字段**：提示仅靠向量接近可能不够稳，词面信息仍重要。  
 4. **噪声更远**：说明表示空间至少能分开明显无关内容。
 
-真实链路中，第九步的 `Chunk.text` 会成为 `embed_texts` 的输入，用户 query 也会用同一空间表示。这里的规则句来自前面 ingestion fixtures 的 canonical facts，查询改写和噪声句是为隔离表示变量补充的有效业务表达。本篇直接读取探针文本，不重新运行 Loader 或 Chunker；这是为了只观察 Embedding 表示，不是用手写字符串替代后续真实知识库链路。第十二步建立 Dense Retrieval 时，才会把 query 与一组真实 Chunk 一起用于候选匹配和排名。
+真实链路中，Chunking 阶段的 `Chunk.text` 会成为 `embed_texts` 的输入，用户 query 也会用同一空间表示。这里的规则句来自前面 ingestion fixtures 的 canonical facts，查询改写和噪声句是为隔离表示变量补充的有效业务表达。本篇直接读取探针文本，不重新运行 Loader 或 Chunker；这是为了只观察 Embedding 表示，不是用手写字符串替代后续真实知识库链路。第十二步建立 Dense Retrieval 时，才会把 query 与一组真实 Chunk 一起用于候选匹配和排名。
 
 注意：本篇比较的是探针句子之间的距离，不是“拿一个问题去整库候选里做检索排序”。后者会把匹配、排名和过滤一起卷进来，超出本篇要观察的变化。
 
-## 运行实验时先预测，再看分数
+## 用真实相似度验证直觉
 
-共享实验位于 [`rag_retrieval_lab`](../../source/demos/rag_retrieval_lab/)。
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_embedding.py
-```
-
-运行前先写下预测：
-
-1. “申请售后”和“发起逆向服务”会不会明显高于无关售前规则？
-2. “已支付可申请”和“虚拟商品除外”会不会仍然较高？若较高，你的产品结论应该是什么？
-3. 带 `source_channel` 的资料句和字段提问，分数能证明什么、不能证明什么？
-4. 换用 `--metric euclidean` 后，数值变了，远近关系应如何阅读？
-5. 若 chat 已配置 DeepSeek，而 `OPENAI_EMBEDDING_API_KEY` 未配置，你预期错误发生在调用链哪一层？
-
-默认输出展示：
-
-- Provider、模型、维度、预处理版本、latency、usage
-- 探针及其分组
-- focus pairs 的分数与预期说明
-
-使用 `--verbose` 可查看全部成对分数。完整参数、JSON Lines 和读码顺序由 [retrieval lab 步骤 10](../../source/demos/rag_retrieval_lab/README.md) 维护。
-
-解读时遵守：
-
-```text
-这些是表示空间观察
-≠ 检索已经做对
-≠ 某策略已经适合上线
-≠ 可以忽略词面信息
-```
-
-如果同义对很高、噪声对很低，只说明当前模型在这组受控句子上区分了大方向。  
-如果例外对也很高，不要立刻改模型；先承认这是向量表示的自然边界——接近主题不等于可替换约束。后面还要用匹配范围、过滤、上下文选择和证据规则来补齐，而不是要求 Embedding“理解业务法条”。
+实验固定若干句对，先预测哪些更接近，再观察真实空间中的排序、分数方向和模型差异。单个句对相似不等于整库召回正确，也不证明生成结论有依据。运行、输出和读码路径见[配套实验](../labs/embedding-and-similarity.md)。
 
 ## 将自然边界、输入错误和真实服务故障分开
 
@@ -424,7 +314,7 @@ texts + EmbeddingConfig
 
 ## 判断是否已经掌握
 
-1. 为什么第九步的 Chunk 仍不能直接解决同义改写问题？
+1. 为什么Chunking 阶段的 Chunk 仍不能直接解决同义改写问题？
 2. 表示、匹配、排名、过滤和融合分别处于检索链的哪一段？本篇停在哪里？
 3. `EmbeddingResponse`、`EmbeddingRecord` 和 `SimilarityObservation` 的责任有何不同？
 4. cosine 与 euclidean 的“更好”方向有什么不同？为什么必须保存 `higher_is_closer`？

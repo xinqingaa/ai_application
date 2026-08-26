@@ -145,14 +145,14 @@ harness records + learning price table + cache key
 4. [`harness/formatting.py`](harness/formatting.py)：demo 的记录表和汇总输出。
 5. demo [`llm_regression_lab/harness_compare.py`](../../demos/llm_regression_lab/harness_compare.py)：观察 case 批量运行。
 
-### 按需 Streaming + Conversation
+### Streaming + Conversation
 
-项目需要 SSE、增量渲染或会话状态时再进入：
+Agent 产品需要用这些能力表达增量输出、结构化事件和会话状态：
 
 1. [`streaming/events.py`](streaming/events.py)：`LLMStreamEvent` 与 `encode_sse`。
 2. [`providers/openai_compat.py`](providers/openai_compat.py)：供应商 chunk 如何翻译成事件。
 3. [`conversation/buffer.py`](conversation/buffer.py)：只有稳定消息进入 history。
-4. app [`llm_streaming_api`](../../apps/llm_streaming_api/)：SSE 如何暴露给前端。
+4. demo [`llm_streaming_lab`](../../demos/llm_streaming_lab/)：SSE 如何暴露给前端。
 
 ### Cost / Latency / Cache
 
@@ -240,7 +240,7 @@ print(summary.success_count, records[0].attempt_count)
 - Reliability 与可见降级：[../../demos/llm_reliability_lab/](../../demos/llm_reliability_lab/)
 - Context Engineering（已接 RAG）：[../../demos/rag_retrieval_lab/](../../demos/rag_retrieval_lab/)；静态策略对照见 [../../demos/llm_context_lab/](../../demos/llm_context_lab/)
 - Calling Harness、成本、延迟与缓存：[../../demos/llm_regression_lab/](../../demos/llm_regression_lab/)
-- 按需 Streaming SSE：[../../apps/llm_streaming_api/](../../apps/llm_streaming_api/)
+- Streaming SSE：[../../demos/llm_streaming_lab/](../../demos/llm_streaming_lab/)
 
 ## 常见定位
 

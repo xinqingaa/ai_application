@@ -22,7 +22,9 @@ from rag_core import (
 
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
-FIXTURE_DIR = REPO_ROOT / "review_assistant" / "fixtures" / "v0" / "ingestion"
+FIXTURE_DIR = (
+    REPO_ROOT / "source" / "apps" / "review_assistant" / "fixtures" / "rag" / "ingestion"
+)
 MANIFEST_PATH = FIXTURE_DIR / "manifest.json"
 log = get_logger("rag_ingestion_lab")
 

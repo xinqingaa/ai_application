@@ -37,7 +37,7 @@ DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 CASE_PATH = DEMO_DIR.parent / "llm_context_lab/context_cases.json"
 PROBE_PATH = (
-    REPO_ROOT / "review_assistant/fixtures/v0/generation/trusted_generation_probes.json"
+    REPO_ROOT / "source/apps/review_assistant/fixtures/rag/generation/trusted_generation_probes.json"
 )
 log = get_logger("rag_retrieval_lab.trusted_generation")
 

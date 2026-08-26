@@ -2,35 +2,13 @@
 
 > 机制篇：观察一次真实模型调用如何从业务配置进入 Provider、返回统一响应并暴露供应商差异。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 3 节。必要前置是 [模型输入输出契约](../concepts/model-input-output-contracts.md)；本文交付可运行、可切换、可观察的真实模型调用入口。
+> 课程位置：[标准学习路径](../learning-path.md)。必要前置是 [模型输入输出契约](../concepts/model-input-output-contracts.md)；本文交付可运行、可切换、可观察的真实模型调用入口。
 
 ---
 
-## 为什么业务代码不能直接绑定 SDK
+## 为什么业务逻辑不能直接绑定模型 SDK
 
-需求评审助手最早可以这样调用模型：
-
-```python
-client = OpenAI(api_key=...)
-response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages=messages,
-)
-```
-
-它足够证明 API 能通，却把五类变化绑进业务代码：密钥、endpoint、模型名、默认参数和供应商响应对象。摘要、风险评审和追问各复制一次后，只要其中一个模块漏改配置，同一份 PRD 就可能由不同模型处理，而且日志无法解释差异。
-
-本文要建立的不是“多包一层 SDK”，而是一条可验证边界：
-
-```text
-业务声明 messages  config_ref
-→ 配置层解析模型角色和参数
-→ Provider 适配真实供应商请求
-→ 调用层统一响应与错误
-→ 上层只消费 LLMResponse
-```
-
-后面的实现都围绕一个判断：供应商变化能否被调用层吸收，业务任务是否保持不变。
+如果业务层直接依赖某个供应商的请求对象、异常类型和返回形状，切换模型、记录调用身份或统一失败处理都会扩散到各处。应用需要一层稳定边界，把业务意图转换为供应商请求，再把供应商结果还原为统一响应。
 
 ## 一次模型调用的完整生命周期
 
@@ -51,15 +29,9 @@ response = client.chat.completions.create(
 
 下面这条链是本章认知主线。每一步解决上一步的遗留问题；**不能跳过**理解最终为什么要 `config_ref`。
 
-**第 1 步 · SDK 直调（SDK 最小调用 `first_chat`）**
+**第 1 步 · SDK 直调**
 
-```python
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-resp = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
-text = resp.choices[0].message.content
-```
-
-能跑通，但 model、base_url、默认参数散落在脚本里；换供应商要改代码；返回值是 SDK 对象，上层难以统一记日志。
+业务直接创建供应商客户端、传入模型名和消息，再从 SDK 对象中取文本。它能跑通，但 model、base_url、默认参数散落在脚本里；换供应商要改代码；返回值是 SDK 对象，上层难以统一记日志。
 
 **第 2 步 · 环境变量（`.env`）**
 
@@ -226,83 +198,9 @@ OpenAI-compatible 的意思是：很多平台愿意用近似 OpenAI Chat Complet
 
 ---
 
-## 收敛为唯一模型调用入口
+## 收敛为唯一模型调用边界
 
-本节最小实现要验证的不是「能否把 SDK 包一层」，而是这条链路是否成立：
-
-```text
-业务只传 messages + config_ref
-→ 调用层查到 ModelConfig
-→ Provider 发起真实请求
-→ 统一返回 LLMResponse
-```
-
-这条链路成立后，上层的 Prompt、Structured Outputs、RAG generation、Agent tool reasoning 都可以复用同一入口。后续课程不需要重新学习「怎么初始化供应商 SDK」，而是专注在各自能力的输入、输出和失败边界上。
-
-### 1. `LLMClient.chat`：业务层唯一入口
-
-[`client/service.py`](../../source/packages/llm_core/client/service.py)：
-
-```python
-config = self._registry.get_config(config_ref)
-if config.role != "chat":
-    raise LLMError(
-        code=LLMErrorCode.CAPABILITY_MISMATCH,
-        message=f"{config_ref} 的 role 是 {config.role}，不能用于 chat",
-        config_ref=config_ref,
-    )
-provider = self._registry.get_provider(config.provider)
-response = provider.chat(messages, config, **params)
-return response
-```
-
-这个片段里有三个关键点。
-
-第一，`config_ref` 先被解析成 `ModelConfig`，业务不直接接触模型名和 endpoint。第二，`config.role != "chat"` 时立刻失败，说明调用层不是透明转发器，而是会保护模型角色边界。第三，真正发请求的对象是 `provider`，所以未来如果有非 OpenAI-compatible 供应商，只需要新增 Provider，而不是让业务模块到处判断供应商差异。
-
-### 2. `LLMResponse`：统一业务可读的输出
-
-Provider 发回来的 SDK 原始对象不应该直接扩散到业务层。业务层需要的是稳定字段：文本、token、耗时、模型、配置引用。[`config/types.py`](../../source/packages/llm_core/config/types.py) 中的 `LLMResponse` 就是这层统一形状：
-
-```python
-@dataclass(frozen=True)
-class LLMResponse:
-    content: str
-    raw_response: Any
-    usage: Optional[TokenUsage]
-    latency_ms: float
-    provider: str
-    model: str
-    config_ref: str
-```
-
-这不是为了「好看」，而是为了让后续所有质量工程有同一份记录口径。比如：
-
-- 改 Prompt 后，要比较 `prompt_tokens` 和 `completion_tokens`。
-- 切供应商后，要比较 `latency_ms` 和输出稳定性。
-- 做 harness 时，要把 `config_ref`、`model`、`usage` 和结果一起落盘。
-- 前端展示运行状态时，要能说明这次调用用了哪个配置、耗时多久。
-
-因此 `LLMResponse` 是后续观测和评估的基础接口。没有它，RAG 和 Agent 的每次模型调用都会变成难以对齐的散点日志。
-
-### 3. YAML 配置只保留为真源，不进入业务判断
-
-`models.yaml` 里保存模型名、默认参数、供应商和能力标签。正文不需要逐字段背诵配置格式，但需要理解它解决的工程问题：**配置变化不应要求修改业务代码**。
-
-在需求评审助手里，`chat.dev_chat` 可以先指向便宜模型；`chat.structured_chat` 可以指向更适合结构化输出的模型；`chat.fallback_chat` 可以在限流时临时切换。业务层只看 `config_ref`，而不是关心每个 ref 背后的具体型号。这样后续换模型时，学习者能把注意力放在“效果有没有变好、成本有没有下降、错误类型有没有变化”，而不是到处改字符串。
-
-### 判断这层设计是否过度
-
-一个抽象是否合理，要看它有没有承担真实变化点。Provider 抽象在本项目里是必要的，因为后续会发生这些变化：
-
-- 开发、演示、结构化输出、兜底调用需要不同模型配置。
-- OpenAI-compatible 平台多数能复用请求格式，但能力支持并不完全一致。
-- RAG / Agent / eval 都需要统一记录 token、耗时、模型版本和错误类型。
-- Chat、Embedding、Rerank 角色不同，必须避免混用。
-
-如果只是一次性脚本，直接 SDK 调用完全可以；但需求评审助手是持续演进项目，后续课程会不断复用 LLM 层，所以本节开始就把边界立住。
-
----
+调用层至少要统一接收消息、模型角色、配置引用和必要参数，并统一返回内容、实际模型、用量、耗时和调用身份。Provider 适配器负责 SDK 差异；配置解析负责选择真实模型；业务层不判断供应商细节。配置身份必须随结果保留，否则两次模型输出无法被公平比较。
 
 ## 框架封装了什么、没有解决什么
 
@@ -366,100 +264,13 @@ class LLMResponse:
 
 ---
 
-## 对比两个真实模型配置
+## 通过真实对照验证边界
 
-### 目标
+配套实验使用相同输入切换两个真实模型配置，观察业务调用方式是否保持不变、配置身份是否随结果返回，以及供应商错误是否被统一暴露。环境准备、运行命令、输出字段和读码路径见[配套实验](../labs/model-api-and-provider.md)。
 
-业务通过 `config_ref` 调用模型；所有调用返回统一 `LLMResponse`；`--verbose` 时可看清 system/user、参数与完整回复；能在 S2 样例上对比至少两个 `config_ref`。
+## 怎样判断调用边界已经可复用
 
-### 涉及文件
-
-关键路径：
-
-- [`source/packages/llm_core/client/service.py`](../../source/packages/llm_core/client/service.py)：统一调用入口。
-- [`source/packages/llm_core/config/types.py`](../../source/packages/llm_core/config/types.py)：`ModelConfig`、`LLMResponse` 等数据结构。
-- [`source/packages/llm_core/config/models.yaml`](../../source/packages/llm_core/config/models.yaml)：模型配置真源。
-- [`source/demos/llm_invoke_lab/provider_switching.py`](../../source/demos/llm_invoke_lab/provider_switching.py)：本节观察入口。
-
-完整文件说明和命令变体放在 [demo README](../../source/demos/llm_invoke_lab/README.md)。
-
-### 实现步骤（与最小实现对照）
-
-1. 从根目录 `.env` 读取 Key、base_url 和模型名。
-2. 从 `models.yaml` 通过 `config_ref` 找到模型配置。
-3. 用 `LLMClient.chat()` 发起调用并返回 `LLMResponse`。
-4. 在 demo 表格中观察：不同 `config_ref` 对应的 model、latency、usage 与输出差异。
-
-### 步骤 1：配置环境（OpenAI 默认）
-
-```bash
-cd <仓库根>
-cp .env.example .env
-# 编辑 .env，填写 OPENAI_API_KEY
-uv sync
-```
-
-DeepSeek 等 OpenAI-compatible 平台可通过 `.env` 切换 `OPENAI_BASE_URL` / `OPENAI_MODEL`，具体配置细节见 demo README。
-
-### 步骤 2：运行对比 demo
-
-```bash
-cd source/demos/llm_invoke_lab
-uv run python provider_switching.py
-```
-
-### 建议观察清单
-
-- [ ] 两个 `config_ref` 的 `model` 字段是否如 YAML 预期
-- [ ] `temperature=0` vs `0.7` 下 `content` 稳定性差异
-- [ ] `usage` 是否随 Prompt 长度变化（体会 token 与成本）
-- [ ] `--verbose` 能否看清完整 `messages` 传给云端的内容（命令见 README）
-
-本节不是要证明哪个模型最好，而是训练一种观察方法：固定样例，只变一个配置点，再看 `LLMResponse` 中的 model、usage、latency 和输出内容如何变化。系统化落盘会在调用 Harness 进入 harness。
-
----
-
-## 亲手改变一次模型配置边界
-
-不要只运行现有 demo。完成一次受控修改：
-
-1. 在 `models.yaml` 增加一个表达业务用途的新配置，例如风险评审实验配置，不把供应商名写进 `config_ref`。
-2. 让它通过环境变量选择真实模型，保持业务调用只使用 `config_ref`。
-3. 用同一条 S2 样例分别调用原配置和新配置。
-4. 记录最终 `model`、`provider`、`usage`、`latency_ms` 和错误类型。
-5. 临时把 Embedding 配置传给 `LLMClient.chat`，确认角色守卫在请求发出前失败。
-
-完成后要能解释：哪些变化只修改配置，哪些供应商差异必须修改 Provider，哪些变化不应该传播到业务代码。
-
-## 怎样判断调用层已经可复用
-
-- **能解释**：一次 Chat 的输入（messages、config_ref、参数）与输出（`LLMResponse` 各字段）。
-- **能说明**：`temperature` / `max_tokens` 对输出的影响。
-- **能画出**：从直调 SDK 到 `config_ref` 的五步递进，各步遗留什么问题。
-- **能配置**：OpenAI 或 DeepSeek（`.env` + `models.yaml`）。
-- **能运行**：`provider_switching` 默认对比与 `--verbose`。
-- **能说明**：为何业务写 `config_ref` 而不是写死 model 字符串。
-
-### 运行与观察
-
-```bash
-cd source/demos/llm_invoke_lab
-uv run python provider_switching.py
-uv run python provider_switching.py --verbose
-```
-
-应看到至少 2 行对比；verbose 下可见 system/user 与完整 assistant 回复。详见 [demo README](../../source/demos/llm_invoke_lab/README.md)。
-
-### 自检题
-
-1. 多轮对话的历史存在哪里？通过 API 的哪个字段带给模型？
-2. 为什么业务代码应写 `config_ref="chat.dev_chat"` 而不是 `model="gpt-4o"`？
-3. 把 Chat 模型名填进 embedding 接口会导致什么问题？
-4. `.env` 与 `models.yaml` 各解决什么，为什么不能只用其中一个？
-5. 收到 `LLMErrorCode.RATE_LIMIT` 时，当节可以先做哪一步，完整重试策略在哪一节？
-6. `LLMResponse` 相比 SDK 原始响应，多解决了哪两个工程问题？
-
----
+业务调用不因供应商切换而改写；结果带有实际模型与配置身份；鉴权、超时、限流和能力不支持能够被区分；配置变化可以独立对照；真实失败不会静默变成假成功。达到这些条件，调用层才具备进入后续 Prompt、Structured Output 和可靠性机制的基础。
 
 ## 交给项目的调用契约
 

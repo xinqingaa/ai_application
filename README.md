@@ -1,87 +1,50 @@
 # AI Application Learning Workspace
 
-这是一个面向前端、Flutter 和跨端开发者的 AI 应用开发学习与项目实践仓库。
+这是一个面向前端、Flutter 和跨端开发者的 AI 应用学习与项目实践仓库。
 
-本仓库不以转向纯算法、纯 AI Infra 或纯后端平台为目标，而是通过唯一主项目“需求评审助手”，补齐 LLM、RAG、Agent Harness、Tool、MCP、Multi-Agent、必要 Workflow、评估观测和 AI Native 产品能力，形成完整 AI 应用闭环。
+唯一主项目是“需求评审助手”：第一阶段完成固定 RAG 应用，第二阶段演进为 Agent、Tools、Deep Research 与 Multi-Agent 协作系统。
 
-## 唯一主项目
+## 入口
 
-需求评审助手从固定 RAG 应用演进为以 Agentic RAG 为知识基础的多 Agent 协作系统。
-
-项目分为两个阶段：
-
-1. RAG 应用基础：完成真实知识生产、多路检索、可信生成、API、最小 Web 工作台和固定对照。
-2. Agent、Tools 与 Multi-Agent：增加 Agent Harness、Tool Runtime、MCP、Agent Skills、Deep Research、Multi-Agent、A2A 和必要 Workflow 控制。
-
-全课程使用从第一阶段连续到第二阶段的一套编号，学习时由[标准学习路径](course/learning-path.md)依次接入。
+- [产品规格](SPEC.md)：最终产品必须做什么。
+- [工程方案](PLAN.md)：代码怎样在 `source/` 中组织和演进。
+- [课程首页](course/README.md)：学习者入口。
+- [标准学习路径](course/learning-path.md)：唯一课程顺序。
+- [知识地图](course/knowledge-map.md)：完整能力范围。
 
 ## 学习方式
 
-课程内容由项目阶段目标反推，学习者则按照标准学习路径正向进入，不从项目规格倒着读，也不按 LLM、RAG、Agent 目录机械通关：
-
 ```text
-项目愿景建立方向
-→ 读取当前阶段的业务契约与非目标
-→ 按认知前置阅读概念篇与机制篇
-→ 通过真实实验观察机制
-→ 回到同一项目篇将能力组合进产品
-→ 复现真实 bad case 或观察自然边界，并定位运行中出现的真实依赖故障
-→ 用评估证明改动
-→ 完成阶段验收
+项目愿景与阶段目标
+→ 概念
+→ 机制
+→ 真实实验
+→ 项目综合实践
+→ 测试、评估和需求修改
 ```
 
-课程正文分为三类：
+课程分为概念篇、机制篇、实验篇和项目篇。机制篇解释原理和边界；实验篇负责代码初始化、运行、日志与调试；项目篇负责综合实践和学习验收。
 
-- 概念篇：解释是什么、为什么需要和边界在哪里。
-- 机制篇：解释内部数据流、为什么有效和失败时如何定位。
-- 项目篇：定义当前阶段的业务目标、集成检查点、设计选择、实现任务和验收。
-
-“真实问题 → 基础原理 → 最小实现 → 主流框架 → 失败边界”是全课程的认知方法，不是每篇文档的固定模板。
-
-开始学习时不需要先读仓库设计规范，直接进入 [课程首页](course/README.md)。
-
-## 目录职责
+## 目录
 
 ```text
-.
-├── docs/                 # 长期战略与规范真源
-├── course/               # 概念篇、机制篇、项目篇和集中知识清单
-├── source/
-│   ├── packages/         # 通用能力唯一实现
-│   ├── demos/            # 机制实验、对照和失败复现
-│   ├── apps/             # 学习期组合实验
-│   └── python_base/      # 已完成的 Python 基础练习
-├── review_assistant/     # 从第一阶段开始演进的可运行产品真源
-├── other/                # RAGFlow、MaxKB 等项目拆解材料
-├── archive/              # 历史课程资料，当前主线不依赖
-├── pyproject.toml        # Python 依赖和 editable package 真源
-└── uv.lock               # 精确依赖锁定
+docs/                           战略与规范
+course/concepts/                概念篇
+course/mechanisms/              机制篇
+course/labs/                    实验篇
+course/project/                 项目篇
+source/packages/                通用能力
+source/demos/                   实验代码
+source/apps/review_assistant/   唯一产品
+source/python_base/             Python 基础练习
 ```
 
-项目相关目录不是重复实现：
+产品代码只在 `source/apps/review_assistant/` 组合，不在仓库根目录或学习 demo 中维护平行实现。
 
-```text
-course/project/       项目篇教材：阶段契约、组合任务、设计选择、失败题和验收
-review_assistant/     产品真源：安装、运行、测试、API 和部署
-```
+## 真实调用
 
-通用能力沉淀到 `source/packages/`，产品通过 import 复用，不复制平行实现。
+LLM、RAG、Agent 和 Eval 主路径使用真实模型或真实外部服务。缺少配置或供应商失败时清晰报错，不静默返回 Mock。Mock 只用于确定性测试、离线排查和明确对照，不能证明真实质量。
 
-## 学习入口
+## 维护者
 
-1. [课程首页](course/README.md)：先理解项目目标、文档和代码分别负责什么。
-2. [标准学习路径](course/learning-path.md)：按照唯一课表进入概念、机制、实验和项目。
-3. 完成核心前置后进入当前项目篇，再阅读对应 package README 和产品 README。
-
-## 维护与 AI 协作
-
-`docs/`、[AGENTS.md](AGENTS.md) 和 `skills/` 面向课程维护者与 AI Agent，规定长期定位、写作规范、代码组织和协作边界，不是学习者的课程前置。
-
-## 真实调用规则
-
-LLM、RAG、Agent 和 Eval 的学习主路径使用真实模型或真实外部服务：
-
-- 缺少 API key、鉴权失败、限流、超时和模型不支持应清晰暴露。
-- 不在真实调用失败后静默返回 fake 或 mock 结果。
-- Mock 仅用于单元测试、离线排查、稳定失败复现或明确标注的对照实验。
-- Mock 结果不能作为真实模型质量或项目效果的主要证据。
+长期定位见 [strategy.md](docs/strategy.md)，课程和代码规则见 [learning-guide.md](docs/learning-guide.md)，AI Coding 掌握标准见 [ai-coding-mastery.md](docs/ai-coding-mastery.md)。

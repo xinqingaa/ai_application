@@ -1,6 +1,6 @@
 # 需求评审助手
 
-`review_assistant/` 是需求评审助手的可运行产品真源，从第一阶段固定 RAG 开始逐步演进。
+`source/apps/review_assistant/` 是需求评审助手的可运行产品真源，从第一阶段固定 RAG 开始逐步演进。
 
 它负责产品代码、API、测试、配置、运行和部署，不承担课程概念教学。
 
@@ -21,15 +21,15 @@
 → Trace、评估、bad case、反馈、部署与产品化
 ```
 
-两个阶段怎样进入学习与项目实现，见 [标准学习路径](../course/learning-path.md)。
+两个阶段怎样进入学习与项目实现，见 [标准学习路径](../../../course/learning-path.md)。产品要求和稳定实现方案分别见根 [SPEC.md](../../../SPEC.md) 与 [PLAN.md](../../../PLAN.md)。
 
 这里的“检索增强”不预设额外技术栈。第一阶段固定采用 PostgreSQL 全文检索、pgvector 和应用侧 RRF；Reranker 等候选能力只有在固定评估集上证明收益大于延迟、成本和维护复杂度后，才进入产品默认链路。
 
 ## 与课程的边界
 
 ```text
-course/project/       项目篇教材：阶段契约、组合任务、设计选择、失败题和验收
-review_assistant/     产品真源：代码、API、测试、配置、运行和部署
+course/project/       项目篇教材：综合任务、设计选择、失败题和学习验收
+source/apps/review_assistant/     产品真源：代码、API、测试、配置、运行和部署
 ```
 
 本 README 只维护产品事实：
@@ -41,21 +41,21 @@ review_assistant/     产品真源：代码、API、测试、配置、运行和�
 - 当前实现具备哪些实际能力。
 - 常见运行失败如何排查。
 
-课程原理、设计题和学习自检不在这里重复维护；学习者从 [课程首页](../course/README.md) 进入。
+课程原理、设计题和学习自检不在这里重复维护；学习者从 [课程首页](../../../course/README.md) 进入。
 
 ## 代码关系
 
 - 通用 LLM、RAG、Agent 和 Eval 能力来自 `source/packages/`。
 - 产品通过根 `pyproject.toml` 的 editable package 配置 import 复用。
 - 不在本目录 copy 平行 `*_core`。
-- `source/apps/` 可以用于学习期组合实验，但不与本目录长期维护两份产品。
+- 学习期组合实验进入 `source/demos/`；`source/apps/` 不维护第二份产品。
 
 ## 目标职责
 
 产品按真实版本需要逐步形成以下职责：
 
 ```text
-review_assistant/
+source/apps/review_assistant/
 ├── app/            # FastAPI、业务服务和运行时
 ├── workbench/      # AI Native Web 工作台
 ├── tests/          # 产品级测试
@@ -74,9 +74,9 @@ review_assistant/
 - `source/packages/llm_core/`
 - `source/packages/rag_core/`（当前已实现文档加载、Chunking、Embedding 表示实验、中文词法分析、PostgreSQL FTS、pgvector 持久化与 Dense Retrieval）
 - `source/demos/`
-- `source/apps/llm_streaming_api/`
+- `source/demos/llm_streaming_lab/`
 
-`review_assistant/fixtures/v0/` 是受控 RAG 实验数据的稳定物理路径；路径中的 `v0` 只表示 fixture 命名空间，不表示课程阶段或课程序号。其中的 ingestion fixtures 供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
+`source/apps/review_assistant/fixtures/rag/` 是受控 RAG 实验数据的稳定物理路径。其中的 ingestion fixtures 供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
 步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS；步骤 12 使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；步骤 13 在应用侧按稳定 `chunk_id` 运行 RRF 并保留两路贡献；步骤 14 固定 Metadata pre-filter、每路候选和阈值、RRF、`final_top_k` 的顺序并返回诊断报告；步骤 15 把最终候选连同文档版本、locator 和路线诊断接入共享 Context Builder；步骤 16 调用真实模型生成结构化风险并检查 claimed source ID 是否属于本轮 Citation Candidate。当前这些仍是共享 package 与机制实验入口，不表示产品已经提供资料管理 API、后台入库任务或 Review API；Citation 内容支持性、Refusal 和证据充分性仍未实现。
 
@@ -84,7 +84,7 @@ review_assistant/
 
 **正在学习课程第 11 步（按词检索）时，不要从本节开始。** 从空库到第一次 FTS 查询，只走：
 
-> [第 11 步实验准备](../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)
+> [Lexical Retrieval 实验](../../../course/labs/lexical-retrieval.md)
 
 本节保留产品级安装：Role、两个 Database、`0001` 与 `0002`、测试库，以及第 12 步起需要的 pgvector。不自动安装 PostgreSQL、GUI 或系统服务。当前 macOS 学习主路径推荐 [Postgres.app](https://postgresapp.com/)，因为安装简单、包含 `psql`，并预装后续步骤需要的 pgvector；PostgreSQL 官方也在 [macOS packages](https://www.postgresql.org/download/macosx/) 页面列出了 Postgres.app、EDB installer 和 Homebrew 等方式。
 
@@ -137,11 +137,11 @@ psql "$DATABASE_URL" -c "SELECT current_database(), current_user, version();"
 ```bash
 psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
-  -f review_assistant/infra/migrations/0001_create_rag_chunks.sql
+  -f source/apps/review_assistant/infra/migrations/0001_create_rag_chunks.sql
 
 psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
-  -f review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql
+  -f source/apps/review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql
 ```
 
 检查结果：
@@ -173,7 +173,7 @@ Postgres.app 的窗口主要负责本地 Server 生命周期；pgAdmin 才是完
 
 ## 运行 PostgreSQL FTS 实验
 
-第 11 步课程实验的命令、写入说明和输出解读见 [第 11 步实验准备](../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。
+第 11 节课程实验的命令、写入说明和输出解读见 [Lexical Retrieval 实验](../../../course/labs/lexical-retrieval.md)。
 
 产品侧可选集成测试：
 
@@ -211,7 +211,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --search
 uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose
 ```
 
-该入口继续调用真实 FTS、真实 Embedding 和 pgvector。它不会把两路原始分数归一化相加；步骤 13 的参数和输出解读由 [`docs/13-rrf.md`](../source/demos/rag_retrieval_lab/docs/13-rrf.md) 维护。
+该入口继续调用真实 FTS、真实 Embedding 和 pgvector。它不会把两路原始分数归一化相加；参数和输出解读由 [多路召回与 RRF 实验](../../../course/labs/multi-retrieval-and-rrf.md) 维护。
 
 ## PostgreSQL 常见排查
 

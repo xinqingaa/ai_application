@@ -1,4 +1,4 @@
-# llm_streaming_api
+# llm_streaming_lab
 
 本地 FastAPI SSE 观察入口。它启动一个只在本机运行的轻量服务，把 `llm_core.stream_chat` 产生的统一事件编码成 `text/event-stream`，用于理解 AI 应用前端如何消费模型运行态。
 
@@ -31,7 +31,7 @@ cp .env.example .env   # 填写 OPENAI_API_KEY
 ## 启动
 
 ```bash
-uv run uvicorn main:app --app-dir source/apps/llm_streaming_api --reload --port 8004
+uv run uvicorn main:app --app-dir source/demos/llm_streaming_lab --reload --port 8004
 ```
 
 这条命令会在本机启动一个 FastAPI 服务：

@@ -14,7 +14,14 @@ from rag_core import SimilarityMetric, embed_texts, pairwise_similarity
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 PROBES_PATH = (
-    REPO_ROOT / "review_assistant" / "fixtures" / "v0" / "retrieval" / "embedding_probes.json"
+    REPO_ROOT
+    / "source"
+    / "apps"
+    / "review_assistant"
+    / "fixtures"
+    / "rag"
+    / "retrieval"
+    / "embedding_probes.json"
 )
 log = get_logger("rag_retrieval_lab.embedding")
 

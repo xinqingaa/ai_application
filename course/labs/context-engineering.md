@@ -1,4 +1,6 @@
-# 步骤 15：从 RetrievalResult 到 BuiltContext
+# 从 RetrievalResult 到 BuiltContext
+
+配套机制：[Context Engineering](../mechanisms/context-engineering.md)。
 
 继续复用真实 Retriever，将最终候选接入 `llm_core.context`：
 

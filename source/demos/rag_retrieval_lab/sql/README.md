@@ -1,4 +1,4 @@
-# 第 11 步调试 SQL
+# Lexical Retrieval 调试 SQL
 
 这些文件**只用于本地观察** `review_assistant.rag_chunks`，方便对照词面检索实验。它们不是 migration，不会改表结构，也不写入产品代码路径。
 
@@ -76,4 +76,4 @@ ORDER BY q.mode, rank DESC, c.chunk_id;
 
 若要观察应用完整链路，请回到 `inspect_lexical_retrieval.py --verbose`；若要机器可读地比较匹配总数和返回数，请使用 `--log-format json`。
 
-第 11 步操作顺序见 [实验准备](../docs/11-lexical-retrieval.md)；词面机制见 [课程正文](../../../course/mechanisms/lexical-retrieval.md)。
+完整操作顺序见 [实验篇](../../../../course/labs/lexical-retrieval.md)；词面机制见 [课程正文](../../../../course/mechanisms/lexical-retrieval.md)。

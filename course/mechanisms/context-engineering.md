@@ -1,8 +1,8 @@
 # Context Engineering：Retriever 找到了，为什么模型仍然看不到
 
-> 这是一篇机制篇。第 14 步已经把 Lexical、Dense、RRF、过滤和截断收进一个可诊断的 `RetrievalResult`。本节只向前推进一步：把检索候选变成这一轮模型真正能看到、能定位、能引用的 `BuiltContext`。
+> 这是一篇机制篇。固定 Retriever已经把 Lexical、Dense、RRF、过滤和截断收进一个可诊断的 `RetrievalResult`。本节只向前推进一步：把检索候选变成这一轮模型真正能看到、能定位、能引用的 `BuiltContext`。
 >
-> 学完后，你应该能从一条检索候选一路追到最终 Evidence，解释它为什么被保留、压缩或丢弃。这里还不会生成最终评审结论；真实生成与引用检查留到第 16 步。
+> 学完后，你应该能从一条检索候选一路追到最终 Evidence，解释它为什么被保留、压缩或丢弃。这里还不会生成最终评审结论；真实生成与引用检查留到本节。
 
 ## 先从一个容易误判的问题开始
 
@@ -12,7 +12,7 @@
 订单详情页新增“申请售后”入口。
 ```
 
-第 14 步的 `RetrievalReport` 已经告诉我们：订单状态规则和售后接口规则都进入了最终候选，接口规则还明确写着需要传 `source_channel`。可是模型的回答只谈了订单状态，完全没有提这个接口字段。
+固定 Retriever的 `RetrievalReport` 已经告诉我们：订单状态规则和售后接口规则都进入了最终候选，接口规则还明确写着需要传 `source_channel`。可是模型的回答只谈了订单状态，完全没有提这个接口字段。
 
 如果只看最终回答，我们很容易断言“检索没找到接口规则”。但检索之后还有一条输入装配链：
 
@@ -49,7 +49,7 @@ BuiltContext
 
 ### Retrieval Candidates：Retriever 为本次问题选出的候选
 
-第 14 步输出的 `RetrievalResult.candidates` 是知识库的一个小子集。每个候选带着：
+固定 Retriever输出的 `RetrievalResult.candidates` 是知识库的一个小子集。每个候选带着：
 
 - 稳定 `chunk_id`；
 - 文档 ID 与版本；
@@ -80,49 +80,11 @@ Prompt 决定“怎样做”，Context 决定“拿什么做”。Prompt 写得�
 
 > 知识库不是 Context，检索候选也不是 Context；`BuiltContext` 才是模型这一轮实际拿到的材料集合。
 
-## 第 9–14 步积累的信息不能在最后一米丢失
+## 前置 RAG 链路积累的信息不能在最后一米丢失
 
-第 9 步切 Chunk 时，我们没有只保存文本，还保留了 `chunk_id`、文档版本和 `source_spans`。第 11、12 步加入两路原生检索信息，第 13 步保留 RRF 贡献，第 14 步记录过滤、阈值和最终截断。
+Chunk 身份、文档版本、原文定位、两路原生分数、RRF 贡献和过滤诊断必须随候选进入 Context 映射。若这里只复制正文，模型即使引用了材料，应用也无法回到原文或解释候选为什么出现。
 
-如果现在只写：
-
-```python
-ContextSource(content=candidate.content)
-```
-
-前面建立的可追踪链会在调用模型前断掉。模型即使引用了这段话，应用也无法知道它来自哪份文档、哪个版本、哪几行。
-
-当前项目用一个很薄的适配层连接两个已有契约：
-
-```text
-rag_core.RRFCandidate
-  chunk_id
-  document_id / document_version
-  source_spans
-  fusion_rank / rrf_score
-  route ranks / native scores
-  evidence_eligibility
-            ↓
-rag_core.retrieval_result_to_context_sources
-            ↓
-llm_core.ContextSource
-  source_id = chunk_id
-  content
-  source_type
-  title
-  priority
-  metadata
-```
-
-公共入口是：
-
-```python
-from rag_core import retrieval_result_to_context_sources
-
-mapping = retrieval_result_to_context_sources(retrieval_result)
-```
-
-它不重新实现 Context Builder，只负责把 RAG 候选转换成 `llm_core` 能理解的材料，并记录每条候选的映射决定。
+适配层只负责把 Retrieval Candidate 转换为 Context Source，并记录每条映射决定；它不能重新检索，也不能重新实现 Context Builder。
 
 ## 适配器不是“复制一段文本”
 
@@ -146,7 +108,7 @@ mapping = retrieval_result_to_context_sources(retrieval_result)
 
 当前适配器要求每条检索候选至少有一个 `source_span`。若候选只有文本却没有原文位置，它会抛出错误，而不是用“位置未知”继续运行。
 
-这不是故意让流程变脆，而是在守住第 9 步建立的来源契约：
+这不是故意让流程变脆，而是在守住Chunking 阶段建立的来源契约：
 
 ```text
 source_id 只能回答“是哪条材料”
@@ -200,35 +162,7 @@ Retriever 返回的材料不一定都有相同资格。适配器会根据 `evide
 
 ## 唯一的 Context Builder
 
-适配完成后，RAG 不会维护第二套装配算法。主入口仍然调用 `llm_core.context.build_review_context`：
-
-```python
-from llm_core import ContextSource, get_context_policy
-from rag_core import build_rag_review_context
-
-result = build_rag_review_context(
-    requirement_text=requirement,
-    retrieval_result=retrieval_result,
-    additional_sources=(
-        ContextSource(
-            source_id="history-1",
-            source_type="history_review",
-            content="旧评审曾发现重复提交。",
-        ),
-    ),
-    policy=get_context_policy("evidence_first"),
-)
-
-mapping = result.mapping
-context = result.context
-```
-
-`build_rag_review_context` 内部只做两件事：
-
-1. 把 `RetrievalResult` 映射为 `ContextSource`，检查 ID、locator 和证据资格；
-2. 把映射结果和额外材料一起交给公共 Builder。
-
-这样，静态资料、RAG 候选和以后的 Agent 摘要都遵守同一套 Context 契约，不会按课程章节复制平行实现。
+RAG 适配完成后仍进入同一个 Context Builder。输入包括被评审 Requirement、检索 Evidence 和可选历史材料；输出同时包含模型实际可见的 Context、Citation Candidate 以及解释每条材料保留、压缩或丢弃原因的报告。RAG 不维护第二套预算与装配算法。
 
 ## Builder 收到的是候选池，不是最终 Context
 
@@ -280,24 +214,7 @@ Requirement 在这之前已经进入 Context。这个顺序表示当前风险评
 
 只设一个总预算会有一个明显问题：一份很长的历史评审可能占满空间，真正需要引用的接口规则反而进不来。
 
-所以 `ContextBuildPolicy` 同时有总预算和每个 section 的预算：
-
-```python
-ContextBuildPolicy(
-    name="example",
-    token_budget=500,
-    section_budgets={
-        "requirement": 120,
-        "evidence": 250,
-        "history": 70,
-        "agent_summary": 50,
-        "other": 10,
-    },
-    allow_compression=True,
-    max_source_tokens=160,
-    min_compression_tokens=36,
-)
-```
+所以 Context Policy 同时规定总预算、Requirement、Evidence、History、Agent Summary 等分区预算，以及单条来源上限与是否允许压缩。总预算控制整轮规模，分区预算防止低优先级材料挤占关键证据；两者缺一不可。
 
 先用一组简化数字理解它：
 
@@ -372,43 +289,9 @@ Requirement
 
 所以看到 `compressed=true` 时，不要只检查“这条来源有没有进入”，还要检查“关键条件和否定句有没有进入最终 Evidence block”。
 
-## 用现有静态材料观察四种结果
+## Context 策略为什么需要对照
 
-主线实验需要真实 PostgreSQL 和 Embedding。为了先看清 Builder 本身，仓库还保留了离线的 [llm_context_lab](../../source/demos/llm_context_lab/README.md)。它使用固定材料池：
-
-```text
-BR-ORDER-STATE            订单状态规则
-API-AFTER-SALE-V2         售后接口规则
-CLIENT-DETAIL-API         客户端说明
-HISTORY-2026-0412         历史评审
-AGENT-RISK-SUMMARY        Agent 摘要
-NOISE-OLD-V1              过期噪声
-API-AFTER-SALE-V2-DUP     接口规则重复内容
-```
-
-不同 policy 会让同一候选池产生不同结果。
-
-### `full_context`
-
-预算较宽，通常能看到业务规则、接口说明、客户端说明、历史材料和 Agent 摘要。重复接口内容会因 `duplicate_content` 被排除；低优先级噪声仍可能因预算不足被丢弃。
-
-它适合观察“尽量多放”带来的上下文形态，不表示材料越多效果越好。
-
-### `evidence_first`
-
-Evidence 获得主要预算，History 和 Agent Summary 的空间更小。当前样例中，业务规则、接口说明和客户端说明更容易保留，辅助材料可能因各自 section budget 被丢弃。
-
-### `tight_budget`
-
-总预算和单条来源预算都更小。高优先级 Evidence 先进入，较长的接口说明可能被压缩，其余材料被丢弃。
-
-它不是“低成本生产配置”，而是用来稳定观察 compression 和 drop 的实验策略。
-
-### `minimal`
-
-只保留 Requirement，其他来源因 `source_type_excluded` 被排除。最终 Evidence 使用“无可用证据”占位，并产生 `no_evidence_included` warning。
-
-它可以作为无证据对照，但“有 warning”还不等于系统已经实现拒答；拒答策略属于后续生成层。
+同一批材料在完整、证据优先、紧预算和最小输入等策略下，会产生不同的保留、截断与丢弃结果。对照的目的不是选一个永远最好的配置，而是确认每次材料变化都能由预算、分区和优先级解释。运行方式与具体输出见[配套实验](../labs/context-engineering.md)。
 
 ## Citation Candidate 是怎样产生的
 
@@ -428,51 +311,11 @@ History / Agent Summary
 
 > 这条来源在本轮 Evidence 中真实存在，模型可以声明引用它。
 
-它还没有证明模型真的引用了它、结论被它支持、当前证据已经充分，也没有证明来源内容没有过期。第 16 步会先检查模型声明的 source ID 是否属于这个候选集合；更强的“引用内容是否支持结论”仍是后续能力。
+它还没有证明模型真的引用了它、结论被它支持、当前证据已经充分，也没有证明来源内容没有过期。本节会先检查模型声明的 source ID 是否属于这个候选集合；更强的“引用内容是否支持结论”仍是后续能力。
 
-## `BuiltContext` 和 `ContextBuildReport` 分别看什么
+## BuiltContext 和构建报告分别回答什么
 
-构建完成后，实际对象在：
-
-```python
-context = result.context
-report = context.report
-```
-
-### `BuiltContext`：实际材料
-
-常用字段和方法包括：
-
-```python
-context.requirement_text
-context.evidence_block
-context.included_sources
-context.dropped_sources
-context.included_source_ids
-context.dropped_source_ids
-context.citation_candidates
-context.context_block()
-context.to_prompt_variables()
-```
-
-注意，`included_source_ids` 属于 `BuiltContext`，不是 `ContextBuildReport`。
-
-### `ContextBuildReport`：构建解释
-
-报告里可以看到：
-
-```python
-report.policy_name
-report.token_budget
-report.estimated_tokens
-report.section_tokens
-report.dropped_sources
-report.compressed_source_ids
-report.citation_source_ids
-report.warnings
-```
-
-想知道“模型看到了什么”，先看 `BuiltContext`；想知道“为什么是这些材料”，再看 report。
+BuiltContext 回答“模型实际看到了什么”，包括 Requirement、Evidence、已保留和已丢弃来源以及 Citation Candidate。构建报告回答“为什么形成这些材料”，包括策略、预算估算、分区用量、压缩、淘汰和告警。两者必须一起保存，不能用报告替代真实输入，也不能只留输入而丢掉决策过程。
 
 ## 一个必须说清的边界：当前 token budget 不是硬上限
 
@@ -501,7 +344,7 @@ ContextBuildReport.estimated_tokens
 
 > 本地的 Context 选择与分区预算目标，用于做可解释取舍；不是“最终请求永远不会超过模型窗口”的硬保证。
 
-如果产品要提供硬保证，还需要在最终 messages 形成后再次按目标 Provider 计数，并定义超限时是拒绝、缩短 Requirement、继续压缩还是减少候选。当前代码尚未实现这层生产级闭环。
+如果产品要提供硬保证，还需要在最终 messages 形成后再次按目标 Provider 计数，并定义超限时是拒绝、缩短 Requirement、继续压缩还是减少候选。当前机制尚未形成这层生产级闭环。
 
 ## 用四层检查定位 `source_channel` 为什么消失
 
@@ -516,7 +359,7 @@ ContextBuildReport.estimated_tokens
 - 是否进入 RRF？
 - 是否被 `final_top_k` 保留？
 
-如果它不在 `RetrievalResult.candidates`，问题仍在第 14 步及以前。
+如果它不在 `RetrievalResult.candidates`，问题仍在固定 Retriever及以前。
 
 ### 第二层：Retrieval → ContextSource mapping
 
@@ -531,14 +374,7 @@ ContextBuildReport.estimated_tokens
 
 ### 第三层：Context Builder
 
-然后看：
-
-```python
-context.included_source_ids
-context.dropped_sources
-report.compressed_source_ids
-report.citation_source_ids
-```
+查看已保留来源、被丢弃来源、被压缩来源和 Citation Candidate，并确认决策原因。
 
 若接口规则被检索并成功映射，却因 `token_budget_exceeded` 被 dropped，应该检查：
 
@@ -561,78 +397,9 @@ report.citation_source_ids
 
 这四层把一句模糊的“RAG 没效果”拆成了四类可行动问题。
 
-## 主实验：把前面整条真实链路接到 Context
+## 真实链路必须接到 Context，而不是伪造候选
 
-本节主入口是 [inspect_rag_context.py](../../source/demos/rag_retrieval_lab/inspect_rag_context.py)。它不会伪造 RetrievalResult，而是复用前面的真实路径：
-
-```text
-order_rules.md
-→ Loader + Chunker
-→ PostgreSQL FTS + pgvector
-→ FixedHybridRetriever
-→ RetrievalResult
-→ RAG Context adapter
-→ llm_core Context Builder
-→ BuiltContext + ContextBuildReport
-```
-
-先按照 [产品 README 的 PostgreSQL 准备](../../review_assistant/README.md#postgresql-本地准备) 配置真实 PostgreSQL、migration 和 Embedding 服务，再参考 [retrieval lab 步骤 15](../../source/demos/rag_retrieval_lab/docs/15-context.md) 运行：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py
-```
-
-默认会对同一个 `RetrievalResult` 运行 `evidence_first` 与 `tight_budget`。这里最重要的是“同一个 RetrievalResult”：检索候选不变，变化只来自 Context policy，因此 included、compressed、dropped 差异才能归因于 Context Builder。
-
-### 展开真正需要观察的内容
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py --verbose
-```
-
-不要从第一行机械读到最后一行。按下面的顺序看：
-
-1. `RetrievalReport · found candidates`：确认检索到了哪些 Chunk；
-2. `Retrieval → ContextSource mapping`：确认身份、类型和 locator；
-3. `included` / `dropped`：确认模型实际拿到哪些来源；
-4. `citation candidates`：确认哪些 included 来源允许被引用；
-5. `estimated / limit`：观察本地预算估算；
-6. 最终 Context block：确认关键句是否真的存在。
-
-### 只改变 Context policy
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py \
-  --policies full_context,evidence_first --verbose
-```
-
-这次对照中，Requirement、Retriever 配置和 RetrievalResult 都不变。若结果不同，应能只用 `ContextBuildReport` 解释。
-
-### 只移除历史辅助材料
-
-先运行默认命令，再运行：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_rag_context.py \
-  --without-history --verbose
-```
-
-预期关系是：
-
-```text
-RetrievalResult             不变
-RAG mapped source IDs       不变
-History section             变化
-Citation Candidate          不应把 History 算进去
-```
-
-如果移除 History 后 RetrievalReport 也变了，说明实验同时改变了别的变量，不能再把差异归因于 Context。
-
-### 真实依赖失败时会发生什么
-
-主实验需要真实 `DATABASE_URL` 和 Embedding 配置。缺少数据库、鉴权失败或 Provider 异常会直接返回错误，不会静默切换到静态假候选。
-
-这时可以用离线 `llm_context_lab` 学习 Builder，但必须准确表述结论：离线实验可以证明 Context Builder 的确定性行为；不能证明真实 RAG 链路已经接通，也不能证明检索质量。
+主实验应让同一 Query 经过真实 Lexical、Dense、RRF 和 Retriever 控制，再把最终候选交给 Context Builder。这样才能区分候选未被召回、映射时丢失来源、预算淘汰和 Prompt 未使用材料。命令、策略切换、输出展开和依赖排障见[配套实验](../labs/context-engineering.md)。
 
 ## 一个自然 bad case：总预算有空，正确 History 仍被丢弃
 
@@ -666,60 +433,9 @@ Citation Candidate          不应把 History 算进去
 | `estimated_tokens` 超过 budget | Requirement warning 与本地估算边界 | 不要宣称已有硬上限 |
 | Evidence 已包含关键句，模型仍漏答 | Prompt、模型行为与生成 Eval | 不要再反复调 Embedding |
 
-## 测试守住了哪些不变量
+## 确定性验证守住哪些不变量
 
-本节相关确定性测试可以离线运行：
-
-```bash
-uv run pytest \
-  source/packages/llm_core/tests/test_context.py \
-  source/packages/rag_core/tests/test_rag_context.py -q
-```
-
-它们重点验证：
-
-1. 检索 `chunk_id` 到 Context `source_id` 不变；
-2. 文档版本、locator、路由排名和原生分数没有在适配时丢失；
-3. 原生检索分数只作为诊断信息，不冒充事实权威性；
-4. 缺少 `source_spans` 的检索候选不能进入可追踪 Context；
-5. `historical_context` 可以辅助模型，但不能成为 Citation Candidate；
-6. `ineligible` 候选会被明确排除；
-7. additional source 不能用相同 ID 覆盖检索 Chunk；
-8. 同 ID 和同内容去重都会留下原因；
-9. 紧预算下可以压缩来源并保留稳定 ID；
-10. 每条 mapped source 最终都能在 included 或 dropped 中找到去向。
-
-这些测试证明的是确定性数据契约，不证明 PostgreSQL 与 Embedding 服务当前可用、检索效果足够好、某个 policy 是最优配置、模型一定使用 Evidence、Citation 一定支持结论，或最终 Provider 请求一定不会超出窗口。
-
-这也是“测试通过”和“RAG 产品已经可信”之间的边界。
-
-## 从 demo 进入核心代码
-
-如果你第一次读这部分代码，建议沿着一次数据变化读，不要先打开整个 package：
-
-1. [inspect_rag_context.py](../../source/demos/rag_retrieval_lab/inspect_rag_context.py)：看真实实验如何得到同一个 `RetrievalResult` 并比较 policy；
-2. [adapter.py](../../source/packages/rag_core/context/adapter.py)：看候选身份、locator 和证据资格怎样进入 `ContextSource`；
-3. [types.py](../../source/packages/llm_core/context/types.py)：看候选、policy、最终 Context 和报告分别保存什么；
-4. [ranking.py](../../source/packages/llm_core/context/ranking.py)：看过滤、去重、排序和 section 映射；
-5. [builder.py](../../source/packages/llm_core/context/builder.py)：看总预算与分区预算怎样共同选择来源；
-6. [compression.py](../../source/packages/llm_core/context/compression.py)：看确定性抽取压缩与失败边界；
-7. [formatting.py](../../source/packages/llm_core/context/formatting.py)：看 source ID 和 metadata 怎样进入最终文本；
-8. [test_rag_context.py](../../source/packages/rag_core/tests/test_rag_context.py) 与 [test_context.py](../../source/packages/llm_core/tests/test_context.py)：用测试反查上述不变量。
-
-读 `builder.py` 时可以画一条来源的轨迹：
-
-```text
-ContextSource
-→ prepare_sources
-→ section_for_source
-→ available tokens
-→ fit_source
-→ included / compressed / dropped
-→ section content
-→ citation candidates
-```
-
-能沿这条轨迹解释一条来源，比记住所有类名更重要。
+确定性验证可以守住来源映射、分区隔离、去重、优先级、预算决策、Citation Candidate 集合和报告一致性。它不能证明检索候选正确，也不能证明最终模型会忠实使用材料；这两层需要各自的真实实验和后续生成评估。
 
 ## 框架能替你做什么，不能替你决定什么
 
@@ -734,30 +450,6 @@ ContextSource
 - 无证据或超预算时产品应该继续、拒绝还是追问。
 
 因此 Context Engineering 不是“选一个框架的 memory 类”。它是应用对模型输入边界和证据责任的显式设计。
-
-## 亲手完成一个只改策略、不改检索的小实验
-
-这次不需要再给 demo 增加 `--policies`，因为它已经支持这个参数。更有价值的练习是补一个确定性测试：
-
-> 构造一个“总预算仍有空间，但 History 分区放不下”的来源，证明它会因 section budget 被 dropped；然后只增加 History 分区预算，证明同一来源能够 included。
-
-约束如下：
-
-1. Requirement 内容不变；
-2. sources 内容、ID、类型和顺序不变；
-3. 总 `token_budget` 不变；
-4. 第一次只让 History section 太小；
-5. 第二次只增大 `section_budgets["history"]`；
-6. 断言第一次的 dropped reason；
-7. 断言第二次 History included，但仍不进入 Citation Candidate。
-
-完成后，你应该能用一句话解释结果：
-
-```text
-来源不是因为检索失败而消失，而是因为它所属分区没有预算。
-```
-
-如果你同时改了 Retriever top-k、来源内容或总预算，这个实验就不再是单变量对照。
 
 ## 学完后的自检
 
@@ -778,7 +470,7 @@ ContextSource
 
 做到这一步，你掌握的不是“把几段文字拼进 Prompt”，而是能解释模型这一轮究竟看到了什么，以及应用为什么做出这次取舍。
 
-回到 [标准学习路径](../learning-path.md) 后，第 16 步会把 `BuiltContext` 交给真实模型，继续处理结构化生成、未知 source ID 和可信输出边界。
+回到 [标准学习路径](../learning-path.md) 后，本节会把 `BuiltContext` 交给真实模型，继续处理结构化生成、未知 source ID 和可信输出边界。
 
 ## 延伸参考
 

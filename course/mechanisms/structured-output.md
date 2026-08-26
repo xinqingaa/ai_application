@@ -2,7 +2,7 @@
 
 > 机制篇：解释为什么“像 JSON”还不够，以及生成约束、JSON 解析、Schema 校验和业务消费如何形成可信输出链路。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 5 节。必要前置是 [Prompt Engineering](prompt-engineering.md)；本文交付模型结果的生成约束、解析、Schema 校验和业务接受边界。
+> 课程位置：[标准学习路径](../learning-path.md)。必要前置是 [Prompt Engineering](prompt-engineering.md)；本文交付模型结果的生成约束、解析、Schema 校验和业务接受边界。
 
 ---
 
@@ -136,7 +136,7 @@ UI、数据库、Workflow 只读校验后的结构；`assistant` 原文仅用于
 
 ### 数据契约：`ReviewRiskList`
 
-真源在 [`schemas/review.py`](../../source/packages/llm_core/schemas/review.py)。Prompt（[`risk_review_v4.yaml`](../../source/packages/llm_core/prompts/review/risk_review_v4.yaml)）的 Output 段、Pydantic、`json_schema` 模式的 API Schema **必须描述同一份字段**。
+Prompt 的输出说明、应用 Schema 和模型 API 的结构化约束必须描述同一份业务字段，不能各自维护相互漂移的契约。
 
 **根形态**：v4 要求 JSON 对象且含 `risks` 数组（不能是裸数组——OpenAI Structured Outputs 也要求根为 object）：
 
@@ -230,105 +230,7 @@ JSON 语法合法，但字段不符合契约。比如 `category` 写成中文「
 
 ## 建立 Schema、调用与解析闭环
 
-本节最小实现要验证一件事：模型返回文本后，应用能不能稳定判断「是否可用」以及「不可用时错在哪一层」。因此正文只保留两个关键片段：Schema 真源与解析判层。`response_format` 和 `chat_structured` 是把这两者接进请求流程的胶水，理解职责即可。
-
-### 1. Schema 真源
-
-[`schemas/review.py`](../../source/packages/llm_core/schemas/review.py)：
-
-```python
-class ReviewRisk(BaseModel):
-    title: str
-    category: RiskCategory
-    level: RiskLevel
-    rationale: str
-    citations: list[Citation] = Field(default_factory=list)
-
-class ReviewRiskList(BaseModel):
-    risks: list[ReviewRisk]
-```
-
-字段由应用定义，不由模型临时发明。`ReviewRiskList` 包装一层 `risks` 是为了满足 API 根对象要求，并为日后 `ReviewReport` 留扩展位。
-
-### 2. 构建 `response_format`
-
-[`structured/response.py`](../../source/packages/llm_core/structured/response.py) 根据 `structured_mode` 决定是否给 API 传 `response_format`：
-
-- `none`：不传，让 Prompt 自己约束输出。
-- `json_object`：传 JSON Mode，约束格式层。
-- `json_schema`：把 `ReviewRiskList.model_json_schema()` 前移到 API 层。
-
-这里的关键是：`json_schema` 的 schema **来自 Pydantic**，而不是手写第二份 JSON Schema。否则最常见的事故就是 Prompt、Pydantic、API Schema 三份字段不同步。
-
-### 3. 调用与解析合一
-
-[`client/service.py`](../../source/packages/llm_core/client/service.py) 的 `chat_structured` 做三件事：先按 mode 组装 `response_format`，再调用普通 `chat`，最后立刻把 `llm.content` 交给 `parse_structured_content`。它返回的不是单纯文本，而是 `StructuredLLMResponse`：里面同时保留原始模型响应、解析结果和请求参数。
-
-注意顺序：**调用后立刻 parse**。如果先把原始字符串交给 UI 或数据库，再在别处解析，失败就会扩散。结构化输出的工程习惯是：在模型调用边界处就把「可用 / 不可用」判清楚。
-
-### 4. 解析分层与 `error_stage`
-
-[`schemas/parse.py`](../../source/packages/llm_core/schemas/parse.py)：
-
-```python
-def parse_risk_list(content: str) -> StructuredParseResult:
-    text = extract_json_text(content)
-    if not text:
-        return StructuredParseResult(ok=False, risks=None, error_stage="empty", ...)
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        return StructuredParseResult(ok=False, risks=None, error_stage="json", message=str(exc), ...)
-    try:
-        if isinstance(data, list):
-            risks = TypeAdapter(list[ReviewRisk]).validate_python(data)
-        elif isinstance(data, dict) and "risks" in data:
-            risks = ReviewRiskList.model_validate(data).risks
-        ...
-        return StructuredParseResult(ok=True, risks=risks)
-    except ValidationError as exc:
-        return StructuredParseResult(ok=False, risks=None, error_stage="schema", message=str(exc), ...)
-```
-
-**判层口诀**：
-
-- `empty`：无内容 → 怀疑 `max_tokens`、模型拒答、或 API 未返回 body。
-- `json`：`json.loads` 失败 → 怀疑 Markdown 围栏、截断、非 JSON 文本；可对比 `json_mode`。
-- `schema`：JSON 合法但 `model_validate` 失败 → 怀疑字段名/枚举/根形态与 Schema 不一致；查 Prompt Output 是否与 `review.py` 同步。
-
-`extract_json_text` 会剥掉 ` ```json ` 围栏——这是 Prompt-only 场景常见的格式层问题。
-
-### 5. 业务消费
-
-业务消费只看一个原则：**只有 `parse.ok` 为真时，才把数据交给 UI、数据库或 Workflow**。失败时保存 `error_stage` 和 `message`，而不是把原始 assistant 文本强行当作成功结果。
-
-这条边界会直接影响前端体验。前端拿到 `ReviewRisk` 时可以放心渲染枚举、标签和引用列表；拿到 parse 失败时应该展示「结构化生成失败 / 可重试 / 需要人工查看」这样的状态，而不是崩在 JSON 解析上。
-
-从 AI Native 前端视角看，Structured Output 是把模型输出变成界面状态的前提。自由文本只能展示成一段话；结构化结果可以变成风险卡片、筛选器、引用列表、状态标签、人工确认队列和评估样本。也就是说，结构化输出不是后端洁癖，而是前端体验和后续工作流的基础。
-
-但也要保持边界感：`parse.ok=True` 只说明形状可信，不说明内容一定正确。比如模型可能返回了合法的 `source_id` 字符串，但这个 source 是否真实存在，要到 RAG citation 校验；模型可能给出合法的 `medium` 风险等级，但等级判断是否合理，要靠 eval 或人工评审。Schema 负责形状，质量仍要继续评估。
-
-### 前端如何消费结构化状态
-
-需求评审助手的前端不应该只接收一段 `assistant_text`。更合理的状态分层是：
-
-- `parse.ok=True`：渲染风险卡片，支持按 `category` / `level` 筛选。
-- `error_stage=json`：提示“模型输出格式异常”，允许重试或查看原文。
-- `error_stage=schema`：提示“模型输出字段不符合契约”，记录 bad case。
-- `API_ERROR`：提示“模型能力或供应商调用失败”，可换配置或降级。
-- `parse.ok=True` 但 citation 待校验：展示风险卡片，但把引用可信度交给后续 RAG 校验。
-
-这类状态设计会在 AI Native 和 项目篇 里进一步进入工作台体验。本节先把后端结果分层做好，前端未来才有条件展示“AI 到底卡在哪一步”。
-
-### 为什么本节不做自动重试
-
-很多人学结构化输出时，会立刻想到“解析失败就重试”。这确实重要，但本节先不做，是因为不判层的重试经常是无效的。
-
-如果失败来自供应商不支持 `json_schema`，重试同一个请求大概率还是失败；应该降级到 `json_object` 或换模型。如果失败来自枚举非法，简单重试可能偶尔成功，但更好的做法是把错误反馈给模型或修正 Prompt Output。如果失败来自 citation 不真实，重试不一定解决，需要检索和引用校验。
-
-所以本节只要求你学会读 `error_stage`。自动重试、错误反馈和降级策略放到可靠调用机制，是在判层能力之上继续加工程控制。
-
----
+同一份业务 Schema 必须贯穿 Prompt 输出说明、模型 API 的结构化约束、本地解析校验和业务消费。模型侧约束减少格式漂移，本地校验负责最终信任边界；解析失败必须保留原始输出和失败阶段，不能用空对象伪装成功。
 
 ## 框架模式与本地校验怎样协作
 
@@ -389,98 +291,13 @@ def parse_risk_list(content: str) -> StructuredParseResult:
 
 ---
 
-## 比较三种结构化模式
+## 用模式对照观察约束强度
 
-### 目标
-
-在 S2 上理解：**同一 JSON 契约**下，只换 API `response_format`（三种 `structured_mode`），观察 parse 结果、tokens 与延迟差异，并会用 `error_stage` 判层。
-
-### 涉及文件
-
-关键路径：
-
-- [`source/packages/llm_core/schemas/review.py`](../../source/packages/llm_core/schemas/review.py)：风险列表 Schema 真源。
-- [`source/packages/llm_core/schemas/parse.py`](../../source/packages/llm_core/schemas/parse.py)：解析与 `error_stage` 判层。
-- [`source/packages/llm_core/structured/response.py`](../../source/packages/llm_core/structured/response.py)：`response_format` 构建。
-- [`source/demos/llm_invoke_lab/structured_risk.py`](../../source/demos/llm_invoke_lab/structured_risk.py)：本节观察入口。
-
-完整文件说明与参数变体放在 [demo README](../../source/demos/llm_invoke_lab/README.md)。
-
-### 实现步骤（与最小实现对照）
-
-1. `get_prompt("review.risk_review", version="4.0.0")` + `render_prompt` → `messages`（与 Prompt 工程 相同变量 `requirement_text`、`evidence_block`）。
-2. 对每种 demo mode 映射 `structured_mode`：`prompt_only`→`none`，`json_mode`→`json_object`，`json_schema`→`json_schema`。
-3. `client.chat_structured(messages, CONFIG_REF, structured_mode=...)`；捕获 `LLMError` 记 API 失败。
-4. 读 `result.parse.ok`、`error_stage`、`risks`，判断失败层级。
-
-demo 默认固定 S2、Prompt v4、`chat.dev_chat` 和 `temperature=0`，只改变 `structured_mode`。这个设计是为了让你把注意力放在「约束层级」上，而不是把样例、模型和 Prompt 改动混在一起。
-
-### 运行方式
-
-```bash
-uv sync
-cd source/demos/llm_invoke_lab
-uv run python structured_risk.py
-```
-
-### 预期结果
-
-应看到 `[experiment]` 头部，以及 `prompt_only`、`json_mode`、`json_schema` 三个结果块：
-
-- **`prompt_only`**：只靠 Prompt；可能出现围栏、裸数组或字段漂移 → `json` / `schema` 失败。
-- **`json_mode`**：通常得到 JSON 对象；仍可能 `schema` 失败（枚举、缺字段）。
-- **`json_schema`**：平台支持时字段最稳；不支持时出现 `API_ERROR`（能力层，非 parse 实现错误）。
-
-无论哪种 mode，有文本就必须过 `parse_risk_list`；仅 `result.parse.ok=True` 时可把 `result.parse.risks` 交给下游。
-
-本节最重要的观察不是「哪种 mode 一定最好」，而是你能否说清失败发生在哪一层：没有返回文本、不是合法 JSON、字段不符合 Schema，还是供应商不支持某个 API 参数。这个判层能力会直接服务后续的重试降级与 Calling Harness 统计。
-
-### 建议观察清单
-
-- [ ] 三 mode 的 `parse.ok` / `error_stage` 差异
-- [ ] `json_mode` 相对 `prompt_only` 是否减少 `json` 阶段失败
-- [ ] `json_schema` 是 `API_ERROR` 还是 parse 失败——能否说出判层理由
-- [ ] 校验通过时，`category` / `level` 是否为英文枚举值
-
----
-
-## 亲手扩展一次结果契约
-
-给每个风险项增加“影响端”字段，允许 Web、Flutter、服务端或多端：
-
-1. 先为非法枚举和缺失字段补充解析测试。
-2. 修改 Pydantic Schema，而不是只在 Prompt 中要求新字段。
-3. 同步 Prompt 输出意图和 demo 展示。
-4. 分别观察 `prompt_only`、`json_mode` 和 `json_schema`。
-5. 确认旧结果会被明确拒绝、兼容或迁移，不能无声丢字段。
-
-完成后要能指出失败发生在生成约束、JSON 语法、Schema 还是业务消费阶段。
+对照实验固定任务和业务 Schema，只改变模型侧结构化模式，观察 API 能力不支持、JSON 解析失败和业务校验失败分别出现在哪一层。命令、输出和读码路径见[配套实验](../labs/structured-output.md)。
 
 ## 怎样判断输出可以进入业务
 
-- 能解释自由文本、Prompt JSON、`json_object`、`json_schema`、Pydantic 各解决哪一层遗留问题。
-- 能说出 `ReviewRisk` / `ReviewRiskList` 根形态与主要字段枚举。
-- 能按顺序说明：Schema → `build_response_format` → `chat_structured` → `parse_risk_list`。
-- 能解释 demo 固定 Prompt/`config_ref`、只变 `structured_mode` 的原因。
-- 能区分 API 失败、`error_stage=json`、`error_stage=schema`。
-
-### 运行与观察
-
-```bash
-cd source/demos/llm_invoke_lab
-uv run python structured_risk.py
-```
-
-### 自检题
-
-1. 为什么评审会需要 Structured Output，而不能只把模型 Markdown 存库？
-2. Prompt v4 已要求 JSON，为什么还要 Pydantic？`json_object` 能否替代 Pydantic？
-3. `error_stage=json` 与 `error_stage=schema` 各应先查 Prompt 还是 Schema？
-4. `json_schema` 返回 `API_ERROR` 时，应先怀疑 Prompt、Pydantic，还是供应商能力？
-5. `ReviewRiskList` 为什么要包一层 `risks`，而不是裸数组？
-6. 改 `RiskCategory` 枚举后还要改哪些文件？
-
----
+只有当结构可解析、字段满足业务约束、失败阶段可定位、原始响应可追溯，并且前端能够区分成功与失败时，结果才可以进入业务链路。Schema 变化还必须触发相应的 Prompt、测试和消费者检查。
 
 ## 交给项目的结果契约
 

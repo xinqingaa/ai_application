@@ -1,10 +1,10 @@
-# 第 13 步实验准备：Lexical + Dense + RRF
+# Lexical、Dense 与 RRF 对照实验
 
-> 这是第 13 步的操作文档，和机制篇成对。它回答“怎样在同一批 Chunk、同一组 Query 和同一可见范围上运行 lexical、dense 与 RRF，怎样阅读融合贡献，以及怎样完成单变量对照”，不重复 RRF 的完整原理。
+> 这是多路召回与 RRF 的实验篇。它回答“怎样在同一批 Chunk、同一组 Query 和同一可见范围上运行 lexical、dense 与 RRF，怎样阅读融合贡献，以及怎样完成单变量对照”，不重复 RRF 的完整原理。
 >
-> - 机制：[多路召回与 RRF 融合](../../../../course/mechanisms/multi-retrieval-and-rrf.md)
-> - 第 11 步对照：[Lexical Retrieval、BM25 边界与 PostgreSQL FTS](11-lexical-retrieval.md)
-> - 第 12 步前置：[pgvector Dense Retrieval](12-pgvector-dense.md)
+> - 机制：[多路召回与 RRF 融合](../mechanisms/multi-retrieval-and-rrf.md)
+> - Lexical 对照：[从空库到第一次按词检索](lexical-retrieval.md)
+> - Dense 前置：[pgvector Dense Retrieval](vector-store-and-pgvector.md)
 
 本文只回答：怎样从第 12 步已经可运行的 PostgreSQL、pgvector 和真实 Embedding 环境，继续得到两路排名，使用 RRF 形成一份融合候选，并验证融合只读取名次、不直接相加原始分数？
 
@@ -23,8 +23,8 @@
 本实验继续使用：
 
 ```text
-资料：review_assistant/fixtures/v0/ingestion/order_rules.md
-问题：review_assistant/fixtures/v0/retrieval/retrieval_queries.json
+资料：source/apps/review_assistant/fixtures/rag/ingestion/order_rules.md
+问题：source/apps/review_assistant/fixtures/rag/retrieval/retrieval_queries.json
 范围：after_sale + reference_knowledge + current_evidence
 ```
 
@@ -262,7 +262,7 @@ higher_is_better
 
 ### 7.2 公共入口和内部步骤
 
-公共入口位于 [`retrieval/fusion.py`](../../../packages/rag_core/retrieval/fusion.py)：
+公共入口位于 [`retrieval/fusion.py`](../../source/packages/rag_core/retrieval/fusion.py)：
 
 ```python
 fused = reciprocal_rank_fusion(
@@ -312,7 +312,7 @@ RRFCandidate
 
 ### 7.3 修改题：补充四候选契约测试
 
-为 [`test_rrf.py`](../../../packages/rag_core/tests/test_rrf.py) 增加一个四候选测试：
+为 [`test_rrf.py`](../../source/packages/rag_core/tests/test_rrf.py) 增加一个四候选测试：
 
 ```text
 Lexical：A(1), B(2), D(3)
@@ -331,11 +331,11 @@ rrf_k：  60
 
 ### 7.4 读码顺序
 
-1. [`inspect_rrf_retrieval.py`](../inspect_rrf_retrieval.py)
-2. [`retrieval/fusion.py`](../../../packages/rag_core/retrieval/fusion.py)
-3. [`test_rrf.py`](../../../packages/rag_core/tests/test_rrf.py)
-4. [`retrieval/postgres_fts.py`](../../../packages/rag_core/retrieval/postgres_fts.py)
-5. [`retrieval/postgres_dense.py`](../../../packages/rag_core/retrieval/postgres_dense.py)
+1. [`inspect_rrf_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py)
+2. [`retrieval/fusion.py`](../../source/packages/rag_core/retrieval/fusion.py)
+3. [`test_rrf.py`](../../source/packages/rag_core/tests/test_rrf.py)
+4. [`retrieval/postgres_fts.py`](../../source/packages/rag_core/retrieval/postgres_fts.py)
+5. [`retrieval/postgres_dense.py`](../../source/packages/rag_core/retrieval/postgres_dense.py)
 
 ## 8. 完成检查点
 
@@ -349,4 +349,4 @@ rrf_k：  60
 - 说明改变 `candidate_k` 或 HNSW 为什么已经改变了 RRF 的输入。
 - 能把终端字段映射到融合对象，并完成四候选契约测试。
 
-完成操作后回到[机制正文](../../../../course/mechanisms/multi-retrieval-and-rrf.md)，用真实输出核对公式、身份合并、路线状态和自然 bad case。
+完成操作后回到[机制正文](../mechanisms/multi-retrieval-and-rrf.md)，用真实输出核对公式、身份合并、路线状态和自然 bad case。

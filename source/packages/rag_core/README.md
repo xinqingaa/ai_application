@@ -181,7 +181,7 @@ for hit in result.hits:
 
 `lexical_config_ref` 包含名称、版本和所有影响文档/查询共同词项空间的配置 fingerprint。jieba 模式、领域词、停用词或 PostgreSQL text search config 变化时身份都会改变，旧行不会与新查询静默混用，调用者需要重新入库。查询 AND/OR 不改变已存词项，因此进入独立 `retriever_config_ref`，切换时需要记录实验配置但不需要重建文档索引。
 
-完整 migration 和数据库运行方式由 [`review_assistant/README.md`](../../../review_assistant/README.md) 维护。package 不自动建表、不自动执行 migration，也不在 PostgreSQL 失败后回退到 SQLite 或内存搜索。
+完整 migration 和数据库运行方式由 [`source/apps/review_assistant/README.md`](../../../source/apps/review_assistant/README.md) 维护。package 不自动建表、不自动执行 migration，也不在 PostgreSQL 失败后回退到 SQLite 或内存搜索。
 
 ## pgvector 与 Dense Retrieval 公共入口
 

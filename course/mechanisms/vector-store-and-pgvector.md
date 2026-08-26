@@ -1,8 +1,8 @@
 # pgvector、Dense Retrieval 与向量索引
 
-> 机制篇：把第 9 步的可回查 Chunk 与第 10 步的真实 Embedding 连接起来，在 PostgreSQL 中完成可观察的向量检索。
+> 机制篇：把Chunking 阶段的可回查 Chunk 与Embedding 阶段的真实 Embedding 连接起来，在 PostgreSQL 中完成可观察的向量检索。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 12 节。第 10 节提供 Embedding、向量和相似度的前置直觉；第 11 节提供同一批资料上的词面检索对照，但不是本节的知识前置。本文解释机制和边界，不承担实验准备、完整命令或运行排障；这些内容见[第 12 节操作文档](../../source/demos/rag_retrieval_lab/docs/12-pgvector-dense.md)。
+> 课程位置：[标准学习路径](../learning-path.md)。Embedding 阶段提供 Embedding、向量和相似度的前置直觉；Lexical Retrieval提供同一批资料上的词面检索对照，但不是本节的知识前置。本文解释机制和边界，不承担实验准备、完整命令或运行排障；这些内容见[Dense Retrieval 实验篇](../labs/vector-store-and-pgvector.md)。
 
 ## 先分清两条检索路线
 
@@ -18,14 +18,14 @@
 哪些订单可以发起逆向服务？
 ```
 
-第 11 步学习的是 **Lexical Retrieval**：把资料和 Query 拆成词，按共同词项找候选。本节学习的是 **Dense Retrieval**：把资料和 Query 变成向量，按向量空间中的距离找候选。
+Lexical Retrieval学习的是 **Lexical Retrieval**：把资料和 Query 拆成词，按共同词项找候选。本节学习的是 **Dense Retrieval**：把资料和 Query 变成向量，按向量空间中的距离找候选。
 
 ```text
 Lexical Retrieval：词项是否相同？
 Dense Retrieval：表示在向量空间中是否接近？
 ```
 
-第 11 步不是第 12 步的知识前置；两者是两种不同的检索维度，后面的 RRF 才会把两路排名放到一起。实验可以复用第 11 步的 PostgreSQL、Chunk 和问题集，这是环境和数据的复用，不代表两节有相同的检索知识。
+Lexical Retrieval不是Dense Retrieval的知识前置；两者是两种不同的检索维度，后面的 RRF 才会把两路排名放到一起。实验可以复用Lexical Retrieval的 PostgreSQL、Chunk 和问题集，这是环境和数据的复用，不代表两节有相同的检索知识。
 
 现在先看词面路线为什么可能返回 0 条。资料和 Query 进入检索的词可能是：
 
@@ -40,7 +40,7 @@ Dense Retrieval：表示在向量空间中是否接近？
 
 ## 成对比较还缺什么
 
-第 10 步已经可以把两段文字送进同一个 Embedding 空间，再观察它们的 cosine similarity。例如：
+Embedding 阶段已经可以把两段文字送进同一个 Embedding 空间，再观察它们的 cosine similarity。例如：
 
 ```text
 “申请售后”       ↔ “发起逆向服务”
@@ -62,7 +62,7 @@ Query
 → 找出距离最近的候选
 ```
 
-这就是本节新增的检索问题。它不是重新学习 Embedding，而是把第 10 步的“成对观察”扩展成“对候选集合搜索”。
+这就是本节新增的检索问题。它不是重新学习 Embedding，而是把Embedding 阶段的“成对观察”扩展成“对候选集合搜索”。
 
 ## 先看三件新增的事
 
@@ -91,7 +91,7 @@ Query
 
 ## 先把 similarity 接到 distance
 
-第 10 步的成对实验使用 `cosine similarity`：
+Embedding 阶段的成对实验使用 `cosine similarity`：
 
 ```text
 越接近 1 → 方向越接近 → higher is closer
@@ -117,9 +117,9 @@ cosine_distance   = 0.10  # lower is better
 cosine_similarity = 0.90  # higher is better
 ```
 
-它们只是同一个 cosine 关系的两种读法。检索按 distance 从小到大排名，诊断可以额外给出 similarity，帮助你承接第 10 步的直觉。
+它们只是同一个 cosine 关系的两种读法。检索按 distance 从小到大排名，诊断可以额外给出 similarity，帮助你承接Embedding 阶段的直觉。
 
-不能把这些数与第 11 步的 `fts_rank` 相加：
+不能把这些数与Lexical Retrieval的 `fts_rank` 相加：
 
 ```text
 PostgreSQL FTS rank：词项匹配路线自己的排序值
@@ -142,7 +142,7 @@ pgvector distance：向量空间路线自己的距离值
 
 ## pgvector：让 PostgreSQL 保存和计算向量
 
-第 11 步已经让 PostgreSQL 保存 Chunk。第 12 步增加 pgvector，让数据库能够保存向量，并在查询时计算向量之间的距离。这里的 **pgvector** 是 PostgreSQL 的扩展能力，不是 Embedding Provider，也不是另一种检索算法。
+Lexical Retrieval已经让 PostgreSQL 保存 Chunk。Dense Retrieval增加 pgvector，让数据库能够保存向量，并在查询时计算向量之间的距离。这里的 **pgvector** 是 PostgreSQL 的扩展能力，不是 Embedding Provider，也不是另一种检索算法。
 
 向量不只是一个浮点数组。它必须能回答“属于哪个 Chunk、来自哪个 Embedding 空间”。因此，向量存储需要同时保留 Chunk 的稳定身份和空间身份；同一个 Chunk 也可以在新空间中重新生成一份向量，而不会把旧空间悄悄覆盖成新含义。
 
@@ -309,22 +309,22 @@ pgvector 当前常见两种 ANN 索引：
 
 数据库可以继续扩大扫描范围，但这仍是速度、召回、过滤比例和参数之间的取舍。
 
-第 12 步只需要建立两个判断：
+Dense Retrieval只需要建立两个判断：
 
 - exact 是当前小数据的正确性基线。
 - ANN + filter 可能少返回候选，不能看到少于 `candidate_k` 就直接认为知识中没有答案。
 
 完整的过滤顺序、候选数量和无结果原因会在统一 Retriever 诊断中继续处理。
 
-## 真实实现怎样落到这条机制上
+## 这条机制需要怎样的实现边界
 
-当前实验把同一条机制链落在三个责任上：Chunk 继续由共享存储保存，向量由向量存储按空间写入，Dense Retriever 再用 Query vector 从可见 Chunk 中产生 `DenseHit`。真实实验入口和实现细节由第 12 步操作文档维护。
+当前实验把同一条机制链落在三个责任上：Chunk 继续由共享存储保存，向量由向量存储按空间写入，Dense Retriever 再用 Query vector 从可见 Chunk 中产生 `DenseHit`。真实实验入口和实现细节由Dense Retrieval 实验篇维护。
 
 实现上还会返回诊断信息，让学习者区分“没有向量”“没有可见候选”“排名后没有返回”和“索引没有被采用”。这些字段是机制的可观察证据，不是本节需要逐个学习的接口细节。
 
 ## 用同一批问题对照两条路线
 
-共享问题位于 [`retrieval_queries.json`](../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json)。第 11、12 步使用同一个文件和同一组 Chunk，不通过更换样例制造某条路线更强。
+共享问题位于 [`retrieval_queries.json`](../../source/apps/review_assistant/fixtures/rag/retrieval/retrieval_queries.json)。Lexical 与 Dense 实验使用同一个文件和同一组 Chunk，不通过更换样例制造某条路线更强。
 
 在实验中先预测，再观察同一组问题的两路结果：
 
@@ -336,7 +336,7 @@ pgvector 当前常见两种 ANN 索引：
 | `虚拟商品 售后` | 能命中包含这些词的例外 | 也可能很近，但距离不解释否定 |
 | `售前活动入口` | 可能空或出现弱词面噪声 | “售前/售后”主题接近，可能出现语义噪声 |
 
-真实实验的准备、命令和依赖错误由[第 12 步操作文档](../../source/demos/rag_retrieval_lab/docs/12-pgvector-dense.md)维护。正文只要求你确认主路径使用真实 Embedding 和真实 PostgreSQL；缺少 key、migration 或 extension 时，应让错误暴露，而不是用本地假结果替代。
+真实实验的准备、命令和依赖错误由[Dense Retrieval 实验篇](../labs/vector-store-and-pgvector.md)维护。正文只要求你确认主路径使用真实 Embedding 和真实 PostgreSQL；缺少 key、migration 或 extension 时，应让错误暴露，而不是用本地假结果替代。
 
 观察时不要只看“有没有命中”，至少检查：
 
@@ -460,7 +460,7 @@ Chunk.text
 - Chunk、向量和 Embedding 空间身份之间的绑定原则。
 - cosine distance 的方向、exact 基线和 HNSW 近似路线的取舍。
 - 候选范围、空间一致性和索引采用情况的观察方式。
-- 与第 11 步共用资料和问题的 dense / lexical 对照。
+- 与Lexical Retrieval共用资料和问题的 dense / lexical 对照。
 
 仍未交付：
 

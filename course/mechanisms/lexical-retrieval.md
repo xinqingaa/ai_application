@@ -1,10 +1,10 @@
 # Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索
 
-> 第 8–9 节已经把资料切成 Chunk，第 10 节让你观察了 Embedding。现在换一个更容易验证的问题：用户输入一句话时，怎样先从已有资料中找出可能相关的片段？
+> 文档解析与 Chunking已经把资料切成 Chunk，Embedding 阶段让你观察了 Embedding。现在换一个更容易验证的问题：用户输入一句话时，怎样先从已有资料中找出可能相关的片段？
 >
-> 本文先建立“按词找”的直觉，再逐步认识 PostgreSQL 用来实现它的名称。数据库安装和实验命令见[第 11 节实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)；若尚未通过学习路径中的 PostgreSQL 必备基础检查，先阅读[PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。
+> 本文先建立“按词找”的直觉，再逐步认识 PostgreSQL 用来实现它的名称。数据库安装和实验命令见[Lexical Retrieval 实验篇](../labs/lexical-retrieval.md)；若尚未通过学习路径中的 PostgreSQL 必备基础检查，先阅读[PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)。
 
-第 10 节只比较几段已知文本在 Embedding 空间中是否接近；本节把用户问题真正拿去和一批 Chunk 做词面候选检索；第 12 节会沿用同一批 Chunk 和问题，用向量距离再做一次候选检索。这样后面比较 lexical、dense 和 RRF 时，变化来自检索路线，而不是偷偷更换资料。
+Embedding 阶段只比较几段已知文本在 Embedding 空间中是否接近；本节把用户问题真正拿去和一批 Chunk 做词面候选检索；Dense Retrieval会沿用同一批 Chunk 和问题，用向量距离再做一次候选检索。这样后面比较 lexical、dense 和 RRF 时，变化来自检索路线，而不是偷偷更换资料。
 
 ## 先学会按词找候选
 
@@ -80,7 +80,7 @@ PostgreSQL 用 GIN 索引加速这种“按词找行”的查询。GIN 只负责
 - `lexical_text`：应用已经拆好、用空格分隔的词。
 - `search_vector`：PostgreSQL 根据这些词生成的词袋。
 
-这里的 `search_vector` 类型叫 `tsvector`。它保存词和位置信息，不是第 10 步的 Embedding 向量；名字里都有 vector，但一个表示词面，一个表示语义空间。
+这里的 `search_vector` 类型叫 `tsvector`。它保存词和位置信息，不是Embedding 阶段的 Embedding 向量；名字里都有 vector，但一个表示词面，一个表示语义空间。
 
 PostgreSQL 把整套“在文本中按词查询”的能力叫 **FTS**，全称是 Full-Text Search。它不是另一种数据库，而是 PostgreSQL 内置的文本搜索能力。
 
@@ -187,40 +187,15 @@ ts_rank 是 PostgreSQL 当前使用的排序函数
 
 第一阶段使用真实 PostgreSQL FTS 和 `ts_rank`，不把结果字段命名为 `bm25_score`，也不为了这个名称额外引入 BM25 扩展。以后可以用固定数据集比较 BM25 与 `ts_rank`，但那是新的扩展实验。
 
-## 从代码到日志：一次查询经过哪些步骤
+## 一次词面查询经过哪些机制步骤
 
-实验入口是 [`inspect_lexical_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py)。它不会手写一份简化资料，而是复用第 8 步 Loader、第 9 步 Chunker 和固定 fixture：
+同一套词法规则先作用于资料与 Query，资料词项进入倒排索引，Query 形成可执行的词面条件，数据库完成匹配与排序，再由候选深度截断结果。每条候选仍须保留稳定 Chunk 身份、来源和原生 rank；它只是词面候选，不是最终 Context 或 Citation。
 
-```text
-order_rules.md
-→ Loader
-→ Chunker
-→ LexicalAnalyzer
-→ PostgresFTSRetriever.upsert_chunks
-→ PostgreSQL 生成 search_vector
-→ PostgresFTSRetriever.search
-→ LexicalSearchResult
-```
-
-公共入口是 [`PostgresFTSRetriever`](../../source/packages/rag_core/retrieval/postgres_fts.py)：
-
-```python
-retriever.upsert_chunks(chunks)
-retriever.search(query, candidate_k=5)
-retriever.delete_chunks(chunk_ids)
-```
-
-写入使用参数化 SQL 和事务：一批 Chunk 全部成功才提交，中途失败会回滚。重复运行同一 fixture 是幂等更新，不应产生无限重复行。
-
-`LexicalHit` 仍然带有 `chunk_id`、文档版本、原文、来源角色、Metadata、命中词和原生 rank。它只是词面候选，不是最终 Context，也不是 Citation。
-
-当前实现还可以按 `knowledge_scope`、`source_role` 和 `evidence_eligibility` 限制可见资料。过滤发生在词面匹配之前，因此“数据库里有这条 Chunk”不等于“本次查询允许看见它”。本节只观察单路词面候选，第 14 步再系统学习过滤、阈值和淘汰原因。
-
-Psycopg 负责 Python 与 PostgreSQL 之间的连接、参数、事务和异常传递；它不决定分词策略、AND/OR、证据资格或业务正确性。
+过滤发生在匹配之前，因此“数据库里有”不等于“本轮允许检索到”。连接、事务和 SQL 异常属于依赖失败，不能与成功空结果混为一类。
 
 ## 动手做对照：每次只改变一个变量
 
-操作顺序、安装、启动、Role、Database、`.env`、migration 和固定资料入库见[第 11 步实验准备](../../source/demos/rag_retrieval_lab/docs/11-lexical-retrieval.md)。正文只保留观察问题：
+操作顺序、安装、启动、Role、Database、`.env`、migration 和固定资料入库见[Lexical Retrieval 实验篇](../labs/lexical-retrieval.md)。正文只保留观察问题：
 
 | 查询 | 先做预测 |
 | --- | --- |
@@ -258,7 +233,7 @@ Psycopg 负责 Python 与 PostgreSQL 之间的连接、参数、事务和异常�
 
 本节建立“按词找候选”的机制、PostgreSQL FTS 的基本实现、`ts_rank` 与 BM25 的边界，以及真实数据库错误的可见性。
 
-本节不建立向量检索、pgvector、RRF、Context、可信 Citation 或产品 Review API。读完后回到[标准学习路径](../learning-path.md)进入第 12 步：使用同一批 Chunk 和同一批查询，观察 Embedding 生成向量、pgvector 计算距离，再与本节保留的词面排名并列比较。两路原始分数不能直接相加，RRF 才是后续的融合机制。
+本节不建立向量检索、pgvector、RRF、Context、可信 Citation 或产品 Review API。读完后回到[标准学习路径](../learning-path.md)进入Dense Retrieval：使用同一批 Chunk 和同一批查询，观察 Embedding 生成向量、pgvector 计算距离，再与本节保留的词面排名并列比较。两路原始分数不能直接相加，RRF 才是后续的融合机制。
 
 ## 官方参考
 

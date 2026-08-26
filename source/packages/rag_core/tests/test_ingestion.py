@@ -21,7 +21,9 @@ from rag_core import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-FIXTURE_DIR = REPO_ROOT / "review_assistant" / "fixtures" / "v0" / "ingestion"
+FIXTURE_DIR = (
+    REPO_ROOT / "source" / "apps" / "review_assistant" / "fixtures" / "rag" / "ingestion"
+)
 
 
 def _load(path: Path, **overrides):

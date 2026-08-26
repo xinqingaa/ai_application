@@ -1,10 +1,10 @@
-# 第 12 步实验准备：pgvector Dense Retrieval
+# pgvector Dense Retrieval 实验
 
-> 这是第 12 步的操作文档，和机制篇成对。它回答“怎样准备 pgvector、运行 Dense Retrieval、阅读输出和做 exact/HNSW 对照”，不重复机制正文的完整原理。
+> 这是 pgvector Dense Retrieval 的实验篇。它回答“怎样准备 pgvector、运行 Dense Retrieval、阅读输出和做 exact/HNSW 对照”，不重复机制正文的完整原理。
 >
-> - 机制：[pgvector、Dense Retrieval 与向量索引](../../../../course/mechanisms/vector-store-and-pgvector.md)
-> - 第 10 步概念：[Embedding 表示与向量相似度](../../../../course/mechanisms/embedding-and-similarity.md)
-> - 第 11 步对照：[Lexical Retrieval、BM25 边界与 PostgreSQL FTS](../../../../course/mechanisms/lexical-retrieval.md)
+> - 机制：[pgvector、Dense Retrieval 与向量索引](../mechanisms/vector-store-and-pgvector.md)
+> - 第 10 步概念：[Embedding 表示与向量相似度](../mechanisms/embedding-and-similarity.md)
+> - 第 11 步对照：[Lexical Retrieval、BM25 边界与 PostgreSQL FTS](../mechanisms/lexical-retrieval.md)
 
 本文只回答：怎样从第 11 步已经准备好的 PostgreSQL 和 Chunk 数据，继续完成 pgvector migration、真实 Embedding 入库、Dense Retrieval 查询和 exact/HNSW 对照？
 
@@ -19,7 +19,7 @@
 ```bash
 set -a && source .env && set +a
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -f review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql
+  -f source/apps/review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql
 ```
 
 `0002` 做两件事：启用 PostgreSQL 的 `vector` 扩展；创建 `review_assistant.rag_chunk_embeddings`，保存 Chunk 向量和 Embedding 空间身份。
@@ -236,9 +236,9 @@ Python 命令：真实应用链路 + 数据库层 + Provider 诊断
 
 ## 7. 读码入口
 
-1. [`inspect_dense_retrieval.py`](../inspect_dense_retrieval.py)
-2. [`vector_store/postgres.py`](../../../packages/rag_core/vector_store/postgres.py)
-3. [`retrieval/postgres_dense.py`](../../../packages/rag_core/retrieval/postgres_dense.py)
-4. [`0002_add_pgvector_embeddings.sql`](../../../../review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql)
+1. [`inspect_dense_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_dense_retrieval.py)
+2. [`vector_store/postgres.py`](../../source/packages/rag_core/vector_store/postgres.py)
+3. [`retrieval/postgres_dense.py`](../../source/packages/rag_core/retrieval/postgres_dense.py)
+4. [`0002_add_pgvector_embeddings.sql`](../../source/apps/review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql)
 
-完整原理、自然边界和修改题见[机制正文](../../../../course/mechanisms/vector-store-and-pgvector.md)。
+完整原理、自然边界和修改题见[机制正文](../mechanisms/vector-store-and-pgvector.md)。

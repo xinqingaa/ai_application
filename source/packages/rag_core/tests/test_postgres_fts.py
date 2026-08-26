@@ -19,8 +19,8 @@ from rag_core import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-FIXTURE = REPO_ROOT / "review_assistant/fixtures/v0/ingestion/order_rules.md"
-MIGRATION = REPO_ROOT / "review_assistant/infra/migrations/0001_create_rag_chunks.sql"
+FIXTURE = REPO_ROOT / "source/apps/review_assistant/fixtures/rag/ingestion/order_rules.md"
+MIGRATION = REPO_ROOT / "source/apps/review_assistant/infra/migrations/0001_create_rag_chunks.sql"
 
 
 class FakeResult:

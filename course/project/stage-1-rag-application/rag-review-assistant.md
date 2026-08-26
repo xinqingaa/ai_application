@@ -1,6 +1,8 @@
 # 第一阶段：固定 RAG 需求评审助手
 
-> 课程位置：本文是第一阶段业务契约、综合实践与验收的唯一真源，但分两次使用。第一阶段开始时只读“业务场景”“Definition of Ready”“输入与输出契约”和“明确不做”，为后续实验取得固定业务契约；完成[第一阶段标准学习路径](../../learning-path.md)的核心概念、机制和小实验后，再回到本文完成实现、真实 bad case / 边界题、变更题和阶段验收。
+本文是第一阶段综合实践教材。产品要求以根 [SPEC](../../../SPEC.md) 为准，工程实现边界以 [PLAN](../../../PLAN.md) 为准；本文负责设计题、检查点、需求变更和学习验收，不复制完整产品规格。
+
+> 使用方式：阶段开始时只读“业务场景”“Definition of Ready”“输入与输出契约”和“明确不做”，理解本阶段要解决的产品问题；完成[第一阶段标准学习路径](../../learning-path.md)中的概念、机制和实验后，再回到本文完成实现、真实 bad case、变更题和阶段验收。产品要求始终以根 `SPEC.md` 为准。
 
 第一阶段要交付需求评审助手的第一个可运行产品。
 
@@ -46,7 +48,7 @@ Reference Knowledge 与 Historical Material 必须共同覆盖 TXT 或 Markdown�
 
 这些能力位于 `source/packages/llm_core/` 和现有 LLM demos。
 
-第一阶段不重新实现这些能力，而是在此基础上增加唯一 `rag_core`，并在 `review_assistant/` 组合成产品入口。
+第一阶段不重新实现这些能力，而是在此基础上增加唯一 `rag_core`，并在 `source/apps/review_assistant/` 组合成产品入口。
 
 ## Definition of Ready
 
@@ -252,7 +254,7 @@ RRF 只融合名次，不假装不同检索器的原始分数可以直接相加�
 - 固定 RAG Pipeline。
 - Citation 支持性、证据充分性、Refusal 和补充问题的通用校验能力。
 
-### `review_assistant/`
+### `source/apps/review_assistant/`
 
 负责产品组合：
 
@@ -264,7 +266,7 @@ RRF 只融合名次，不假装不同检索器的原始分数可以直接相加�
 - 调用 `llm_core` 和 `rag_core`。
 - 产品 README 中的安装、配置、运行和排错。
 
-产品的真实运行入口和命令由 [review_assistant README](../../../review_assistant/README.md) 维护，项目篇不复制产品运行手册。
+产品的真实运行入口和命令由 [review_assistant README](../../../source/apps/review_assistant/README.md) 维护，项目篇不复制产品运行手册。
 
 ## 运行契约
 
@@ -461,7 +463,7 @@ Definition of Ready 完成后，第一阶段主路径默认冻结：
 
 - 只有缺少某项能力会使第一阶段输入、输出、可信性、可用性或验收契约不成立，或者现有内容无法解释已复现的阻塞失败时，才允许增加第一阶段主线知识。
 - 新框架、数据库、模型或平台功能本身不是扩展理由；优先合并进现有机制，或按分级准入进入概念、机制和未来认知。
-- 改变支持格式、检索路线、产品入口、评估基线或硬门槛时，必须先更新阶段契约，再实现代码，并提升受影响的数据集或实验版本。
+- 改变支持格式、检索路线、产品入口或产品验收要求时，先更新根 `SPEC.md`；改变稳定工程分解时更新 `PLAN.md`，随后再实现代码并提升受影响的数据集或实验版本。
 - 实现中的任务拆分、实时进度和运行结果不写回 `course/learning-path.md`；它们进入代码、产品 README、测试、eval 配置和运行记录。
 
 ## 明确不做
@@ -494,7 +496,7 @@ Definition of Ready 完成后，第一阶段主路径默认冻结：
 - [ ] 至少完成一个真实 bad case / 策略边界观察和一个需求变更。
 - [ ] 有最小固定评估样例和运行记录。
 - [ ] 通用能力只存在于唯一 `rag_core`。
-- [ ] 产品入口位于 `review_assistant/`，没有在 `source/apps/` 维护第二份产品。
+- [ ] 产品入口位于 `source/apps/review_assistant/`，没有在 `source/apps/` 维护第二份产品。
 - [ ] 最小工作台能提交需求、展示结构化风险、Citation、Refusal、补充问题和来源候选，并区分运行、成功与真实失败。
 - [ ] 能解释为什么第一阶段不需要 Agent。
 

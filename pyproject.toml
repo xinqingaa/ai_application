@@ -44,7 +44,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = [
     "source/packages",
-    "review_assistant",
+    "source/apps/review_assistant",
 ]
 markers = [
     "integration: requires an explicitly configured real external dependency",

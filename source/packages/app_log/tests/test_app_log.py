@@ -90,7 +90,6 @@ def test_application_runtime_does_not_call_builtin_print() -> None:
         REPO_ROOT / "source" / "packages",
         REPO_ROOT / "source" / "demos",
         REPO_ROOT / "source" / "apps",
-        REPO_ROOT / "review_assistant",
     )
     violations: list[str] = []
     for root in roots:

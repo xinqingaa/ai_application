@@ -17,9 +17,9 @@ from rag_core import (
 
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
-DOCUMENT_PATH = REPO_ROOT / "review_assistant/fixtures/v0/ingestion/order_rules.md"
+DOCUMENT_PATH = REPO_ROOT / "source/apps/review_assistant/fixtures/rag/ingestion/order_rules.md"
 QUERIES_PATH = (
-    REPO_ROOT / "review_assistant/fixtures/v0/retrieval/retrieval_queries.json"
+    REPO_ROOT / "source/apps/review_assistant/fixtures/rag/retrieval/retrieval_queries.json"
 )
 
 

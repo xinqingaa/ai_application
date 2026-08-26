@@ -2,11 +2,11 @@
 
 > 机制篇：理解为什么解析得到的文档元素还不能直接作为检索单元，以及应用怎样在检索粒度、上下文完整性、来源回查和更新语义之间作出可观察的取舍。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 9 节。必要前置是 [文档内容识别、解析路由、结构还原与来源保留](document-loading-and-cleaning.md)。本文产生可追踪 Chunk，但不建立 Embedding、全文索引、向量索引或 Retriever，也不使用最终回答判断策略质量。
+> 课程位置：[标准学习路径](../learning-path.md)。必要前置是 [文档内容识别、解析路由、结构还原与来源保留](document-loading-and-cleaning.md)。本文产生可追踪 Chunk，但不建立 Embedding、全文索引、向量索引或 Retriever，也不使用最终回答判断策略质量。
 
-## 第八步已经得到 Element，为什么还要继续加工
+## 文档解析阶段已经得到 Element，为什么还要继续加工
 
-第八步把 `order_rules.md` 解析成七个 `DocumentElement`：
+文档解析阶段把 `order_rules.md` 解析成七个 `DocumentElement`：
 
 ```text
 标题：售后入口与订单状态
@@ -34,7 +34,7 @@
 
 > 用户提出一个问题时，应用应该用多大范围的文字参与匹配，并在命中后带回多少语境？
 
-两个问题的目标不同，所以 Element 不能天然等同于 Chunk。第九步要完成的不是“把长字符串切短”，而是把来源形态的结构重新组织成检索形态的单元，同时不丢失回到原文的路径。
+两个问题的目标不同，所以 Element 不能天然等同于 Chunk。Chunking 阶段要完成的不是“把长字符串切短”，而是把来源形态的结构重新组织成检索形态的单元，同时不丢失回到原文的路径。
 
 ## 五个对象承担不同责任
 
@@ -50,7 +50,7 @@
 
 它们不能相互冒充。
 
-父子 Chunk 是检索策略建立的关系，不是原文结构树。Context Source 还要经过检索、过滤、预算和上下文装配才能形成，第九步不会因为生成了 Chunk 就宣称内容已经进入模型。
+父子 Chunk 是检索策略建立的关系，不是原文结构树。Context Source 还要经过检索、过滤、预算和上下文装配才能形成，Chunking 阶段不会因为生成了 Chunk 就宣称内容已经进入模型。
 
 完整位置关系是：
 
@@ -158,9 +158,9 @@ Chunk B:                 [--------------------]
 
 ## 已经恢复出的结构可以帮助确定边界
 
-第八步为不同格式保留了不同结构：
+文档解析阶段为不同格式保留了不同结构：
 
-| 格式 | 第九步可以使用的可靠信息 |
+| 格式 | Chunking 阶段可以使用的可靠信息 |
 | --- | --- |
 | TXT | 文本块、行范围和原始顺序 |
 | Markdown | 标题、标题路径、段落、列表、代码和行范围 |
@@ -207,7 +207,7 @@ Parent Chunk
 - Parent 保存同一章节或相邻元素的完整语境。
 - 后续 Retriever 命中 Child 后，可以按 `parent_chunk_id` 决定是否扩展 Parent。
 
-第九步只建立并观察这种关系，不实现“命中 Child 后取回 Parent”的 Retriever 流程。
+Chunking 阶段只建立并观察这种关系，不实现“命中 Child 后取回 Parent”的 Retriever 流程。
 
 父子块也不是默认更高级的答案：
 
@@ -228,23 +228,7 @@ Parent Chunk
 - 因 overlap 重复一段原文。
 - 作为 Parent 或 Child 再次组织相同来源。
 
-因此单个 `SourceLocator` 不足以表达 Chunk 来源。真实契约使用 `ChunkSourceSpan`：
-
-```python
-@dataclass(frozen=True)
-class ChunkSourceSpan:
-    element_id: str
-    locator: SourceLocator
-    start_char: int
-    end_char: int
-    text: str
-```
-
-它建立一个可测试的不变量：
-
-```python
-element.text[span.start_char:span.end_char] == span.text
-```
+因此单个 `SourceLocator` 不足以表达 Chunk 来源。真实契约让每个来源片段保存元素身份、原文定位、字符起止位置和对应文本。它建立一个可测试的不变量：片段文本必须等于原始 Element 在同一字符范围内的内容。
 
 只要这个关系成立，应用就能从 Chunk 回到真实 Element，再利用 Element 的行号、标题路径、段落号、表格号或页码定位原文。
 
@@ -333,101 +317,9 @@ document_id
 
 这只能保证新旧 Chunk 可以区分。旧索引删除、Embedding 重建、数据库事务和 Citation 失效属于后续知识治理机制。
 
-## 把机制映射到真实代码
+## 用实验把策略差异变成可观察事实
 
-公共入口位于 [`chunking/service.py`](../../source/packages/rag_core/chunking/service.py)：
-
-```python
-def chunk_document(
-    document: KnowledgeDocument,
-    policy: ChunkPolicy,
-) -> ChunkResult:
-```
-
-接口只接收 `KnowledgeDocument`，因为其中已经包含唯一的一组 `elements`。若同时再传 `DocumentElement[]`，调用者可能传入一组不属于该文档的数据。
-
-主调用链是：
-
-```text
-chunk_document
-→ 校验文档和保留 Metadata
-→ 初始化显式 TokenCounter
-→ 按 policy 选择组织策略
-→ 形成 text + ChunkSourceSpan[]
-→ 根据文档、策略和来源生成 chunk_id
-→ 组装 Chunk / Parent / Child
-→ 汇总 ChunkReport
-→ ChunkResult
-```
-
-主要文件职责：
-
-| 文件 | 职责 |
-| --- | --- |
-| [`models.py`](../../source/packages/rag_core/chunking/models.py) | Chunk、SourceSpan、Policy、Report 和策略枚举 |
-| [`tokenization.py`](../../source/packages/rag_core/chunking/tokenization.py) | token 计数、窗口和自然字符边界 |
-| [`identity.py`](../../source/packages/rag_core/chunking/identity.py) | 稳定 Chunk ID |
-| [`service.py`](../../source/packages/rag_core/chunking/service.py) | 四种策略、Parent/child 组装和报告 |
-
-框架中的 text splitter 可以封装字符、token、递归分隔符或 Markdown 标题切分，但它不能替应用决定：
-
-- 业务上哪些关系应该尽量共处。
-- 哪些 Metadata 是可信来源事实。
-- Historical Material 能否作为当前证据。
-- Chunk ID 和重切分的版本语义。
-- Parent 命中后是否应该进入 Context。
-- 某种策略是否真的改善了当前项目的检索质量。
-
-当前机制足够由本地确定性代码观察，因此不为了覆盖框架名称增加 LangChain 依赖。
-
-## 运行实验时先预测，再看输出
-
-共享实现位于 [`rag_core.chunking`](../../source/packages/rag_core/chunking/)，实验继续复用 [`rag_ingestion_lab`](../../source/demos/rag_ingestion_lab/)。
-
-运行：
-
-```bash
-uv run python source/demos/rag_ingestion_lab/inspect_chunking.py
-```
-
-在运行前先预测：
-
-1. Element baseline 中两个标题会怎样存在？
-2. fixed-window 改变 `max_tokens` 后，哪两条事实可能进入同一块？
-3. overlap 增大后，total chunk tokens 和重复比例会怎样变化？
-4. structure-aware 为什么会重复标题文本？
-5. parent-child 中哪些 Chunk 用于后续检索，哪些只提供语境？
-
-默认输出展示：
-
-- retrieval 和 parent 数量。
-- token 分布。
-- 重复增加量。
-- source span 数量。
-- 两组相关事实位于同一 retrieval chunk、同一 parent 还是不同 chunk。
-
-这些是组织事实，不是 PASS / FAIL，也不是检索质量结论。
-
-查看具体 Chunk 和来源跨度：
-
-```bash
-uv run python source/demos/rag_ingestion_lab/inspect_chunking.py \
-  --policy parent-child \
-  --verbose
-```
-
-修改一个变量：
-
-```bash
-uv run python source/demos/rag_ingestion_lab/inspect_chunking.py \
-  --policy fixed \
-  --max-tokens 32 \
-  --overlap-tokens 6
-```
-
-再次运行前，应先写下对 Chunk 数量、重复量和相关事实位置的预测，再用输出验证。
-
-完整参数、JSON Lines、代码阅读顺序和测试命令由 [demo README](../../source/demos/rag_ingestion_lab/README.md) 维护。
+对照实验应固定文档和下游观察方式，只改变 Chunk 策略，比较数量、边界、重复、来源定位和 Metadata。运行命令、输出字段、调试与读码路径见[配套实验](../labs/chunking-and-metadata.md)。机制正文只负责解释为什么这些差异会影响召回、Context 和引用。
 
 ## 没有一种策略同时消除所有代价
 
@@ -467,7 +359,7 @@ KnowledgeDocument
 - 把候选映射成 Context Source。
 - 用检索评估证明策略是否适合真实问题。
 
-第九节不声称：
+Chunking 阶段不声称：
 
 - structure-aware 一定优于 fixed-window。
 - parent-child 一定改善召回。

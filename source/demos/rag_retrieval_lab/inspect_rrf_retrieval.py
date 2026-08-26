@@ -173,7 +173,7 @@ def _render_config_error(json_mode: bool) -> None:
         )
     else:
         console.error("缺少 DATABASE_URL，RRF 实验不会改用本地假候选")
-        console.hint("先按 review_assistant/README.md 执行数据库准备")
+        console.hint("先按 source/apps/review_assistant/README.md 执行数据库准备")
 
 
 def _render_failure(exc: Exception, json_mode: bool) -> None:

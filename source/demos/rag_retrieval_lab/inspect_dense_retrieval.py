@@ -170,7 +170,7 @@ def _render_config_error(json_mode: bool) -> None:
         )
     else:
         console.error("缺少 DATABASE_URL，实验不会回退到内存向量库")
-        console.hint("先按 review_assistant/README.md 执行 0001 和 0002 migration")
+        console.hint("先按 source/apps/review_assistant/README.md 执行 0001 和 0002 migration")
 
 
 def _render_failure(exc: Exception, json_mode: bool) -> None:

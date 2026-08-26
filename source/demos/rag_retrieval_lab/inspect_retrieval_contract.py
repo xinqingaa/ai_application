@@ -116,7 +116,7 @@ def _render_config_error(json_mode: bool) -> None:
         )
     else:
         console.error("缺少 DATABASE_URL；实验不会改用内存候选或假向量")
-        console.hint("先按 review_assistant/README.md 准备数据库和真实 Embedding")
+        console.hint("先按 source/apps/review_assistant/README.md 准备数据库和真实 Embedding")
 
 
 def _render_failure(exc: Exception, json_mode: bool) -> None:

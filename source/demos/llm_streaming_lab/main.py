@@ -1,4 +1,4 @@
-"""FastAPI SSE app for the optional Streaming and Conversation mechanism."""
+"""FastAPI SSE demo for the Streaming and Conversation mechanism."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def _conversation_for(session_id: str) -> ConversationBuffer:
 
 @app.get("/health")
 def health() -> JSONResponse:
-    return JSONResponse({"ok": True, "app": "llm_streaming_api"})
+    return JSONResponse({"ok": True, "app": "llm_streaming_lab"})
 
 
 @app.get("/", include_in_schema=False)

@@ -1,8 +1,8 @@
 # 多路召回与 RRF 融合
 
-> [第 11 步](lexical-retrieval.md)和[第 12 步](vector-store-and-pgvector.md)已经让同一批 Chunk 分别经过 PostgreSQL FTS 和 pgvector，得到 lexical 与 dense 两份排名。本节继续回答：同一个候选可能出现在两份列表里，而且顺序不同，应用怎样把它们合并成一份可解释、可追踪的候选列表？
+> [Lexical Retrieval](lexical-retrieval.md)和[Dense Retrieval](vector-store-and-pgvector.md)已经让同一批 Chunk 分别经过 PostgreSQL FTS 和 pgvector，得到 lexical 与 dense 两份排名。本节继续回答：同一个候选可能出现在两份列表里，而且顺序不同，应用怎样把它们合并成一份可解释、可追踪的候选列表？
 >
-> 读完后，你应该能手算一个最小融合例子，运行真实实验，并判断问题来自上游召回还是排名融合。完整命令、输出字段和排障步骤见[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)。
+> 读完后，你应该能手算一个最小融合例子，运行真实实验，并判断问题来自上游召回还是排名融合。完整命令、输出字段和排障步骤见[RRF 配套实验](../labs/multi-retrieval-and-rrf.md)。
 
 ## 两条路线都正常，应用却还没有最终候选
 
@@ -35,7 +35,7 @@ Lexical Retrieval 和 Dense Retrieval 可能返回不同顺序：
 | 2 | Chunk B | “申请售后”与问题整体语义接近 |
 | 3 | Chunk A | 接口约束与“入口需要什么条件”相关 |
 
-这两份排名只是为了建立心智模型，不是第 11、12 步固定实验的真实输出。真实 fixture 经过当前 Chunk 策略会得到两个 Chunk，而不是这里的四个候选单元；本例暂时拆细，是为了同时展示“多路重合”和“只在单路出现”两种融合输入。换一个真实模型、Chunk 策略或查询，候选数量和 dense 顺序都可能变化。
+这两份排名只是为了建立心智模型，不是Lexical 与 Dense 实验固定实验的真实输出。真实 fixture 经过当前 Chunk 策略会得到两个 Chunk，而不是这里的四个候选单元；本例暂时拆细，是为了同时展示“多路重合”和“只在单路出现”两种融合输入。换一个真实模型、Chunk 策略或查询，候选数量和 dense 顺序都可能变化。
 
 现在应用还必须回答：
 
@@ -269,7 +269,7 @@ RRF 公式把名次直接放进分母。如果一条路线返回 `1, 2, 5`，我
 
 ### `chunk_id` 是两路汇合的主键
 
-两路搜索的是第 9 步建立的同一批 Chunk。应用使用稳定 `chunk_id` 判断两条命中是否指向同一个候选。
+两路搜索的是Chunking 阶段建立的同一批 Chunk。应用使用稳定 `chunk_id` 判断两条命中是否指向同一个候选。
 
 不能改用：
 
@@ -320,13 +320,9 @@ FAILED
 
 RRF 可以继续融合其他成功路线，并把失败路线写入 `failed_routes`。但“算法还能产生候选”不等于“产品可以宣称完整成功”。当前真实 demo 发现任一路失败时会保留诊断并返回非零退出码，不会用单路结果冒充完整的两路融合。
 
-## 从机制到真实实现只需要一座小桥
+## 从机制到实验的边界
 
-真实公共入口是 [`fusion.py`](../../source/packages/rag_core/retrieval/fusion.py) 中的 `reciprocal_rank_fusion`。它接收至少两条已经排好序且名称不重复的路线，以及本次 `rrf_k`，返回融合候选和诊断。
-
-实现内部仍然只是刚才的手算过程：先校验路线和名次，再为每条候选计算倒数排名贡献；随后按稳定 Chunk 身份聚合、核对来源一致性、累加贡献、稳定排序，最后组装诊断。应用代码负责把这些不变量变成强制校验，而不是依赖调用者记住规则。
-
-理解机制时不需要先背类名和内部字段。完整对象结构、源码调用和测试修改任务放在[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)中。
+RRF 的实现必须强制校验路线名称、连续排名、稳定 Chunk 身份和来源一致性，再按公式聚合贡献并稳定排序。机制篇只要求理解这些不变量；对象结构、源码调用、运行和测试任务见[配套实验](../labs/multi-retrieval-and-rrf.md)。
 
 ## 分数相同时为什么还要规定顺序
 
@@ -375,47 +371,9 @@ overlap_candidate_count = 2
 
 不过它还不是完整的 Retrieval 诊断。每路 Metadata Filter、阈值淘汰、最终截断和统一无结果原因会在下一步由 `RetrievalReport` 继续承接。
 
-## 运行真实实验前先做预测
+## 用实验验证机制时应该观察什么
 
-实验复用第 11、12 步的相同资料和 `retrieval_queries.json`，调用真实 PostgreSQL、真实 Embedding 服务和 pgvector。两路还必须使用相同的 `knowledge_scope`、来源角色和证据资格，保证变化来自检索路线，而不是候选可见范围不同：
-
-```text
-order_rules.md
-→ Loader + Chunker
-→ 同一批可见 Chunk 写入 PostgreSQL FTS 与 pgvector
-→ 同一 query、同一可见范围分别进入 lexical / dense
-→ 两份各自排好序的候选列表
-→ 按稳定身份合并并累加排名贡献
-→ 一份融合候选与诊断
-```
-
-默认基线固定 `candidate_k=5`、`rrf_k=60` 和 exact dense，先减少近似索引带来的额外变量。运行前不要猜具体 distance 或最终名次，因为真实 Embedding 空间可能变化；先写下可以由机制推出的预测：
-
-| Query | 先预测什么 | 重点观察什么 |
-| --- | --- | --- |
-| `source_channel` | lexical 应体现精确标识优势 | 强词法候选是否在融合后仍可见 |
-| `发起逆向服务` | lexical 可能为空，dense 有机会补回“申请售后” | `EMPTY` 是否与 `FAILED` 分开，dense-only 候选如何获得贡献 |
-| `申请售后` | 两路都有机会命中同一规则 | 重合候选是否只出现一次并获得两份贡献 |
-| `售前活动入口` | dense 可能返回主题接近的售后噪声 | RRF 是否会如实保留单路或共同噪声 |
-
-真实运行时不要只看 `RRF top`。一条结果至少要能证明五件事：
-
-1. lexical 和 dense 是 `SUCCESS`、`EMPTY` 还是 `FAILED`。
-2. 融合前每个候选在各路的 `route_rank` 是多少。
-3. 每份 `reciprocal_rank` 是否符合公式，总和是否等于 `rrf_score`。
-4. `postgresql_ts_rank` 和 `pgvector_cosine_distance` 是否只保留作诊断，没有参与相加。
-5. 相同 `chunk_id` 是否只保留一条融合候选，同时记录两路贡献。
-
-本节的主要对照只修改 `rrf_k`。从 60 改为 20 时，应预期：
-
-- lexical 和 dense 的原始候选、原生分数及 `route_rank` 不变。
-- `reciprocal_rank` 和 `rrf_score` 改变。
-- `fusion_config_ref` 改变。
-- 某些候选的融合顺序可能改变，也可能完全不变。
-
-如果两路候选本身变了，就不能把差异只归因于 `rrf_k`。先检查是否同时更换了 Embedding 模型、query、Chunk、`candidate_k` 或 dense mode。
-
-完整运行顺序、verbose 字段解读、手算核对、JSON 输出和排障见[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)。切换 HNSW 或 `candidate_k` 也可以观察融合，但它们会改变上游候选，不能与“只修改 `rrf_k`”混为同一个对照。
+实验必须复用Lexical 与 Dense 实验的同一资料、问题、可见范围和候选深度。只改变 `rrf_k` 时，两路原始候选、原生分数和路线排名应该保持不变，只有排名贡献、融合配置身份和可能的最终顺序发生变化。完整命令、输出字段、手算核对和排障见[配套实验](../labs/multi-retrieval-and-rrf.md)。
 
 ## 一个正常 bad case：两路共同放大了噪声
 
@@ -477,16 +435,9 @@ order_rules.md
 
 二者都显示 0 条，但排查路径完全不同。
 
-## 确定性测试能证明什么
+## 确定性验证能证明什么
 
-使用人工构造的排名，可以稳定验证公式只读取路线名次、重合候选得到多份贡献、空结果与失败不会混淆、重复身份和来源不一致会被拒绝。这类测试适合证明确定性算法和输入契约，却不能证明：
-
-- 真实 lexical 找到了正确 Chunk。
-- 真实 Embedding 表示了业务同义关系。
-- RRF 比任一单路更好。
-- 融合候选足以支持模型结论。
-
-后四项必须分别通过真实检索实验、固定数据集和后续生成/Citation 评估获得。具体测试入口和修改任务见[第 13 步操作文档](../../source/demos/rag_retrieval_lab/docs/13-rrf.md)。
+确定性验证可以守住公式、输入状态、去重、稳定排序和诊断不变量，却不能证明上游召回质量、融合后的业务相关性或最终回答质量。后几项必须分别由真实检索实验、固定数据集和后续生成评估提供证据。
 
 ## 框架可以隐藏调用，但不能替你决定边界
 

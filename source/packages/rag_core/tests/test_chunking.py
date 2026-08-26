@@ -17,9 +17,11 @@ from rag_core import (
 
 FIXTURE_DIR = (
     Path(__file__).resolve().parents[4]
+    / "source"
+    / "apps"
     / "review_assistant"
     / "fixtures"
-    / "v0"
+    / "rag"
     / "ingestion"
 )
 

@@ -21,7 +21,14 @@ from rag_core import (
 DEMO_DIR = Path(__file__).resolve().parent
 REPO_ROOT = DEMO_DIR.parents[2]
 FIXTURE_PATH = (
-    REPO_ROOT / "review_assistant" / "fixtures" / "v0" / "ingestion" / "order_rules.md"
+    REPO_ROOT
+    / "source"
+    / "apps"
+    / "review_assistant"
+    / "fixtures"
+    / "rag"
+    / "ingestion"
+    / "order_rules.md"
 )
 log = get_logger("rag_ingestion_lab.chunking")
 

@@ -22,10 +22,10 @@ from rag_core import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-FIXTURE = REPO_ROOT / "review_assistant/fixtures/v0/ingestion/order_rules.md"
+FIXTURE = REPO_ROOT / "source/apps/review_assistant/fixtures/rag/ingestion/order_rules.md"
 MIGRATIONS = (
-    REPO_ROOT / "review_assistant/infra/migrations/0001_create_rag_chunks.sql",
-    REPO_ROOT / "review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql",
+    REPO_ROOT / "source/apps/review_assistant/infra/migrations/0001_create_rag_chunks.sql",
+    REPO_ROOT / "source/apps/review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql",
 )
 
 

@@ -1,6 +1,6 @@
 # Top-k、阈值、Metadata Filter 与 Retrieval 诊断
 
-> 这是一篇机制篇。[第 13 步](multi-retrieval-and-rrf.md)已经把 lexical 与 dense 排名融合成 `RRFResult`；本节继续回答：一条候选从“数据库中存在”到“最终交给 Context Builder”，会在哪些控制点被保留或淘汰？读完后，你应该能跟踪一条 Chunk 穿过 `pre-filter → candidate_k → route threshold → RRF → final_top_k`，并从 `RetrievalReport` 判断它消失在哪一层。本文不讨论 Context token 预算、Reranker，也不把示例阈值包装成产品最佳参数。
+> 这是一篇机制篇。[RRF 融合](multi-retrieval-and-rrf.md)已经把 lexical 与 dense 排名融合成 `RRFResult`；本节继续回答：一条候选从“数据库中存在”到“最终交给 Context Builder”，会在哪些控制点被保留或淘汰？读完后，你应该能跟踪一条 Chunk 穿过 `pre-filter → candidate_k → route threshold → RRF → final_top_k`，并从 `RetrievalReport` 判断它消失在哪一层。本文不讨论 Context token 预算、Reranker，也不把示例阈值包装成产品最佳参数。
 
 ## “数据库里有”为什么仍然不等于“Retriever 会返回”
 
@@ -148,7 +148,7 @@ C 和 E 没有进入 RRF。它们不是被 RRF 排低，而是在融合之前已
 
 ### 第四层：RRF 看到 4 条记录，合成 3 个不同候选
 
-使用第 13 步已经学过的公式：
+使用RRF 融合已经学过的公式：
 
 ```text
 contribution = 1 / (rrf_k + route_rank)
@@ -362,89 +362,9 @@ post_threshold_status = empty
 
 它表示查询正常返回过候选，但候选全部低于当前准入线，不是数据库失败，也不是原始召回为 0。
 
-## `RetrievalResult` 为什么要同时返回结果与过程
+## Retriever 为什么要同时返回结果与过程
 
-公共入口位于 `source/packages/rag_core/retrieval/hybrid.py`：
-
-```python
-config = HybridRetrieverConfig(
-    lexical_candidate_k=3,
-    dense_candidate_k=3,
-    lexical_min_rank=0.50,
-    dense_max_distance=0.25,
-    rrf_k=60,
-    final_top_k=2,
-    knowledge_scope="after_sale",
-    source_roles=(SourceRole.REFERENCE_KNOWLEDGE,),
-    evidence_eligibilities=(EvidenceEligibility.CURRENT_EVIDENCE,),
-)
-
-result = retriever.retrieve(
-    query,
-    query_embedding,
-    config=config,
-)
-```
-
-入口接收两种 query 表示：
-
-- `query: str` 交给 lexical 路线。
-- `query_embedding: EmbeddingRecord` 交给 dense 路线。
-
-应用会检查 `query_embedding.text == query`。如果字符串问的是“创建逆向服务”，向量却由另一个问题生成，两路看似使用同一请求，实际上检索的是两个问题。这个契约错误会直接抛出，而不是生成一份难以解释的混合结果。
-
-返回对象分成：
-
-```text
-RetrievalResult
-├── candidates: 最终通过 final_top_k 的 RRFCandidate[]
-└── report: RetrievalReport
-```
-
-`candidates` 给 Context Builder 使用，`report` 给调试、实验记录和后续产品诊断使用。报告并不是候选内容的平行副本，而是解释候选如何形成：
-
-```text
-RetrievalReport
-├── query / retriever_config_ref / control_order
-├── route_reports
-├── threshold_decisions
-├── fusion_diagnostics
-├── final_selection
-├── no_result_reason / partial_failure
-└── latency_ms
-```
-
-`HybridRetrieverConfig.config_ref` 会把所有会改变结果的控制项编码成稳定引用，包括两路 `candidate_k`、阈值、`rrf_k`、`final_top_k` 和 Metadata 范围。它不能证明某组配置更好，但能防止不同配置的结果被误当成同一次实验条件。
-
-## 真实调用链怎样推进
-
-`FixedHybridRetriever.retrieve` 没有重新实现 FTS、pgvector 或 RRF。它负责把已有能力固定成一条可观察的调用链：
-
-```text
-query + query_embedding + HybridRetrieverConfig
-→ 校验两个 query 是否一致
-→ PostgresFTSRetriever.search(
-     lexical_candidate_k + 相同 Metadata 范围
-   )
-→ PostgresDenseRetriever.search(
-     dense_candidate_k + 相同 Metadata 范围
-   )
-→ LexicalSearchResult / DenseSearchResult
-→ lexical_ranked_route / dense_ranked_route
-→ _apply_threshold（两路分别判断）
-→ reciprocal_rank_fusion
-→ fused.candidates[:final_top_k]
-→ RetrievalResult + RetrievalReport
-```
-
-这里有四个关键实现事实：
-
-1. Metadata Filter 和 `candidate_k` 由两个真实 Retriever 在 SQL 查询中执行，不是取回全库后在内存里伪装过滤。
-2. `_apply_threshold` 使用各自的比较方向，并为每条路线候选留下 `ThresholdDecision`。
-3. 只有通过阈值的 `RankedRoute` 进入第 13 步唯一的 `reciprocal_rank_fusion` 实现。
-4. `final_selection` 会遍历全部融合候选，既记录 selected，也记录 `dropped_by_final_top_k`。
-
-由于两路原始排名已经按 native score 排序，而阈值方向与排序方向一致，通过阈值的候选应形成排名前缀。保留下来的 `route_rank` 因此仍从 1 连续排列，可以安全进入要求连续排名的 RRF 契约。
+最终候选给 Context Builder 使用，诊断报告解释它们怎样经过可见范围、各路候选深度、原生阈值、RRF 和最终截断。两者必须属于同一次运行，并带有能够识别控制条件的配置身份；否则应用只能看到“剩下什么”，无法解释“为什么剩下”。
 
 ## 空结果必须说明“在哪一种条件下为空”
 
@@ -503,102 +423,9 @@ Lexical 或 dense 搜索中的 PostgreSQL 错误会映射为 `RetrievalError`。
 
 这三个层次对应不同修复位置：调用参数、Retriever 路线、Embedding Provider，不能都归类为“RAG 没结果”。
 
-## 运行真实实验时怎样读报告
+## 观察报告时按控制顺序阅读
 
-真实入口是：
-
-```text
-source/demos/rag_retrieval_lab/inspect_retrieval_contract.py
-```
-
-它继续使用第 11–13 步相同的售后资料、查询集、真实 PostgreSQL 和真实 Embedding。默认 dense 路线为 exact，并且两路 threshold 都是 `None`，目的是先观察无阈值基线，而不是直接宣布一组最佳阈值。
-
-最小观察命令是：
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --verbose
-```
-
-完整配置准备和其他命令由 [retrieval lab 步骤 14](../../source/demos/rag_retrieval_lab/docs/14-retriever-contract.md) 维护。阅读输出时按控制顺序进行。
-
-### 先确认本轮实验身份
-
-查看：
-
-```text
-config = fixed-hybrid-retriever@...
-control order = pre_filter → route_candidate_k → route_threshold → rrf → final_top_k
-```
-
-比较两次结果前，先确认数据、query、Embedding 空间和除目标变量外的配置没有变化。
-
-### 再看每路数量怎样变化
-
-摘要会显示类似：
-
-```text
-Lexical：visible 6 → candidate 3 → pass 2
-Dense：  visible 6 → candidate 3 → pass 2
-Fused：  3
-Final：  2
-```
-
-不要跳过 visible 直接看 Final。越靠前的异常会影响所有后续数字。
-
-### 展开每条阈值决定
-
-`Route threshold decisions` 中逐条核对：
-
-- route 与 `chunk_id`。
-- native score 的完整名称和值。
-- higher/lower 方向。
-- `no_route_threshold`、`passed_route_threshold` 或 `dropped_by_route_threshold`。
-
-### 最后看融合与最终选择
-
-`RRF and final_top_k decisions` 会列出所有融合候选的 `fusion_rank`、RRF 分数和最终原因。某条候选显示 `dropped_by_final_top_k`，说明前面的检索、阈值和融合都见过它。
-
-## 做四次单变量对照
-
-真实数值由当前资料、PostgreSQL 和 Embedding 空间决定，所以先预测变化位置，不预先承诺具体候选名次。
-
-### 只减小 lexical `candidate_k`
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py \
-  --lexical-candidate-k 2 --verbose
-```
-
-预期：lexical 最多返回 2 条；dense 控制不应变化。融合输入可能减少，最终结果可能变化，也可能因为被删的 lexical 第 3 名同时在 dense 中出现而保持不变。
-
-### 只收紧 dense distance 阈值
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py \
-  --dense-max-distance 0.35 --verbose
-```
-
-预期：dense 的 candidate 数量不变，pass/drop 数量可能变化；lexical 原始候选与阈值决策不应改变。具体 0.35 是否合适不能从单次实验得出。
-
-### 只减小 `final_top_k`
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py \
-  --final-top-k 1 --verbose
-```
-
-预期：两路 visible、candidate、threshold 和 fused 数量全部不变，只有 `final_selection` 与 `RetrievalResult.candidates` 数量改变。
-
-### 只切换到不存在的业务范围
-
-```bash
-uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py \
-  --knowledge-scope missing_scope --verbose
-```
-
-预期：两路 visible 都变成 0，最终为空，`no_result_reason=visible_scope_empty`。这证明过滤按配置正常工作，不证明知识库损坏，也不证明真实业务应该使用这个 scope。
-
-每次都保存 `retriever_config_ref`。同时修改四个变量，即使结果看起来更好，也无法知道是哪一层造成变化。
+先确认数据、Query、Embedding 空间和控制配置，再依次查看 `visible → candidate → passed → fused → final` 的数量变化。候选在哪一层消失，就从那一层的输入和决策开始定位。命令、单变量对照、完整字段和调试方式见[配套实验](../labs/retriever-contract.md)。
 
 ## 一个正确候选消失时，按什么顺序定位
 
@@ -667,21 +494,9 @@ no_result_reason = visible_scope_empty
 
 不要把过滤条件直接删除来“修复”空结果。那可能让历史资料、其他业务域或不具备当前证据资格的内容进入候选，只是把范围错误变成证据边界错误。
 
-## 确定性测试守住哪些不变量
+## 确定性验证守住哪些不变量
 
-`source/packages/rag_core/tests/test_hybrid_retriever.py` 使用构造好的 lexical/dense 结果验证应用控制逻辑：
-
-- 两路收到相同 Metadata 范围和各自的 `candidate_k`。
-- 控制顺序固定为 pre-filter、candidate、threshold、RRF、final selection。
-- lexical 与 dense 使用相反的阈值方向。
-- 每路 candidate/pass/drop 数量进入报告。
-- 融合数量与最终截断原因可观察。
-- 全部低于阈值时返回 `all_below_threshold`。
-- 空可见范围不会混成 `no_route_match`。
-- 路线失败保留 code/message 和 `partial_failure`。
-- 检索控制变化会改变 config ref；当前测试用 `final_top_k` 验证这一点。
-
-这些测试不调用真实 PostgreSQL 或 Embedding。它们能证明确定性的应用契约，不能证明某组阈值、`candidate_k` 或 `final_top_k` 提高了真实检索质量。
+确定性验证应守住控制顺序、两路阈值方向、各层数量、最终截断原因、空结果分类、部分失败和配置身份。它不能证明某组阈值或候选数量提高了真实检索质量；这些结论仍需要固定数据和真实依赖上的对照。
 
 ## 框架封装不了你的参数语义和诊断责任
 
@@ -696,25 +511,6 @@ no_result_reason = visible_scope_empty
 当前使用显式 `FixedHybridRetriever`，不是宣称手写编排永远优于框架，而是让第一阶段的固定顺序、状态和报告先成为稳定契约。以后替换底层实现时，仍需要保留这些可观察事实。
 
 它也不是 Agent：查询流程由应用预先固定，模型没有选择检索路线、改写 query 或决定是否再次检索。
-
-## 亲手完成一次小改动
-
-在 `test_hybrid_retriever.py` 中，基于已有的五候选测试再运行一次相同输入，只把：
-
-```text
-final_top_k: 2 → 1
-```
-
-修改前先预测并验证：
-
-1. 两路收到的 query、Metadata Filter 和 `candidate_k` 完全相同。
-2. `threshold_decisions` 完全相同。
-3. `fusion_diagnostics.distinct_candidate_count` 仍为 3。
-4. 最终只保留 A `shared`。
-5. D `semantic-only` 从 selected 变成 `dropped_by_final_top_k`。
-6. `retriever_config_ref` 必须改变。
-
-这项修改验证的是 `final_top_k` 只作用于融合之后。不要同时修改阈值，否则无法证明候选变化发生在哪一层。
 
 ## 学完后的自检
 

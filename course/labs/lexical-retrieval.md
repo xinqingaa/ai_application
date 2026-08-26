@@ -1,10 +1,10 @@
-# 第 11 步实验准备：从空库到第一次按词检索
+# Lexical Retrieval：从空库到第一次按词检索
 
-> 这是第 11 步的**操作文档**，和机制篇成对，不讲按词检索的原理。
+> 这是 Lexical Retrieval 的实验篇，和机制篇成对，不讲按词检索的原理。
 >
-> - 机制：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../../../../course/mechanisms/lexical-retrieval.md)
-> - 课表：[标准学习路径](../../../../course/learning-path.md)第一阶段第 11 节
-> - 数据库概念不够时，按需阅读 [PostgreSQL 零基础](../../../../course/concepts/postgresql-for-ai-applications.md)
+> - 机制：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../mechanisms/lexical-retrieval.md)
+> - 课表：[标准学习路径](../learning-path.md)第一阶段第 11 节
+> - 数据库概念不够时，按需阅读 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)
 
 本文只回答：
 
@@ -12,13 +12,13 @@
 
 本文是可重复的课程操作手册，不讲词面检索原理。先读机制篇开头的“按词找候选”问题，再按本文操作；不要在 GUI 里手工插入课文。
 
-这里写入的是 `review_assistant/fixtures/v0/ingestion/order_rules.md` 生成的固定 Chunk，用来观察机制，不是产品用户资料管理，也不是已经存在的入库 API。
+这里写入的是 `source/apps/review_assistant/fixtures/rag/ingestion/order_rules.md` 生成的固定 Chunk，用来观察机制，不是产品用户资料管理，也不是已经存在的入库 API。
 
 第 12 步才需要 pgvector 和 `0002` migration。本节**只做 `0001` 和词面检索实验**。
 
 ## 0. 安装并确认 Server 在跑
 
-课程推荐 macOS 使用 [Postgres.app](https://postgresapp.com/)，也可以使用 Homebrew、EDB installer 或已有远程 PostgreSQL。安装方式不是本实验的变量；只要能提供 PostgreSQL Server、`psql` 和后续连接参数即可。产品级安装说明和运行边界见 [`review_assistant/README.md`](../../../../review_assistant/README.md#postgresql-本地准备)。
+课程推荐 macOS 使用 [Postgres.app](https://postgresapp.com/)，也可以使用 Homebrew、EDB installer 或已有远程 PostgreSQL。安装方式不是本实验的变量；只要能提供 PostgreSQL Server、`psql` 和后续连接参数即可。产品级安装说明和运行边界见 [`source/apps/review_assistant/README.md`](../../source/apps/review_assistant/README.md#postgresql-本地准备)。
 
 Postgres.app 窗口应显示 PostgreSQL **Running**，端口一般为 `5432`。窗口里可能已有 `lrq`、`postgres`、`template1` 等默认库，那是安装自带的，**课程不用它们**。不要改 `template1`。
 
@@ -86,7 +86,7 @@ psql "$DATABASE_URL" -c "SELECT current_database(), current_user;"
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-  -f review_assistant/infra/migrations/0001_create_rag_chunks.sql
+  -f source/apps/review_assistant/infra/migrations/0001_create_rag_chunks.sql
 ```
 
 检查：
@@ -134,7 +134,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --log-
 
 默认输出里应能看到：原始查询、应用拆出的词、PostgreSQL 查询词和 `tsquery`、命中数、`chunk_id`、`fts_rank`、匹配词。若出现 `connection_failed`、`auth_failed`、`migration_required` 等，先看本文第 6 节，不要当成「资料里没有答案」。
 
-探针问题在 [`retrieval_queries.json`](../../../../review_assistant/fixtures/v0/retrieval/retrieval_queries.json)。它们用来观察机制，不是冻结的第一阶段验收集。
+探针问题在 [`retrieval_queries.json`](../../source/apps/review_assistant/fixtures/rag/retrieval/retrieval_queries.json)。它们用来观察机制，不是冻结的第一阶段验收集。
 
 **检查点 E：** 输出显示 `Chunk 已写入 PostgreSQL FTS`，并能在查询表中看到命中数量和 `postgresql_ts_rank`。
 
@@ -253,7 +253,7 @@ JSON 中每个 `lexical.query_observed` 事件的 `matched_chunks` 是匹配总�
 
 **对照三：倒排索引中的两个词**
 
-在[调试 SQL 说明](../sql/README.md#对照查询)中复制两条查询，分别查询 `售后` 和 `techidsourcechannel`。预测 `售后` 可以找到 Chunk A、B，而 `techidsourcechannel` 只能找到 Chunk A。这组对照观察的是“词 → Chunk”的映射，不是语义相似度。
+在[调试 SQL 说明](../../source/demos/rag_retrieval_lab/sql/README.md#对照查询)中复制两条查询，分别查询 `售后` 和 `techidsourcechannel`。预测 `售后` 可以找到 Chunk A、B，而 `techidsourcechannel` 只能找到 Chunk A。这组对照观察的是“词 → Chunk”的映射，不是语义相似度。
 
 **对照四：Python 命令和直接 SQL**
 
@@ -287,7 +287,7 @@ SSL: 关闭
 | `lexical_text` | Python 拆好、空格分开的检索词 |
 | `search_vector` | 数据库收下的词袋，不是第 10 步那种 Embedding 向量 |
 
-不要把 `SELECT` 存成临时文件名再在终端里看宽表。调试 SQL 放在 [`sql/`](../sql/README.md)：
+不要把 `SELECT` 存成临时文件名再在终端里看宽表。调试 SQL 放在 [`sql/`](../../source/demos/rag_retrieval_lab/sql/README.md)：
 
 ```bash
 psql "$DATABASE_URL" -f source/demos/rag_retrieval_lab/sql/list_chunk_previews.sql
@@ -308,9 +308,9 @@ psql "$DATABASE_URL" -f source/demos/rag_retrieval_lab/sql/inspect_rag_chunks.sq
 | `permission_denied` | 是否用 `review_assistant_app` 连接它拥有的库 |
 | 表在 `public` 里找不到 | 看 schema `review_assistant` |
 | 查询成功但 0 行 | 先确认第 4 步已写入；再对照机制篇的词面边界 |
-| Server / 表 / SQL 这些词仍陌生 | [PostgreSQL 零基础](../../../../course/concepts/postgresql-for-ai-applications.md) |
+| Server / 表 / SQL 这些词仍陌生 | [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md) |
 
-产品级的第二条 migration、pgvector、测试库排障仍在 [产品 README](../../../../review_assistant/README.md#postgresql-本地准备)。学第 11 步不必先做 `0002`。
+产品级的第二条 migration、pgvector、测试库排障仍在 [产品 README](../../source/apps/review_assistant/README.md#postgresql-本地准备)。学第 11 步不必先做 `0002`。
 
 集成测试（可选）：
 
@@ -326,7 +326,7 @@ uv run pytest source/packages/rag_core/tests/test_postgres_fts.py -q -m integrat
 - `rag_chunks` 里已有实验写入的行；
 - `--verbose` 跑完，能看到至少一次命中和一次可能的空结果。
 
-然后打开 [机制正文](../../../../course/mechanisms/lexical-retrieval.md)，从“先用两个 Chunk 预测结果”继续。需要对照命令或输出时再回到本页，不要重装数据库。
+然后打开 [机制正文](../mechanisms/lexical-retrieval.md)，从“先用两个 Chunk 预测结果”继续。需要对照命令或输出时再回到本页，不要重装数据库。
 
 ## 调用路径与读码顺序
 
@@ -342,8 +342,8 @@ main
 → LexicalSearchResult
 ```
 
-1. [`inspect_lexical_retrieval.py`](../inspect_lexical_retrieval.py)
-2. [`lexical/analyzer.py`](../../../packages/rag_core/lexical/analyzer.py)
-3. [`retrieval/postgres_fts.py`](../../../packages/rag_core/retrieval/postgres_fts.py)
-4. [`0001_create_rag_chunks.sql`](../../../../review_assistant/infra/migrations/0001_create_rag_chunks.sql)
-5. [`test_lexical.py`](../../../packages/rag_core/tests/test_lexical.py) 与 [`test_postgres_fts.py`](../../../packages/rag_core/tests/test_postgres_fts.py)
+1. [`inspect_lexical_retrieval.py`](../../source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py)
+2. [`lexical/analyzer.py`](../../source/packages/rag_core/lexical/analyzer.py)
+3. [`retrieval/postgres_fts.py`](../../source/packages/rag_core/retrieval/postgres_fts.py)
+4. [`0001_create_rag_chunks.sql`](../../source/apps/review_assistant/infra/migrations/0001_create_rag_chunks.sql)
+5. [`test_lexical.py`](../../source/packages/rag_core/tests/test_lexical.py) 与 [`test_postgres_fts.py`](../../source/packages/rag_core/tests/test_postgres_fts.py)

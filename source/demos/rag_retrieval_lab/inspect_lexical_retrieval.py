@@ -101,7 +101,7 @@ def _render_config_error(json_mode: bool) -> None:
         )
     else:
         console.error("缺少 DATABASE_URL，实验不会回退到 SQLite 或内存检索")
-        console.hint("先按 review_assistant/README.md 初始化 PostgreSQL 和 migration")
+        console.hint("先按 source/apps/review_assistant/README.md 初始化 PostgreSQL 和 migration")
 
 
 def _render_retrieval_error(exc: RetrievalError, json_mode: bool) -> None:
@@ -117,7 +117,7 @@ def _render_retrieval_error(exc: RetrievalError, json_mode: bool) -> None:
         console.error(str(exc))
         if exc.code.value == "migration_required":
             console.hint(
-                "执行 review_assistant/infra/migrations/0001_create_rag_chunks.sql"
+                "执行 source/apps/review_assistant/infra/migrations/0001_create_rag_chunks.sql"
             )
 
 
