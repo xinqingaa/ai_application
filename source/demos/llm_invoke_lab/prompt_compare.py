@@ -22,7 +22,7 @@ from _shared import (
     require_api_key,
 )
 
-# --- 实验配置（改这里，不用敲长命令；逐项说明见本目录 README 与 Prompt 机制篇）---
+# --- 实验配置（改这里，不用敲长命令；逐项说明见 course/labs/prompt-engineering.md）---
 SAMPLE_ID = "S2"
 PROMPT_ID = "review.risk_review"
 PROMPT_VERSIONS = ("1.0.0", "2.0.0", "3.0.0")

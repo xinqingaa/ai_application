@@ -14,8 +14,8 @@
 → Context、结构化评审、Citation、Refusal 与补充问题
 → Review API、最小评审工作台和固定 RAG 对照
 → Agent Harness、Tool Runtime 与单 Agent 动态补检索、追问和运行界面
-→ MCP、Agent Skills 与 Browser / Search / Code / File Tool
-→ Deep Research 多步研究任务
+→ MCP 与 Search / Browser / File / Code Tool
+→ Agentic RAG、Agent Skills 与 Deep Research
 → Multi-Agent 分工、并行、汇总、冲突处理与 A2A
 → 必要 Workflow、恢复和人工介入
 → Trace、评估、bad case、反馈、部署与产品化
@@ -66,6 +66,8 @@ source/apps/review_assistant/
 这是一张职责地图，不授权预建空目录。只有对应版本的文档、代码和运行入口同时落地时才创建实际目录。
 
 当前产品只维护 Web 工作台，不建设或并行维护 Flutter App。课程中的 Flutter 仍可作为业务影响范围和学习者既有经验出现，但不是当前两个阶段的产品入口或验收项。
+
+第二阶段仍围绕同一个产品场景推进：受控工作区中同时存在 PRD、OpenAPI、Web / Flutter 客户端模型、配置和定向测试；外部资料通过 MCP、Search 与 Browser 进入。File Tool 负责选择性读取并保留路径、版本、哈希和定位，写入只进入运行级暂存区；Code Tool 只运行白名单内的契约校验、静态检查或定向测试，不提供任意 Shell。这里描述的是已确定的产品边界，不表示这些能力当前已经实现；具体需求与实施顺序分别以根 [SPEC.md](../../../SPEC.md) 和 [PLAN.md](../../../PLAN.md) 为准。
 
 ## 当前已落地的运行能力
 

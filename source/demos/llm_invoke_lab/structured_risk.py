@@ -29,7 +29,7 @@ from _shared import (
 
 StructuredRiskMode = Literal["prompt_only", "json_mode", "json_schema"]
 
-# --- 实验配置（逐项说明见本目录 README 与 Structured Output 机制篇）---
+# --- 实验配置（逐项说明见 course/labs/structured-output.md）---
 SAMPLE_ID = "S2"
 PROMPT_ID = "review.risk_review"
 PROMPT_VERSION = "4.0.0"

@@ -369,7 +369,7 @@ overlap_candidate_count = 2
 
 当前实现还会用算法版本、路由名称和 `rrf_k` 形成融合配置身份。修改 `rrf_k` 或新增路线后，即使代码入口相同，也不能把结果当作同一个融合配置。
 
-不过它还不是完整的 Retrieval 诊断。每路 Metadata Filter、阈值淘汰、最终截断和统一无结果原因会在下一步由 `RetrievalReport` 继续承接。
+不过它还不是完整的 Retrieval 诊断。每路 Metadata Filter、阈值淘汰、最终截断和统一无结果原因，需要由统一的 Retrieval 诊断契约继续承接。
 
 ## 用实验验证机制时应该观察什么
 
@@ -400,7 +400,7 @@ overlap_candidate_count = 2
 3. 查看 dense 的 Embedding 空间、cosine distance 和 route rank。
 4. 确认两路是否真的都把噪声排在前面。
 5. 手算 RRF，确认融合只是累加已有排名信号。
-6. 再判断应该修改 Chunk、词法分析、Metadata 范围、Embedding，还是在下一步加入各路阈值。
+6. 再判断应该修改 Chunk、词法分析、Metadata 范围、Embedding，还是需要为各路增加阈值。
 
 不要先反复调整 `rrf_k`，直到这个单一 Case 看起来正确。若根因是两路都召回了主题噪声，改变平滑常数只是在重新排列症状。
 

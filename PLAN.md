@@ -40,8 +40,10 @@ LLM 调用与结构化输出
 ```text
 Agent Harness
 → Tool Schema 与 Tool Runtime
-→ Retriever as Tool 与 Agent Loop
-→ MCP、通用 Tool 与 Agent Skills
+→ Tool 权限、Prompt Injection 与副作用治理
+→ MCP 与真实外部能力接入
+→ Search / Browser / File / Code Tool
+→ Retriever as Tool、Agent Loop 与 Agent Skills
 → Conversation、事件和运行界面
 → Deep Research
 → Multi-Agent 与 A2A
@@ -63,7 +65,11 @@ Agent Harness
 
 ### `agent_core`
 
-在第二阶段真实实现开始时建立，负责 Agent Harness、Tool Runtime、Agent Loop、状态、MCP 适配、Skills、Research、Multi-Agent 与必要 Workflow 原语。
+在第二阶段真实实现开始时建立，负责 Agent Harness、Tool Runtime、权限与副作用控制、Agent Loop、状态、MCP 适配、Skills、Research、Multi-Agent 与必要 Workflow 原语。
+
+Tool Runtime 统一接收 Tool Schema、经过校验的参数、运行权限和取消信号，并返回结构化结果或错误。MCP、Search、Browser、File、Code 和 Retriever 都通过这一边界接入；不能让某种连接器绕过统一权限、超时、审计和事件。
+
+File Tool 的通用部分负责受控工作区、路径解析、来源身份、读取结果、暂存写入、原子写入和幂等。Code Tool 的通用部分负责允许命令、隔离执行、资源限制、取消和结构化执行结果。具体允许读取什么、运行哪些验证和写出哪些产物属于产品策略。
 
 ### `eval_core`
 
@@ -77,9 +83,14 @@ Agent Harness
 - Web 工作台。
 - 产品 Schema、状态和组合流程。
 - 产品测试、fixtures、eval 和数据库 migration。
+- 第二阶段评审工作区策略、允许路径、允许命令、人工确认和运行产物。
 - 安装、配置、运行和部署。
 
 通用算法进入 package，产品业务取舍留在 app。
+
+第二阶段继续复用“售后入口与订单状态”垂直切片，并增加可执行的多端契约工作区。真实实现到达对应能力时，产品 fixture 至少覆盖 PRD、OpenAPI、Flutter / Web 客户端模型、配置、定向验证入口和预期失败；fixture、Tool 实现、实验和测试一起落地，不提前创建空目录。
+
+File Read 默认只访问本次运行批准的工作区；File Write 默认只访问 `run_id` 隔离的暂存输出。Code Tool 默认只读挂载输入、隔离输出、禁用网络，并使用命令和环境白名单。产品若扩大路径、命令或网络能力，必须先更新 SPEC 的安全与验收边界。
 
 ## 6. 实验边界
 

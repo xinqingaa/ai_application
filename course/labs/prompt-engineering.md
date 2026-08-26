@@ -1,11 +1,106 @@
 # Prompt 单变量对照实验
 
-配套机制：[面向应用的 Prompt Engineering](../mechanisms/prompt-engineering.md)。本实验固定模型和样例，只改变 Prompt 版本。
+配套机制：[面向应用的 Prompt Engineering](../mechanisms/prompt-engineering.md)。本实验固定需求样例、静态 Evidence、模型配置和 temperature，只改变 Prompt 版本，观察任务协议变化怎样影响风险覆盖、无依据扩写、格式和资源消耗。
+
+静态 Evidence 只是受控实验输入，不是 Retriever 或 Context Builder 的结果。本实验不能证明完整 RAG 质量。
+
+## 1. 前置与实验身份
+
+先完成[真实模型调用与 Provider 实验](model-api-and-provider.md)，保证根 `.env` 和 `chat.dev_chat` 可以真实调用。
+
+实验配置位于 `source/demos/llm_invoke_lab/prompt_compare.py` 顶部：
+
+| 配置 | 当前默认 | 实验意义 |
+| --- | --- | --- |
+| `SAMPLE_ID` | `S2` | 固定待评审需求 |
+| `PROMPT_ID` | `review.risk_review` | 固定任务身份 |
+| `PROMPT_VERSIONS` | `1.0.0`、`2.0.0`、`3.0.0` | 唯一主要变量 |
+| `EVIDENCE_FILE` | `evidence_s2.json` | 固定 Evidence |
+| `TEMPERATURE` | `0` | 降低随机性，便于对照 |
+| `VERBOSE` | `False` | 是否展开渲染 messages 和请求参数 |
+
+开始前记录这组实验身份。不要一边改变 Prompt，一边更换模型、样例、Evidence 或 temperature。
+
+## 2. 运行前先读三版 Prompt
+
+从 `source/packages/llm_core/prompts/` 找到 `review.risk_review` 的三个版本，回答：
+
+- 每一版新增或收紧了哪类任务说明。
+- Evidence 应怎样被使用，哪些内容不得推测。
+- 是否增加约束、Few-shot 或输出要求。
+- 哪些要求属于 Prompt，哪些应由 Schema 或应用校验承担。
+
+先预测：
+
+- 哪一版可能减少无依据扩写。
+- 哪一版可能更稳定地覆盖风险项。
+- 哪一版可能增加 Token。
+- 哪些差异即使出现，也不能只凭一次输出下结论。
+
+## 3. 运行固定对照
 
 ```bash
 uv run python source/demos/llm_invoke_lab/prompt_compare.py
 ```
 
-运行前先比较各 Prompt 版本唯一新增的任务、证据、约束或输出要求。观察同一需求下风险覆盖、无依据扩写、格式稳定性、Token 和延迟，不用更换样例证明某个版本更好。
+需要查看渲染后的完整 messages 时，将脚本顶部 `VERBOSE` 临时改为 `True` 后重跑。实验结束后不要把包含敏感资料的完整输出提交到仓库。
 
-排查顺序：样例 → Prompt 版本 → 渲染后的 messages → Provider 请求 → 模型结果。读码入口是 `prompt_compare.py`、`llm_core/prompts/registry.py` 和对应 YAML。修改一个约束后使用同一组样例重新对照。
+输出按 Prompt 版本展示相同调用事实。每版至少记录：
+
+| 观察项 | 要回答的问题 |
+| --- | --- |
+| experiment | sample、Prompt、版本、temperature 是否固定正确 |
+| rendered messages | 变量是否进入预期位置；仅 verbose 查看 |
+| model / config_ref | 是否误换了模型配置 |
+| usage / latency | 更长协议带来多少资源变化 |
+| content | 风险覆盖、依据、歧义和格式怎样变化 |
+| API error | 失败是否来自真实 Provider 而不是 Prompt |
+
+## 4. 人工比较清单
+
+对三个版本使用同一张表，不用“更像我喜欢的回答”代替判断：
+
+- 是否覆盖需求中明确存在的主要风险。
+- 是否把 Evidence 没有提供的内容写成事实。
+- 是否区分事实、推断和待确认信息。
+- 是否遵守任务边界。
+- 输出是否更容易被后续 Schema 接收。
+- Token 和 latency 是否出现明显增加。
+
+本实验是探索性对照，不把三次单样例结果写成“某版本永久更好”。后续 Golden Set 才承担稳定回归。
+
+## 5. 失败时按层排查
+
+| 表现 | 优先检查 | 验证方式 |
+| --- | --- | --- |
+| Prompt 版本不存在 | `prompt_id` 与 `version` | 查看 Prompt Registry 和 YAML 内身份，不按文件名猜 |
+| 模板变量缺失 | 模板需要的变量与 `variables` | 渲染应直接报告缺少的变量名；显式空字符串与遗漏变量含义不同 |
+| Evidence 内容不对 | `EVIDENCE_FILE` 与 sample | 打开固定文件，确认没有误换材料 |
+| 三版调用的模型不同 | 每版模板的 `model_config_ref` | 比较输出中的 config_ref |
+| 输出完全不稳定 | temperature 或 Provider 差异 | 恢复 temperature=0 和同一配置，多次运行仅作观察 |
+| JSON 文字无法解析 | Prompt 只能提出格式要求 | 进入 Structured Output 实验，不在此处静默修复 |
+
+## 6. 读码顺序
+
+1. `source/demos/llm_invoke_lab/prompt_compare.py`：实验固定了什么、循环改变什么。
+2. `source/packages/llm_core/prompts/registry.py`：Prompt 身份与版本怎样查找。
+3. 对应 Prompt YAML：任务、变量、约束和版本内容。
+4. Prompt 渲染函数：缺少变量怎样失败。
+5. `source/packages/llm_core/tests/test_prompts.py`：身份、版本、渲染和缺失变量哪些行为被固定。
+
+## 7. 修改任务与验证
+
+在一个新版本或受控修改中只改变一项，例如新增“不能把历史材料写成现行规则”的约束。先预测：
+
+- 相关 bad case 应怎样变化。
+- 其他样例和输出契约为什么不应改变。
+- Token 可能怎样变化。
+
+仍用同一 `SAMPLE_ID`、Evidence、模型和 temperature 重跑，并保留旧版本结果用于比较。然后运行 Prompt、Harness 和结构化解析相关测试：
+
+```bash
+uv run pytest source/packages/llm_core/tests/test_prompts.py \
+  source/packages/llm_core/tests/test_harness.py -q
+```
+
+测试只能守住确定性加载、渲染和运行记录契约；Prompt 质量仍需真实模型对照和后续固定数据集。

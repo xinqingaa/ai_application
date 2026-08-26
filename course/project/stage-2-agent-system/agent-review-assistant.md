@@ -8,6 +8,21 @@
 
 最终产品仍是同一个需求评审助手，不新建第二个应用。
 
+## 贯穿场景
+
+第二阶段继续使用第一阶段“售后入口与订单状态”基线，不通过更换案例规避固定 RAG、单 Agent 和 Multi-Agent 的比较。新增任务是评审“售后接口 v2 与多端契约一致性”：需求要求增加或收紧 `source_channel`，并要求 Web 与 Flutter 客户端使用一致的入口可见性规则。
+
+一次评审可以收到：
+
+- 当前 PRD 与会议纪要。
+- OpenAPI 或 JSON Schema 接口契约。
+- Flutter / Web 客户端模型和相关配置。
+- 项目已有的契约校验、静态检查或定向测试入口。
+- 外部需求系统中的 issue、验收条件和关联资料。
+- 需要回查的官方 SDK 文档或版本说明。
+
+这些输入共同构成受控评审工作区，但证据资格不同：当前 PRD 是评审主体，内部现行规则来自 RAG，外部资料来自 MCP 或 Browser，文件和代码执行结果是 Tool Evidence。任何来源都不能仅因被 Agent 读取或执行成功就自动成为已校验 Citation。
+
 ## 已有能力
 
 进入本阶段前必须已经具备：
@@ -22,9 +37,9 @@
 
 ```text
 固定 RAG
-→ 受治理 Retriever Tool
-→ 可停止的单 Agent
-→ MCP、通用 Tool 与 Agent Skills
+→ Tool Runtime 与受控外部能力
+→ MCP、Search、Browser、File 与 Code
+→ Retriever Tool、可停止 Agent 与 Agent Skills
 → 可观察事件与运行界面
 → Deep Research
 → Multi-Agent 与 A2A
@@ -40,15 +55,19 @@
 
 ### MCP
 
-产品首先作为 MCP Client 消费一个真实、只读、可观察的 Tool 或 Resource。MCP 负责连接、能力发现与结果交换；内部 Tool Runtime 继续负责 Schema、权限、超时、取消、审计和错误转换。
+产品首先作为 MCP Client 消费一个真实、只读、可观察的外部需求或资料能力，例如读取需求系统中的 issue、验收条件和关联资料。MCP 负责连接、能力发现与结果交换；内部 Tool Runtime 继续负责 Schema、权限、超时、取消、审计和错误转换。更换 MCP Server 不应改变产品内部 Tool 契约和证据模型。
 
 ### 通用 Tool
 
-- Browser / Search：外部研究和来源回查，不替代内部 RAG。
-- File：读取项目资料；写入需要独立权限。
-- Code：只在受控沙箱中完成明确的分析或验证任务。
+- Search：根据研究问题发现候选来源，不把搜索摘要直接当作最终证据。
+- Browser：打开候选来源，提取官方文档、版本说明或接口规范，并保留 URL、标题、时间和内容定位。
+- File Read：在批准的工作区中选择性读取 PRD、OpenAPI、客户端模型、配置和测试入口，保留相对路径、内容哈希和定位。
+- File Write：用户确认后，只向运行级暂存区写入评审报告、补充问题、证据清单或带批注需求副本；不直接覆盖原始需求和代码。
+- Code：当专用 Validator 不足而需要运行项目已有检查时，在受控沙箱中执行允许的契约校验、静态检查或定向测试。
 
-课程必须实验这些工具类别；产品只启用有真实业务职责并满足权限要求的能力。
+Code Tool 第一版不接受任意 Shell，也不让模型自由生成并执行代码。应用选择允许的 `command_ref`，只读挂载输入工作区、隔离输出、默认禁网并限制时间、资源、环境和产物。执行结果保留退出码、stdout、stderr、耗时、超时和产物身份。
+
+这些工具在本项目中都有真实职责，但仍要优先使用更窄的专用能力。例如只需校验 OpenAPI 时使用专用 Validator；只有需要运行项目现有脚本或测试体系时才使用 Code Tool。
 
 ### Agent Skills
 
@@ -56,7 +75,7 @@
 
 ### Deep Research
 
-用于需要多步搜索、来源验证和综合的评审问题。每条关键结论必须能回到来源，运行必须有预算和停止条件。
+用于需要多步搜索、来源验证和综合的评审问题，例如核对外部 SDK 的最低版本、跨端支持范围或互相冲突的版本说明。普通内部规则查询继续使用 RAG；一次官方文档回查使用 Search / Browser；只有需要计划、多个来源、证据积累或冲突处理时才进入 Deep Research。每条关键结论必须回到来源，运行必须有预算和停止条件。
 
 ### Multi-Agent
 
@@ -92,7 +111,11 @@ A2A 在本地责任契约成立后用于交换任务、状态、结果和错误�
 ### MCP、Tools 与 Skills
 
 - 接入一个真实 MCP Tool 或 Resource。
-- Browser/Search、File、Code 的权限和失败边界可观察。
+- Search 结果与 Browser 实际打开的来源分开记录，搜索摘要不直接成为 Citation。
+- File Read 能从工作区追踪 OpenAPI、客户端模型和配置的路径、哈希与定位，并拒绝路径穿越、越权和超限。
+- File Write 只能写运行级暂存产物；覆盖、确认、原子写入和重复请求可观察。
+- Code Tool 至少完成一次接口或客户端契约验证，并展示成功、校验失败、超时或权限拒绝中的多种结果。
+- Code 执行不能访问工作区外文件、秘密环境变量或未批准网络，也不能把非零退出码伪装为空结果。
 - 至少一个领域 Skill 能按需加载。
 - MCP 失败不会绕过内部 Runtime 或伪装成空结果。
 
@@ -105,8 +128,9 @@ A2A 在本地责任契约成立后用于交换任务、状态、结果和错误�
 
 ### Deep Research
 
-- 研究任务能拆解、迭代搜索、积累证据和停止。
-- 来源质量、重复来源和冲突证据可见。
+- 能判断普通 RAG、单次 Browser 回查和 Deep Research 的启动边界。
+- 研究任务能建立计划、迭代搜索、维护 Evidence Ledger、重新规划和停止。
+- 来源质量、权威性、独立性、重复来源、交叉验证和冲突证据可见。
 - 最终综合能回查 Citation。
 
 ### Multi-Agent 与 A2A
@@ -130,11 +154,13 @@ A2A 在本地责任契约成立后用于交换任务、状态、结果和错误�
 
 1. 为什么固定 RAG 不足，哪些步骤仍保持确定性。
 2. MCP 连接哪项真实外部能力，为什么不直接写专用 API。
-3. 哪些 Tool 进入产品，权限和副作用怎样控制。
-4. Skill 为什么不是 Prompt、Tool 或 MCP Server。
-5. Deep Research 在什么条件下启动和停止。
-6. 为什么需要多个 Agent，各自责任是什么。
-7. A2A 和 Workflow 分别解决哪一个边界。
+3. Search 与 Browser 为什么分开，哪些结果可以成为候选证据。
+4. File Read 为什么需要来源身份，File Write 为什么只能进入暂存区。
+5. 哪些校验使用专用 Tool，哪些确实需要 Code Tool，允许命令怎样控制。
+6. Skill 为什么不是 Prompt、Tool 或 MCP Server。
+7. Deep Research 在什么条件下启动和停止。
+8. 为什么需要多个 Agent，各自责任是什么。
+9. A2A 和 Workflow 分别解决哪一个边界。
 
 ## 自然 bad case
 
@@ -143,6 +169,10 @@ A2A 在本地责任契约成立后用于交换任务、状态、结果和错误�
 - Agent 反复改写 Query 却没有新增证据。
 - MCP Server 可连接但能力 Schema 不兼容。
 - Search 返回多个互相转载的弱来源。
+- 文件路径通过 `..` 或符号链接逃逸获准工作区。
+- Agent 试图覆盖原始 PRD，或重试导致同一报告重复写入。
+- OpenAPI 声明 `source_channel` 必填，但 Flutter 模型或 Web 类型缺少该字段。
+- Code Tool 超时、返回非零退出码，或尝试读取未授权环境变量。
 - Skill 占用 Context 却没有被当前任务使用。
 - 某个 Agent 失败后汇总器误把缺失结果当成无风险。
 - 两个 Agent 引用不同版本资料并给出冲突结论。
@@ -152,6 +182,7 @@ A2A 在本地责任契约成立后用于交换任务、状态、结果和错误�
 新增“客户端最低版本兼容性评审”：
 
 - 判断应修改知识、Skill、Tool、Agent 责任还是输出 Schema。
+- 使用 MCP 或 Browser 回查官方版本要求，使用 File Tool 定位当前客户端配置，必要时使用 Code Tool 运行已有兼容性检查。
 - 保留旧 Golden Set，新增覆盖新问题的样例。
 - 比较固定 RAG、单 Agent 和 Multi-Agent 的变化。
 - 证明没有破坏 Citation、Refusal、停止和权限边界。
@@ -171,6 +202,8 @@ source/apps/review_assistant/    唯一产品
 - 通用 Agent 平台或工具市场。
 - 任意 MCP Server 自动获得信任。
 - 无沙箱的 Code Tool。
+- 任意 Shell、任意工作目录、默认联网或读取秘密环境变量的 Code Tool。
+- 让 File Tool 任意覆盖原始 PRD、代码或配置。
 - 把所有步骤都交给模型。
 - 为展示复杂度增加没有独立责任的 Agent。
 - 完整低代码 Workflow 画布。

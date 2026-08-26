@@ -98,6 +98,13 @@ def render_prompt(
 ) -> list[dict[str, str]]:
     """Render template + variables into Chat API messages."""
     merged = {k: (v if v is not None else "") for k, v in variables.items()}
+    required = set(_PLACEHOLDER.findall(template.system)) | set(
+        _PLACEHOLDER.findall(template.user)
+    )
+    missing = sorted(required - merged.keys())
+    if missing:
+        names = ", ".join(missing)
+        raise ValueError(f"Prompt {template.ref} 缺少变量：{names}")
     system = _substitute(template.system, merged).strip()
     user = _substitute(template.user, merged).strip()
     messages: list[dict[str, str]] = []

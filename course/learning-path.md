@@ -1,8 +1,8 @@
 # 需求评审助手标准学习路径
 
-本文是课程阅读顺序和课程序号的唯一真源。课程只有第一阶段、第二阶段和一套从 1 到 78 的连续编号。
+本文是课程阅读顺序和课程序号的唯一真源。课程只有第一阶段、第二阶段和一套从 1 到 88 的连续编号。
 
-一节课代表一个核心学习问题，可以同时包含概念或机制正文与配套实验篇。知识地图、目录、文件名和工程 `PLAN.md` 都不规定阅读顺序。
+一节课代表一个核心学习问题，可以同时包含概念或机制正文与配套实验篇。每节介绍说明学习者此刻的问题和本节交付；知识地图、目录、文件名和工程 `PLAN.md` 都不规定阅读顺序。
 
 ## 怎样学习一节课
 
@@ -16,7 +16,7 @@
 状态：
 
 - **可学习**：正文和必要实验已经存在。
-- **待编写**：位置和核心问题已经确定。
+- **待编写**：位置、核心问题和交付已经确定。
 - **等待前置**：材料存在，但需要先完成前面的课程或产品能力。
 
 ## 必备基础检查
@@ -31,153 +31,246 @@
 
 ## 模型进入应用
 
+这一单元先把不稳定的模型调用收敛成应用能够控制的任务、结果和错误契约，为后续 RAG 生成端提供稳定入口。
+
 1. **[LLM 在 AI 应用中的位置与边界](concepts/llm-in-ai-applications.md)** · 可学习
-   区分普通程序、LLM、RAG、Agent 和 Workflow。
+   从普通确定性程序出发，区分 LLM、RAG、Agent 和 Workflow 分别解决什么问题。学完应能判断模型适合参与哪类判断，以及哪些责任必须留在应用。
 2. **[模型输入输出契约：Prompt、Schema 与 Context](concepts/model-input-output-contracts.md)** · 可学习
-   理解任务、证据和结果为什么必须由应用建立契约。
+   模型只接收输入并生成候选输出，任务、证据和业务结果必须由应用建立契约。本节形成 Prompt、Context 和 Schema 的最小关系图，为后续三个机制单元提供共同语言。
 3. **[Model API、调用生命周期与 Provider 抽象](mechanisms/model-api-and-provider.md)** · 可学习
-   实验：[真实模型与 Provider](labs/model-api-and-provider.md)。
+   一次模型调用会经过配置、请求、供应商、响应和错误转换；业务代码不应绑定某个 SDK 对象。本节建立稳定调用边界，并通过[真实模型与 Provider 实验](labs/model-api-and-provider.md)观察切换配置时哪些事实应变、哪些契约不变。
 4. **[面向应用的 Prompt Engineering](mechanisms/prompt-engineering.md)** · 可学习
-   实验：[Prompt 单变量对照](labs/prompt-engineering.md)。
+   随手拼接 Prompt 无法稳定比较和修改。本节把 Prompt 理解为版本化任务协议，区分任务、证据、约束和输出要求，并在[单变量对照实验](labs/prompt-engineering.md)中固定模型与样例只改变 Prompt。
 5. **[Structured Output 与应用侧校验](mechanisms/structured-output.md)** · 可学习
-   实验：[结构化输出与失败观察](labs/structured-output.md)。
+   “返回了 JSON”不等于结果能进入业务。本节区分模型侧格式约束、JSON 解析、Schema 校验和业务校验，并在[结构化输出实验](labs/structured-output.md)中观察失败究竟发生在哪一层。
 6. **[Reliability、错误分类与可见降级](mechanisms/reliability-and-errors.md)** · 可学习
-   实验：[可靠调用与结构化错误](labs/reliability-and-errors.md)。
+   超时、限流、鉴权、能力不支持和 Schema 失败不能统一重试。本节建立错误分类、有限重试和显式降级边界，并在[可靠调用实验](labs/reliability-and-errors.md)中比较真实调用与稳定失败复现能够分别证明什么。
 
 ## 建立固定 RAG 核心链
 
+这一单元沿同一份“售后入口与订单状态”资料，追踪文件怎样变成可检索候选、可装配 Context 和可检查来源的生成结果。
+
 7. **[RAG 与外部知识的边界](concepts/rag-and-external-knowledge.md)** · 可学习
-   建立文件到可信生成的总图，区分固定 RAG 与 Agentic RAG。
+   模型参数知识无法承担当前业务规则和来源追踪。本节建立“资料 → 检索 → Context → 生成”的总图，区分固定 RAG、普通搜索和后续 Agentic RAG。
 8. **[文档内容识别、解析路由、结构还原与来源保留](mechanisms/document-loading-and-cleaning.md)** · 可学习
-   实验：[真实文档解析与错误边界](labs/document-loading-and-cleaning.md)。
+   文件扩展名不能保证内容可用，提取出文字也不等于保留了业务结构和来源。本节解释格式识别、解析路线、清洗与统一文档表示，并在[真实文档解析实验](labs/document-loading-and-cleaning.md)中观察正常格式、warning 和确定性失败。
 9. **[Chunking、父子块与 Metadata](mechanisms/chunking-and-metadata.md)** · 可学习
-   实验：[Chunk 策略对照](labs/chunking-and-metadata.md)。
+   `DocumentElement` 保留原文结构，却未必适合检索。本节解释 Chunk 边界、overlap、父子块、稳定身份和 Metadata 怎样影响后续召回，在[Chunk 策略实验](labs/chunking-and-metadata.md)中只改变组织策略观察差异。
 10. **[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)** · 可学习
-    实验：[真实 Embedding 相似度](labs/embedding-and-similarity.md)。
+    词面不同的表达需要进入同一表示空间才能比较，但相似不等于业务正确。本节建立向量、距离、空间身份和批量调用边界，并在[真实 Embedding 实验](labs/embedding-and-similarity.md)中验证同义、相邻主题和无关文本的分数方向。
 11. **[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)** · 可学习
-    实验：[从空库到第一次按词检索](labs/lexical-retrieval.md)。
+    精确字段、接口名和版本号需要按词找到候选。本节解释倒排索引、查询词法、候选范围与排序，并在[从空库到第一次按词检索](labs/lexical-retrieval.md)中完成 PostgreSQL 准备、入库、日志和单变量对照。
 12. **[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)** · 可学习
-    实验：[pgvector、exact 与 HNSW](labs/vector-store-and-pgvector.md)。
+    成对相似度还不能在资料库中完成检索。本节把向量表示接入 pgvector，区分 exact 与 ANN、距离与相似度、空间身份与 Metadata Filter，并在[pgvector 实验](labs/vector-store-and-pgvector.md)中比较 exact、HNSW 和查询计划。
 13. **[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)** · 可学习
-    实验：[Lexical、Dense 与 RRF 对照](labs/multi-retrieval-and-rrf.md)。
+    Lexical 和 Dense 各自返回有序候选，却没有可直接相加的统一分数。本节解释统一候选契约、排名融合和路线状态，并在[RRF 对照实验](labs/multi-retrieval-and-rrf.md)中手算贡献、改变候选数量并观察失败路线。
 14. **[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)** · 可学习
-    实验：[固定 Retriever 控制与诊断](labs/retriever-contract.md)。
+    “数据库中存在”不等于最终 Retriever 一定返回。本节固定过滤、每路候选、阈值、融合和最终截断的控制顺序，并在[Retriever 诊断实验](labs/retriever-contract.md)中定位候选在哪一层消失。
 15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 可学习
-    实验：[从 RetrievalResult 到 BuiltContext](labs/context-engineering.md)。
+    Retriever 找到候选后，应用仍要决定模型本轮真正看到什么。本节区分候选、Context、Prompt 和 Citation Candidate，解释分区、去重与预算，并在[Context 实验](labs/context-engineering.md)中观察来源信息怎样保留或丢失。
 16. **[可信生成、Sources、Citation Candidate 与证据不足](mechanisms/trusted-generation.md)** · 可学习
-    实验：[结构化生成与 Citation Candidate](labs/trusted-generation.md)。
+    模型写出来源编号仍不能证明结论获得支持。本节解释候选来源、模型声明和应用校验的分层，并在[可信生成实验](labs/trusted-generation.md)中观察正常证据、噪声和空证据下的结构化结果。
 
 ## 完成可信 RAG 与产品交付
 
+这一单元补齐“候选来源”之后的支持性、充分性、API 和交互，让固定 RAG 从机制链变成真实产品。
+
 17. **Citation 支持性校验** · 待编写
-    判断模型声明的 Citation 是否真的支持对应结论。
+    已知 Citation ID 合法仍不代表引用内容支持对应结论。本节建立声明、证据片段和支持关系的校验边界，向证据充分性判断交付已验证 Citation。
 18. **证据充分性、Refusal 与补充问题** · 待编写
-    证据不足时拒绝强结论，并提出可回答的补充问题。
+    部分引用正确时，系统仍可能缺少形成强结论的关键事实。本节判断何时继续回答、何时拒绝，以及怎样把缺口转成用户能够补充的具体问题。
 19. **AI Native 界面与不确定性表达** · 待编写
-    建立结果、证据、状态和真实失败的产品表达。
+    业务用户需要同时看到结论、证据、缺口、运行状态和真实失败。本节建立结果优先、证据可回查和不确定性可操作的最小界面原则，不建设通用 AI 工作台。
 20. **FastAPI、Review API 与错误契约** · 待编写
-    将固定 RAG 暴露为稳定产品 API。
+    固定 RAG 需要从脚本进入稳定产品入口。本节定义 Review API 的请求、结果、错误与依赖边界，区分业务证据不足和系统执行失败。
 21. **Review 请求生命周期与状态契约** · 待编写
-    区分接收、处理、完成、证据不足和失败状态。
+    一次评审不只有“成功或失败”。本节区分接收、处理、完成、证据不足、取消和失败状态，使 API、运行记录和界面共享同一事实。
 22. **结构化风险、证据、Refusal 与补充信息交互** · 待编写
-    用最小 Web 工作台呈现可信评审结果。
+    本节把 Review API 接入最小 Web 工作台，让用户提交需求、查看风险和来源、回答补充问题并识别真实失败；不建设知识库运营后台。
 
 ## 建立最小比较能力
 
+这一单元不建设完整质量平台，只建立后续每次增加复杂度都能回到的固定样例、运行记录和成本基线。
+
 23. **[LLM Calling Harness 与最小回归](mechanisms/calling-harness-and-regression.md)** · 等待前置
-    固定 Case、Run Config 与 Record。
+    单次成功输出无法比较策略变化。本节固定 Case、Run Config 和 Record，让模型、Prompt、Schema 和结果可以在同一入口重复运行。
 24. **[Token、成本、延迟与缓存边界](mechanisms/cost-latency-and-caching.md)** · 等待前置
-    记录 usage、成本、阶段耗时和缓存影响。
+    质量提升必须同时看到资源代价。本节记录 usage、成本、阶段耗时和缓存身份，区分真正节省调用与缓存掩盖实验变化。
 25. **Evaluation Dataset 与最小 Golden Set** · 待编写
-    固定问题、期望来源、风险覆盖和证据不足行为。
+    探索样例不能直接承担验收。本节固定问题、期望来源、风险覆盖、无答案行为和数据集版本，区分 development 与 acceptance。
 26. **直接 LLM、Lexical、Dense 与 RRF RAG 对比** · 待编写
-    使用同一批样例比较质量、成本、延迟和失败。
+    使用同一输入、生成模型、Prompt、Schema 和预算，只改变检索路线，比较质量、成本、延迟、空结果和失败，形成第一阶段基线。
 27. **[第一阶段：固定 RAG 需求评审助手](project/stage-1-rag-application/rag-review-assistant.md)** · 等待前置
-    完成固定 RAG 产品、真实 bad case、需求修改、固定对照和阶段验收。
+    回到项目篇完成固定 RAG 产品、真实 bad case、需求修改和冻结对照。阶段验收要求从资料身份追踪到 Citation，并能区分证据不足与系统失败。
 
 # 第二阶段：Agent、Tools 与 Multi-Agent 系统
 
 第二阶段回答：当查询、知识源、工具和协作步骤不能完全预先固定时，怎样让 Agent 动态行动，同时由应用控制权限、状态、停止、证据、恢复和评估？
 
-开始第 28 节前，先阅读[第二阶段项目篇](project/stage-2-agent-system/agent-review-assistant.md)的业务目标、检查点和非目标。
+开始第 28 节前，先阅读[第二阶段项目篇](project/stage-2-agent-system/agent-review-assistant.md)的贯穿场景、检查点和非目标。第二阶段继续复用“售后入口与订单状态”，增加 OpenAPI、Flutter / Web 客户端模型、配置、外部需求和定向验证，不更换基线案例。
 
-## 最小 Agentic RAG
+## Agent 与 Tool 基础
+
+这一单元先建立应用控制面。只有内部 Tool 契约、权限和不可信输入边界成立后，外部连接和动态循环才有可靠落点。
 
 28. **固定程序、Workflow、Agent 与 Multi-Agent 的边界** · 待编写
+    面对“步骤不能完全预先固定”时，先判断普通程序是否已经足够。本节建立四种结构的选择边界，防止为了展示 Agent 而增加循环、状态或角色。
 29. **Agent Harness 与应用控制面** · 待编写
+    模型只能提出下一步，应用必须掌握上下文、工具、状态、预算、停止和事件。本节建立 Harness 的最小职责和模型决策与应用执行的分界。
 30. **Function Calling 与 Tool Schema** · 待编写
-31. **Tool Runtime、结果与结构化错误** · 待编写
-32. **Retriever as Tool** · 待编写
-33. **Query Rewrite** · 待编写
-34. **Source Routing 与补检索策略** · 待编写
-35. **Agent Loop、预算与停止原因** · 待编写
-36. **只读 Tool 的最小治理** · 待编写
-37. **最小 Agentic RAG 检查点** · 待编写
-    回到第二阶段项目篇，完成受治理 Retriever Tool 和可停止 Agent Loop。
+    模型生成的工具名和参数只是候选调用。本节解释 Tool Schema 怎样约束名称、参数和结果形状，以及它为什么仍不能代替权限和执行。
+31. **Tool Runtime、执行生命周期与结构化错误** · 待编写
+    本节跟踪一次 Tool Call 从参数校验、执行、结果转换到错误返回的完整生命周期，为所有内部和外部工具建立统一运行边界。
+32. **Tool 权限、超时、取消、审计与副作用** · 待编写
+    工具成功执行也可能越权或重复产生副作用。本节建立最小权限、超时取消、审计、确认和幂等要求，区分读取、写入和外部行动。
+33. **Prompt Injection 与应用控制边界** · 待编写
+    文件、网页和 MCP 结果都可能包含诱导模型越权的文本。本节区分业务内容与控制指令，说明不可信内容为什么不能改变系统规则、权限和 Tool 参数校验。
 
-## MCP、通用工具与 Agent Skills
+## MCP 与通用工具
 
-38. **MCP 解决的问题、角色与连接边界** · 待编写
-39. **MCP 生命周期、能力发现与真实接入** · 待编写
-40. **Browser 与 Search Tool** · 待编写
-41. **File Tool：读取、写入、权限与来源** · 待编写
-42. **Code Tool：执行、沙箱、超时与副作用** · 待编写
-43. **Agent Skills 与 Prompt、Tool、MCP 的边界** · 待编写
-44. **Skill 的说明、资源、脚本、加载与执行** · 待编写
-45. **外部工具与可复用能力检查点** · 待编写
-    接入一个真实 MCP 能力和一个需求评审 Skill，验证权限、来源与错误。
+这一单元把真实外部能力接入已经建立的 Tool Runtime。MCP、Search、Browser、File 和 Code 各自解决不同边界，并共同服务多端契约评审场景。
 
-## 状态、事件与产品运行
+34. **MCP 解决的问题、角色与协议边界** · 待编写
+    每个外部能力都写专用适配会重复连接和发现逻辑。本节解释 MCP 解决的连接问题，区分 Host、Client、Server，并说明连接成功不等于能力可信。
+35. **MCP 能力模型与内部 Tool Runtime 映射** · 待编写
+    外部 Tool、Resource 等能力需要映射成应用内部可治理对象。本节解释能力描述、Schema、信任和来源怎样进入 Runtime，同时保留 MCP 与内部权限的责任边界。
+36. **MCP 初始化、发现、调用、错误与真实接入** · 待编写
+    本节跟踪初始化、能力发现、调用、结果、错误、取消和断连。机制篇解释协议生命周期，配套实验连接真实只读 MCP 能力，项目中读取外部需求或关联资料。
+37. **Search Tool：查询、候选来源与搜索结果** · 待编写
+    Search 负责发现候选来源和查询方向，不负责证明网页内容。本节建立查询、结果、来源候选和重复域名边界，为 Browser 和 Deep Research 提供入口。
+38. **Browser Tool：打开、导航、抽取与来源保留** · 待编写
+    Browser 打开候选页面并提取可回查内容。本节解释导航状态、页面来源、内容定位、动态页面和 Prompt Injection 边界，不把搜索摘要当作已读取证据。
+39. **File Tool：工作区发现、读取与来源身份** · 待编写
+    Agent 需要选择性读取 PRD、OpenAPI、客户端模型和配置，而不是把整个目录塞进 Context。本节建立获准根目录、路径校验、内容哈希、定位、大小限制和读取错误。
+40. **File Tool：写入、暂存、确认与幂等** · 待编写
+    用户需要可交付的评审报告或带批注副本，但原始文件不能被 Agent 任意覆盖。本节只允许向运行级暂存区原子写入，处理确认、版本冲突、重试和审计。
+41. **Code Tool：准入判断、任务契约与专用工具边界** · 待编写
+    解析 OpenAPI 应优先使用专用 Validator，只有需要运行项目已有脚本或测试时才进入 Code Tool。本节定义允许任务、命令引用、输入快照和结果契约，防止通用执行成为万能入口。
+42. **Code Tool：执行沙箱、资源、超时与副作用** · 待编写
+    本节解释只读输入、隔离输出、默认禁网、环境白名单和 CPU、内存、进程、时间限制。配套实验运行契约校验或定向测试，并区分非零退出、超时、取消和安全阻止。
+43. **MCP 与通用工具项目检查点** · 待编写
+    回到第二阶段项目篇，接入真实只读 MCP，使用 Search / Browser 回查来源、File 追踪多端资料，并用受控 Code Tool 验证至少一项接口或客户端契约差异。
 
-46. **Run State、Conversation、Memory 与业务知识边界** · 待编写
-47. **短期记忆、摘要与 Context Budget** · 待编写
-48. **Token Stream 与结构化 Event Stream** · 待编写
-49. **SSE 传输和事件协议** · 待编写
-50. **事件顺序、取消、重连与重复消费** · 待编写
-51. **Agent Response State Machine 与运行界面** · 待编写
-52. **Agent Tool、轨迹、停止与记忆评估检查点** · 待编写
+## Agentic RAG 与 Agent Skills
 
-长期偏好记忆保留在知识地图扩展区，不阻塞工具、Research 和 Multi-Agent 主线。
+已有工具能够被确定性调用后，再让 Agent 动态选择查询、来源和停止。Skills 在循环和工具边界明确后加入，避免被误写成大 Prompt 或越权脚本。
+
+44. **Agent Loop、预算与停止原因** · 待编写
+    Agent 需要在观察、决策、行动和结果之间循环，但循环不能无限继续。本节建立步骤预算、成本预算、无进展检测和显式停止原因。
+45. **Retriever as Tool** · 待编写
+    固定 RAG 的 Retriever 已有稳定输入、输出和诊断。本节把它包装成受治理 Tool，保留知识范围、来源身份、空结果和路线失败，不让 Agent 绕过检索契约。
+46. **Query Rewrite** · 待编写
+    用户问题不一定适合直接检索。本节解释改写目标、原问题保留、技术标识保护和无新增信息边界，并要求每次改写可回查。
+47. **Source Routing、补检索与追问** · 待编写
+    Agent 要在内部 RAG、外部 Search、工作区文件和用户补充之间选择来源。本节建立路由依据、补检索条件和证据不足时追问用户的边界。
+48. **Agent Skills 与 Prompt、Tool、MCP 的边界** · 待编写
+    Skill 提供某类任务的可复用说明、资源和流程知识，但不等于 Prompt、可执行 Tool 或外部连接协议。本节建立四者的职责关系和准入判断。
+49. **Skill 的说明、资源、脚本、加载、版本与安全** · 待编写
+    本节跟踪 Skill 从匹配、按需加载到执行和卸载的过程，处理 Context Budget、版本、资源引用和脚本权限；项目建立一个接口契约或客户端兼容性评审 Skill。
+50. **最小 Agentic RAG 与 Skill 项目检查点** · 待编写
+    回到项目篇完成受治理 Retriever Tool、可停止 Agent Loop 和按需 Skill。使用固定 Case 比较固定 RAG 与单 Agent，验证工具选择、参数、空结果、追问和停止。
+
+## 状态、记忆、事件与产品运行
+
+Agent 的中间过程必须成为应用状态和结构化事件，才能被取消、重连、展示和评估；会话消息、运行状态、记忆和业务知识不能混为一体。
+
+51. **Run State、Conversation、Memory 与业务知识边界** · 待编写
+    本节区分当前运行事实、会话消息、压缩后的短期记忆、长期偏好和可引用业务知识，防止摘要或偏好冒充证据。
+52. **短期记忆、摘要与 Context Budget** · 待编写
+    长会话不能无限进入模型。本节解释窗口、摘要、保留事实和预算分配，并说明摘要怎样失真、何时应回查原消息。
+53. **Token Stream 与结构化 Event Stream** · 待编写
+    Token 只表示文本增量，Agent 还需要表达 Tool、证据、等待、错误和停止。本节建立两类 Stream 的边界和组合方式。
+54. **Agent Event 类型、身份、顺序与版本** · 待编写
+    本节定义事件信封、`run_id`、序号、时间、事件类型和版本，使不同 Tool、Agent 和 UI 能解释同一运行事实。
+55. **SSE 传输、断线与重连** · 待编写
+    事件协议确定“传什么”，SSE 只负责“怎样传”。本节解释连接、心跳、断线、游标和重连边界，不把传输成功当作业务完成。
+56. **取消、重复消费、迟到结果与幂等处理** · 待编写
+    用户取消或网络重连后，旧 Tool 结果仍可能迟到。本节处理顺序、重复事件、取消传播和迟到结果，防止 UI 与真实 Run State 分叉。
+57. **Agent Response State Machine 与运行界面** · 待编写
+    本节把事件还原为可操作界面状态，区分运行、等待补充、等待确认、部分完成、取消、失败和完成，并展示证据与 Tool 过程。
+58. **Tool、轨迹、停止、事件与记忆评估检查点** · 待编写
+    使用固定样例评估工具选择、参数、轨迹、停止、事件还原和摘要保真；工作台必须能重放正常、失败、取消和重连后的运行状态。
+
+长期偏好记忆保留在知识地图扩展区，不阻塞 Tool、Research 和 Multi-Agent 主线。
 
 ## Deep Research
 
-53. **Planning、Task Decomposition 与进度检查** · 待编写
-54. **迭代搜索与证据积累** · 待编写
-55. **来源判断、交叉验证与冲突证据** · 待编写
-56. **带来源综合、Citation 与停止条件** · 待编写
-57. **Deep Research 评估与项目检查点** · 待编写
+Deep Research 只处理普通 RAG 或一次网页回查不足的问题。本单元围绕研究任务契约、计划、证据账本、来源判断、冲突、综合和停止形成完整闭环。
+
+59. **Deep Research 的启动条件、任务契约与边界** · 待编写
+    本节判断何时使用内部 RAG、单次 Search / Browser，何时值得启动 Research，并固定研究问题、期望输出、允许来源、预算和非目标。
+60. **Research Planning 与任务拆解** · 待编写
+    一个复杂问题需要拆成可验证子问题，而不是生成装饰性计划。本节建立子问题、依赖、预期证据和完成条件。
+61. **迭代搜索、进度检查与重新规划** · 待编写
+    搜索结果会暴露新术语、缺口和无效方向。本节解释查询怎样迭代、进度怎样更新，以及何时调整计划而不是重复搜索。
+62. **Evidence Ledger、来源身份与证据积累** · 待编写
+    Research 需要把发现保存为可去重、可回查的证据记录。本节建立来源身份、定位、声明、支持关系、获取时间和研究问题关联。
+63. **来源质量、权威性、独立性与重复来源** · 待编写
+    多个链接可能只是转载同一弱来源。本节判断来源权威性、时效、独立性和重复关系，不用来源数量代替证据强度。
+64. **交叉验证、冲突证据与不确定性** · 待编写
+    可信来源也可能基于不同版本或条件给出冲突结论。本节保留冲突、适用条件和不可裁决状态，决定继续研究还是交给用户确认。
+65. **带来源综合与 Citation** · 待编写
+    本节把证据账本转成结构化结论，要求每个外部事实能够回到来源，并区分来源支持、合理推断和未解决缺口。
+66. **覆盖、预算与停止条件** · 待编写
+    搜索更多不一定增加有效证据。本节根据子问题覆盖、新增证据、冲突、成本、时间和硬上限决定完成、部分完成、等待补充或达到上限。
+67. **Deep Research 评估与项目检查点** · 待编写
+    在外部 SDK 兼容性或版本要求场景中，比较一次网页回查与完整 Research 的来源覆盖、冲突处理、Citation、成本和停止质量。
 
 ## Multi-Agent 与 A2A
 
-58. **Multi-Agent 拆分判断** · 待编写
-59. **角色、上下文、工具与输出契约** · 待编写
-60. **Supervisor、Worker 与 Delegation** · 待编写
-61. **共享状态、私有上下文与证据** · 待编写
-62. **并行、依赖、取消与失败隔离** · 待编写
-63. **结果合并、证据归属与冲突裁决** · 待编写
-64. **A2A 解决的问题与协议边界** · 待编写
-65. **A2A 任务生命周期、结果、错误与互操作** · 待编写
-66. **Multi-Agent 运行观测与协作界面** · 待编写
-67. **单 Agent 与 Multi-Agent 基线比较** · 待编写
+只有单 Agent 基线暴露真实责任冲突或并行收益后才拆分。多 Agent 围绕独立责任、上下文、工具和证据合并建立，不把一个 Prompt 机械拆成多个 Prompt。
+
+68. **Multi-Agent 拆分判断** · 待编写
+    本节判断客户端影响、接口契约和证据审查是否具有独立责任与收益，区分并行子任务、普通函数和真正 Agent 角色。
+69. **角色、上下文、工具与输出契约** · 待编写
+    每个 Agent 必须说明负责什么、不负责什么、能看到什么、能调用什么以及交付什么，避免共享全部上下文后产生角色幻觉。
+70. **Supervisor、Worker 与 Delegation** · 待编写
+    本节解释任务怎样被委派、拒绝、重派和回收，Supervisor 为什么负责组合与停止而不自动拥有所有领域判断。
+71. **共享状态、私有上下文与证据** · 待编写
+    Agent 可以共享任务和已批准证据，但私有推理、局部上下文和工具权限不能无边界扩散。本节建立共享与隔离规则。
+72. **并行、依赖、取消与失败隔离** · 待编写
+    本节处理可并行任务、依赖任务、全局取消和局部失败，防止一个 Worker 失败后汇总器把缺失结果解释为无风险。
+73. **结果合并、证据归属与冲突裁决** · 待编写
+    不同 Agent 的风险项可能重复、冲突或引用不同版本。本节保留来源与责任人，区分可自动合并和必须暴露的分歧。
+74. **A2A 解决的问题、角色与协议边界** · 待编写
+    本地 Agent 契约成立后，A2A 才用于跨边界交换任务和状态。本节解释它与函数调用、MCP 和本地 Delegation 的区别。
+75. **A2A 任务生命周期、结果、错误与互操作** · 待编写
+    本节跟踪任务创建、接受、进度、产物、完成、失败和取消，通过真实对照实验验证两个实现能否解释相同任务事实。
+76. **Multi-Agent 运行观测与协作界面** · 待编写
+    用户需要看到角色、进度、局部结果、失败和冲突，而不是一串内部消息。本节把协作状态映射为可理解的运行界面。
+77. **单 Agent 与 Multi-Agent 基线检查点** · 待编写
+    使用同一需求、工具、数据和预算比较单 Agent 与 Multi-Agent 的质量、成本、延迟、证据一致性和失败定位，收益不足时保留单 Agent。
 
 ## 必要 Workflow
 
-68. **Workflow State、Node 与状态转换** · 待编写
-69. **Checkpoint、Interrupt 与 Resume** · 待编写
-70. **Human-in-the-loop** · 待编写
-71. **重试、副作用与幂等** · 待编写
-72. **Workflow as Tool、子 Agent 与可恢复编排** · 待编写
+Workflow 不单独成为项目阶段，也不建设低代码画布。它只为需要显式状态、持久化、恢复、人工确认和副作用治理的路径提供确定性骨架。
 
-Workflow 不单独成为项目阶段，不建设低代码画布。
+78. **Workflow State、Node 与状态转换** · 待编写
+    本节把必须稳定执行的步骤表达为显式状态和转换，区分模型决策与确定性节点，并定义节点输入输出和合法分支。
+79. **Checkpoint、持久化与 Resume** · 待编写
+    长任务或外部等待不能只存在内存中。本节解释哪些状态需要持久化、怎样从检查点恢复，以及代码或配置版本变化后的恢复边界。
+80. **Interrupt 与 Human-in-the-loop** · 待编写
+    写文件、外部行动或冲突裁决可能需要人工决定。本节建立等待确认、批准、拒绝、修改和超时状态，使人工介入成为协议而不是聊天约定。
+81. **重试、副作用、补偿与幂等** · 待编写
+    Workflow 恢复或重放不能重复写文件或调用外部系统。本节区分纯计算、可重试读取和有副作用行动，建立幂等键与必要补偿。
+82. **可恢复 Workflow 项目检查点** · 待编写
+    将 Research 或多 Agent 中确实需要等待、恢复和确认的部分放入最小 Workflow，验证中断、拒绝、重试、恢复和重复请求不会破坏产品结果。
 
 ## 质量收束与最终交付
 
-73. **结构化日志、Metrics 与事件关联** · 待编写
-74. **Trace、Span 与 Run** · 待编写
-75. **Versioning、Experiment 与 Regression** · 待编写
-76. **LLM-as-Judge 与 Human Eval** · 待编写
-77. **Bad Case 与 Feedback Loop** · 待编写
-78. **[第二阶段：Agent 协作需求评审系统](project/stage-2-agent-system/agent-review-assistant.md)** · 待编写
-    完成 Agentic RAG、MCP、Agent Skills、Deep Research、Multi-Agent、A2A、必要 Workflow、运行界面和阶段验收。
+质量证据已经贯穿各检查点；这一单元只统一运行关联、版本、回归、自动与人工判断以及 bad case 流转，不建设完整评估平台。
+
+83. **结构化日志、Metrics 与事件关联** · 待编写
+    本节让请求、模型、检索、Tool、Agent、状态和错误能够通过稳定身份关联，同时区分面向用户的结果和面向调试的诊断。
+84. **Trace、Span 与 Run** · 待编写
+    复杂运行需要看到父子调用、并行和耗时。本节建立 Run、Span 和事件的关系，并说明 Trace 能帮助定位什么、不能替代什么质量判断。
+85. **Versioning、Experiment 与 Regression** · 待编写
+    模型、Prompt、Schema、Retriever、Tool、Skill 和 Workflow 都会变化。本节固定运行身份、实验对照和回归规则，防止新结果覆盖旧证据。
+86. **LLM-as-Judge 与 Human Eval** · 待编写
+    自动 Judge 可以扩大评估规模，但会继承模型偏差。本节定义适用任务、评分契约、校准样例和人工复核，不让 Judge 替代产品验收责任。
+87. **Bad Case 与 Feedback Loop** · 待编写
+    本节把线上失败、人工反馈和研究缺口转成可复现 Case，经过分类、修复、回归和版本记录进入质量闭环，而不是只保存聊天截图。
+88. **[第二阶段：Agent 协作需求评审系统](project/stage-2-agent-system/agent-review-assistant.md)** · 等待前置
+    完成 Agentic RAG、真实 MCP、Search、Browser、File、Code、Agent Skills、Deep Research、Multi-Agent、A2A、必要 Workflow、运行界面和统一回归。最终产品必须在同一多端契约案例上展示证据、权限、停止、冲突、恢复和相对简单基线的收益。
 
 完整能力范围、扩展知识和实现位置见[知识地图](knowledge-map.md)。

@@ -260,7 +260,7 @@ LangSmith、LangFuse 或企业内部 eval 平台通常会把 dataset、run、tra
 
 ### 本节不做（defer）
 
-| 能力 | 目标阶段 | 当节最小判断 |
+| 能力 | 后续主题 | 当前边界 |
 | --- | --- | --- |
 | 准确性、引用正确性、拒答评分 | 评估观测 | 调用 Harness 只记录可评分所需事实 |
 | LangSmith / trace 平台接入 | 评估观测 | 调用 Harness 先保证 record 结构清楚 |

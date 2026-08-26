@@ -1,13 +1,111 @@
 # 真实文档解析与错误边界实验
 
-配套机制：[文档内容识别、解析路由、结构还原与来源保留](../mechanisms/document-loading-and-cleaning.md)。实验使用 `source/apps/review_assistant/fixtures/rag/ingestion/` 中的真实文件格式。
+配套机制：[文档内容识别、解析路由、结构还原与来源保留](../mechanisms/document-loading-and-cleaning.md)。本实验使用真实 TXT、Markdown、DOCX、文本型 PDF 和扫描 PDF 文件，观察格式识别、结构元素、来源定位、清洗动作和错误分层。
+
+fixtures 是受控业务材料，但文件格式和 Parser 调用是真实的。它们能证明当前输入契约，不能证明任意复杂生产文档都能正确解析。
+
+## 1. 实验材料
+
+材料位于 `source/apps/review_assistant/fixtures/rag/ingestion/`：
+
+- `canonical_content.json`：四种正常格式共同表达的稳定业务事实。
+- `order_rules.txt`、`.md`、`.docx`、`.pdf`：同一业务文档的互斥格式表示，每次独立观察。
+- `cleaning_probe.md`：确定性清洗对照。
+- `reading_order_columns.pdf`：PDF 内容流与视觉阅读顺序边界。
+- `image_only_scan.pdf`：真实扫描 PDF，没有文本层。
+- 损坏、非法编码和空内容文件：确定性错误契约。
+- `manifest.json`：样例身份、预期状态和错误代码。
+
+不要把四份正常格式同时当成四份知识入库；它们只是同一事实的格式对照。
+
+## 2. 默认运行：先看摘要
 
 ```bash
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py
+```
+
+运行前预测 TXT、Markdown、DOCX 和文本型 PDF：
+
+- 哪些格式有标题、表格、页码或段落定位。
+- Element 数量为什么不必相同。
+- 哪些业务事实必须都能找到。
+- 格式差异为什么不能被下游误认为四份不同事实。
+
+默认输出重点：文件、识别格式、Element 数量、locator 类型、状态、warning 和汇总。
+
+## 3. 展开元素与清洗动作
+
+```bash
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --verbose
+```
+
+逐项观察：
+
+- `kind` 和文本预览。
+- 稳定 `element_id`。
+- heading、paragraph、table 或 page 等来源定位。
+- `cleaning_actions`。
+- warning 是否保留到报告。
+
+清洗 probe 应稳定展示 Unicode 规范化、不换行空格替换、多余空行收敛和外层空白删除。清洗不能修复缺失图片、错误阅读顺序或丢失的表格语义。
+
+## 4. 运行失败与支持边界
+
+```bash
 uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py --include-failures
 ```
 
-先预测 TXT、Markdown、DOCX、文本型 PDF 与扫描 PDF 的表现。观察格式识别、元素、locator、warning 和结构化错误，区分“不支持”“文件损坏”和“解析成功但结构丢失”。
+重点区分：
 
-读码顺序：`inspect_ingestion.py` → `rag_core/ingestion/loader.py` → parsers、cleaning 与 errors。修改 fixture 后需要时运行 `build_binary_fixtures.py`，再执行 ingestion 测试。
+| 输入 | 性质 | 预期层次 |
+| --- | --- | --- |
+| 双栏 PDF 错序 | 真实 Parser 的自然边界 | 成功但带 reading-order warning |
+| 扫描 PDF | 当前文本路线不支持 | 无文本层，不静默 OCR |
+| 损坏 DOCX | 确定性契约失败 | parse error |
+| 非 UTF-8 TXT | 确定性契约失败 | decode error |
+| 空 Markdown | 确定性契约失败 | empty content |
+
+manifest 会冻结预期 stage 和 error code。实际结果不匹配时命令返回非零状态，不能根据当前实现回改 expected 值制造通过。
+
+## 5. JSON Lines 与退出状态
+
+```bash
+uv run python source/demos/rag_ingestion_lab/inspect_ingestion.py \
+  --include-failures \
+  --log-format json
+```
+
+JSON Lines 适合后续 CI 或 Trace 接入。普通结果进入 stdout，warning / error 保持可区分；负向样例意外成功、错误 stage 不匹配或正常样例失败都应反映在退出状态中。
+
+## 6. 失败时按层排查
+
+| 表现 | 可能层次 | 验证方式 |
+| --- | --- | --- |
+| 文件根本打不开 | 路径、权限、大小预检 | 核对 manifest 与真实文件 |
+| 格式识别错误 | 文件签名、扩展名与检测规则 | 比较识别报告，不直接换 Parser |
+| Parser 抛错 | 格式实现或损坏文件 | 查看 stage、code 和原始异常摘要 |
+| 解析成功但无内容 | 扫描件、空文档或抽取边界 | 区分 text layer missing 与 empty document |
+| 内容存在但顺序错误 | PDF 内容流或复杂布局 | 查看 warning；本节不静默调用 OCR / VLM |
+| 业务事实丢失 | Parser、清洗或元素转换 | 用 canonical facts 和测试定位 |
+
+## 7. 读码顺序
+
+1. `source/demos/rag_ingestion_lab/inspect_ingestion.py`：读取 manifest、调用公共入口和验证结果。
+2. `source/packages/rag_core/ingestion/loader.py`：路径预检、格式路由、清洗和结果组装。
+3. `source/packages/rag_core/ingestion/models.py`：文件、文档、Element、locator 和报告契约。
+4. `source/packages/rag_core/ingestion/parsers.py`：先追踪 Markdown，再观察 PDF 成功、warning 和失败。
+5. `source/packages/rag_core/ingestion/cleaning.py`：文本和 cleaning actions 怎样同时返回。
+6. `source/packages/rag_core/tests/test_ingestion.py`：哪些格式事实和错误被固定。
+
+## 8. 修改材料与验证
+
+修改 `canonical_content.json` 后，必须同步文本表示并重新生成二进制 fixture：
+
+```bash
+uv run python source/apps/review_assistant/fixtures/rag/ingestion/build_binary_fixtures.py
+uv run pytest source/packages/rag_core/tests/test_ingestion.py -q
+```
+
+增加失败样例时，先在 manifest 写入预期 stage 和 code，再运行实验；不能看到实现返回什么后才填写相同 expected 值。
+
+完成后确认：正常四格式保留共同业务事实和各自 locator；失败样例返回预期层次；没有通过 Mock Parser、静默 OCR 或删除 warning 制造成功。

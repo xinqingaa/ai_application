@@ -324,7 +324,7 @@ Dense Retrieval只需要建立两个判断：
 
 ## 用同一批问题对照两条路线
 
-共享问题位于 [`retrieval_queries.json`](../../source/apps/review_assistant/fixtures/rag/retrieval/retrieval_queries.json)。Lexical 与 Dense 实验使用同一个文件和同一组 Chunk，不通过更换样例制造某条路线更强。
+Lexical 与 Dense 实验必须使用同一组固定问题和同一组 Chunk，不通过更换样例制造某条路线更强。具体材料身份和运行方式由配套实验维护。
 
 在实验中先预测，再观察同一组问题的两路结果：
 
