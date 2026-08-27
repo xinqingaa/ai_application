@@ -1,6 +1,6 @@
 # PostgreSQL 零基础：读懂 AI 应用中的项目数据库
 
-> 这是一篇必备基础补充，不单独占课程序号。如果你在第 11 节遇到 Database、Schema、Table、SQL、事务、索引或 migration 等陌生概念，可以先用本文补齐，再按 [Lexical Retrieval 实验](../labs/lexical-retrieval.md) 完成环境操作，最后回到机制篇。
+> 这是一篇不占课程序号的必备基础补充。如果你在 Lexical Retrieval 中遇到 Database、Schema、Table、SQL、事务、索引或 migration 等陌生概念，可以先用本文补齐，再按 [Lexical Retrieval 实验](../labs/lexical-retrieval.md) 完成环境操作，最后回到机制篇。
 
 很多前端或客户端应用只需要调用远程 API，数据怎样落盘、怎样约束、怎样被多个请求安全地读写，通常由服务端隐藏。需求评审助手开始建立真实知识库后，这层不能再完全隐藏：Chunk 要长期保存，重复入库不能产生无穷副本，检索要在大量记录中形成候选，连接和权限失败也不能伪装成“没有结果”。
 
@@ -20,7 +20,7 @@ PostgreSQL Server
             └── Dense: pgvector extension → vector + distance/index
 ```
 
-这里的 PostgreSQL 是关系数据库；全文检索是它内置的 FTS 能力；`pgvector` 是安装在 PostgreSQL 中的扩展，不是另一个独立数据库。第 11 步只需要 FTS，直到第 12 步才启用 pgvector。
+这里的 PostgreSQL 是关系数据库；全文检索是它内置的 FTS 能力；`pgvector` 是安装在 PostgreSQL 中的扩展，不是另一个独立数据库。Lexical Retrieval 只需要 FTS，Dense Retrieval 才启用 pgvector。
 
 读完后，你应该能够：
 
@@ -477,7 +477,7 @@ Python package 安装在应用运行环境；PostgreSQL Extension 安装在数�
 CREATE EXTENSION vector;
 ```
 
-这不是 Python `import`，也不是每次业务查询都执行的语句。第 11 步使用 PostgreSQL 内置全文检索，不需要额外 Extension；后续 pgvector 会增加 `vector` 类型和向量运算符。
+这不是 Python `import`，也不是每次业务查询都执行的语句。Lexical Retrieval 使用 PostgreSQL 内置全文检索，不需要额外 Extension；后续 pgvector 会增加 `vector` 类型和向量运算符。
 
 Extension 能增加数据库类型、函数或索引能力，但不会替应用解决 Embedding 空间身份、重建策略、检索质量和证据判断。
 

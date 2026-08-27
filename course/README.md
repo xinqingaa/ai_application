@@ -4,20 +4,47 @@
 
 ## 从哪里开始
 
-按 [标准学习路径](learning-path.md) 学习。它是当前第 1–91 节编号和阅读顺序的唯一真源；不要根据目录、文件名、知识地图或代码结构推断课程顺序。
+按 [标准学习路径](learning-path.md) 学习。只有这份文件维护课程序号和阅读顺序；目录、文件名、知识地图、项目篇和代码结构都不编号，也不能用来推断先后。
 
-需要查某项知识的边界、依赖和落点时，使用 [知识地图](knowledge-map.md)。知识地图不是第二套课表。
+遇到不同问题时回到对应真源：
 
-产品要求见根 [SPEC.md](../SPEC.md)，稳定工程方案见根 [PLAN.md](../PLAN.md)。学习者不需要先读完这两份工程文档；项目篇会把当前阶段需要理解和完成的部分转化为综合任务。
+| 想确认什么 | 去哪里 |
+| --- | --- |
+| 下一步学什么 | [标准学习路径](learning-path.md) |
+| 某项知识是否在范围内、依赖什么、落在哪里 | [知识地图](knowledge-map.md) |
+| 产品最终必须做到什么 | [SPEC.md](../SPEC.md) |
+| 通用能力和产品代码怎样分工 | [PLAN.md](../PLAN.md) |
+| 当前阶段怎样综合实践和验收 | [第一阶段项目篇](project/stage-1-rag-application/rag-review-assistant.md)或[第二阶段项目篇](project/stage-2-agent-system/agent-review-assistant.md) |
+
+学习者不需要先读完 SPEC 和 PLAN；项目篇会把当前阶段需要理解和完成的部分转化为综合任务，但不会复制这些真源。
+
+## 完整学习主线
+
+课程始终演进同一个需求评审助手：
+
+```text
+模型调用与结构化输出
+→ 固定 RAG、可信证据与产品交付
+→ Agent Harness、Tool Runtime 与权限治理
+→ MCP、Search、Browser、File 与 Code Tool
+→ Agentic RAG 与 Agent Skills
+→ Conversation、Run State、短期与长期记忆、事件和运行界面
+→ Deep Research
+→ Multi-Agent 与 A2A
+→ 必要 Workflow
+→ Trace、Regression、Human Eval 与 Feedback
+```
+
+这条链表示能力怎样在同一产品中逐步闭环，不是另一套阅读顺序。具体先后仍只看学习路径。
 
 ## 两个阶段
 
-| 阶段 | 连续编号 | 交付目标 |
-| --- | --- | --- |
-| 第一阶段：RAG 应用基础 | 第 1–27 节 | 固定 RAG、可信证据边界、Review API、Web 工作台和最小质量基线 |
-| 第二阶段：Agent、Tools 与 Multi-Agent | 第 28–91 节 | Agent Harness、MCP、通用工具、Agentic RAG、Agent Skills、Deep Research、Multi-Agent、A2A、必要 Workflow 和质量收束 |
+| 阶段 | 交付目标 |
+| --- | --- |
+| 第一阶段：RAG 应用基础 | 固定 RAG、可信证据边界、Review API、Web 工作台和最小质量基线 |
+| 第二阶段：Agent、Tools 与 Multi-Agent | Agent Harness、受治理工具、状态与记忆、研究、协作、恢复和统一质量闭环 |
 
-第二阶段承接第一阶段编号，不重新从 1 开始，也不建立阶段内版本轴。
+两个阶段沿同一产品连续演进，不建立阶段内版本轴。
 
 ## 四类课程文档
 
@@ -46,4 +73,4 @@
 - LLM、RAG、Agent 和 Eval 主路径使用真实模型或真实外部服务；失败必须显式暴露。
 - Mock 只用于单元测试、离线排查、稳定失败复现或明确对照，不能证明真实效果。
 - 每节先解决一个主问题。若同时需要学习多个独立生命周期、协议角色或实现系统，应继续拆节。
-- 项目优先级是 RAG、Agent Harness 与 Tools、Multi-Agent 与 A2A、必要 Workflow，最后做完整质量收束；每层仍保留与当前复杂度相称的最小质量证据。
+- 完整能力链以本页总图为导航，以学习路径为顺序；每增加一层复杂度，都保留与之相称的固定样例、运行记录和失败证据。

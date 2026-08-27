@@ -146,7 +146,7 @@ Target Requirement
 - 证据充分性、Refusal、无法确认的信息和需要用户回答的补充问题。
 - 模型、Prompt、Retriever、Token、延迟和错误等诊断。
 
-第一阶段先在第 16 节展示来源候选并校验模型声明的来源是否属于本轮候选；第 17 节完成 Citation 支持性校验，第 18 节继续完成证据充分性、Refusal 和补充问题。项目验收不能把“模型写出了来源编号”当成证据已经支持结论。
+[可信生成](../../mechanisms/trusted-generation.md)先展示来源候选，并校验模型声明的来源是否属于本轮候选；后续 Citation 支持性机制继续判断内容能否支持声明，证据充分性机制再决定 Refusal 和补充问题。项目验收不能把“模型写出了来源编号”当成证据已经支持结论。
 
 第一阶段的产品交互使用普通请求响应即可，至少区分 `idle`、`submitting`、`success` 和 `error`。Streaming、SSE 和 Agent 运行轨迹不是本阶段门禁。
 

@@ -80,15 +80,15 @@ source/apps/review_assistant/
 
 `source/apps/review_assistant/fixtures/rag/` 是受控 RAG 实验数据的稳定物理路径。其中的 ingestion fixtures 供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
-步骤 11 使用真实 PostgreSQL 保存 Chunk 并运行 FTS；步骤 12 使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；步骤 13 在应用侧按稳定 `chunk_id` 运行 RRF 并保留两路贡献；步骤 14 固定 Metadata pre-filter、每路候选和阈值、RRF、`final_top_k` 的顺序并返回诊断报告；步骤 15 把最终候选连同文档版本、locator 和路线诊断接入共享 Context Builder；步骤 16 调用真实模型生成结构化风险并检查 claimed source ID 是否属于本轮 Citation Candidate。当前这些仍是共享 package 与机制实验入口，不表示产品已经提供资料管理 API、后台入库任务或 Review API；Citation 内容支持性、Refusal 和证据充分性仍未实现。
+当前已能使用真实 PostgreSQL 保存 Chunk 并运行 FTS，使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；应用侧 RRF 按稳定 `chunk_id` 融合两路贡献，Retriever Contract 固定 Metadata pre-filter、每路候选和阈值、RRF、`final_top_k` 的顺序并返回诊断报告；Context 适配将最终候选连同文档版本、locator 和路线诊断接入共享 Context Builder；可信生成调用真实模型生成结构化风险，并检查 claimed source ID 是否属于本轮 Citation Candidate。当前这些仍是共享 package 与机制实验入口，不表示产品已经提供资料管理 API、后台入库任务或 Review API；Citation 内容支持性、Refusal 和证据充分性仍未实现。
 
 ## PostgreSQL 本地准备
 
-**正在学习课程第 11 步（按词检索）时，不要从本节开始。** 从空库到第一次 FTS 查询，只走：
+**正在学习 Lexical Retrieval 时，不要从本节开始。** 从空库到第一次 FTS 查询，只走：
 
 > [Lexical Retrieval 实验](../../../course/labs/lexical-retrieval.md)
 
-本节保留产品级安装：Role、两个 Database、`0001` 与 `0002`、测试库，以及第 12 步起需要的 pgvector。不自动安装 PostgreSQL、GUI 或系统服务。当前 macOS 学习主路径推荐 [Postgres.app](https://postgresapp.com/)，因为安装简单、包含 `psql`，并预装后续步骤需要的 pgvector；PostgreSQL 官方也在 [macOS packages](https://www.postgresql.org/download/macosx/) 页面列出了 Postgres.app、EDB installer 和 Homebrew 等方式。
+本节保留产品级安装：Role、两个 Database、`0001` 与 `0002`、测试库，以及 Dense Retrieval 需要的 pgvector。不自动安装 PostgreSQL、GUI 或系统服务。当前 macOS 学习主路径推荐 [Postgres.app](https://postgresapp.com/)，因为安装简单、包含 `psql`，并预装后续检索实验需要的 pgvector；PostgreSQL 官方也在 [macOS packages](https://www.postgresql.org/download/macosx/) 页面列出了 Postgres.app、EDB installer 和 Homebrew 等方式。
 
 推荐使用一个受支持的 PostgreSQL 大版本，并固定记录本地真实版本。当前课程代码不依赖 PostgreSQL 18 独有语法；后续 pgvector 版本仍以实际锁定的运行环境为准。
 
@@ -134,7 +134,7 @@ psql "$DATABASE_URL" -c "SELECT current_database(), current_user, version();"
 
 ### 4. 执行 migration
 
-当前采用编号原生 SQL migration，使第 11–12 节可以直接看到真实表、约束、生成列、GIN 和 pgvector 对象，不引入 ORM 或 migration framework。按编号顺序执行：
+当前采用编号原生 SQL migration，使 Lexical 与 Dense Retrieval 实验可以直接看到真实表、约束、生成列、GIN 和 pgvector 对象，不引入 ORM 或 migration framework。按 migration 编号顺序执行：
 
 ```bash
 psql "$DATABASE_URL" \
@@ -155,7 +155,7 @@ psql "$DATABASE_URL" -c "SELECT extname, extversion FROM pg_extension WHERE extn
 psql "$DATABASE_URL" -c "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'review_assistant';"
 ```
 
-`search_vector` 是由 `lexical_text` 生成的 `tsvector`；`rag_chunks_search_vector_gin_idx` 是词面候选匹配索引。`0002` 启用 pgvector 并创建向量表；具体 HNSW 索引依赖真实 Provider 返回的模型、维度和预处理空间，由步骤 12 入库后按当前 `embedding_space_ref` 建立，不在 migration 中假定所有服务都是固定 1536 维。
+`search_vector` 是由 `lexical_text` 生成的 `tsvector`；`rag_chunks_search_vector_gin_idx` 是词面候选匹配索引。`0002` 启用 pgvector 并创建向量表；具体 HNSW 索引依赖 Dense Retrieval 入库时真实 Provider 返回的模型、维度和预处理空间，并按当前 `embedding_space_ref` 建立，不在 migration 中假定所有服务都是固定 1536 维。
 
 若应用 Role 没有安装 extension 的权限，由本地数据库管理员只执行 `CREATE EXTENSION vector`，再由应用 Role 执行 migration。不要为了绕过权限让应用长期使用超级用户。
 
@@ -175,7 +175,7 @@ Postgres.app 的窗口主要负责本地 Server 生命周期；pgAdmin 才是完
 
 ## 运行 PostgreSQL FTS 实验
 
-第 11 节课程实验的命令、写入说明和输出解读见 [Lexical Retrieval 实验](../../../course/labs/lexical-retrieval.md)。
+课程实验的命令、写入说明和输出解读见 [Lexical Retrieval 实验](../../../course/labs/lexical-retrieval.md)。
 
 产品侧可选集成测试：
 

@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现标准学习路径第一阶段第 8 节的文档加载、确定性清洗和来源定位，第 9 节的可回查 Chunking，第 10 节的 Embedding 表示与成对相似度观察，第 11 节的应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，第 12 节的 pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，第 13 节的应用侧 RRF，第 14 节的固定 Retrieval 控制与诊断，第 15 节从检索候选到共享 Context Builder 的来源适配，以及第 16 节的真实结构化生成与 Citation Candidate membership 检查。
+当前实现文档加载、确定性清洗和来源定位，可回查 Chunking，Embedding 表示与成对相似度观察，应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，应用侧 RRF，固定 Retrieval 控制与诊断，从检索候选到共享 Context Builder 的来源适配，以及真实结构化生成与 Citation Candidate membership 检查。课程顺序只在[标准学习路径](../../../course/learning-path.md)维护。
 
 ## 当前数据流
 
@@ -98,7 +98,7 @@ BuiltContext + citation candidate IDs
 | `tests/test_rag_context.py` | Chunk 来源保留、证据资格映射、预算去向和 source ID 冲突 |
 | `tests/test_trusted_generation.py` | 合法/未知 source、无引用风险、空证据和结构化失败边界 |
 
-建议按能力链分组阅读。步骤 8–9 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；步骤 10–16 运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
+建议按能力链分组阅读。文档解析与 Chunk 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；Embedding、检索、融合、Context 与可信生成运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
 ## 公共入口
 
@@ -203,7 +203,7 @@ batch = embed_texts(
 report = PostgresVectorStore().upsert_embeddings(chunks, batch.records)
 ```
 
-查询文本必须使用兼容的 Embedding 空间。默认 exact 路线计算当前可见范围内的真实 cosine distance；返回字段明确命名为 `cosine_distance` 且 `lower_is_better=true`，不会与第 10 步的 cosine similarity 或第 11 步的 `fts_rank` 混写成通用 `score`。
+查询文本必须使用兼容的 Embedding 空间。默认 exact 路线计算当前可见范围内的真实 cosine distance；返回字段明确命名为 `cosine_distance` 且 `lower_is_better=true`，不会与成对比较使用的 cosine similarity 或词面检索的 `fts_rank` 混写成通用 `score`。
 
 HNSW 索引不是 migration 中的固定 1536 维索引。`ensure_hnsw_index` 根据真实运行得到的维度和 `space_ref` 创建 expression + partial index，避免把同维度但模型或预处理不同的向量放进一个索引空间。小 fixture 上 PostgreSQL 可能仍选择顺序扫描；`inspect_plan=True` 会返回 `index_used` 和查询计划节点，索引存在不等于本次查询使用了索引。
 

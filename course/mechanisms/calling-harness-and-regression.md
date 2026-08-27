@@ -2,7 +2,7 @@
 
 > 机制篇：解释如何用固定业务样例和调用记录，让 Prompt、模型、Schema、Context 与可靠性改动可以重复比较。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 23 节。必要前提是 [Prompt Engineering](prompt-engineering.md)、[Structured Output](structured-output.md)、[可靠调用](reliability-and-errors.md)，以及已经可以运行的固定 RAG 生成链；本文交付直接 LLM 与检索 RAG 可复用的 Case、Record 和 Summary。
+> 阅读顺序见[标准学习路径](../learning-path.md)。必要前提是 [Prompt Engineering](prompt-engineering.md)、[Structured Output](structured-output.md)、[可靠调用](reliability-and-errors.md)，以及已经可以运行的固定 RAG 生成链；本文交付直接 LLM 与检索 RAG 可复用的 Case、Record 和 Summary。
 
 ---
 

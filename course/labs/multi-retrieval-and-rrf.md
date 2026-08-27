@@ -6,19 +6,19 @@
 > - Lexical 对照：[从空库到第一次按词检索](lexical-retrieval.md)
 > - Dense 前置：[pgvector Dense Retrieval](vector-store-and-pgvector.md)
 
-本文只回答：怎样从第 12 步已经可运行的 PostgreSQL、pgvector 和真实 Embedding 环境，继续得到两路排名，使用 RRF 形成一份融合候选，并验证融合只读取名次、不直接相加原始分数？
+本文只回答：怎样从已经可运行的 PostgreSQL、pgvector 和真实 Embedding 环境，继续得到两路排名，使用 RRF 形成一份融合候选，并验证融合只读取名次、不直接相加原始分数？
 
-第 11 步按词找候选，第 12 步按向量距离找候选。本步骤不更换资料和问题，也不把最终候选送进模型；它只观察两份排名怎样合并。`final_top_k`、每路阈值、统一检索报告和淘汰原因进入第 14 步。
+Lexical Retrieval 按词找候选，Dense Retrieval 按向量距离找候选。本实验不更换资料和问题，也不把最终候选送进模型；它只观察两份排名怎样合并。`final_top_k`、每路阈值、统一检索报告和淘汰原因由后续 Retriever Contract 处理。
 
 ## 1. 运行前准备
 
-先确认第 12 步已经完成：
+先确认 Dense Retrieval 实验已经完成：
 
-- `DATABASE_URL` 指向第 11、12 步使用的同一个数据库。
+- `DATABASE_URL` 指向 Lexical 与 Dense Retrieval 使用的同一个数据库。
 - `0001_create_rag_chunks.sql` 和 `0002_add_pgvector_embeddings.sql` 已执行。
 - PostgreSQL 已启用 pgvector，并存在 `review_assistant.rag_chunk_embeddings`。
 - `.env` 中的真实 Embedding 配置可以调用 embeddings 端点。
-- 第 12 步 exact 模式可以正常返回 Dense candidates。
+- Dense Retrieval 的 exact 模式可以正常返回候选。
 
 本实验继续使用：
 
@@ -209,13 +209,13 @@ uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py \
   --dense-mode hnsw --verbose
 ```
 
-这会改变 dense 候选的产生方式，研究的是“近似检索输入发生变化后，融合结果怎样变化”。它不再是纯粹的 RRF 参数实验。小 fixture 上 PostgreSQL 也可能仍选择顺序扫描；索引路线的性能与召回取舍已经在第 12 步解释。
+这会改变 dense 候选的产生方式，研究的是“近似检索输入发生变化后，融合结果怎样变化”。它不再是纯粹的 RRF 参数实验。小 fixture 上 PostgreSQL 也可能仍选择顺序扫描；索引路线的性能与召回取舍已经在 Dense Retrieval 机制中解释。
 
 ## 6. 失败时查哪一层
 
 | 表现 | 优先检查 |
 | --- | --- |
-| 缺少 `DATABASE_URL` | `.env` 是否存在，连接串是否指向第 11、12 步数据库 |
+| 缺少 `DATABASE_URL` | `.env` 是否存在，连接串是否指向 Lexical 与 Dense Retrieval 使用的数据库 |
 | `migration_required` / 找不到向量表 | `0001`、`0002` 是否对当前数据库执行 |
 | Embedding 鉴权、404、限流或超时 | 独立的 Embedding key、endpoint 和 model 配置 |
 | lexical 为 `empty`、dense 成功 | Query 词项是否与资料相同；这是可能的词面边界 |
@@ -339,7 +339,7 @@ rrf_k：  60
 
 ## 8. 完成检查点
 
-完成第 13 步时，应能做到：
+完成本实验时，应能做到：
 
 - 在同一可见范围上得到 lexical、dense 和 RRF 三列结果。
 - 找到一条多路重合候选并手算其 RRF 分数。

@@ -2,7 +2,7 @@
 
 > 概念篇：理解需求评审助手为什么需要模型，以及普通程序、LLM、RAG、Agent 和 Workflow 分别承担什么责任。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 1 节。无知识前置；本文交付对普通程序、LLM、RAG、Agent 和 Workflow 的基本判断。
+> 阅读顺序见[标准学习路径](../learning-path.md)。本文无知识前置，交付对普通程序、LLM、RAG、Agent 和 Workflow 的基本判断。
 
 ## 从一个需求评审问题开始
 

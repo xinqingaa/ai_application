@@ -2,7 +2,7 @@
 
 > 概念篇：建立一条统一主线，理解应用如何把“希望模型完成什么、允许模型依据什么、程序最终接受什么”变成可验证契约。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 2 节。必要前置是 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)；本文交付 Prompt、Context 与 Schema 的统一契约心智。
+> 阅读顺序见[标准学习路径](../learning-path.md)。必要前置是 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)；本文交付 Prompt、Context 与 Schema 的统一契约心智。
 
 ---
 

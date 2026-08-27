@@ -100,7 +100,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | Run State、Conversation、Memory 与业务知识边界 | 主线 | 第二阶段 | 区分当前执行事实、消息、压缩记忆、偏好和可引用资料 | Agent Harness | `concepts/memory-and-knowledge-boundaries.md` | 产品必接；后续 `agent_core/state` |
 | 短期记忆、摘要与预算 | 主线 | 第二阶段 | 控制长会话进入模型的内容，摘要必须可回查且不能冒充原始证据 | Context Engineering | `mechanisms/short-term-memory.md` | 产品必接；后续 `agent_core/memory` |
-| 长期偏好记忆与治理 | 扩展 | 第二阶段 | 只保存用户确认的跨会话偏好，并支持更新、删除和关闭 | 记忆边界 | `mechanisms/long-term-memory.md` | 条件接入；不阻塞主线 |
+| 长期偏好记忆、确认与治理 | 主线 | 第二阶段 | 只保存用户明确确认的跨会话偏好，记录来源、作用域和版本，支持查看、更新、删除和关闭；不能冒充业务证据 | 短期记忆、记忆边界 | `mechanisms/long-term-memory.md` | 产品必接；后续 `agent_core/memory` 与产品偏好策略 |
 | Token Stream 与 Event Stream | 主线 | 第二阶段 | 区分文本增量和 Tool、证据、状态、错误等结构化运行事实 | Agent Loop | `mechanisms/token-and-event-stream.md` | 产品必接；基础事件 |
 | Agent Event 类型、身份与版本 | 主线 | 第二阶段 | 用运行身份、序号、类型和版本让生产者与消费者解释同一事件 | Event Stream | `mechanisms/agent-event-protocol.md` | 产品必接；事件 Schema |
 | SSE 传输与重连 | 主线 | 第二阶段 | 通过 SSE 传输事件，处理心跳、游标、断线和恢复，不把连接状态当业务状态 | Event 协议、FastAPI | `mechanisms/sse-transport.md` | 产品必接；Review API |

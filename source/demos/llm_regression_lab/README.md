@@ -1,7 +1,7 @@
 # llm_regression_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 23 节（Calling Harness，等待 RAG 前置）与第 24 节（Token、成本、延迟与缓存边界）。
-> **不要在完成步骤 6 后立刻把本 lab 当主线。** Reliability 已独立到 [`llm_reliability_lab`](../llm_reliability_lab/)。
+> 阅读顺序见[标准学习路径](../../../course/learning-path.md)。本实验对应 Calling Harness，以及 Token、成本、延迟与缓存边界；运行前需要先完成固定 RAG 生成链。
+> **不要在完成可靠调用实验后立刻把本 lab 当主线。** Reliability 已独立到 [`llm_reliability_lab`](../llm_reliability_lab/)。
 
 本 lab 观察：同一批 Case 如何批量运行、记录、汇总，以及 token / 成本 / 延迟 / exact-match cache 边界。
 
@@ -17,7 +17,7 @@
 
 | 顺序 | 脚本 | 课表 | 说明 |
 | --- | --- | --- | --- |
-| 1 | `harness_compare.py` | 步骤 20 | Case 批量运行与汇总 |
+| 1 | `harness_compare.py` | Review API 能力完成后 | Case 批量运行与汇总 |
 | 2 | `cost_latency_cache.py` | 按需支撑 | 依赖 Harness 记录形态；比较预算、延迟、cache hit/miss |
 
 ```bash
@@ -80,4 +80,4 @@ uv run python source/demos/llm_regression_lab/cost_latency_cache.py
 - Package：[source/packages/llm_core/](../../packages/llm_core/)
 - [Calling Harness](../../../course/mechanisms/calling-harness-and-regression.md)
 - [Token、成本、延迟与缓存](../../../course/mechanisms/cost-latency-and-caching.md)
-- 步骤 6：[llm_reliability_lab](../llm_reliability_lab/)
+- 可靠调用实验：[llm_reliability_lab](../llm_reliability_lab/)

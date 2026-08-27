@@ -3,7 +3,7 @@
 > 这是 Lexical Retrieval 的实验篇，和机制篇成对，不讲按词检索的原理。
 >
 > - 机制：[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](../mechanisms/lexical-retrieval.md)
-> - 课表：[标准学习路径](../learning-path.md)第一阶段第 11 节
+> - 阅读顺序：[标准学习路径](../learning-path.md)
 > - 数据库概念不够时，按需阅读 [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md)
 
 本文只回答：
@@ -14,7 +14,7 @@
 
 这里写入的是 `source/apps/review_assistant/fixtures/rag/ingestion/order_rules.md` 生成的固定 Chunk，用来观察机制，不是产品用户资料管理，也不是已经存在的入库 API。
 
-第 12 步才需要 pgvector 和 `0002` migration。本节**只做 `0001` 和词面检索实验**。
+Dense Retrieval 才需要 pgvector 和 `0002` migration。本实验**只做 `0001` 和词面检索**。
 
 ## 0. 安装并确认 Server 在跑
 
@@ -44,7 +44,7 @@ createdb --owner=review_assistant_app review_assistant
 createdb --owner=review_assistant_app review_assistant_test
 ```
 
-`review_assistant` 是日常学习和第 11 步实验用的库；`review_assistant_test` 给集成测试，避免冲掉学习数据。
+`review_assistant` 是日常学习和 Lexical Retrieval 实验用的库；`review_assistant_test` 给集成测试，避免冲掉学习数据。
 
 **检查点 B：** 目标 Role、学习库和测试库都已创建；不要使用 `template1`，也不要让 Python 实验长期使用超级用户。
 
@@ -80,7 +80,7 @@ psql "$DATABASE_URL" -c "SELECT current_database(), current_user;"
 
 **检查点 C：** 连接串指向目标 Database，当前用户是 `review_assistant_app`。如果这里失败，不要继续执行 migration。
 
-## 3. 建表（第 11 步只要 `0001`）
+## 3. 建表（本实验只需要 `0001`）
 
 仍在仓库根目录，且已 `source .env`：
 
@@ -99,7 +99,7 @@ psql "$DATABASE_URL" -c "\dt review_assistant.*"
 
 若要跑集成测试，对 `TEST_DATABASE_URL` 再执行同一条 `0001`。
 
-第 12 步 Dense Retrieval 才执行产品 README 中的 `0002`；本步骤不安装或启用 pgvector。
+Dense Retrieval 才执行产品 README 中的 `0002`；本步骤不安装或启用 pgvector。
 
 **检查点 D：** `\dt review_assistant.*` 能看到 `rag_chunks`，并且当前 Database 与第 2 步相同。
 
@@ -114,8 +114,8 @@ uv run python source/demos/rag_retrieval_lab/inspect_lexical_retrieval.py --verb
 
 它会：
 
-1. 用第 8 步 Loader 读取 `order_rules.md`。
-2. 用第 9 步 structure-aware 策略生成 Chunk。
+1. 用文档 Loader 读取 `order_rules.md`。
+2. 用 structure-aware 策略生成 Chunk。
 3. 用同一套词法分析处理 Chunk 和查询。
 4. 幂等写入 `review_assistant.rag_chunks`（重复运行会更新，不会无限复制）。这一步是固定 fixture 入库，不是用户资料 API。
 5. 对一组业务问题做 PostgreSQL 全文检索。
@@ -285,7 +285,7 @@ SSL: 关闭
 | --- | --- |
 | `content` | 给人看的原文 |
 | `lexical_text` | Python 拆好、空格分开的检索词 |
-| `search_vector` | 数据库收下的词袋，不是第 10 步那种 Embedding 向量 |
+| `search_vector` | 数据库收下的词袋，不是 Embedding 向量 |
 
 不要把 `SELECT` 存成临时文件名再在终端里看宽表。调试 SQL 放在 [`sql/`](../../source/demos/rag_retrieval_lab/sql/README.md)：
 
@@ -310,7 +310,7 @@ psql "$DATABASE_URL" -f source/demos/rag_retrieval_lab/sql/inspect_rag_chunks.sq
 | 查询成功但 0 行 | 先确认第 4 步已写入；再对照机制篇的词面边界 |
 | Server / 表 / SQL 这些词仍陌生 | [PostgreSQL 零基础](../concepts/postgresql-for-ai-applications.md) |
 
-产品级的第二条 migration、pgvector、测试库排障仍在 [产品 README](../../source/apps/review_assistant/README.md#postgresql-本地准备)。学第 11 步不必先做 `0002`。
+产品级的第二条 migration、pgvector、测试库排障仍在 [产品 README](../../source/apps/review_assistant/README.md#postgresql-本地准备)。完成 Lexical Retrieval 不必先做 `0002`。
 
 集成测试（可选）：
 

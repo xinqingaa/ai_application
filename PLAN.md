@@ -44,7 +44,7 @@ Agent Harness
 → MCP 与真实外部能力接入
 → Search / Browser / File / Code Tool
 → Retriever as Tool、Agent Loop 与 Agent Skills
-→ Conversation、事件和运行界面
+→ Conversation、短期记忆、长期偏好记忆、事件和运行界面
 → Deep Research
 → Multi-Agent 与 A2A
 → 必要 Workflow
@@ -65,11 +65,13 @@ Agent Harness
 
 ### `agent_core`
 
-在第二阶段真实实现开始时建立，负责 Agent Harness、Tool Runtime、权限与副作用控制、Agent Loop、状态、MCP 适配、Skills、Research、Multi-Agent 与必要 Workflow 原语。
+在第二阶段真实实现开始时建立，负责 Agent Harness、Tool Runtime、权限与副作用控制、Agent Loop、状态与记忆、MCP 与 A2A 适配、Skills、Research、Multi-Agent 与必要 Workflow 原语。
 
 Tool Runtime 统一接收 Tool Schema、经过校验的参数、运行权限和取消信号，并返回结构化结果或错误。MCP、Search、Browser、File、Code 和 Retriever 都通过这一边界接入；不能让某种连接器绕过统一权限、超时、审计和事件。
 
 File Tool 的通用部分负责受控工作区、路径解析、来源身份、读取结果、暂存写入、原子写入和幂等。Code Tool 的通用部分负责允许命令、隔离执行、资源限制、取消和结构化执行结果。具体允许读取什么、运行哪些验证和写出哪些产物属于产品策略。
+
+状态与记忆的通用部分负责 Conversation、Run State、短期摘要和长期偏好记录的稳定身份、版本与生命周期。哪些偏好允许保存、怎样取得用户确认、保留多久以及如何在界面中查看、更新、删除和关闭，属于产品策略；业务资料和模型推断不得写成长期偏好。
 
 ### `eval_core`
 
@@ -84,6 +86,8 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 - 产品 Schema、状态和组合流程。
 - 产品测试、fixtures、eval 和数据库 migration。
 - 第二阶段评审工作区策略、允许路径、允许命令、人工确认和运行产物。
+- 长期偏好的可保存范围、确认流程、管理界面与审计策略。
+- 本地 Delegation 与远程 A2A 共用的责任契约、获准输入和结果校验策略。
 - 安装、配置、运行和部署。
 
 通用算法进入 package，产品业务取舍留在 app。

@@ -1,6 +1,6 @@
 # llm_context_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 15 节。主线真实入口是 [`rag_retrieval_lab/inspect_rag_context.py`](../rag_retrieval_lab/inspect_rag_context.py)；本 lab 使用静态材料，适合离线观察 Context Builder 策略，不证明 RAG 已接通。
+> 阅读顺序见[标准学习路径](../../../course/learning-path.md)。主线真实入口是 [`rag_retrieval_lab/inspect_rag_context.py`](../rag_retrieval_lab/inspect_rag_context.py)；本 lab 使用静态材料，适合离线观察 Context Builder 策略，不证明 RAG 已接通。
 
 Context Engineering 观察 demo。核心逻辑在 [`llm_core.context`](../../packages/llm_core/context/)；本 demo 只加载样例、选择策略、调用 package API 并打印诊断报告。
 
@@ -191,7 +191,7 @@ no_evidence_included
 
 ## 与 Structured Output demo 的关系
 
-- [`llm_invoke_lab/structured_risk.py`](../llm_invoke_lab/structured_risk.py)：观察 structured mode（步骤 5）。
-- 本 lab `context_compare.py`：观察 context builder 策略和诊断（步骤 15，等 RAG）。
+- [`llm_invoke_lab/structured_risk.py`](../llm_invoke_lab/structured_risk.py)：观察 structured mode（Structured Output 实验）。
+- 本 lab `context_compare.py`：观察 context builder 策略和诊断（进入 RAG 的 Context Engineering 后使用）。
 
 二者都调用 `llm_core`，但观察问题不同；课表顺序不允许跳过 RAG 前置直接把本 lab 当主线。

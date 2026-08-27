@@ -25,6 +25,14 @@
 
 “完整”指业务闭环完整，不指功能平台庞大。产品必须有真实输入输出、可追溯证据、可见状态与失败、明确权限与停止、最小质量证据和可交互入口。
 
+## 垂直切口与架构可迁移性
+
+“售后入口与订单状态”以及后续“售后接口 v2 与多端契约一致性评审”是贯穿学习、实验和验收的稳定垂直切口。固定切口是为了复用同一批业务事实、控制比较变量，并观察固定 RAG 怎样演进为 Agent 与 Multi-Agent；它不是产品只能回答这一个问题的白名单。需求评审助手可以处理不同主题的需求，以及 PRD、会议纪要、验收条件、接口契约、客户端模型、配置和验证结果等配套材料，但当前产品职责仍然是需求评审。
+
+架构同时区分通用运行能力和领域装配。Model Provider、Structured Output、RAG 基础能力、Agent Harness、Tool Runtime、状态与事件、Deep Research、Multi-Agent 和必要 Workflow 原语应尽量保持领域可复用；Prompt、业务 Schema、知识库与 Metadata、Agent Skills、工具与权限策略、Agent 责任、证据与拒答规则、评估标准和产品交互则由具体领域决定。
+
+因此，迁移到智能客服、金融或医疗等领域，通常不是替换 Harness，而是在通用运行能力上建立新的领域契约和产品装配。高风险领域还必须增加与其风险相称的来源资格、权限、合规和人工复核。架构可迁移不等于当前仓库建设万能助手：本仓库仍只实现需求评审助手，不为证明复用性创建平行产品或通用 Agent 平台。
+
 ## 第一阶段：RAG 应用基础
 
 交付可运行、可诊断、具备最小可信证据的固定 RAG 需求评审助手：
@@ -43,7 +51,7 @@
 - Agent Harness、Tool Runtime、权限和停止治理。
 - MCP、Search、Browser、File 与 Code Tool。
 - Agentic RAG、Agent Skills 与受控补检索。
-- Conversation、Run State、事件协议与运行界面。
+- Conversation、Run State、短期与长期记忆、事件协议与运行界面。
 - Deep Research、多 Agent 分工与 A2A。
 - 必要的 Checkpoint、恢复、人工介入与副作用治理。
 - 固定 RAG、单 Agent 和 Multi-Agent 的质量、成本与延迟比较。

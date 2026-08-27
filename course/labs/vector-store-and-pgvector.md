@@ -3,16 +3,16 @@
 > 这是 pgvector Dense Retrieval 的实验篇。它回答“怎样准备 pgvector、运行 Dense Retrieval、阅读输出和做 exact/HNSW 对照”，不重复机制正文的完整原理。
 >
 > - 机制：[pgvector、Dense Retrieval 与向量索引](../mechanisms/vector-store-and-pgvector.md)
-> - 第 10 步概念：[Embedding 表示与向量相似度](../mechanisms/embedding-and-similarity.md)
-> - 第 11 步对照：[Lexical Retrieval、BM25 边界与 PostgreSQL FTS](../mechanisms/lexical-retrieval.md)
+> - 表示前置：[Embedding 表示与向量相似度](../mechanisms/embedding-and-similarity.md)
+> - 词面对照：[Lexical Retrieval、BM25 边界与 PostgreSQL FTS](../mechanisms/lexical-retrieval.md)
 
-本文只回答：怎样从第 11 步已经准备好的 PostgreSQL 和 Chunk 数据，继续完成 pgvector migration、真实 Embedding 入库、Dense Retrieval 查询和 exact/HNSW 对照？
+本文只回答：怎样从 Lexical Retrieval 已经准备好的 PostgreSQL 和 Chunk 数据，继续完成 pgvector migration、真实 Embedding 入库、Dense Retrieval 查询和 exact/HNSW 对照？
 
-第 11 步按词查找，第 12 步按向量距离查找。两步使用同一批 Chunk 和 Query，但检索维度不同：第 11 步比较词项，第 12 步比较 Embedding 空间中的位置。
+Lexical Retrieval 按词查找，Dense Retrieval 按向量距离查找。两者使用同一批 Chunk 和 Query，但前者比较词项，后者比较 Embedding 空间中的位置。
 
 ## 1. 运行前准备
 
-第 11 步已经准备好 PostgreSQL、`DATABASE_URL`、Role、Database 和 `0001` migration。本步骤在同一个数据库上继续执行 `0002`，并增加真实 Embedding 服务配置。
+Lexical Retrieval 实验已经准备好 PostgreSQL、`DATABASE_URL`、Role、Database 和 `0001` migration。本实验在同一个数据库上继续执行 `0002`，并增加真实 Embedding 服务配置。
 
 ### 1.1 执行 pgvector migration
 
@@ -96,7 +96,7 @@ load_retrieval_chunks
 → DenseHit + DenseDiagnostics
 ```
 
-这条链和第 11 步最大的不同是：查询不是拆成词交给 FTS，而是先调用同一 Embedding 空间生成 Query vector，再和数据库中的 Chunk vectors 计算 distance。
+这条链和 Lexical Retrieval 最大的不同是：查询不是拆成词交给 FTS，而是先调用同一 Embedding 空间生成 Query vector，再和数据库中的 Chunk vectors 计算 distance。
 
 ## 4. 终端输出怎么读
 
@@ -143,7 +143,7 @@ HNSW index=... · setup=... ms
 | `HNSW used` | HNSW 查询是否实际使用了索引计划 |
 | `Observe` | 当前探针要观察的现象，不是自动评分 |
 
-不要把 `Top distance` 和第 11 步的 `fts_rank` 相加，也不要把距离越小误读成结果越正确。
+不要把 `Top distance` 和 Lexical Retrieval 的 `fts_rank` 相加，也不要把距离越小误读成结果越正确。
 
 ### 4.3 `--verbose` 详细区
 
@@ -163,7 +163,7 @@ hnsw: indexed=2 · visible=2 · returned=2 · index_used=false · plan=Seq Scan 
 | `index_used` | PostgreSQL 这次是否采用 HNSW 索引 |
 | `plan` | 查询计划节点；只有 HNSW 检查计划时才有意义 |
 | `Distance` | cosine distance，越小越近 |
-| `Similarity` | 便于承接第 10 步直觉的 `1 - distance`，越大越近 |
+| `Similarity` | 便于承接成对相似度直觉的 `1 - distance`，越大越近 |
 | `Chunk` | 稳定 Chunk ID |
 | `Content` | 命中 Chunk 原文摘要 |
 
@@ -212,9 +212,9 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py \
 
 只改变候选上限。`indexed` 和 `visible` 不应因为 `candidate_k` 改变，`returned` 和显示的候选数可以改变。
 
-### 对照三：和第 11 步并排观察
+### 对照三：和 Lexical Retrieval 并排观察
 
-对同一个 Query，先运行第 11 步的 lexical 命令，再运行本步骤的 exact 命令。记录：
+对同一个 Query，先运行 Lexical Retrieval 的命令，再运行本实验的 exact 命令。记录：
 
 ```text
 Lexical：共同词项、fts_rank、候选 Chunk
