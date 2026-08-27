@@ -1,6 +1,6 @@
 # llm_regression_lab
 
-> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 21 节（Calling Harness，等待 RAG 前置）与第 22 节（Token、成本、延迟与缓存边界）。
+> 课表位置：[标准学习路径](../../../course/learning-path.md)第一阶段第 23 节（Calling Harness，等待 RAG 前置）与第 24 节（Token、成本、延迟与缓存边界）。
 > **不要在完成步骤 6 后立刻把本 lab 当主线。** Reliability 已独立到 [`llm_reliability_lab`](../llm_reliability_lab/)。
 
 本 lab 观察：同一批 Case 如何批量运行、记录、汇总，以及 token / 成本 / 延迟 / exact-match cache 边界。

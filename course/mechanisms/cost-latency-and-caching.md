@@ -2,7 +2,7 @@
 
 > 机制篇：解释 usage、价格、延迟与缓存键如何形成可观察的调用治理，而不是把一次成功响应误认为长期可用。
 >
-> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 22 节。必要前置是 [Calling Harness](calling-harness-and-regression.md)；本文交付 usage、估算价格、延迟和缓存失效的联合诊断，其中 usage、成本和延迟属于主线，Exact-match Cache 与失效实验属于扩展判断。
+> 课程位置：[标准学习路径](../learning-path.md)第一阶段第 24 节。必要前置是 [Calling Harness](calling-harness-and-regression.md)；本文交付 usage、估算价格、延迟和缓存失效的联合诊断，其中 usage、成本和延迟属于主线，Exact-match Cache 与失效实验属于扩展判断。
 
 ---
 
