@@ -37,8 +37,8 @@
 
 ```text
 固定 RAG
-→ LangChain 第一个真实 Agent
-→ Retriever Tool、治理契约与框架驱动的 agent_core
+→ agent_core 与 LangChain 第一个真实 Agent
+→ Retriever Tool、治理契约与运行观测
 → LangGraph 可恢复 Agent Runtime
 → MCP、Search、Browser、File 与 Code
 → Conversation、短期与长期记忆、事件与运行界面
@@ -54,9 +54,9 @@
 
 ### 框架与 `agent_core`
 
-第二阶段以成熟框架为实现主线。先直接使用 LangChain Agent 和一个确定性只读 Tool 跑通真实模型闭环；当跨入口复用、统一治理或隔离框架变化产生真实价值，且 Tool、状态、停止、事件和 Trace 契约已经稳定后，再提取 `source/packages/agent_core/`。LangGraph 承担需要持久化、恢复和人工介入的图运行时；LangSmith 是课程默认的真实观测实验，产品按环境条件接入，本地 RunRecord 始终保留。
+第二阶段以成熟框架为实现主线。`source/packages/agent_core/` 随 LangChain Agent 接入建立，承载通用 Agent 运行、治理和框架适配，并随着 Tool、状态、停止、事件、Trace、LangGraph 和协议能力逐步扩展。LangGraph 承担需要持久化、恢复和人工介入的图运行时；LangSmith 是课程默认的真实观测实验，产品按环境条件接入，本地 RunRecord 始终保留。
 
-产品领域组装依赖 `agent_core` 的稳定请求结果、Tool 治理、通用 Run State、停止原因、事件、Trace 和协议契约；LangChain / LangGraph 适配器位于契约下方。这样可以二次封装框架并替换必要的实现细节，而不重写框架的 Loop、图执行器或 Checkpointer。评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、偏好策略以及客户端影响、接口契约等角色设计保留在 `source/apps/review_assistant/agent/`；若尚未形成稳定边界，产品继续直接调用框架，不创建纯转发门面。
+产品领域组装依赖 `agent_core` 的请求结果、Tool 治理、通用 Run State、停止原因、事件、Trace 和协议契约；LangChain / LangGraph 由这一层组合和适配。评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、偏好策略以及客户端影响、接口契约等角色设计保留在 `source/apps/review_assistant/agent/`。框架提供的运行时、图执行器和 Checkpointer 由 `agent_core` 复用，不在本地重复实现。
 
 ### Agent Harness
 
@@ -122,6 +122,7 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 ### 第一个框架 Agent 闭环
 
 - 使用真实模型和一个确定性只读 Tool 跑通 LangChain Agent 的决定、执行、结果回填与停止。
+- 需求评审助手通过 `agent_core` 组合 LangChain，并形成最小请求、结果和框架适配入口。
 - 最小原生 Loop 只作为责任对照，不进入产品主路径。
 - 能从 LangSmith Trace 和本地 RunRecord 关联同一次运行。
 - LangSmith 不可用时显式记录外部观测失败，本地 RunRecord 仍保留，不伪造 Trace 成功。
@@ -217,7 +218,7 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 学习者必须说明：
 
 1. 为什么固定 RAG 不足，哪些步骤仍保持确定性。
-2. LangChain、LangGraph、`agent_core` 与产品 `agent/` 各自负责什么，为什么此时值得提取本地 package。
+2. LangChain、LangGraph、`agent_core` 与产品 `agent/` 各自负责什么，新能力应当进入哪一层。
 3. MCP 连接哪项真实外部能力，为什么不直接写专用 API。
 4. Search 与 Browser 为什么分开，哪些结果可以成为候选证据。
 5. File Read 为什么需要来源身份，File Write 为什么只能进入暂存区。
@@ -261,7 +262,7 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 ## 代码入口
 
 ```text
-source/packages/agent_core/             框架驱动的通用运行与治理层，契约稳定后建立
+source/packages/agent_core/             框架驱动的通用运行、治理与适配层
 source/demos/                           机制实验与最小原生对照
 source/apps/review_assistant/agent/     领域 Agent 组装与产品策略
 source/apps/review_assistant/           唯一产品
@@ -277,7 +278,7 @@ source/apps/review_assistant/           唯一产品
 - 任意 Shell、任意工作目录、默认联网或读取秘密环境变量的 Code Tool。
 - 让 File Tool 任意覆盖原始 PRD、代码或配置。
 - 把所有步骤都交给模型。
-- 从零实现与 LangChain / LangGraph 竞争的 Agent 框架，或建立没有稳定契约的转发门面。
+- 从零实现与 LangChain / LangGraph 竞争的 Agent 框架，或在通用层复制框架运行时。
 - 同时维护多套框架或观测主路径，只为罗列生态工具。
 - 为展示复杂度增加没有独立责任的 Agent。
 - 完整低代码 Workflow 画布。

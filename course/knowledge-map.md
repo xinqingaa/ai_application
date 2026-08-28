@@ -57,19 +57,19 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 固定程序、Workflow、Agent、Multi-Agent 边界 | 主线 | 第二阶段 | 根据步骤是否固定、是否需恢复和是否有独立责任选择最简单结构 | 固定 RAG | `concepts/agent-and-workflow-boundaries.md` | 产品必接的设计判断 |
 | Provider API、Agent 框架、状态运行时、本地 package 与产品组装分层 | 主线 | 第二阶段 | 区分模型能力、框架原语、通用治理契约和领域行为，避免把一次 SDK 调用误认为完整产品，也避免重复造框架 | 固定 RAG、可靠调用 | 待编写概念与机制 | 产品必接的架构判断 |
-| LangChain Agent、Tool 与 Middleware | 主线 | 第二阶段 | 先用框架提供的最小 Tool 形状快速形成真实 Loop，再从公开运行模型理解消息、工具调用、中间件和停止；完整 Tool 契约在运行后补齐 | 框架分层、Structured Output | 待编写机制与实验 | 产品必接；高层 Agent 与 Tool 组合默认框架 |
+| LangChain Agent、Tool 与 Middleware | 主线 | 第二阶段 | 使用框架提供的公开抽象形成真实 Agent 闭环，理解消息、工具调用、中间件和停止怎样协作，并通过本地通用 Agent 层进入产品 | 框架分层、Structured Output | 待编写机制与实验 | 产品必接；高层 Agent 与 Tool 组合默认框架，接入 `agent_core` |
 | 最小原生 Loop 对照 | 主线 | 第二阶段 | 用最少代码观察“模型决定—应用校验与执行—结果回填—停止”，只证明控制责任，不发展成第二套教学框架 | LangChain 首个 Agent | 配套受控实验 | 受控实验；不进入产品主路径 |
-| Agent Harness 与控制面 | 主线 | 第二阶段 | 统一模型、上下文、工具、状态、权限、预算、停止、事件和观测；框架提供执行原语，本地应用保留策略与治理 | LangChain 首个 Agent、可靠调用 | `mechanisms/agent-harness.md` | 产品必接；由框架与后续 `agent_core/runtime` 共同承担 |
-| Function Calling 与 Tool Schema | 主线 | 第二阶段 | 将模型的工具名和参数草案约束为可校验候选，不等同于执行授权 | Structured Output | `mechanisms/tool-schema.md` | 产品必接；后续 `agent_core/tools` |
-| Tool 执行生命周期、超时、取消与结构化错误 | 主线 | 第二阶段 | 统一参数校验、开始执行、超时或取消、结果转换和错误回填，所有 Tool 共享同一执行边界 | Tool Schema | `mechanisms/tool-runtime.md` | 产品必接；后续 `agent_core/tools` |
+| Agent Harness 与控制面 | 主线 | 第二阶段 | 统一模型、上下文、工具、状态、权限、预算、停止、事件和观测；框架提供执行原语，本地应用保留策略与治理 | LangChain 首个 Agent、可靠调用 | `mechanisms/agent-harness.md` | 产品必接；由框架与 `agent_core/runtime` 共同承担 |
+| Tool Call 与 Schema 校验 | 主线 | 第二阶段 | 将模型的工具名和参数草案约束为可校验候选，不等同于执行授权 | Structured Output | `mechanisms/tool-schema.md` | 产品必接；`agent_core/tools` |
+| Tool 执行生命周期、超时、取消与结构化错误 | 主线 | 第二阶段 | 统一参数校验、开始执行、超时或取消、结果转换和错误回填，所有 Tool 共享同一执行边界 | Tool Schema | `mechanisms/tool-runtime.md` | 产品必接；`agent_core/tools` |
 | Tool 权限、确认与审计 | 主线 | 第二阶段 | 对读取、写入和外部行动应用最小权限与确认规则，并记录每次授权决定及其依据 | Tool Runtime | `mechanisms/tool-governance.md` | 产品必接；产品权限策略 |
 | Tool 重放安全与幂等 | 主线 | 第二阶段 | 用执行记录和幂等键防止重试、恢复和重复请求再次产生副作用；无法消除影响时显式进入补偿边界 | Tool Runtime、Run State、Workflow State | `mechanisms/retry-and-idempotency.md` | 产品必接；写入与外部行动 |
-| Prompt Injection 与应用控制边界 | 主线 | 第二阶段 | 把网页、文件和 Tool Result 视为不可信内容，禁止其改变系统规则和权限 | Tool 治理 | `mechanisms/guardrails-and-safety.md` | 产品必接；后续 `agent_core/safety` |
+| Prompt Injection 与应用控制边界 | 主线 | 第二阶段 | 把网页、文件和 Tool Result 视为不可信内容，禁止其改变系统规则和权限 | Tool 治理 | `mechanisms/guardrails-and-safety.md` | 产品必接；`agent_core/safety` 与产品策略 |
 | Agent Loop、预算与停止 | 主线 | 第二阶段 | 在观察、决策、行动和结果间循环，并通过预算、无进展和停止原因终止；框架自带 Loop 不等于应用可以省略预算与停止契约 | LangChain Agent、Harness、Tool Runtime | `mechanisms/agent-loop.md` | 产品必接；框架执行、`agent_core/runtime` 约束 |
-| Retriever as Tool | 主线 | 第二阶段 | 把固定 Retriever 契约接入 Tool Runtime，保留来源、空结果和路线失败 | Retriever Contract、Tool Runtime | `mechanisms/retriever-as-tool.md` | 产品必接；RAG 唯一实现复用 |
-| Query Rewrite | 主线 | 第二阶段 | 改写检索表达但保留原问题、技术标识和可追踪关系，避免无信息循环 | Retriever Tool | `mechanisms/query-rewrite.md` | 产品必接；后续 `agent_core/query` |
-| 检索路由、补检索与追问 | 主线 | 第二阶段 | 根据证据缺口在已有 Retriever、查询表达和用户补充间决定继续检索、换路、追问或停止；外部 Tool 接入后扩展来源集合而不改变决策语义 | Retriever Tool、Query Rewrite、证据充分性 | `mechanisms/source-routing.md` | 产品必接；产品路由策略 |
-| `agent_core` 稳定契约与框架适配 | 主线 | 第二阶段 | 让产品领域组装依赖稳定的请求结果、Tool、Run State、停止、事件和 Trace 契约，当前由下层适配 LangChain，后续 LangGraph 进入同一边界；只在跨入口复用、统一治理或隔离框架变化产生真实价值后提取 | 首个框架 Agent、Tool Runtime、最小 Run State | 待编写机制与项目检查点 | 产品必接；通用边界进入 `source/packages/agent_core/`，评审 Prompt、领域 Schema、策略与角色进入 `source/apps/review_assistant/agent/` |
+| Retriever Tool 与固定 RAG 契约 | 主线 | 第二阶段 | 把固定 Retriever 契约接入 Tool Runtime，保留来源、空结果和路线失败 | Retriever Contract、Tool Runtime | `mechanisms/retriever-as-tool.md` | 产品必接；RAG 唯一实现复用 |
+| Query Rewrite 的原问题保留与改写边界 | 主线 | 第二阶段 | 改写检索表达但保留原问题、技术标识和可追踪关系，避免无信息循环 | Retriever Tool | `mechanisms/query-rewrite.md` | 产品必接；`agent_core/query` 与产品策略 |
+| 证据缺口驱动的检索决策 | 主线 | 第二阶段 | 根据证据缺口在已有 Retriever、查询表达和用户补充间决定继续检索、换路、追问或停止；外部 Tool 接入后扩展来源集合而不改变决策语义 | Retriever Tool、Query Rewrite、证据充分性 | `mechanisms/source-routing.md` | 产品必接；产品路由策略 |
+| Agent 运行契约与框架适配 | 主线 | 第二阶段 | 以请求结果、Tool、Run State、停止、事件和 Trace 形成产品可依赖的通用 Agent 边界，适配 LangChain 并继续承接 LangGraph 等框架能力 | 框架分层、可靠调用 | 待编写机制与项目检查点 | 产品必接；进入 `source/packages/agent_core/`，评审 Prompt、领域 Schema、策略与角色进入 `source/apps/review_assistant/agent/` |
 | 替代 Agent 框架与迁移边界 | 扩展 | 第二阶段 | 以 OpenAI Agents SDK、LlamaIndex Agent / Workflow 等做受控对照，检查本地契约是否过度绑定主框架；不并行建设第二套产品主线 | 首个 Agent 闭环、`agent_core` 边界 | 边界认知或对照实验 | 条件接入；由真实迁移或数据编排需求触发 |
 
 ## MCP 与外部工具
@@ -80,8 +80,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | MCP 解决的问题与协议责任边界 | 主线 | 第二阶段 | 标准化外部能力的描述和交换，区分 MCP、Function Calling 与内部 Runtime；协议与 SDK 版本属于真实接入实验，不改变这一责任划分 | Tool Runtime | `concepts/mcp-and-tool-connectivity.md` | 产品必接；真实只读 MCP |
 | MCP Host、Client、Server 职责 | 主线 | 第二阶段 | 明确谁承载应用、谁发起协议请求、谁提供能力；接入可用不代表能力可信或已经获得执行权限 | MCP 边界 | 同上 | 产品必接；MCP 适配层 |
-| MCP 能力发现、能力模型与内部映射 | 主线 | 第二阶段 | 通过官方 SDK 或成熟适配器发现 Tool、Resource、Prompt 等能力，再映射为内部 Schema、权限、来源和结构化结果；不自行重写协议栈 | MCP 角色、Tool Runtime | `mechanisms/mcp-capability-mapping.md` | 产品必接；`agent_core/mcp` 适配与治理 |
-| MCP 请求生命周期、传输、错误与取消 | 主线 | 第二阶段 | 按明确规范修订跟踪发现、请求、结果和取消，区分无状态协议请求、业务显式状态和旧版会话机制 | MCP 能力模型 | `mechanisms/mcp-lifecycle.md` 与配套实验 | 产品必接；官方 SDK / 框架适配器接入，`agent_core/mcp` 统一错误与治理 |
+| MCP 能力发现与内部 Tool 映射 | 主线 | 第二阶段 | 通过官方 SDK 或成熟适配器发现 Tool、Resource、Prompt 等能力，再映射为内部 Schema、权限、来源和结构化结果；不自行重写协议栈 | MCP 角色、Tool Runtime | `mechanisms/mcp-capability-mapping.md` | 产品必接；`agent_core/mcp` 适配与治理 |
+| MCP 请求生命周期、传输、错误与取消 | 主线 | 第二阶段 | 按明确规范修订跟踪发现、请求、结果和取消，区分无状态协议请求、业务显式状态和旧版会话机制 | MCP 能力发现与内部 Tool 映射 | `mechanisms/mcp-lifecycle.md` 与配套实验 | 产品必接；官方 SDK / 框架适配器接入，`agent_core/mcp` 统一错误与治理 |
 | MCP 信任、权限与 Runtime 边界 | 主线 | 第二阶段 | 外部能力不能自行获得本地权限，版本或 Schema 不兼容必须显式失败，所有调用仍受内部治理与审计 | MCP 请求生命周期、Tool 治理 | 并入 MCP 机制与实验 | 产品必接；产品权限策略 |
 | Search Tool | 主线 | 第二阶段 | 生成查询并发现候选来源，搜索摘要只用于导航，不直接成为 Citation | Tool Runtime、Citation | `mechanisms/search-tool.md` | 产品必接；外部研究 |
 | Browser Tool | 主线 | 第二阶段 | 打开、导航和抽取候选页面，保留 URL、标题、时间和内容定位并防注入 | Search、Tool 治理 | `mechanisms/browser-tool.md` | 产品必接；外部研究 |
@@ -99,7 +99,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | Skill 与 Prompt、Tool、MCP 的边界 | 主线 | 第二阶段 | Skill 封装任务说明、资源和流程知识，不等于 Prompt、可执行 Tool 或外部协议 | Agent Loop、Context Budget、Tool 治理 | `concepts/agent-skills.md` | 产品必接；领域 Skill Registry |
 | Skill 格式、元数据与资源组织 | 主线 | 第二阶段 | 用最小元数据声明用途和适用任务，区分说明、参考资料、脚本、资产以及客户端特有扩展 | Skill 边界 | `mechanisms/agent-skill-format.md` | 产品必接；接口契约或客户端兼容 Skill |
-| Skill 发现、激活与渐进加载 | 主线 | 第二阶段 | 先发现最小描述，任务匹配后才加载说明和必要资源，避免无关 Skill 占用 Context | Skill 格式、Context Budget | `mechanisms/agent-skill-loading.md` | 产品必接；后续 `agent_core/skills` |
+| Skill 发现、激活与渐进加载 | 主线 | 第二阶段 | 先发现最小描述，任务匹配后才加载说明和必要资源，避免无关 Skill 占用 Context | Skill 格式、Context Budget | `mechanisms/agent-skill-loading.md` | 产品必接；扩展 `agent_core/skills` |
 | Skill 脚本执行、版本与安全 | 主线 | 第二阶段 | 脚本仍通过受治理执行边界，记录 Skill 与资源版本，处理兼容性、权限、确认和失败 | Skill 加载、Tool 治理 | 并入 Skill 机制与实验 | 产品必接；领域 Skill Runtime |
 
 根 `skills/` 是 Codex 维护仓库使用的 Skill 示例，不是产品 Agent Skills 的运行目录。
@@ -112,8 +112,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 最小 Run State、停止原因与运行身份 | 主线 | 第二阶段 | 在首个 Agent 闭环中先记录当前步骤、预算、工具调用、停止原因和运行身份，为恢复、事件和 Trace 建立共同事实 | Agent Loop | 待编写机制与实验 | 产品必接；`agent_core/state` 的最小契约 |
 | Run State、Conversation、Memory 与业务知识边界 | 主线 | 第二阶段 | 区分当前执行事实、消息、压缩记忆、偏好和可引用资料，不能把框架消息历史当成全部状态 | 最小 Run State、Context Engineering | `concepts/memory-and-knowledge-boundaries.md` | 产品必接；`agent_core/state` 与产品策略 |
-| 短期记忆、摘要与预算 | 主线 | 第二阶段 | 控制长会话进入模型的内容，摘要必须可回查且不能冒充原始证据 | Context Engineering | `mechanisms/short-term-memory.md` | 产品必接；后续 `agent_core/memory` |
-| 长期偏好记忆、确认与治理 | 主线 | 第二阶段 | 只保存用户明确确认的跨会话偏好，记录来源、作用域和版本，支持查看、更新、删除和关闭；不能冒充业务证据 | 短期记忆、记忆边界 | `mechanisms/long-term-memory.md` | 产品必接；后续 `agent_core/memory` 与产品偏好策略 |
+| 短期记忆、摘要与预算 | 主线 | 第二阶段 | 控制长会话进入模型的内容，摘要必须可回查且不能冒充原始证据 | Context Engineering | `mechanisms/short-term-memory.md` | 产品必接；扩展 `agent_core/memory` |
+| 长期偏好记忆、确认与治理 | 主线 | 第二阶段 | 只保存用户明确确认的跨会话偏好，记录来源、作用域和版本，支持查看、更新、删除和关闭；不能冒充业务证据 | 短期记忆、记忆边界 | `mechanisms/long-term-memory.md` | 产品必接；扩展 `agent_core/memory` 与产品偏好策略 |
 | Token Stream 与 Event Stream | 主线 | 第二阶段 | 区分文本增量和 Tool、证据、状态、错误等结构化运行事实 | Agent Loop | `mechanisms/token-and-event-stream.md` | 产品必接；基础事件 |
 | Agent Event 类型、身份与版本 | 主线 | 第二阶段 | 用运行身份、序号、类型和版本让生产者与消费者解释同一事件 | Event Stream | `mechanisms/agent-event-protocol.md` | 产品必接；事件 Schema |
 | 顺序、取消、重复与迟到结果 | 主线 | 第二阶段 | 先定义生产和消费事件时的顺序、去重、取消与迟到结果语义，避免 UI 与 Run State 分叉；该一致性不依赖某种传输 | Event 协议、Tool Runtime、Run State | `mechanisms/event-consistency.md` | 产品必接；运行时与工作台 |
@@ -127,8 +127,8 @@
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
 | Research 启动条件与任务契约 | 主线 | 第二阶段 | 判断何时进入 Research，并冻结问题、输出、来源范围、预算和非目标 | Agent Loop、Search | `concepts/deep-research-boundaries.md` | 产品必接；外部兼容性评审 |
-| Research Planning 与任务拆解 | 主线 | 第二阶段 | 将复杂问题拆成有依赖、预期证据和完成条件的子问题 | Research 契约 | `mechanisms/research-planning.md` | 产品必接；后续 `agent_core/research` |
-| 迭代搜索、进度检查与重新规划 | 主线 | 第二阶段 | 根据新术语、覆盖缺口和无效方向调整查询与计划，避免无进展循环 | Planning、Search | `mechanisms/research-search-loop.md` | 产品必接；后续 `agent_core/research` |
+| Research Planning 与任务拆解 | 主线 | 第二阶段 | 将复杂问题拆成有依赖、预期证据和完成条件的子问题 | Research 契约 | `mechanisms/research-planning.md` | 产品必接；扩展 `agent_core/research` |
+| 迭代搜索、进度检查与重新规划 | 主线 | 第二阶段 | 根据新术语、覆盖缺口和无效方向调整查询与计划，避免无进展循环 | Planning、Search | `mechanisms/research-search-loop.md` | 产品必接；扩展 `agent_core/research` |
 | Evidence Ledger 与来源身份 | 主线 | 第二阶段 | 用稳定来源、定位、声明、时间和子问题关系积累可去重证据 | Browser、Citation | `mechanisms/evidence-ledger.md` | 产品必接；研究运行记录 |
 | 来源质量、权威性、独立性与重复 | 主线 | 第二阶段 | 判断多个来源是否权威、及时和独立，不能用链接数量代替证据强度 | Evidence Ledger | `mechanisms/source-quality.md` | 产品必接；研究评估 |
 | 交叉验证、冲突与不确定性 | 主线 | 第二阶段 | 比较不同版本和条件下的来源，保留不可自动裁决的冲突与缺口 | 来源质量 | `mechanisms/research-conflict.md` | 产品必接；研究与人工确认 |
@@ -143,8 +143,8 @@
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
 | Multi-Agent 拆分判断 | 主线 | 第二阶段 | 判断任务是否存在独立责任、上下文、工具或并行收益，而非机械拆 Prompt | 单 Agent 基线 | `concepts/multi-agent-collaboration.md` | 产品必接的准入判断 |
-| 角色、上下文、工具与输出契约 | 主线 | 第二阶段 | 为每个 Agent 定义责任与非责任、可见上下文、权限和交付 | 拆分判断 | `mechanisms/multi-agent-contracts.md` | 产品必接；后续 `agent_core/multi_agent` |
-| Supervisor、Worker 与 Delegation | 主线 | 第二阶段 | 处理委派、拒绝、重派和回收，Supervisor 不替代领域责任 | Agent 契约 | `mechanisms/supervisor-worker.md` | 产品必接；后续 `agent_core/multi_agent` |
+| 角色、上下文、工具与输出契约 | 主线 | 第二阶段 | 为每个 Agent 定义责任与非责任、可见上下文、权限和交付 | 拆分判断 | `mechanisms/multi-agent-contracts.md` | 产品必接；扩展 `agent_core/multi_agent` |
+| Supervisor、Worker 与 Delegation | 主线 | 第二阶段 | 处理委派、拒绝、重派和回收，Supervisor 不替代领域责任 | Agent 契约 | `mechanisms/supervisor-worker.md` | 产品必接；扩展 `agent_core/multi_agent` |
 | 共享状态、私有上下文与证据 | 主线 | 第二阶段 | 在共享任务和批准证据的同时隔离私有上下文与权限 | Run State、Agent 契约 | `mechanisms/multi-agent-state.md` | 产品必接；协作状态 |
 | 并行、依赖、取消与失败隔离 | 主线 | 第二阶段 | 调度独立和依赖任务，传播取消并防止局部失败被误判为无风险 | Delegation | `mechanisms/multi-agent-execution.md` | 产品必接；协作运行时 |
 | 结果合并、证据归属与冲突裁决 | 主线 | 第二阶段 | 去重结果、保留责任人与证据，区分自动合并和必须暴露的分歧 | 共享状态 | `mechanisms/result-merge-and-conflict.md` | 产品必接；汇总策略 |

@@ -9,7 +9,7 @@ source/
 ├── packages/
 │   ├── llm_core/
 │   ├── rag_core/
-│   ├── agent_core/       # 真实需要时建立
+│   ├── agent_core/       # 第二阶段通用 Agent 运行、治理与框架适配
 │   └── eval_core/        # 真实需要时建立
 ├── demos/                # 机制实验代码
 ├── apps/
@@ -38,10 +38,10 @@ LLM 调用与结构化输出
 ## 3. 第二阶段实现顺序
 
 ```text
-框架分层与 LangChain 首个真实 Agent
-→ Tool Schema、Tool Runtime 与 Retriever as Tool
+框架分层、agent_core 与 LangChain 首个真实 Agent
+→ Tool Schema、Tool Runtime 与 Retriever Tool
 → 最小 Run State、Event、停止原因与 LangSmith Trace
-→ 稳定契约形成后提取框架驱动的 agent_core
+→ Agent 运行契约与框架适配收束
 → LangGraph State、Checkpoint、Interrupt 与恢复
 → MCP 与 Search / Browser / File / Code Tool
 → Conversation、短期记忆、长期偏好、完整事件和运行界面
@@ -67,9 +67,7 @@ LLM 调用与结构化输出
 
 ### `agent_core`
 
-`agent_core` 不在第一次框架实验前预建。产品先直接使用 LangChain 跑通真实 Agent；当跨入口复用、统一治理或隔离框架变化中的至少一项产生真实价值，并且请求结果、Tool、状态、停止、事件和观测契约已经稳定后，再建立该 package。没有达到这一准入条件时，产品继续直接使用框架。
-
-稳定依赖方向是“产品领域组装 → `agent_core` 契约 → 框架适配器 → LangChain / LangGraph”。LangChain 提供高层 Agent、Tool 与 Middleware 原语，LangGraph 提供图执行、Checkpoint、Resume 和 Interrupt；`agent_core` 把这些能力约束为应用稳定契约并隔离必要的框架或版本差异，产品无需直接依赖框架运行对象。LangSmith 是课程主线的真实 Trace / Eval 实验与产品条件接入项，本地 RunRecord 始终存在。该 package 不重新实现框架已有的 Loop 调度器、图执行器和持久化引擎，也不建立没有稳定契约价值的 API 转发。
+`agent_core` 随第二阶段 Agent 框架接入建立，是通用 Agent 运行、治理和框架适配的唯一 package。稳定依赖方向是“产品领域组装 → `agent_core` 契约与适配 → LangChain / LangGraph”。LangChain 提供高层 Agent 与 Tool 组合，LangGraph 提供图执行、Checkpoint、Resume 和 Interrupt；`agent_core` 组合这些能力并向产品提供一致的请求结果、Tool、状态、停止、事件和观测边界。LangSmith 是课程主线的真实 Trace / Eval 实验与产品条件接入项，本地 RunRecord 始终存在。
 
 `agent_core` 的通用职责包括：
 
@@ -77,9 +75,9 @@ LLM 调用与结构化输出
 - Tool 权限、超时、取消、审计、副作用和确认接口。
 - 通用 `RunState`、`StopReason`、事件信封、运行身份，以及本地 `RunRecord` 与 Trace 的关联。
 - LangChain / LangGraph 适配边界，以及后续 MCP、A2A 的协议映射和治理入口。
-- 在真实复用成立后提取的 Skill 加载、Research 运行记录和 Multi-Agent 任务、委派、结果契约。
+- 随课程能力扩展的 Skill 加载、Research 运行记录和 Multi-Agent 任务、委派、结果契约。
 
-它不负责评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、长期偏好策略或具体 Agent 角色，这些都留在产品 `agent/` 目录。替代框架和观测后端只在真实迁移、数据编排或部署治理需求成立时评估，不在工程主路径并行维护。
+它复用框架已有的运行时、图执行器和持久化能力，不重复实现这些基础设施。评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、长期偏好策略和具体 Agent 角色留在产品 `agent/` 目录。替代框架和观测后端只在真实迁移、数据编排或部署治理需求成立时评估，不在工程主路径并行维护。
 
 Tool Runtime 统一接收 Tool Schema、经过校验的参数、运行权限和取消信号，并返回结构化结果或错误。MCP、Search、Browser、File、Code 和 Retriever 都通过这一边界接入；不能让某种连接器绕过统一权限、超时、审计和事件。
 
@@ -127,7 +125,7 @@ MCP 与 A2A 优先通过官方 SDK 或成熟适配器实现协议连接，不在
 4. 输入、输出、状态、错误和权限是否明确。
 5. 怎样用实验、测试或评估证明。
 
-框架或本地封装还要额外确认：框架是否已经提供所需运行原语；本地边界是否隔离真实变化、统一治理或形成跨入口复用。没有这些价值时直接使用框架，不创建包装层。
+涉及框架时还要确认：框架已经提供哪些运行能力，哪些通用契约、治理和适配进入 `agent_core`，哪些 Prompt、权限和业务策略留在产品；本地层复用框架能力，不复制框架运行时。
 
 没有真实职责和收益证据时，不提前建立 Multi-Agent、完整 Workflow、平台化连接器或评估平台。
 
