@@ -54,11 +54,9 @@
 
 ### 框架与 `agent_core`
 
-第二阶段以成熟框架为实现主线。先直接使用 LangChain Agent 和一个确定性只读 Tool 跑通真实模型闭环，再在 Tool、状态、停止、事件和 Trace 契约稳定后提取 `source/packages/agent_core/`。LangGraph 承担需要持久化、恢复和人工介入的图运行时；LangSmith 是课程默认的真实观测实验，产品按环境条件接入，本地 RunRecord 始终保留。
+第二阶段以成熟框架为实现主线。先直接使用 LangChain Agent 和一个确定性只读 Tool 跑通真实模型闭环；当跨入口复用、统一治理或隔离框架变化产生真实价值，且 Tool、状态、停止、事件和 Trace 契约已经稳定后，再提取 `source/packages/agent_core/`。LangGraph 承担需要持久化、恢复和人工介入的图运行时；LangSmith 是课程默认的真实观测实验，产品按环境条件接入，本地 RunRecord 始终保留。
 
-`agent_core` 二次封装框架以统一请求结果、Tool 治理、通用 Run State、停止原因、事件、Trace 关联和协议适配，但不重写框架的 Loop、图执行器或 Checkpointer。只转发一个框架 API 的门面没有建立价值。评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、偏好策略以及客户端影响、接口契约等角色设计保留在 `source/apps/review_assistant/agent/`。
-
-OpenAI Agents SDK 只用于受控框架对照，Langfuse 只在自托管或跨框架观测需求成立时评估；它们不是第二条并行产品主线。
+产品领域组装依赖 `agent_core` 的稳定请求结果、Tool 治理、通用 Run State、停止原因、事件、Trace 和协议契约；LangChain / LangGraph 适配器位于契约下方。这样可以二次封装框架并替换必要的实现细节，而不重写框架的 Loop、图执行器或 Checkpointer。评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、偏好策略以及客户端影响、接口契约等角色设计保留在 `source/apps/review_assistant/agent/`；若尚未形成稳定边界，产品继续直接调用框架，不创建纯转发门面。
 
 ### Agent Harness
 
@@ -193,6 +191,7 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 - 每个 Agent 的职责和非职责明确。
 - 并行、依赖、取消和局部失败可观察。
 - 汇总保留证据归属和不可自动裁决的冲突。
+- 工作台展示角色、进度、局部失败、证据与冲突，不暴露无助于用户决策的内部消息。
 - 与单 Agent 比较质量、成本、延迟和失败定位。
 - 能说明所用 Subagent、Router、Supervisor 或 Handoff 原语与产品角色契约的分工。
 
@@ -203,6 +202,7 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 - 提交、执行、等待输入或鉴权、完成、失败、拒绝和取消能够映射为一致任务状态。
 - 固定规范修订、SDK 和协议绑定，完成两个实现之间的真实互操作。
 - 同一接口契约评审责任可以在本地 Delegation 与远程 A2A 路径间对照；远程 Agent 只收到获准输入，返回产物仍保留 Task、证据和责任归属。
+- 远程 Task 的进度、等待、失败、取消和 Artifact 映射到既有运行事件与界面，同时保留本地协作与远程传输状态的差异。
 - Agent Card 中的能力 Skill 不会被当作 Agent Skills 文件格式或本地执行授权。
 
 ### 最终交付

@@ -67,9 +67,9 @@ LLM 调用与结构化输出
 
 ### `agent_core`
 
-`agent_core` 不在第一次框架实验前预建。先直接使用 LangChain 跑通真实 Agent；当请求结果、Tool、状态、停止、事件和观测出现真实复用且契约稳定后，再建立该 package。
+`agent_core` 不在第一次框架实验前预建。产品先直接使用 LangChain 跑通真实 Agent；当跨入口复用、统一治理或隔离框架变化中的至少一项产生真实价值，并且请求结果、Tool、状态、停止、事件和观测契约已经稳定后，再建立该 package。没有达到这一准入条件时，产品继续直接使用框架。
 
-它是框架驱动的通用 Agent 运行与治理层，不是自研 Agent 框架。LangChain 负责高层 Agent、Tool 与 Middleware 原语，LangGraph 负责图执行、Checkpoint、Resume 和 Interrupt；LangSmith 是课程主线的真实 Trace / Eval 实验与产品条件接入项，本地 RunRecord 始终存在。`agent_core` 负责把这些能力约束为应用稳定契约，并隔离必要的框架或版本差异。不得重新实现框架已有的 Loop 调度器、图执行器和持久化引擎，也不得只做无契约价值的 API 转发。
+稳定依赖方向是“产品领域组装 → `agent_core` 契约 → 框架适配器 → LangChain / LangGraph”。LangChain 提供高层 Agent、Tool 与 Middleware 原语，LangGraph 提供图执行、Checkpoint、Resume 和 Interrupt；`agent_core` 把这些能力约束为应用稳定契约并隔离必要的框架或版本差异，产品无需直接依赖框架运行对象。LangSmith 是课程主线的真实 Trace / Eval 实验与产品条件接入项，本地 RunRecord 始终存在。该 package 不重新实现框架已有的 Loop 调度器、图执行器和持久化引擎，也不建立没有稳定契约价值的 API 转发。
 
 `agent_core` 的通用职责包括：
 
@@ -79,7 +79,7 @@ LLM 调用与结构化输出
 - LangChain / LangGraph 适配边界，以及后续 MCP、A2A 的协议映射和治理入口。
 - 在真实复用成立后提取的 Skill 加载、Research 运行记录和 Multi-Agent 任务、委派、结果契约。
 
-它不负责评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、长期偏好策略或具体 Agent 角色，这些都留在产品 `agent/` 目录。OpenAI Agents SDK 只用于验证稳定契约是否过度绑定 LangChain 的受控对照；Langfuse 只在自托管或跨框架观测需求成立时替代或补充 LangSmith，不在主路径并行维护两套实现。
+它不负责评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、长期偏好策略或具体 Agent 角色，这些都留在产品 `agent/` 目录。替代框架和观测后端只在真实迁移、数据编排或部署治理需求成立时评估，不在工程主路径并行维护。
 
 Tool Runtime 统一接收 Tool Schema、经过校验的参数、运行权限和取消信号，并返回结构化结果或错误。MCP、Search、Browser、File、Code 和 Retriever 都通过这一边界接入；不能让某种连接器绕过统一权限、超时、审计和事件。
 
