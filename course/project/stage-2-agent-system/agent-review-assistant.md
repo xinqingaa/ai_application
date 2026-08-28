@@ -41,7 +41,7 @@
 → Retriever Tool、治理契约与运行观测
 → LangGraph 可恢复 Agent Runtime
 → MCP、Search、Browser、File 与 Code
-→ Conversation、短期与长期记忆、事件与运行界面
+→ Conversation、短期记忆与长期偏好记忆、事件与运行界面
 → Agent Skills
 → Deep Research
 → 框架内 Multi-Agent 基线
@@ -84,7 +84,7 @@ Code Tool 第一版不接受任意 Shell，也不让模型自由生成并执行�
 
 ### State 与 Memory
 
-Conversation、Run State、短期摘要、长期偏好和可引用业务知识必须分别建模。长期记忆是本阶段必接能力，但只保存用户明确确认的跨会话偏好；产品记录来源、作用域和版本，并提供查看、更新、删除和关闭入口。模型推断、会话摘要、PRD 事实和 Tool Result 不能自动进入长期记忆，偏好也不能作为 Citation。
+Conversation、Run State、短期摘要、长期偏好和可引用业务知识必须分别建模。长期偏好记忆是本阶段必接能力，但只保存用户明确确认的跨会话偏好；产品记录来源、作用域和版本，并提供查看、更新、删除和关闭入口。模型推断、会话摘要、PRD 事实和 Tool Result 不能自动进入长期偏好记忆，偏好也不能作为 Citation。
 
 ### Deep Research
 
@@ -169,7 +169,7 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 
 - Conversation、Run State、短期记忆、长期偏好和业务知识没有混用。
 - 长期偏好只有经用户确认才写入，并保留来源、作用域和版本；用户可以查看、更新、删除和关闭。
-- 删除或关闭长期记忆后，后续运行不再注入对应偏好；偏好不进入 Citation。
+- 删除或关闭长期偏好记忆后，后续运行不再注入对应偏好；偏好不进入 Citation。
 - SSE 事件能表达 Tool、证据、等待、停止、错误和取消。
 - 工作台能还原运行状态。
 - 对 Tool 选择、参数、轨迹和停止进行固定样例评估。

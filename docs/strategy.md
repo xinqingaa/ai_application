@@ -51,7 +51,7 @@
 - Agent Harness、Tool Runtime、权限和停止治理。
 - MCP、Search、Browser、File 与 Code Tool。
 - Agentic RAG、Agent Skills 与受控补检索。
-- Conversation、Run State、短期与长期记忆、事件协议与运行界面。
+- Conversation、Run State、短期记忆与长期偏好记忆、事件协议与运行界面。
 - Deep Research、多 Agent 分工与 A2A。
 - 必要的 Checkpoint、恢复、人工介入与副作用治理。
 - 固定 RAG、单 Agent 和 Multi-Agent 的质量、成本与延迟比较。
