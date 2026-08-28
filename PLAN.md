@@ -38,16 +38,18 @@ LLM 调用与结构化输出
 ## 3. 第二阶段实现顺序
 
 ```text
-Agent Harness
-→ Tool Schema 与 Tool Runtime
-→ Tool 权限、Prompt Injection 与副作用治理
-→ MCP 与真实外部能力接入
-→ Search / Browser / File / Code Tool
-→ Retriever as Tool、Agent Loop 与 Agent Skills
-→ Conversation、短期记忆、长期偏好记忆、事件和运行界面
+框架分层与 LangChain 首个真实 Agent
+→ Tool Schema、Tool Runtime 与 Retriever as Tool
+→ 最小 Run State、Event、停止原因与 LangSmith Trace
+→ 稳定契约形成后提取框架驱动的 agent_core
+→ LangGraph State、Checkpoint、Interrupt 与恢复
+→ MCP 与 Search / Browser / File / Code Tool
+→ Conversation、短期记忆、长期偏好、完整事件和运行界面
+→ Agent Skills
 → Deep Research
-→ Multi-Agent 与 A2A
-→ 必要 Workflow
+→ 框架内 Multi-Agent 基线
+→ 独立 A2A 互操作
+→ 复杂 Workflow 组合
 → Trace、Regression 与 Feedback
 ```
 
@@ -65,13 +67,25 @@ Agent Harness
 
 ### `agent_core`
 
-在第二阶段真实实现开始时建立，负责 Agent Harness、Tool Runtime、权限与副作用控制、Agent Loop、状态与记忆、MCP 与 A2A 适配、Skills、Research、Multi-Agent 与必要 Workflow 原语。
+`agent_core` 不在第一次框架实验前预建。先直接使用 LangChain 跑通真实 Agent；当请求结果、Tool、状态、停止、事件和观测出现真实复用且契约稳定后，再建立该 package。
+
+它是框架驱动的通用 Agent 运行与治理层，不是自研 Agent 框架。LangChain 负责高层 Agent、Tool 与 Middleware 原语，LangGraph 负责图执行、Checkpoint、Resume 和 Interrupt；LangSmith 是课程主线的真实 Trace / Eval 实验与产品条件接入项，本地 RunRecord 始终存在。`agent_core` 负责把这些能力约束为应用稳定契约，并隔离必要的框架或版本差异。不得重新实现框架已有的 Loop 调度器、图执行器和持久化引擎，也不得只做无契约价值的 API 转发。
+
+`agent_core` 的通用职责包括：
+
+- `AgentRequest`、`AgentResult`、通用 Tool Schema、结构化结果与错误。
+- Tool 权限、超时、取消、审计、副作用和确认接口。
+- 通用 `RunState`、`StopReason`、事件信封、运行身份，以及本地 `RunRecord` 与 Trace 的关联。
+- LangChain / LangGraph 适配边界，以及后续 MCP、A2A 的协议映射和治理入口。
+- 在真实复用成立后提取的 Skill 加载、Research 运行记录和 Multi-Agent 任务、委派、结果契约。
+
+它不负责评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、长期偏好策略或具体 Agent 角色，这些都留在产品 `agent/` 目录。OpenAI Agents SDK 只用于验证稳定契约是否过度绑定 LangChain 的受控对照；Langfuse 只在自托管或跨框架观测需求成立时替代或补充 LangSmith，不在主路径并行维护两套实现。
 
 Tool Runtime 统一接收 Tool Schema、经过校验的参数、运行权限和取消信号，并返回结构化结果或错误。MCP、Search、Browser、File、Code 和 Retriever 都通过这一边界接入；不能让某种连接器绕过统一权限、超时、审计和事件。
 
 File Tool 的通用部分负责受控工作区、路径解析、来源身份、读取结果、暂存写入、原子写入和幂等。Code Tool 的通用部分负责允许命令、隔离执行、资源限制、取消和结构化执行结果。具体允许读取什么、运行哪些验证和写出哪些产物属于产品策略。
 
-状态与记忆的通用部分负责 Conversation、Run State、短期摘要和长期偏好记录的稳定身份、版本与生命周期。哪些偏好允许保存、怎样取得用户确认、保留多久以及如何在界面中查看、更新、删除和关闭，属于产品策略；业务资料和模型推断不得写成长期偏好。
+状态与记忆的通用部分只负责 Conversation、Run State、短期摘要和长期偏好记录的稳定身份、版本与生命周期接口。具体状态字段、摘要策略、哪些偏好允许保存、怎样取得用户确认、保留多久以及如何在界面中管理，属于产品策略；业务资料和模型推断不得写成长期偏好。
 
 ### `eval_core`
 
@@ -84,6 +98,7 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 - FastAPI 和产品服务。
 - Web 工作台。
 - 产品 Schema、状态和组合流程。
+- `agent/` 中的评审 Prompt、领域 Agent 组装、引用与证据策略、记忆策略和角色设计。
 - 产品测试、fixtures、eval 和数据库 migration。
 - 第二阶段评审工作区策略、允许路径、允许命令、人工确认和运行产物。
 - 长期偏好的可保存范围、确认流程、管理界面与审计策略。
@@ -95,6 +110,8 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 第二阶段继续复用“售后入口与订单状态”垂直切片，并增加可执行的多端契约工作区。真实实现到达对应能力时，产品 fixture 至少覆盖 PRD、OpenAPI、Flutter / Web 客户端模型、配置、定向验证入口和预期失败；fixture、Tool 实现、实验和测试一起落地，不提前创建空目录。
 
 File Read 默认只访问本次运行批准的工作区；File Write 默认只访问 `run_id` 隔离的暂存输出。Code Tool 默认只读挂载输入、隔离输出、禁用网络，并使用命令和环境白名单。产品若扩大路径、命令或网络能力，必须先更新 SPEC 的安全与验收边界。
+
+MCP 与 A2A 优先通过官方 SDK 或成熟适配器实现协议连接，不在 `agent_core` 重写协议栈。MCP 能力和 A2A 远程任务进入产品前，仍须映射为内部权限、状态、错误、证据与审计契约。
 
 ## 6. 实验边界
 
@@ -109,6 +126,8 @@ File Read 默认只访问本次运行批准的工作区；File Write 默认只�
 3. 通用能力还是产品取舍。
 4. 输入、输出、状态、错误和权限是否明确。
 5. 怎样用实验、测试或评估证明。
+
+框架或本地封装还要额外确认：框架是否已经提供所需运行原语；本地边界是否隔离真实变化、统一治理或形成跨入口复用。没有这些价值时直接使用框架，不创建包装层。
 
 没有真实职责和收益证据时，不提前建立 Multi-Agent、完整 Workflow、平台化连接器或评估平台。
 

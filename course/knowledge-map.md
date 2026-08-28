@@ -47,7 +47,25 @@
 | Reranker 与准入证据 | 扩展 | 第一阶段 | 在固定召回基线后学习重排，以及什么收益证据才足以进入产品 | RRF、Golden Set | `mechanisms/reranking.md` | 条件接入；不作为固定基线默认能力 |
 | 文档更新、删除与 Citation 失效 | 扩展 | 第一阶段 | 处理知识版本变化后索引、缓存和历史 Citation 的失效与重建 | 来源身份、Citation | `mechanisms/knowledge-governance.md` | 条件接入；知识治理 |
 | OCR / VLM 与复杂文档 | 扩展 | 第一阶段 | 处理扫描、图片和复杂版面，明确识字、结构恢复和来源定位的不同证据 | 文档解析 | `mechanisms/ocr-vlm-normalization.md` | 条件接入；对照实验 |
-| RAPTOR、GraphRAG 与多跳检索 | 扩展 | 第一阶段 | 理解层次摘要、图关系和多跳检索解决的问题，不能绕过固定基线准入 | Chunk、RRF | `concepts/advanced-rag-indexes.md` | 当前不实现 |
+| RAPTOR、GraphRAG、Neo4j 与多跳检索 | 扩展 | 第一阶段 | 理解层次摘要、图关系、图数据库和多跳检索分别解决什么；Neo4j 是可选图存储与查询基础设施，不等于已经获得高质量知识图谱，也不能绕过固定基线准入 | Chunk、RRF | `concepts/advanced-rag-indexes.md` | 当前不实现；出现可验证的关系检索需求后再做 Neo4j GraphRAG 对照 |
+
+## Agent 框架、运行时与本地封装
+
+本域回答成熟框架怎样进入应用，以及哪些责任仍属于本地工程。课程以框架为主路径，但不把框架当成黑盒；`agent_core` 是框架之上的稳定运行与治理层，不是从零重写 Loop、图执行器或持久化引擎。
+
+| 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Provider API、Agent 框架、状态运行时、本地 package 与产品组装分层 | 主线 | 第二阶段 | 区分模型能力、框架原语、通用治理契约和领域行为，避免把一次 SDK 调用误认为完整产品，也避免重复造框架 | 固定 RAG、可靠调用 | 待编写概念与机制 | 产品必接的架构判断 |
+| LangChain Agent、Tool 与 Middleware | 主线 | 第二阶段 | 先用框架提供的最小 Tool 形状快速形成真实 Loop，再通过公开运行模型深化消息、工具调用、中间件和停止；不逐行追随内部源码，完整 Tool 契约在运行后补齐 | 框架分层、Structured Output | 待编写机制与实验 | 产品必接；高层 Agent 与 Tool 组合默认框架 |
+| 最小原生 Loop 对照 | 主线 | 第二阶段 | 用最少代码观察“模型决定—应用校验与执行—结果回填—停止”，只证明控制责任，不发展成第二套教学框架 | LangChain 首个 Agent | 配套受控实验 | 受控实验；不进入产品主路径 |
+| LangGraph State、持久化与可恢复执行 | 主线 | 第二阶段 | 用显式状态图承载 Checkpoint、Resume、Interrupt 和长任务恢复；图运行时不替代产品状态定义与副作用治理 | Agent Loop、Run State | 待编写机制与实验 | 产品必接于可恢复和人工介入路径 |
+| 框架驱动的 `agent_core` 契约与提取时机 | 主线 | 第二阶段 | 在直接使用框架暴露真实复用后，提取请求结果、Tool 治理、通用状态、停止原因、事件、Trace 和适配边界；禁止机械转发壳和重写框架运行时 | 首个框架 Agent、Tool Runtime、Run State | 待编写机制与项目检查点 | 产品必接；`source/packages/agent_core/`，不预建空目录 |
+| 产品 Agent 领域组装 | 主线 | 第二阶段 | 将评审 Prompt、领域 Schema、引用策略、允许路径与命令、记忆策略和角色编排留在产品，不污染通用运行时 | `agent_core` 契约、产品 Spec | 第二阶段项目篇 | 产品必接；`source/apps/review_assistant/agent/` |
+| LangSmith Trace 与评估关联 | 主线 | 第二阶段 | 通过真实实验观察框架运行、Tool 调用、状态变化和版本，并与本地 RunRecord 关联；托管观测不替代产品日志、隐私和验收契约 | 首个框架 Agent、事件身份 | 待编写机制与实验 | 课程主线真实实验、产品条件接入；本地 RunRecord 必接 |
+| Langfuse 可观测性 | 扩展 | 第二阶段 | 理解开源或自托管观测方案与 LangSmith 的部署、数据治理和集成差异，不在主线同时维护两套实现 | Trace 与验收契约 | 对照实验 | 条件接入；有自托管或跨框架需求时采用 |
+| OpenAI Agents SDK | 扩展 | 第二阶段 | 比较另一套 Agent、Tool、Handoff 与 Trace 原语，验证本地契约是否框架无关；不能把厂商 SDK 名称当作协议标准 | 首个 Agent 闭环、`agent_core` 边界 | 受控对照实验 | 条件接入；不与主线重复建设 |
+| LlamaIndex Agent / Workflow | 扩展 | 第二阶段 | 理解数据与索引驱动生态的组合优势，只在其解决明确数据编排问题时深入 | RAG、框架分层 | 边界认知或按需实验 | 当前不接入 |
+| CrewAI、AutoGen 等多 Agent 框架 | 未来认知 | 未来 | 知道角色化编排框架解决什么；先完成单 Agent 基线、LangGraph 恢复和协作收益评估，不提前引入 | Multi-Agent 完整链路 | 无当前正文 | 当前不实现 |
 
 ## Agent Harness 与 Tool Runtime
 
@@ -56,13 +74,13 @@
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 固定程序、Workflow、Agent、Multi-Agent 边界 | 主线 | 第二阶段 | 根据步骤是否固定、是否需恢复和是否有独立责任选择最简单结构 | 固定 RAG | `concepts/agent-and-workflow-boundaries.md` | 产品必接的设计判断 |
-| Agent Harness 与控制面 | 主线 | 第二阶段 | 统一模型、上下文、工具、状态、权限、预算、停止、事件和观测 | 可靠调用 | `mechanisms/agent-harness.md` | 产品必接；后续 `agent_core/runtime` |
+| Agent Harness 与控制面 | 主线 | 第二阶段 | 统一模型、上下文、工具、状态、权限、预算、停止、事件和观测；框架提供执行原语，本地应用保留策略与治理 | 框架分层、可靠调用 | `mechanisms/agent-harness.md` | 产品必接；由框架与 `agent_core/runtime` 共同承担 |
 | Function Calling 与 Tool Schema | 主线 | 第二阶段 | 将模型的工具名和参数草案约束为可校验候选，不等同于执行授权 | Structured Output | `mechanisms/tool-schema.md` | 产品必接；后续 `agent_core/tools` |
 | Tool 执行生命周期、结果与结构化错误 | 主线 | 第二阶段 | 统一参数校验、执行、结果转换和错误，所有 Tool 共享同一运行边界 | Tool Schema | `mechanisms/tool-runtime.md` | 产品必接；后续 `agent_core/tools` |
 | Tool 权限、超时、取消与审计 | 主线 | 第二阶段 | 对读取、写入和外部行动应用最小权限、超时取消、审计和确认 | Tool Runtime | `mechanisms/tool-governance.md` | 产品必接；产品权限策略 |
 | Tool 副作用与幂等 | 主线 | 第二阶段 | 防止重试、恢复和重复请求重复写入或重复行动，区分纯读取与副作用 | Tool Runtime | 并入 Tool 治理与 Workflow 机制 | 产品必接；写入与外部行动 |
 | Prompt Injection 与应用控制边界 | 主线 | 第二阶段 | 把网页、文件和 Tool Result 视为不可信内容，禁止其改变系统规则和权限 | Tool 治理 | `mechanisms/guardrails-and-safety.md` | 产品必接；后续 `agent_core/safety` |
-| Agent Loop、预算与停止 | 主线 | 第二阶段 | 在观察、决策、行动和结果间循环，并通过预算、无进展和停止原因终止 | Harness、Tool Runtime | `mechanisms/agent-loop.md` | 产品必接；后续 `agent_core/runtime` |
+| Agent Loop、预算与停止 | 主线 | 第二阶段 | 在观察、决策、行动和结果间循环，并通过预算、无进展和停止原因终止；框架自带 Loop 不等于应用可以省略预算与停止契约 | LangChain Agent、Harness、Tool Runtime | `mechanisms/agent-loop.md` | 产品必接；框架执行、`agent_core/runtime` 约束 |
 | Retriever as Tool | 主线 | 第二阶段 | 把固定 Retriever 契约接入 Tool Runtime，保留来源、空结果和路线失败 | Retriever Contract、Tool Runtime | `mechanisms/retriever-as-tool.md` | 产品必接；RAG 唯一实现复用 |
 | Query Rewrite | 主线 | 第二阶段 | 改写检索表达但保留原问题、技术标识和可追踪关系，避免无信息循环 | Retriever Tool | `mechanisms/query-rewrite.md` | 产品必接；后续 `agent_core/query` |
 | Source Routing 与补检索 | 主线 | 第二阶段 | 在内部知识、外部搜索、文件和用户补充间选择来源，并决定何时继续 | Query Rewrite、通用 Tool | `mechanisms/source-routing.md` | 产品必接；产品路由策略 |
@@ -75,8 +93,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | MCP 解决的问题、协议版本与责任边界 | 主线 | 第二阶段 | 标准化外部能力的描述和交换，区分 MCP、Function Calling 与内部 Runtime，并把跨版本稳定机制和当前版本特性分开 | Tool Runtime | `concepts/mcp-and-tool-connectivity.md` | 产品必接；真实只读 MCP |
 | MCP Host、Client、Server 职责 | 主线 | 第二阶段 | 明确谁承载应用、谁发起协议请求、谁提供能力；接入可用不代表能力可信或已经获得执行权限 | MCP 边界 | 同上 | 产品必接；MCP 适配层 |
-| MCP 能力发现、能力模型与内部映射 | 主线 | 第二阶段 | 发现并描述 Tool、Resource、Prompt 等能力，再映射为内部 Schema、权限、来源和结构化结果 | MCP 角色、Tool Runtime | `mechanisms/mcp-capability-mapping.md` | 产品必接；后续 `agent_core/mcp` |
-| MCP 请求生命周期、传输、错误与取消 | 主线 | 第二阶段 | 按明确规范修订跟踪发现、请求、结果和取消，区分无状态协议请求、业务显式状态和旧版会话机制 | MCP 能力模型 | `mechanisms/mcp-lifecycle.md` 与配套实验 | 产品必接；后续 `agent_core/mcp` |
+| MCP 能力发现、能力模型与内部映射 | 主线 | 第二阶段 | 通过官方 SDK 或成熟适配器发现 Tool、Resource、Prompt 等能力，再映射为内部 Schema、权限、来源和结构化结果；不自行重写协议栈 | MCP 角色、Tool Runtime | `mechanisms/mcp-capability-mapping.md` | 产品必接；`agent_core/mcp` 适配与治理 |
+| MCP 请求生命周期、传输、错误与取消 | 主线 | 第二阶段 | 按明确规范修订跟踪发现、请求、结果和取消，区分无状态协议请求、业务显式状态和旧版会话机制 | MCP 能力模型 | `mechanisms/mcp-lifecycle.md` 与配套实验 | 产品必接；官方 SDK / 框架适配器接入，`agent_core/mcp` 统一错误与治理 |
 | MCP 信任、权限与 Runtime 边界 | 主线 | 第二阶段 | 外部能力不能自行获得本地权限，版本或 Schema 不兼容必须显式失败，所有调用仍受内部治理与审计 | MCP 请求生命周期、Tool 治理 | 并入 MCP 机制与实验 | 产品必接；产品权限策略 |
 | Search Tool | 主线 | 第二阶段 | 生成查询并发现候选来源，搜索摘要只用于导航，不直接成为 Citation | Tool Runtime、Citation | `mechanisms/search-tool.md` | 产品必接；外部研究 |
 | Browser Tool | 主线 | 第二阶段 | 打开、导航和抽取候选页面，保留 URL、标题、时间和内容定位并防注入 | Search、Tool 治理 | `mechanisms/browser-tool.md` | 产品必接；外部研究 |
@@ -84,7 +102,7 @@
 | File Write、暂存与确认 | 主线 | 第二阶段 | 只向运行级暂存区原子写入评审产物，处理覆盖、确认、重试和幂等 | File Read、Tool 副作用 | `mechanisms/file-write-tool.md` | 产品必接；原始输入默认只读 |
 | Code Tool 准入与任务契约 | 主线 | 第二阶段 | 判断专用 Validator 是否足够，只有项目已有脚本或测试需要执行时才使用通用 Code | Tool Runtime、File Read | `concepts/code-tool-admission.md` | 产品必接于契约验证场景；不开放任意 Shell |
 | Code Tool 沙箱与结构化执行 | 主线 | 第二阶段 | 隔离输入输出，限制命令、环境、网络和资源，并返回退出码、日志、超时和产物 | Code 准入、Tool 治理 | `mechanisms/code-tool-runtime.md` | 产品必接；受控执行实验与产品策略 |
-| Skill 与 Prompt、Tool、MCP 的边界 | 主线 | 第二阶段 | Skill 封装任务说明、资源和流程知识，不等于 Prompt、可执行 Tool 或外部协议 | Agent Loop、MCP | `concepts/agent-skills.md` | 产品必接；领域 Skill Registry |
+| Skill 与 Prompt、Tool、MCP 的边界 | 主线 | 第二阶段 | Skill 封装任务说明、资源和流程知识，不等于 Prompt、可执行 Tool 或外部协议；理解 Skill 不要求先完成 MCP | Agent Loop、Context Budget、Tool 治理 | `concepts/agent-skills.md` | 产品必接；领域 Skill Registry |
 | Skill 格式、元数据与资源组织 | 主线 | 第二阶段 | 用最小元数据声明用途和适用任务，区分说明、参考资料、脚本、资产以及客户端特有扩展 | Skill 边界 | `mechanisms/agent-skill-format.md` | 产品必接；接口契约或客户端兼容 Skill |
 | Skill 发现、激活与渐进加载 | 主线 | 第二阶段 | 先发现最小描述，任务匹配后才加载说明和必要资源，避免无关 Skill 占用 Context | Skill 格式、Context Budget | `mechanisms/agent-skill-loading.md` | 产品必接；后续 `agent_core/skills` |
 | Skill 脚本执行、版本与安全 | 主线 | 第二阶段 | 脚本仍通过受治理执行边界，记录 Skill 与资源版本，处理兼容性、权限、确认和失败 | Skill 加载、Tool 治理 | 并入 Skill 机制与实验 | 产品必接；领域 Skill Runtime |
@@ -98,13 +116,14 @@
 
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
-| Run State、Conversation、Memory 与业务知识边界 | 主线 | 第二阶段 | 区分当前执行事实、消息、压缩记忆、偏好和可引用资料 | Agent Harness | `concepts/memory-and-knowledge-boundaries.md` | 产品必接；后续 `agent_core/state` |
+| 最小 Run State、停止原因与运行身份 | 主线 | 第二阶段 | 在首个 Agent 闭环中先记录当前步骤、预算、工具调用、停止原因和运行身份，为恢复、事件和 Trace 建立共同事实 | Agent Loop | 待编写机制与实验 | 产品必接；`agent_core/state` 的最小契约 |
+| Run State、Conversation、Memory 与业务知识边界 | 主线 | 第二阶段 | 区分当前执行事实、消息、压缩记忆、偏好和可引用资料，不能把框架消息历史当成全部状态 | 最小 Run State、Context Engineering | `concepts/memory-and-knowledge-boundaries.md` | 产品必接；`agent_core/state` 与产品策略 |
 | 短期记忆、摘要与预算 | 主线 | 第二阶段 | 控制长会话进入模型的内容，摘要必须可回查且不能冒充原始证据 | Context Engineering | `mechanisms/short-term-memory.md` | 产品必接；后续 `agent_core/memory` |
 | 长期偏好记忆、确认与治理 | 主线 | 第二阶段 | 只保存用户明确确认的跨会话偏好，记录来源、作用域和版本，支持查看、更新、删除和关闭；不能冒充业务证据 | 短期记忆、记忆边界 | `mechanisms/long-term-memory.md` | 产品必接；后续 `agent_core/memory` 与产品偏好策略 |
 | Token Stream 与 Event Stream | 主线 | 第二阶段 | 区分文本增量和 Tool、证据、状态、错误等结构化运行事实 | Agent Loop | `mechanisms/token-and-event-stream.md` | 产品必接；基础事件 |
 | Agent Event 类型、身份与版本 | 主线 | 第二阶段 | 用运行身份、序号、类型和版本让生产者与消费者解释同一事件 | Event Stream | `mechanisms/agent-event-protocol.md` | 产品必接；事件 Schema |
-| SSE 传输与重连 | 主线 | 第二阶段 | 通过 SSE 传输事件，处理心跳、游标、断线和恢复，不把连接状态当业务状态 | Event 协议、FastAPI | `mechanisms/sse-transport.md` | 产品必接；Review API |
-| 顺序、取消、重复与迟到结果 | 主线 | 第二阶段 | 处理取消传播、重复消费和取消后迟到结果，避免 UI 与 Run State 分叉 | SSE、Tool Runtime | `mechanisms/event-consistency.md` | 产品必接；运行时与工作台 |
+| 顺序、取消、重复与迟到结果 | 主线 | 第二阶段 | 先定义生产和消费事件时的顺序、去重、取消与迟到结果语义，避免 UI 与 Run State 分叉；该一致性不依赖某种传输 | Event 协议、Tool Runtime、Run State | `mechanisms/event-consistency.md` | 产品必接；运行时与工作台 |
+| SSE 传输与重连 | 主线 | 第二阶段 | 通过 SSE 传输既定事件，处理心跳、游标、断线和恢复，不把连接状态当业务状态 | Event 一致性、FastAPI | `mechanisms/sse-transport.md` | 产品必接；Review API |
 | Agent Response State 与运行界面 | 主线 | 第二阶段 | 将事件还原为运行、等待、部分完成、取消、失败和完成等用户状态 | Event 一致性、Agent Loop | `mechanisms/agent-runtime-ui.md` | 产品必接；Web 工作台 |
 
 ## Deep Research
@@ -145,13 +164,13 @@
 
 ## 必要 Workflow
 
-本域只为显式状态、持久化、恢复、人工确认和副作用提供确定性骨架。它不扩展为独立项目阶段或低代码平台。
+本域只为显式状态、持久化、恢复、人工确认和副作用提供确定性骨架。主线使用 LangGraph 的公开状态运行模型，不自行实现图执行器；它不扩展为独立项目阶段或低代码平台。
 
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
-| State、Node 与状态转换 | 主线 | 第二阶段 | 将必须稳定执行的步骤表达为合法状态转换，区分确定性节点和模型决策 | Agent State | `mechanisms/workflow-state.md` | 产品必接于需要恢复的路径 |
-| Checkpoint、持久化与 Resume | 主线 | 第二阶段 | 保存可恢复状态，并处理代码、配置或输入变化后的恢复边界 | Workflow State | `mechanisms/checkpoint-and-resume.md` | 产品必接于长任务 |
-| Interrupt 与 Human-in-the-loop | 主线 | 第二阶段 | 将等待确认、批准、拒绝、修改和超时表达为正式状态 | Checkpoint | `mechanisms/human-in-the-loop.md` | 产品必接于写入和高风险行动 |
+| State、Node 与状态转换 | 主线 | 第二阶段 | 通过 LangGraph 将必须稳定执行的步骤表达为合法状态转换，区分确定性节点和模型决策；产品定义 State 语义，框架负责执行 | Agent State、LangChain Agent | `mechanisms/workflow-state.md` | 产品必接于需要恢复的路径；`agent_core/langgraph` 适配 |
+| Checkpoint、持久化与 Resume | 主线 | 第二阶段 | 使用框架持久化能力保存可恢复状态，并处理代码、配置或输入变化后的恢复边界，不重复实现 Checkpointer | Workflow State | `mechanisms/checkpoint-and-resume.md` | 产品必接于长任务 |
+| Interrupt 与 Human-in-the-loop | 主线 | 第二阶段 | 使用正式 Interrupt 将等待确认、批准、拒绝、修改和超时表达为可恢复状态 | Checkpoint | `mechanisms/human-in-the-loop.md` | 产品必接于写入和高风险行动 |
 | 重试、副作用、补偿与幂等 | 主线 | 第二阶段 | 恢复和重放不能重复外部行动，必要时用幂等键和补偿控制 | Tool 副作用、Workflow State | `mechanisms/retry-and-idempotency.md` | 产品必接；写入与外部行动 |
 | 可恢复 Workflow 组合 | 主线 | 第二阶段 | 只把确实需要显式状态和恢复的 Research 或协作片段放入 Workflow | 完整 Workflow 原语 | 项目检查点 | 产品必接的最小组合，不建设画布 |
 | Workflow as Tool 与子 Agent 编排 | 扩展 | 第二阶段 | 理解把固定流程暴露为 Tool 或嵌入 Agent 的组合边界，避免循环所有权不清 | Workflow、Agent | `mechanisms/workflow-as-tool.md` | 条件接入 |
@@ -169,7 +188,7 @@
 | 固定 RAG 四路对照 | 主线 | 第一阶段 | 在相同输入和生成条件下比较直接 LLM、Lexical、Dense 与 RRF | Golden Set | 第一阶段项目篇 | 产品必接；第一阶段基线 |
 | Agent Tool、轨迹、停止与记忆评估 | 主线 | 第二阶段 | 检查 Tool 选择、参数、轨迹、停止、事件和摘要，不只评价最终文本 | Agent Loop、事件 | `mechanisms/agent-evaluation.md` | 产品必接；产品 eval |
 | 结构化日志、Metrics 与事件关联 | 主线 | 第二阶段 | 关联输入、模型、检索、Tool、状态、成本和错误，区分业务输出与诊断 | 结构化事件 | `mechanisms/logging-and-metrics.md` | 产品必接；`app_log` 与产品 app |
-| Trace、Span 与 Run | 主线 | 第二阶段 | 表达父子调用、并行、耗时和错误传播，Trace 不替代质量判断 | Agent Harness、事件 | `mechanisms/trace-and-observability.md` | 产品必接；通用后再进 `eval_core` |
+| Trace、Span、Run 与本地运行记录 | 主线 | 第二阶段 | 表达父子调用、并行、耗时和错误传播，并将 LangSmith Trace 与本地 RunRecord、版本和业务结果关联；Trace 不替代质量判断 | Agent Harness、事件 | `mechanisms/trace-and-observability.md` | 本地记录产品必接、LangSmith 条件接入；通用契约稳定后再进 `eval_core` |
 | Versioning、Experiment 与 Regression | 主线 | 第二阶段 | 固定模型、Prompt、Schema、Retriever、Tool、Skill、Workflow 和数据版本 | Trace、Golden Set | `mechanisms/versioning-and-regression.md` | 产品必接；产品 eval |
 | LLM-as-Judge 与 Human Eval | 主线 | 第二阶段 | 用人工校准的评分契约扩大评估，同时保留偏差、复核和不适用边界 | Evaluation Dataset | `mechanisms/llm-as-judge.md` | 条件采用；不能替代人工验收 |
 | Bad Case 与 Feedback Loop | 主线 | 第二阶段 | 把线上失败和人工反馈转成可复现 Case、修复、回归和版本记录 | Trace、Regression | `mechanisms/feedback-loop.md` | 产品必接；产品 eval |

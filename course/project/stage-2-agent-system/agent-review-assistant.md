@@ -37,25 +37,36 @@
 
 ```text
 固定 RAG
-→ Tool Runtime 与受控外部能力
+→ LangChain 第一个真实 Agent
+→ Retriever Tool、治理契约与框架驱动的 agent_core
+→ LangGraph 可恢复 Agent Runtime
 → MCP、Search、Browser、File 与 Code
-→ Retriever Tool、可停止 Agent 与 Agent Skills
-→ Conversation、短期与长期记忆、可观察事件与运行界面
+→ Conversation、短期与长期记忆、事件与运行界面
+→ Agent Skills
 → Deep Research
-→ Multi-Agent 与 A2A
-→ 必要 Workflow
+→ 框架内 Multi-Agent 基线
+→ 独立 A2A 互操作
+→ 必要的复杂 Workflow 组合
 → 统一回归与反馈
 ```
 
 ## 项目职责
 
+### 框架与 `agent_core`
+
+第二阶段以成熟框架为实现主线。先直接使用 LangChain Agent 和一个确定性只读 Tool 跑通真实模型闭环，再在 Tool、状态、停止、事件和 Trace 契约稳定后提取 `source/packages/agent_core/`。LangGraph 承担需要持久化、恢复和人工介入的图运行时；LangSmith 是课程默认的真实观测实验，产品按环境条件接入，本地 RunRecord 始终保留。
+
+`agent_core` 二次封装框架以统一请求结果、Tool 治理、通用 Run State、停止原因、事件、Trace 关联和协议适配，但不重写框架的 Loop、图执行器或 Checkpointer。只转发一个框架 API 的门面没有建立价值。评审 Prompt、风险 Schema、Citation 策略、允许路径与命令、偏好策略以及客户端影响、接口契约等角色设计保留在 `source/apps/review_assistant/agent/`。
+
+OpenAI Agents SDK 只用于受控框架对照，Langfuse 只在自托管或跨框架观测需求成立时评估；它们不是第二条并行产品主线。
+
 ### Agent Harness
 
-承载模型、上下文、工具、状态、权限、循环、停止、事件和观测。模型提出行动，应用负责执行与控制。
+由框架运行原语、`agent_core` 通用治理和产品领域策略共同构成。模型提出行动，LangChain / LangGraph 推进运行，应用继续负责上下文选择、权限、预算、停止、事件语义和产品结果。
 
 ### MCP
 
-产品首先作为 MCP Client 消费一个真实、只读、可观察的外部需求或资料能力，例如读取需求系统中的 issue、验收条件和关联资料。MCP 负责协议请求、能力描述与结果交换；内部 Tool Runtime 继续负责 Schema、权限、超时、取消、审计和错误转换。产品必须记录采用的协议修订和 SDK 版本，更换 MCP Server 或协议版本不应悄悄改变内部 Tool 契约和证据模型。
+产品首先作为 MCP Client 消费一个真实、只读、可观察的外部需求或资料能力，例如读取需求系统中的 issue、验收条件和关联资料。官方 SDK 或成熟框架适配器负责协议连接，MCP 负责能力描述与结果交换；内部 Tool Runtime 继续负责 Schema、权限、超时、取消、审计和错误转换。产品必须记录采用的协议修订和 SDK 版本，更换 MCP Server、适配器或协议版本不应悄悄改变内部 Tool 契约和证据模型。
 
 ### 通用 Tool
 
@@ -71,7 +82,7 @@ Code Tool 第一版不接受任意 Shell，也不让模型自由生成并执行�
 
 ### Agent Skills
 
-至少建立一个需求评审领域 Skill，例如“客户端兼容性评审”或“接口契约评审”。Skill 提供说明、参考资源和必要脚本，按需加载，不直接绕过 Tool Runtime 执行高风险动作。
+在 Agent Loop、Context Budget、记忆边界和 Tool 治理成立后，至少建立一个需求评审领域 Skill，例如“客户端兼容性评审”或“接口契约评审”。Skill 提供说明、参考资源和必要脚本，按需加载；它不依赖 MCP 才能成立，也不能绕过 Tool Runtime 执行高风险动作。
 
 ### State 与 Memory
 
@@ -83,15 +94,15 @@ Conversation、Run State、短期摘要、长期偏好和可引用业务知识�
 
 ### Multi-Agent
 
-只有单 Agent 基线暴露真实不足后才拆分。每个 Agent 必须具有独立责任、上下文、工具或输出契约；建议从客户端影响、接口契约和证据审查等真实责任中选择最小组合。
+只有单 Agent 基线暴露真实不足后才拆分。优先复用框架已有的 Subagent、Router、Supervisor 或 Handoff 原语，不自建通用编排框架；每个 Agent 仍必须具有独立责任、上下文、工具或输出契约。建议从客户端影响、接口契约和证据审查等真实责任中选择最小组合。
 
 ### A2A
 
-A2A 在本地责任契约成立后用于跨进程或跨系统交换任务、状态、结果和错误。本项目的最小真实场景是把已经建立输入输出契约的“接口契约评审”责任交给一个独立远程 Agent：主应用通过 Agent Card 识别能力，只发送获准的 OpenAPI、客户端模型证据和任务约束，并通过 Message、Task、Part 与 Artifact 接收进度和契约差异产物。主应用仍负责证据校验、冲突处理和最终业务结果，远程实现可以替换；没有跨系统边界时继续使用本地 Delegation 基线。协议版本、绑定和鉴权差异必须显式处理。
+A2A 是独立协议与 SDK 生态，不是 LangChain、LangGraph 或 Handoff 的别名。它在本地责任契约成立后用于跨进程或跨系统交换任务、状态、结果和错误。本项目的最小真实场景是把已经建立输入输出契约的“接口契约评审”责任交给一个独立远程 Agent：主应用通过 Agent Card 识别能力，只发送获准的 OpenAPI、客户端模型证据和任务约束，并通过 Message、Task、Part 与 Artifact 接收进度和契约差异产物。主应用仍负责证据校验、冲突处理和最终业务结果，远程实现可以替换；没有跨系统边界时继续使用本地 Delegation 基线。协议版本、官方 SDK、绑定和鉴权差异必须显式处理。
 
 ### Workflow
 
-Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等的部分，不替代 Agent 的动态决策，也不替代 A2A 的跨边界任务协议。
+Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副作用幂等的部分，不重复实现图运行时，不替代 Agent 的动态决策，也不替代 A2A 的跨边界任务协议。
 
 ## 状态与输出契约
 
@@ -110,12 +121,40 @@ Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等�
 
 ## 集成检查点
 
-### Agent Harness 与 Tool Runtime
+### 第一个框架 Agent 闭环
+
+- 使用真实模型和一个确定性只读 Tool 跑通 LangChain Agent 的决定、执行、结果回填与停止。
+- 最小原生 Loop 只作为责任对照，不进入产品主路径。
+- 能从 LangSmith Trace 和本地 RunRecord 关联同一次运行。
+- LangSmith 不可用时显式记录外部观测失败，本地 RunRecord 仍保留，不伪造 Trace 成功。
+
+### Agent Harness、Tool Runtime 与 `agent_core`
 
 - 模型提出的 Tool Call 先经过 Schema 校验、权限判断和统一执行生命周期。
 - 读取、写入和外部行动具有不同权限与确认边界。
 - 超时、取消、安全阻止和真实执行失败返回不同结构化结果。
 - 文件、网页和外部能力返回的内容不能改变系统权限或执行策略。
+- `agent_core` 形成稳定请求结果、Tool、Run State、停止、事件与 Trace 契约，不重写框架运行时。
+- 产品 Prompt、领域 Schema、引用策略、允许路径与命令位于产品 `agent/`，不进入通用 package。
+
+### 第一个受治理 Agentic RAG
+
+- Retriever 已成为受治理 Tool。
+- 同一 Agent 同时使用 Retriever 与一个确定性只读 Tool，能解释两类结果和错误怎样回填。
+- 工具失败、证据不足、需要补充和达到预算有不同停止原因。
+- 保留固定 RAG 基线，并用同一 Case 比较首个单 Agent 闭环。
+
+### Agentic RAG 路由与评估
+
+- Agent 可以改写 Query、选择来源、补检索和停止，每次变化都可追踪。
+- 固定模型、Retriever、Prompt、Schema 和预算，比较固定 RAG 与 Agentic RAG 的质量、成本、延迟和空结果。
+- 动态路线没有收益时保留固定路径，不用更多步骤证明 Agent 更强。
+
+### 可恢复 Agent Runtime
+
+- LangGraph State 区分模型决策节点和确定性节点。
+- Checkpoint、Resume 与 Interrupt 能处理等待、取消和人工确认。
+- 重试或恢复不会重复产生写入和外部副作用。
 
 ### MCP 与通用工具
 
@@ -127,15 +166,6 @@ Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等�
 - Code 执行不能访问工作区外文件、秘密环境变量或未批准网络，也不能把非零退出码伪装为空结果。
 - MCP 失败、版本不兼容或能力 Schema 不兼容不会绕过内部 Runtime，也不会伪装成空结果。
 
-### 最小 Agentic RAG 与 Agent Skills
-
-- Retriever 已成为受治理 Tool。
-- Agent 可以改写 Query、选择来源、补检索和停止。
-- 工具失败、需要补充和达到预算有不同停止原因。
-- 保留固定 RAG 基线。
-- 至少一个领域 Skill 能按需加载，并记录格式、资源和版本身份。
-- Skill 脚本仍经过受治理执行边界，不能因来自 Skill 而获得额外权限。
-
 ### 状态、事件与单 Agent 评估
 
 - Conversation、Run State、短期记忆、长期偏好和业务知识没有混用。
@@ -144,6 +174,12 @@ Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等�
 - SSE 事件能表达 Tool、证据、等待、停止、错误和取消。
 - 工作台能还原运行状态。
 - 对 Tool 选择、参数、轨迹和停止进行固定样例评估。
+
+### Agent Skills
+
+- 至少一个领域 Skill 能按需加载，并记录格式、资源和版本身份。
+- 未激活 Skill 不占用无关 Context，激活 Skill 不改变 Tool 权限。
+- Skill 脚本仍经过受治理执行边界，不能因来自 Skill 而获得额外权限。
 
 ### Deep Research
 
@@ -158,6 +194,7 @@ Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等�
 - 并行、依赖、取消和局部失败可观察。
 - 汇总保留证据归属和不可自动裁决的冲突。
 - 与单 Agent 比较质量、成本、延迟和失败定位。
+- 能说明所用 Subagent、Router、Supervisor 或 Handoff 原语与产品角色契约的分工。
 
 ### A2A 互操作
 
@@ -170,7 +207,7 @@ Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等�
 
 ### 最终交付
 
-- 必要 Workflow 支持 Checkpoint、恢复和人工介入。
+- 复杂 Research 或协作图复用已验证的 LangGraph Checkpoint、恢复和人工介入。
 - 日志、Metrics、Trace、版本和运行记录可以关联。
 - Bad Case 能进入固定样例和回归。
 - 完成根 SPEC 的第二阶段验收。
@@ -180,16 +217,17 @@ Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等�
 学习者必须说明：
 
 1. 为什么固定 RAG 不足，哪些步骤仍保持确定性。
-2. MCP 连接哪项真实外部能力，为什么不直接写专用 API。
-3. Search 与 Browser 为什么分开，哪些结果可以成为候选证据。
-4. File Read 为什么需要来源身份，File Write 为什么只能进入暂存区。
-5. 哪些校验使用专用 Tool，哪些确实需要 Code Tool，允许命令怎样控制。
-6. Skill 为什么不是 Prompt、Tool 或 MCP Server。
-7. 哪些长期偏好允许保存，用户怎样确认、管理和关闭，为什么它们不能成为业务证据。
-8. Deep Research 在什么条件下启动和停止。
-9. 为什么需要多个 Agent，各自责任是什么。
-10. 为什么需要 A2A 而不是本地 Delegation，采用的规范版本和协议绑定是什么。
-11. Workflow 只接管哪些需要恢复、确认或副作用治理的路径。
+2. LangChain、LangGraph、`agent_core` 与产品 `agent/` 各自负责什么，为什么此时值得提取本地 package。
+3. MCP 连接哪项真实外部能力，为什么不直接写专用 API。
+4. Search 与 Browser 为什么分开，哪些结果可以成为候选证据。
+5. File Read 为什么需要来源身份，File Write 为什么只能进入暂存区。
+6. 哪些校验使用专用 Tool，哪些确实需要 Code Tool，允许命令怎样控制。
+7. Skill 为什么不是 Prompt、Tool 或 MCP Server。
+8. 哪些长期偏好允许保存，用户怎样确认、管理和关闭，为什么它们不能成为业务证据。
+9. Deep Research 在什么条件下启动和停止。
+10. 为什么需要多个 Agent，各自责任是什么，框架协作原语没有替代哪些产品契约。
+11. 为什么需要 A2A 而不是本地 Delegation，采用的规范版本、SDK 和协议绑定是什么。
+12. Workflow 只接管哪些需要恢复、确认或副作用治理的路径。
 
 ## 自然 bad case
 
@@ -223,9 +261,10 @@ Workflow 只管理需要显式状态、恢复、人工确认或副作用幂等�
 ## 代码入口
 
 ```text
-source/packages/                 通用能力
-source/demos/                    机制实验
-source/apps/review_assistant/    唯一产品
+source/packages/agent_core/             框架驱动的通用运行与治理层，契约稳定后建立
+source/demos/                           机制实验与最小原生对照
+source/apps/review_assistant/agent/     领域 Agent 组装与产品策略
+source/apps/review_assistant/           唯一产品
 ```
 
 产品运行、配置、API 和测试见 `source/apps/review_assistant/README.md`。
@@ -238,6 +277,8 @@ source/apps/review_assistant/    唯一产品
 - 任意 Shell、任意工作目录、默认联网或读取秘密环境变量的 Code Tool。
 - 让 File Tool 任意覆盖原始 PRD、代码或配置。
 - 把所有步骤都交给模型。
+- 从零实现与 LangChain / LangGraph 竞争的 Agent 框架，或建立没有稳定契约的转发门面。
+- 同时维护多套框架或观测主路径，只为罗列生态工具。
 - 为展示复杂度增加没有独立责任的 Agent。
 - 完整低代码 Workflow 画布。
 - 完整多租户、企业权限中台和大规模部署平台。

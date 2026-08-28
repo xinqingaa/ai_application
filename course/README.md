@@ -25,13 +25,15 @@
 ```text
 模型调用与结构化输出
 → 固定 RAG、可信证据与产品交付
-→ Agent Harness、Tool Runtime 与权限治理
+→ LangChain 第一个真实 Agent
+→ Tool Runtime、Agentic RAG 与框架驱动的 agent_core
+→ LangGraph 状态、恢复与人工介入
 → MCP、Search、Browser、File 与 Code Tool
-→ Agentic RAG 与 Agent Skills
-→ Conversation、Run State、短期与长期记忆、事件和运行界面
+→ Conversation、Run State、记忆、事件和运行界面
+→ Agent Skills
 → Deep Research
-→ Multi-Agent 与 A2A
-→ 必要 Workflow
+→ 框架内 Multi-Agent 基线与独立 A2A 互操作
+→ 必要的复杂 Workflow 组合
 → Trace、Regression、Human Eval 与 Feedback
 ```
 
@@ -42,7 +44,7 @@
 | 阶段 | 交付目标 |
 | --- | --- |
 | 第一阶段：RAG 应用基础 | 固定 RAG、可信证据边界、Review API、Web 工作台和最小质量基线 |
-| 第二阶段：Agent、Tools 与 Multi-Agent | Agent Harness、受治理工具、状态与记忆、研究、协作、恢复和统一质量闭环 |
+| 第二阶段：Agent、Tools 与 Multi-Agent | 框架驱动的 Agent 与 `agent_core`、受治理工具、可恢复状态、记忆、研究、协作和统一质量闭环 |
 
 两个阶段沿同一产品连续演进，不建立阶段内版本轴。
 
@@ -55,7 +57,7 @@
 | 实验篇 | `labs/` | 如何准备、运行、调试、观察日志和阅读对应实现 |
 | 项目篇 | `project/` | 如何把多个能力组合进同一产品并完成阶段验收 |
 
-机制篇是学习正文，但不承担源码逐行讲解、安装命令和运行手册。实验篇与机制篇配套：前者让机制可观察，后者解释观察结果为什么出现。项目篇引用产品要求和代码入口，不复制产品规格或产品 README。
+机制篇是学习正文，可以通过框架公开运行模型解释 Loop、State、Middleware、Checkpoint、Interrupt 和事件语义，但不承担源码逐行讲解、安装命令和运行手册。实验篇与机制篇配套：前者固定框架与 SDK 版本，让机制可运行、可观察、可调试；后者解释观察结果为什么出现。项目篇引用产品要求和代码入口，不复制产品规格或产品 README。
 
 ## 代码入口
 
@@ -66,6 +68,8 @@
 | `source/apps/review_assistant/` | 唯一可运行产品 |
 
 课程不在 `course/` 复制实现，也不在 demo 中维护第二份产品。产品安装、配置、启动、测试和部署见 [需求评审助手 README](../source/apps/review_assistant/README.md)。
+
+第二阶段先直接使用框架，再在真实复用和稳定契约出现后建立 `source/packages/agent_core/`。它可以二次封装 LangChain、LangGraph 等组件，统一运行、治理、事件和协议适配，但不重写框架运行时；评审 Prompt、领域 Schema、引用策略、记忆策略和角色组装保留在 `source/apps/review_assistant/agent/`。
 
 ## 学习规则
 
