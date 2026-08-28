@@ -113,14 +113,14 @@
 
 ## 真实 Agent 闭环
 
-这一单元先用成熟框架跑通真实 Agent，再逐层补齐控制责任。LangChain 提供 Agent 与 Tool 的高层原语，应用负责契约和治理；最小原生 Loop 只作为对照，不发展成自研框架。
+这一单元先用成熟框架跑通真实 Agent，再逐层补齐控制责任。LangChain 的 `create_agent` 本身构建在 LangGraph 运行时之上：本单元先只使用它的高层循环（模型决定—执行—回填—停止），30-38 节把责任收拢进 `agent_core`；43 节之后再下沉到 LangGraph 的显式状态、持久化和人工介入原语。全程都是同一个 Agent、同一套框架栈，只是从高层用法下沉到底层原语，不是先用一套运行时再迁移到另一套；最小原生 Loop 只作为对照，不发展成自研框架。
 
 28. **从固定 RAG 到 Agent：选择结构与实现层次** · 待编写
-    当固定程序无法预先决定查询、工具或停止路径时，本节先判断哪里需要模型动态决策，再把 Provider API、LangChain、LangGraph、本地通用 Agent 层 `agent_core` 和产品领域组装放入同一责任图。学完应能为当前任务选择最小可行结构，并说明每一层解决什么问题。
+    当固定程序无法预先决定查询、工具或停止路径时，本节先判断哪里需要模型动态决策，再建立一条责任图：Provider API 提供模型调用 → LangChain 的 `create_agent` 提供高层 Agent 与 Tool 组合 → 需要显式状态、持久化或人工介入时下沉到 LangGraph 原语 → `agent_core` 承接稳定契约与治理 → 产品领域组装承担评审策略。LangChain 与 LangGraph 是同一个运行时的两种使用深度，不是先后两套实现。学完应能为当前任务选择最小可行结构，并说明每一层解决什么问题。
 29. **用 LangChain 跑通第一个真实 Agent** · 待编写
-    使用真实模型和一个确定性只读 Tool 运行 LangChain Agent，观察“模型决定—应用执行—结果回填—停止”的完整闭环；需求评审助手同时形成由 `agent_core` 承载的最小通用 Agent 入口，配套实验通过直接调用框架和最小原生 Loop 对照框架承担的工作。
+    使用真实模型和一个确定性只读 Tool，通过 LangChain 的 `create_agent` 跑通第一个真实 Agent，观察“模型决定—应用执行—结果回填—停止”的完整闭环。`create_agent` 本身已经运行在 LangGraph 之上，但本课只掌握它的高层循环，不涉及显式状态或持久化；需求评审助手同时用 `agent_core` 落地最小通用入口——`AgentRequest` / `AgentResult` 契约、一个最小 `StopReason` 枚举，以及只读 Tool 的最小执行边界，权限、审计和事件推迟到 30-38 节。配套实验通过直接调用框架和最小原生 Loop 对照框架承担的工作。
 30. **Agent Harness：框架运行时与应用控制面** · 待编写
-    框架可以提供循环和调度，但上下文、权限、预算、停止、事件和产品责任仍需应用定义。本节建立 Harness 的责任图，明确哪些交给 LangChain，哪些留给本地治理层。
+    框架可以提供循环和调度，但上下文、权限、预算、停止、事件和产品责任仍需应用定义。本节围绕同一个 `create_agent` 建立 Harness 的责任图，明确哪些交给 LangChain 运行时，哪些留给本地治理层——这是把课 29 的最小入口稳定化，不是为另一套运行时预先适配。
 31. **Tool Call 与 Schema 校验** · 待编写
     模型生成的工具名和参数只是候选调用。本节解释 Tool Schema 怎样约束名称、参数和结果形状，以及它为什么仍不能代替权限和执行。
 32. **Tool Runtime：执行生命周期、超时、取消与结构化错误** · 待编写
@@ -136,13 +136,13 @@
 37. **LangSmith Trace 与本地运行记录的关联** · 待编写
     本节使用 LangSmith 观察模型、Tool 与 Loop，并将托管 Trace 和本地运行记录 `RunRecord` 通过稳定身份关联。Trace 用于定位运行过程，不替代产品日志、数据治理或质量验收。
 38. **Agent 运行契约与框架适配** · 待编写
-    在 LangChain Agent、Tool Runtime 和最小运行事实已经跑通后，本节收束请求结果、Tool、Run State、停止原因、事件与 Trace 的通用契约，说明 `agent_core` 怎样适配当前 LangChain、怎样承接后续 LangGraph，以及评审领域组装为什么仍位于产品层。
+    在 LangChain Agent、Tool Runtime 和最小运行事实已经跑通后，本节收束请求结果、Tool、Run State、停止原因、事件与 Trace 的通用契约，说明 `agent_core` 怎样组合并治理同一个由 LangGraph 驱动的运行时——当前只用到 LangChain 高层原语，后续下沉更多 LangGraph 原语时这套契约不变，以及评审领域组装为什么仍位于产品层。
 39. **第一个受治理 Agentic RAG 项目检查点** · 待编写
-    回到项目篇，用 `agent_core` 组合 LangChain Agent、唯一 Retriever 与一个确定性只读 Tool，实现可停止、可追踪、可解释失败的完整 Agentic RAG。使用同一 Case 与固定 RAG 比较，并验证产品领域行为仍位于 `review_assistant/agent/`。
+    回到项目篇，用 `agent_core` 组合 LangChain Agent、唯一 Retriever 与一个确定性只读 Tool，实现可停止、可追踪、可解释失败的完整 Agentic RAG。这是同一个 Agent 在同一个框架栈上的第一次项目检查点，不是运行时搬家；40-47 节的深化和下沉都在同一个 Agent 上继续。使用同一 Case 与固定 RAG 比较，并验证产品领域行为仍位于 `review_assistant/agent/`。
 
 ## Agentic RAG 深化与可恢复运行
 
-首个闭环成立后，再增强动态检索，并尽早引入 LangGraph 的状态、恢复和人工介入。这样后续 File Write、长研究和 Multi-Agent 不会建立在仅存于内存的脆弱循环上。
+首个闭环成立后，再增强动态检索，并尽早下沉到 `create_agent` 底层已经运行的 LangGraph 状态、恢复和人工介入原语——这些能力此刻才被显式使用，但运行时从课 29 起就没有换过。这样后续 File Write、长研究和 Multi-Agent 不会建立在仅存于内存的脆弱循环上。
 
 40. **Query Rewrite：原问题保留与改写边界** · 待编写
     用户问题不一定适合直接检索。本节解释改写目标、原问题保留、技术标识保护和无新增信息边界，并要求每次改写可回查。
@@ -151,7 +151,7 @@
 42. **固定 RAG 与 Agentic RAG 评估检查点** · 待编写
     使用相同问题、Retriever、模型和预算比较固定 RAG 与单 Agent，检查改写、路由、工具选择、空结果、追问、停止、成本和延迟；没有收益时保留固定路径。
 43. **LangGraph State、Node 与状态转换** · 待编写
-    本节把需要稳定执行的 Agent 步骤映射为显式 State、Node 和合法转换，区分模型决策与确定性节点。产品定义状态语义，LangGraph 负责图执行。
+    本节把需要稳定执行的 Agent 步骤映射为显式 State、Node 和合法转换，区分模型决策与确定性节点。产品定义状态语义，LangGraph 负责图执行；这一步是把同一个 Agent 下沉到框架已有的图原语，不是切换到新运行时。
 44. **Checkpoint、持久化与 Resume** · 待编写
     长任务和外部等待不能只存在进程内。本节使用框架 Checkpointer 保存可恢复状态，并处理输入、代码或配置版本变化后的恢复边界，不自行实现持久化引擎。
 45. **Interrupt 与 Human-in-the-loop** · 待编写
@@ -159,7 +159,7 @@
 46. **重放安全：重试、执行记录与幂等** · 待编写
     图恢复或重放不能重复产生外部行动。本节区分纯计算、可重试读取和有副作用操作，用执行记录和幂等键决定一次操作能否安全重试；无法用幂等消除影响时，再把补偿作为显式业务边界。
 47. **可恢复 Agent Runtime 项目检查点** · 待编写
-    将首个 Agentic RAG 迁入最小 LangGraph，验证中断、恢复、取消、重复请求和框架版本身份，同时保持 `agent_core` 契约与产品输出不变。
+    验收同一个 Agentic RAG 开始显式使用 LangGraph 的可恢复能力与人工节点——不是迁移到新运行时，而是深度从高层循环下沉到图原语。验证中断、恢复、取消、重复请求和框架版本身份，同时保持 `agent_core` 契约与产品输出不变。
 
 ## MCP 与通用工具
 

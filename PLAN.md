@@ -53,7 +53,7 @@ LLM 调用与结构化输出
 → Trace、Regression 与 Feedback
 ```
 
-该顺序是工程依赖关系，不是第二套课程编号。
+该顺序是工程依赖关系，不是第二套课程编号。LangChain 与 LangGraph 是同一个 Agent 运行时的两种使用深度——`create_agent` 本身构建在 LangGraph 之上；这条顺序是从高层用法逐步下沉到底层原语，不是先实现一套运行时再迁移到另一套。
 
 ## 4. Package 边界
 
@@ -67,7 +67,9 @@ LLM 调用与结构化输出
 
 ### `agent_core`
 
-`agent_core` 随第二阶段 Agent 框架接入建立，是通用 Agent 运行、治理和框架适配的唯一 package。稳定依赖方向是“产品领域组装 → `agent_core` 契约与适配 → LangChain / LangGraph”。LangChain 提供高层 Agent 与 Tool 组合，LangGraph 提供图执行、Checkpoint、Resume 和 Interrupt；`agent_core` 组合这些能力并向产品提供一致的请求结果、Tool、状态、停止、事件和观测边界。LangSmith 是课程主线的真实 Trace / Eval 实验与产品条件接入项，本地 RunRecord 始终存在。
+一句话定义：`agent_core` = 对 LangChain / LangGraph 的产品向适配与治理层。框架负责循环、工具调度、图执行和持久化；`agent_core` 负责稳定请求/结果契约、权限/超时/错误、与 `rag_core` 的 Retriever 复用、Run 记录；产品 `agent/` 负责评审领域行为。`agent_core` 随课程能力逐步扩展，但永不替换框架运行时。
+
+`agent_core` 随第二阶段 Agent 框架接入建立，是通用 Agent 运行、治理和框架适配的唯一 package。稳定依赖方向是“产品领域组装 → `agent_core` 契约与适配 → LangChain / LangGraph”。LangChain 提供高层 Agent 与 Tool 组合，LangGraph 提供图执行、Checkpoint、Resume 和 Interrupt——二者是同一个运行时的两种深度，不是两套并行实现；`agent_core` 组合这些能力并向产品提供一致的请求结果、Tool、状态、停止、事件和观测边界。LangSmith 是课程主线的真实 Trace / Eval 实验与产品条件接入项，本地 RunRecord 始终存在。
 
 `agent_core` 的通用职责包括：
 
