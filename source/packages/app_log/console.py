@@ -135,6 +135,7 @@ class AppConsole:
         table = Table(
             title=title,
             box=box.SQUARE,
+            show_lines=True,
             header_style="bold bright_cyan",
             border_style="turquoise4",
             title_style="bold cyan",
