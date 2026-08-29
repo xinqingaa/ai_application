@@ -140,6 +140,42 @@ pgvector distance：向量空间路线自己的距离值
 
 四个责任不能互相替代：Provider 失败、Store 没有向量、Retriever 过滤掉候选、Index 没有被采用，都会表现成不同的运行现象，排查位置也不同。
 
+## Embedding 服务不是向量数据库
+
+Embedding 阶段只看到一次调用：送来文字，得到数字。那时还没有“把向量留下来再找”的一侧，所以只要求分清：表示服务不保管资料。现在本地 PostgreSQL 已经保存 Chunk，本节又要写入向量，两边同时在场，才能把责任拆开。
+
+常见误区是把云端 embeddings 接口和本地 PostgreSQL 当成同一类“向量库”。它们出现在同一条数据流里，责任却不同。
+
+```text
+云端 Embedding Provider：文字 → 向量
+本地 PostgreSQL + pgvector：保存向量、绑定身份、计算距离、过滤可见范围、可选建立索引
+```
+
+Provider 失败表现为鉴权、404、限流或维度变化；Store 失败表现为扩展未启用、表不存在或向量未入库。两者不能互相替代，也不能靠换一家存储掩盖模型空间变化。
+
+换 Embedding 模型或预处理，通常会形成新空间：同一段 Chunk 会得到另一串数字。换存储引擎（仍用同一模型，只换保存位置）一般不改这些数字，只改怎样持久化和查询。需要阻止的混用是：
+
+```text
+Chunk 用模型 A 生成向量
++ Query 用模型 B 生成向量
+→ 维度可能相同
+→ 数字可以计算
+→ 距离没有可解释意义
+```
+
+不是笼统的“A 向量库写入、B 向量库读取”。数据库只看见浮点数组；空间身份由应用守住。
+
+本地 PostgreSQL 也不是只负责存放。Lexical Retrieval 已经用 Chunk 表保存原文和词面索引；本节增加向量表，按 `chunk_id` 和 Embedding 空间保存向量。两张表对应两条检索路线，共用同一批 Chunk：
+
+```text
+Chunk 表：原文、出处、词面 search_vector
+向量表：同一 chunk_id 的向量和空间身份
+```
+
+当前观察只用售后规则切出的少量 Chunk，以及同一组固定问题。这是为了让 lexical 和 dense 对照时，变化来自匹配方式，而不是资料或问法被悄悄换掉。少量候选也足够暴露同义补回、否定很近、相邻主题噪声；此时数据库选择顺序扫描、`index_used=false`，说明小数据上全表比较更便宜，不证明索引损坏，也不代表生产知识库已经建成。
+
+生产环境会有大量文档；那不改变这四个责任，只改变 Store 和 Index 的规模。问题和 Chunk 从哪里读、日志字段怎样对上，由[配套实验](../labs/vector-store-and-pgvector.md)维护。
+
 ## pgvector：让 PostgreSQL 保存和计算向量
 
 Lexical Retrieval已经让 PostgreSQL 保存 Chunk。Dense Retrieval增加 pgvector，让数据库能够保存向量，并在查询时计算向量之间的距离。这里的 **pgvector** 是 PostgreSQL 的扩展能力，不是 Embedding Provider，也不是另一种检索算法。
@@ -324,7 +360,7 @@ Dense Retrieval只需要建立两个判断：
 
 ## 用同一批问题对照两条路线
 
-Lexical 与 Dense 实验必须使用同一组固定问题和同一组 Chunk，不通过更换样例制造某条路线更强。具体材料身份和运行方式由配套实验维护。
+Lexical 与 Dense 实验必须使用同一组固定问题和同一组 Chunk，不通过更换样例制造某条路线更强。少量 Chunk 不是简化掉检索机制，而是把变量收束到表示和匹配方式；具体材料身份和运行方式由配套实验维护。
 
 在实验中先预测，再观察同一组问题的两路结果：
 
@@ -438,7 +474,7 @@ Chunk.text
 不看正文，尝试回答下面这些问题：
 
 1. 成对 similarity 与整库 Dense Retrieval 的新增动作分别是什么？
-2. Embedding Provider、Vector Store、Dense Retriever 和 Vector Index 为什么不能互相替代？
+2. Embedding Provider、Vector Store、Dense Retriever 和 Vector Index 为什么不能互相替代？为什么 embeddings 接口不是向量数据库？
 3. 为什么 Chunk 向量必须同时绑定 Chunk 身份和 Embedding 空间？
 4. cosine similarity 与 cosine distance 的方向有什么不同？为什么不能和 FTS rank 直接相加？
 5. exact search 为什么是近似索引的正确性基线？
@@ -457,10 +493,11 @@ Chunk.text
 本节已经交付：
 
 - 从 Query 到可见 Chunk 候选的 Dense Retrieval 机制。
+- Embedding Provider 与 Vector Store 的责任边界：前者生成向量，后者保存并检索。
 - Chunk、向量和 Embedding 空间身份之间的绑定原则。
 - cosine distance 的方向、exact 基线和 HNSW 近似路线的取舍。
 - 候选范围、空间一致性和索引采用情况的观察方式。
-- 与Lexical Retrieval共用资料和问题的 dense / lexical 对照。
+- 与Lexical Retrieval共用少量资料和固定问题的 dense / lexical 对照。
 
 仍未交付：
 

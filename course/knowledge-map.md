@@ -37,7 +37,7 @@
 | Chunking、父子块与 Metadata | 主线 | 第一阶段 | 把文档结构转换为可检索单位，同时保持身份、来源和业务过滤信息 | 统一文档表示 | [机制](mechanisms/chunking-and-metadata.md) · [实验](labs/chunking-and-metadata.md) | 产品必接；`rag_core/chunking` |
 | Embedding 与相似度 | 主线 | 第一阶段 | 在固定向量空间比较语义接近程度，明确度量方向和空间身份 | Chunk、真实 Provider | [机制](mechanisms/embedding-and-similarity.md) · [实验](labs/embedding-and-similarity.md) | 产品必接；`rag_core/embedding` |
 | Lexical Retrieval 与 PostgreSQL FTS | 主线 | 第一阶段 | 用词项和倒排索引召回精确字段、接口名与版本，区分候选匹配和业务理解 | PostgreSQL、Chunk | [机制](mechanisms/lexical-retrieval.md) · [实验](labs/lexical-retrieval.md) | 产品必接；`rag_core/retrieval` 与 PostgreSQL |
-| pgvector、Dense Retrieval 与 ANN | 主线 | 第一阶段 | 在数据库中保存同一空间的向量，建立 exact 基线后再理解 ANN 的收益与边界 | Embedding、PostgreSQL | [机制](mechanisms/vector-store-and-pgvector.md) · [实验](labs/vector-store-and-pgvector.md) | 产品必接；`rag_core/retrieval` 与 pgvector |
+| pgvector、Dense Retrieval 与 ANN | 主线 | 第一阶段 | 区分 Embedding 服务与向量存储，在数据库中保存同一空间的向量，建立 exact 基线后再理解 ANN 的收益与边界 | Embedding、PostgreSQL | [机制](mechanisms/vector-store-and-pgvector.md) · [实验](labs/vector-store-and-pgvector.md) | 产品必接；`rag_core/retrieval` 与 pgvector |
 | 多路召回与 RRF | 主线 | 第一阶段 | 将不可直接相加的多路排名按统一候选身份融合，并保留路线贡献 | Lexical、Dense | [机制](mechanisms/multi-retrieval-and-rrf.md) · [实验](labs/multi-retrieval-and-rrf.md) | 产品必接；`rag_core/retrieval` |
 | Top-k、阈值、Filter 与诊断 | 主线 | 第一阶段 | 固定过滤、每路候选、阈值、融合和截断顺序，解释候选在哪层消失 | 多路召回 | [机制](mechanisms/retriever-contract.md) · [实验](labs/retriever-contract.md) | 产品必接；Retriever Contract |
 | Context 装配、预算与 Compression | 主线 | 第一阶段 | 从候选池选择模型本轮可见材料，保留来源并控制去重、分区和预算 | Retriever Contract | [机制](mechanisms/context-engineering.md) · [实验](labs/context-engineering.md) | 产品必接；`llm_core/context` 与 RAG 适配 |

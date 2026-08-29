@@ -12,9 +12,19 @@ Lexical Retrieval 按词查找，Dense Retrieval 按向量距离查找。两者�
 
 ## 1. 运行前准备
 
-Lexical Retrieval 实验已经准备好 PostgreSQL、`DATABASE_URL`、Role、Database 和 `0001` migration。本实验在同一个数据库上继续执行 `0002`，并增加真实 Embedding 服务配置。
+Lexical Retrieval 实验已经准备好 PostgreSQL、`DATABASE_URL`、Role、Database 和 `0001` migration。本实验在同一个数据库上继续执行 `0002`，并增加真实 Embedding 服务配置。云端 embeddings 接口只负责把文字变成向量；本地 PostgreSQL + pgvector 负责保存向量并检索。两者都要就绪，但不能互相替代。
 
 ### 1.1 执行 pgvector migration
+
+`0002` 做两件事：启用 PostgreSQL 的 `vector` 扩展；创建 `review_assistant.rag_chunk_embeddings`，保存 Chunk 向量和 Embedding 空间身份。
+
+`CREATE EXTENSION vector` 通常需要超级用户。Lexical Retrieval 要求 Python 实验使用 `review_assistant_app`，这个 Role 不能自己启用未标记为 trusted 的扩展。先用本机管理员只打开扩展，不要 `source .env`：
+
+```bash
+psql -d review_assistant -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+若也要对测试库跑 `0002`，同样对 `review_assistant_test` 执行一次。然后改回应用用户跑完整 migration：
 
 ```bash
 set -a && source .env && set +a
@@ -22,7 +32,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
   -f source/apps/review_assistant/infra/migrations/0002_add_pgvector_embeddings.sql
 ```
 
-`0002` 做两件事：启用 PostgreSQL 的 `vector` 扩展；创建 `review_assistant.rag_chunk_embeddings`，保存 Chunk 向量和 Embedding 空间身份。
+扩展已经启用时，`CREATE EXTENSION IF NOT EXISTS` 会跳过，应用用户继续建表。不要把 `DATABASE_URL` 改成超级用户去跑后续 Python 实验。
 
 确认扩展和表：
 
@@ -31,7 +41,13 @@ psql "$DATABASE_URL" -c "SELECT extname FROM pg_extension WHERE extname = 'vecto
 psql "$DATABASE_URL" -c "\dt review_assistant.rag_chunk_embeddings"
 ```
 
-如果这里失败，先排查 PostgreSQL 安装是否包含 pgvector；不要把 migration 失败当成“Embedding 效果不好”。
+| 失败表现 | 先查哪一层 |
+| --- | --- |
+| `permission denied to create extension "vector"` | 应用 Role 没有启用扩展的权限；回到上面的管理员命令 |
+| `could not open extension control file` | 当前 PostgreSQL 安装没有 pgvector 文件 |
+| 表不存在但扩展已有 | `0002` 后半段没跑完；用应用用户重跑 migration |
+
+不要把 migration 失败当成“Embedding 效果不好”。产品级说明见 [产品 README](../../source/apps/review_assistant/README.md#postgresql-本地准备)。
 
 ### 1.2 配置真实 Embedding
 
@@ -44,7 +60,21 @@ OPENAI_EMBEDDING_BASE_URL=支持 embeddings 的 endpoint
 OPENAI_EMBEDDING_MODEL=支持 embeddings 的模型
 ```
 
-Chat 的 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL` 不会自动代替 Embedding 配置。Embedding 服务必须真正支持 embeddings 端点；缺少 key、404、鉴权失败或限流会以错误结束，不会回退到假向量。
+Chat 的 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL` 不会自动代替 Embedding 配置。Embedding 服务必须真正支持 embeddings 端点；缺少 key、404、鉴权失败或限流会以错误结束，不会回退到假向量。这些配置指向表示服务，不是另一套云端向量库。
+
+### 1.3 固定资料和探针分别是什么
+
+本实验不读取大段生产文档。知识正文是 [`order_rules.md`](../../source/apps/review_assistant/fixtures/rag/ingestion/order_rules.md)，运行时经 Loader / Chunker 切成两个 Chunk，写入 `review_assistant.rag_chunks`，再为同一 `chunk_id` 写入向量表。权威原文在 PostgreSQL，不在问题 JSON。需要核对 Chunk 时，先看这篇售后规则，或查询：
+
+```bash
+psql "$DATABASE_URL" -c "SELECT chunk_id, left(content, 80) FROM review_assistant.rag_chunks;"
+```
+
+[`retrieval_queries.json`](../../source/apps/review_assistant/fixtures/rag/retrieval/retrieval_queries.json) 是与 Lexical Retrieval 共用的探索探针：预先写好的观察题，以及每题 dense 路线该看什么。它不是知识库，也不是验收 Golden Set。标题里的 `dataset=rag-retrieval-exploration-1.0.0` 就是这套固定材料和问题的版本。
+
+[`embedding_probes.json`](../../source/apps/review_assistant/fixtures/rag/retrieval/embedding_probes.json) 属于 Embedding 成对实验，本实验不用它当 Query。
+
+两个 Chunk、七个固定问题是为了对照匹配方式。Hits 经常等于 2，应看第一名是谁、距离方向和 Observe 提示的边界，而不是看“有没有命中”。
 
 ## 2. 按顺序运行三种模式
 
@@ -135,13 +165,17 @@ HNSW index=... · setup=... ms
 
 | 字段 | 含义 |
 | --- | --- |
-| `Query` | 原始用户问题 |
-| `Group` | 固定探针的观察分组 |
-| `Hits` | 实际返回的候选数 |
+| `Query` | 探针问题原文，来自 `retrieval_queries.json` |
+| `Group` | 这题在练哪类边界，不是 PostgreSQL 条件 |
+| `Hits` | 实际返回的候选数；当前只有两个 Chunk 时通常是 2 |
 | `Top distance` | 第一名的 cosine distance；越小越近 |
-| `Top Chunk` | 第一名 Chunk 的原文摘要 |
-| `HNSW used` | HNSW 查询是否实际使用了索引计划 |
-| `Observe` | 当前探针要观察的现象，不是自动评分 |
+| `Top Chunk` | 第一名 Chunk 的原文摘要，不是问题 JSON 里的句子 |
+| `HNSW used` | HNSW 查询是否实际使用了索引计划；exact 模式为 `—` |
+| `Observe` | JSON 里写好的观察提示，不是模型输出，也不是自动评分 |
+
+`Observe` 对应 `retrieval_queries.json` 各题的 `observations.dense`。它告诉你这题该看同义补回、否定很近还是售前噪声，不表示本次已经通过。
+
+当前可见范围只有两个 Chunk 时，几乎每个 Query 都会返回 2 条。比较的是谁排第一、`Top distance` 的方向，以及 verbose 区第二名是否只是“剩下的那一段”。不要把 Hits=2 读成“全部资料都相关”。
 
 不要把 `Top distance` 和 Lexical Retrieval 的 `fts_rank` 相加，也不要把距离越小误读成结果越正确。
 
@@ -185,8 +219,10 @@ space
 | `indexed=0` | 当前空间没有向量，或空间身份不一致 |
 | `indexed>0`、`visible=0` | Metadata、来源角色或证据资格过滤掉全部 Chunk |
 | `visible>0`、`returned=0` | 先检查查询执行、空间和候选参数；本步骤没有静默阈值 |
+| `Hits` 全是 2 | 当前只有两个可见 Chunk；看排名和距离，不要当成检索成功 |
 | `dimension mismatch` | Query 与 Chunk 向量维度不一致 |
-| Embedding `AUTH` / `404` / `RATE_LIMIT` | 真实 Provider 配置或服务故障 |
+| Embedding `AUTH` / `404` / `RATE_LIMIT` | 真实 Provider 配置或服务故障，不是本地表坏了 |
+| `permission denied` / 扩展不存在 | 先完成第 1.1 步，不要先换 Embedding 模型 |
 | `index_used=no` | 小数据集上顺序扫描可能更便宜，不等于索引损坏 |
 
 ## 5. 做三组对照

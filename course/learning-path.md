@@ -61,7 +61,7 @@
 11. **[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)** · 可学习
     精确字段、接口名和版本号需要按词找到候选。本节解释倒排索引、查询词法、候选范围与排序，并在[从空库到第一次按词检索](labs/lexical-retrieval.md)中完成 PostgreSQL 准备、入库、日志和单变量对照。
 12. **[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)** · 可学习
-    成对相似度还不能在资料库中完成检索。本节把向量表示接入 pgvector，区分 exact 与 ANN、距离与相似度、空间身份与 Metadata Filter，并在[pgvector 实验](labs/vector-store-and-pgvector.md)中比较 exact、HNSW 和查询计划。
+    成对相似度还不能在资料库中完成检索。本节把向量表示接入 pgvector，区分 Embedding 服务与向量存储，，区分 exact 与 ANN、距离与相似度、空间身份与 Metadata Filter，并在[pgvector 实验](labs/vector-store-and-pgvector.md)中比较 exact、HNSW 和查询计划。
 13. **[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)** · 可学习
     Lexical 和 Dense 各自返回有序候选，却没有可直接相加的统一分数。本节解释统一候选契约、排名融合和路线状态，并在[RRF 对照实验](labs/multi-retrieval-and-rrf.md)中手算贡献、改变候选数量并观察失败路线。
 14. **[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)** · 可学习
