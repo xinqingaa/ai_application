@@ -15,7 +15,7 @@
 | 检索 | 多路召回、Rerank、Graph、多跳 | 先用 FTS、pgvector、RRF 基线 |
 | Agent 与 Tool | Agent Registry、权限、沙箱、连接器 | 先做一个受治理 Runtime |
 | MCP 与 Skills | 能力发现、复用、版本和信任 | 先接一个真实能力和一个领域 Skill |
-| Multi-Agent/A2A | 跨系统任务、身份、结果和错误 | 先证明本地责任拆分收益 |
+| Multi-Agent/A2A | 跨系统任务、身份、结果和错误 | 先完成本地责任契约与同条件比较，再判断是否采用远程协作 |
 | Workflow | 画布、调度、恢复、人工任务 | 只做必要状态与恢复机制 |
 | Evaluation | 数据集、实验、Judge、回归、反馈 | 每层先保留最小质量证据 |
 | Observability | Trace、Metrics、成本、告警 | 先关联 Run、事件和错误 |

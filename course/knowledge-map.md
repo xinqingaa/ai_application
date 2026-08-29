@@ -138,7 +138,7 @@
 
 ## Multi-Agent
 
-本域在单 Agent 基线之后学习责任拆分与协作状态。没有独立责任或可验证收益时，不进入 Multi-Agent；框架协作原语不能替代角色和结果契约。
+本域在单 Agent 基线之后描述责任拆分与协作状态。产品是否实际拆分，依据独立责任和同条件比较结果决定；框架协作原语不能替代角色和结果契约。
 
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -191,6 +191,9 @@
 | Agent Tool、轨迹、停止与记忆评估 | 主线 | 第二阶段 | 检查 Tool 选择、参数、轨迹、停止、事件和摘要，不只评价最终文本 | Agent Loop、事件 | 待编写机制正文 | 产品必接；产品 eval |
 | 结构化日志、Metrics 与事件关联 | 主线 | 第二阶段 | 关联输入、模型、检索、Tool、状态、成本和错误，区分业务输出与诊断 | 结构化事件 | 待编写机制正文 | 产品必接；`app_log` 与产品 app |
 | Trace、Span、Run 与本地运行记录 | 主线 | 第二阶段 | 表达父子调用、并行、耗时和错误传播，并将 LangSmith Trace 与本地 RunRecord、版本和业务结果关联；Trace 不替代质量判断 | Agent Harness、事件 | 待编写机制正文 | 本地记录产品必接、LangSmith 条件接入；通用契约稳定后再进 `eval_core` |
+| LangSmith Trace、Run 与项目关联 | 主线 | 第二阶段 | 理解 LangSmith 中项目、Run、父子 Trace、Tool / Retriever 调用和元数据的关系，并与本地 `run_id`、版本和业务结果建立稳定关联；托管观测不替代本地记录和权限治理 | Agent Harness、事件 | 待编写机制与实验 | 课程默认真实观测实验；产品按环境条件接入 |
+| LangSmith Dataset、Experiment 与 Evaluator | 主线 | 第二阶段 | 将固定样例或 Golden Set 组织为 Dataset，在不同模型、Prompt、Retriever、Agent 或 Multi-Agent 配置上运行 Experiment，并用人工校准的 Evaluator 记录可解释评分 | LangSmith Trace、Evaluation Dataset | 待编写机制与实验 | 产品 eval 条件接入；本地评估契约不依赖单一后端 |
+| LangSmith Feedback、Regression 与线上质量回流 | 主线 | 第二阶段 | 把用户反馈、失败运行和评估差异关联到具体 Trace 与版本，形成可复现 Case、回归和人工复核闭环；不把单次反馈当成质量结论 | Dataset、Experiment、Bad Case | 待编写机制与实验 | 产品按环境条件接入；本地 RunRecord 与回归记录始终保留 |
 | Langfuse 与观测后端选择 | 扩展 | 第二阶段 | 比较 Langfuse 与 LangSmith 在部署、数据治理和跨框架集成上的边界，不让更换观测后端改变 RunRecord、事件和验收契约 | Trace 与验收契约 | 对照实验 | 条件接入；有自托管或跨框架需求时采用 |
 | Versioning、Experiment 与 Regression | 主线 | 第二阶段 | 固定模型、Prompt、Schema、Retriever、Tool、Skill、Workflow 和数据版本 | Trace、Golden Set | 待编写机制正文 | 产品必接；产品 eval |
 | LLM-as-Judge 与 Human Eval | 主线 | 第二阶段 | 用人工校准的评分契约扩大评估，同时保留偏差、复核和不适用边界 | Evaluation Dataset | 待编写机制正文 | 条件采用；不能替代人工验收 |

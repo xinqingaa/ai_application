@@ -80,7 +80,7 @@
 18. **证据充分性、Refusal 与补充问题** · 待编写
     部分引用正确时，系统仍可能缺少形成强结论的关键事实。本节判断何时继续回答、何时拒绝，以及怎样把缺口转成用户能够补充的具体问题。
 19. **AI Native 界面与不确定性表达** · 待编写
-    业务用户需要同时看到结论、证据、缺口、运行状态和真实失败。本节建立结果优先、证据可回查和不确定性可操作的最小界面原则，不建设通用 AI 工作台。
+    业务用户需要同时看到结论、证据、缺口和真实失败。本节建立结果优先、证据可回查和不确定性可操作的最小界面原则，不提前定义运行状态，也不建设通用 AI 工作台。
 20. **FastAPI、Review API 与错误契约** · 待编写
     固定 RAG 需要从脚本进入稳定产品入口。本节定义 Review API 的请求、结果、错误与依赖边界，区分业务证据不足和系统执行失败。
 21. **Review 请求生命周期与状态契约** · 待编写
@@ -106,6 +106,11 @@
 # 第二阶段：Agent、Tools 与 Multi-Agent 系统
 
 第二阶段回答：当查询、知识源、工具和协作步骤不能完全预先固定时，怎样让 Agent 动态行动，同时由应用控制权限、状态、停止、证据、恢复和评估？
+
+第二阶段分为两个连续的学习里程碑，但不是两条互相替代的路线：
+
+- **第 28–67 节：Agent 应用开发核心链路。** 从 LangChain Agent 出发，完成 Agentic RAG、Tool Runtime、LangGraph 的状态与恢复、MCP / File / Code、事件、运行界面和 LangSmith 观测评估的第一个可运行闭环。
+- **第 68–101 节：高级 Agent 能力与完整体系。** 在核心闭环上继续学习 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow、跨系统观测与回归。第 67 节是一个里程碑，不是课程终点；后续内容仍属于完整 Agent 开发知识范围。
 
 开始第 28 节前，先阅读[第二阶段项目篇](project/stage-2-agent-system/agent-review-assistant.md)的贯穿场景、检查点和非目标。第二阶段继续复用“售后入口与订单状态”，增加 OpenAPI、Flutter / Web 客户端模型、配置、外部需求和定向验证，不更换基线案例。
 
@@ -138,7 +143,7 @@
 38. **Agent 运行契约与框架适配** · 待编写
     在 LangChain Agent、Tool Runtime 和最小运行事实已经跑通后，本节收束请求结果、Tool、Run State、停止原因、事件与 Trace 的通用契约，说明 `agent_core` 怎样组合并治理同一个由 LangGraph 驱动的运行时——当前只用到 LangChain 高层原语，后续下沉更多 LangGraph 原语时这套契约不变，以及评审领域组装为什么仍位于产品层。
 39. **第一个受治理 Agentic RAG 项目检查点** · 待编写
-    回到项目篇，用 `agent_core` 组合 LangChain Agent、唯一 Retriever 与一个确定性只读 Tool，实现可停止、可追踪、可解释失败的完整 Agentic RAG。这是同一个 Agent 在同一个框架栈上的第一次项目检查点，不是运行时搬家；40-47 节的深化和下沉都在同一个 Agent 上继续。使用同一 Case 与固定 RAG 比较，并验证产品领域行为仍位于 `review_assistant/agent/`。
+    回到项目篇，用 `agent_core` 组合 LangChain Agent、唯一 Retriever 与一个确定性只读 Tool，实现可停止、可追踪、可解释失败的最小 Agentic RAG。这里的最小定义是：模型能够动态决定是否调用 Retriever Tool，并根据工具结果决定继续、回答或停止；Query Rewrite、Source Routing 和补检索属于后续深化。40-47 节仍在同一个 Agent 和同一套框架栈上继续，不是运行时搬家。使用同一 Case 与固定 RAG 比较，并验证产品领域行为仍位于 `review_assistant/agent/`。
 
 ## Agentic RAG 深化与可恢复运行
 
@@ -149,7 +154,7 @@
 41. **证据缺口驱动的检索决策** · 待编写
     Agent 先在已有 Retriever、不同查询表达和用户补充之间选择下一步。本节根据证据缺口建立“继续检索、换一种检索、请求补充或停止”的统一决策契约；后续 Search、Browser、File 接入时只扩展可用来源，不改变这套路由语义。
 42. **固定 RAG 与 Agentic RAG 评估检查点** · 待编写
-    使用相同问题、Retriever、模型和预算比较固定 RAG 与单 Agent，检查改写、路由、工具选择、空结果、追问、停止、成本和延迟；没有收益时保留固定路径。
+    使用相同问题、Retriever、模型和预算比较固定 RAG 与单 Agent，检查改写、路由、工具选择、空结果、追问、停止、成本和延迟；比较用于理解动态路线的适用边界，没有收益时保留固定路径。
 43. **LangGraph State、Node 与状态转换** · 待编写
     本节把需要稳定执行的 Agent 步骤映射为显式 State、Node 和合法转换，区分模型决策与确定性节点。产品定义状态语义，LangGraph 负责图执行；这一步是把同一个 Agent 下沉到框架已有的图原语，不是切换到新运行时。
 44. **Checkpoint、持久化与 Resume** · 待编写
@@ -208,10 +213,12 @@
     事件协议确定“传什么”，SSE 只负责“怎样传”。本节解释连接、心跳、游标和重连边界，不把传输成功当作业务完成。
 66. **从 Agent Event 到运行界面** · 待编写
     本节把事件还原为可操作界面状态，区分运行、等待补充、等待确认、部分完成、取消、失败和完成，并展示证据与 Tool 过程。
-67. **Tool、轨迹、事件与记忆评估检查点** · 待编写
-    使用固定样例评估工具选择、轨迹、停止、事件还原、摘要保真和长期偏好治理；工作台必须能重放正常、失败、取消和重连后的状态。
+67. **Agent 应用开发核心链路检查点** · 待编写
+    串联 LangChain Agent、Agentic RAG、Tool Runtime、LangGraph State / Checkpoint / Interrupt、MCP / File / Code、Event / SSE、运行界面以及 LangSmith Trace / Dataset / Experiment / Evaluator 的最小闭环。使用固定样例验证工具选择、参数、停止、事件还原、真实错误和固定 RAG 对照；完成本节表示核心 Agent 应用开发链路已经闭环，68-101 节继续学习更高级、更完整的 Agent 体系。
 
-## Agent Skills
+## Agent Skills 与高级 Agent 体系
+
+第 67 节完成核心 Agent 应用开发里程碑后，继续学习 Agent Skills、Deep Research、Multi-Agent、A2A 和复杂 Workflow。它们不是第 67 节的前置条件，但都是建立完整 Agent 知识和体系的重要内容，不能因为核心闭环完成就停止学习。
 
 Skills 在 Agent Loop、Context Budget 和 Tool 治理都成立后加入。它不依赖先掌握 MCP，也不能因包含脚本而绕过 Runtime。
 
@@ -307,6 +314,6 @@ LangGraph 的恢复原语已经前置。本单元只处理 Research 或多 Agent
 100. **从 Bad Case 到反馈闭环** · 待编写
     把线上失败、人工反馈和研究缺口转成可复现 Case，经过分类、修复、回归和版本记录进入质量闭环，而不是只保存聊天截图。
 101. **[第二阶段：Agent 协作需求评审系统](project/stage-2-agent-system/agent-review-assistant.md)** · 等待前置
-    完成框架驱动的 `agent_core`、Agentic RAG、LangGraph 恢复、真实 MCP、Search、Browser、File、Code、Agent Skills、Deep Research、Multi-Agent、A2A、运行界面和统一回归。最终产品必须在同一多端契约案例上展示证据、权限、停止、冲突、恢复以及相对简单基线的收益。
+    完成框架驱动的 `agent_core`、Agentic RAG、LangGraph 恢复、真实 MCP、Search、Browser、File、Code、Agent Skills、Deep Research、Multi-Agent、A2A、运行界面和统一回归。最终产品必须在同一多端契约案例上展示证据、权限、停止、冲突、恢复以及与固定 RAG、单 Agent 等基线的可解释差异。
 
 完整能力范围、扩展知识和实现位置见[知识地图](knowledge-map.md)。

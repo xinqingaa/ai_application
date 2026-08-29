@@ -92,7 +92,7 @@ Conversation、Run State、短期摘要、长期偏好和可引用业务知识�
 
 ### Multi-Agent
 
-只有单 Agent 基线暴露真实不足后才拆分。优先复用框架已有的 Subagent、Router、Supervisor 或 Handoff 原语，不自建通用编排框架；每个 Agent 仍必须具有独立责任、上下文、工具或输出契约。建议从客户端影响、接口契约和证据审查等真实责任中选择最小组合。
+课程先建立单 Agent 基线，再学习和实现 Multi-Agent 的责任、状态、证据、失败隔离与比较方法。是否在最终产品中实际拆分，依据独立责任和同条件比较结果决定；这项产品取舍不是跳过 Multi-Agent 学习的门槛。优先复用框架已有的 Subagent、Router、Supervisor 或 Handoff 原语，不自建通用编排框架；每个 Agent 仍必须具有独立责任、上下文、工具或输出契约。建议从客户端影响、接口契约和证据审查等真实责任中选择最小组合。
 
 ### A2A
 
@@ -118,6 +118,28 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 最终业务输出继续沿用第一阶段的结构化风险、Sources、Citation、Refusal 和补充问题，不让 Agent 中间文本绕过产品契约。
 
 ## 集成检查点
+
+### 第 67 节：Agent 应用开发核心链路里程碑
+
+第 67 节把前面的能力串成一个可以运行、观察和回归的核心闭环：
+
+```text
+LangChain Agent
+→ Agentic RAG
+→ Tool Runtime
+→ LangGraph State / Checkpoint / Interrupt
+→ MCP / File / Code
+→ Event / SSE / 运行界面
+→ LangSmith Trace / Dataset / Experiment / Evaluator
+```
+
+完成这一里程碑需要：
+
+- 在同一需求评审助手中保留固定 RAG 基线，并让单 Agent 动态决定是否检索、调用工具、继续、追问或停止；固定样例同时覆盖工具轨迹、摘要保真和长期偏好治理。
+- 让工具调用、状态变化、恢复与人工介入、真实错误和取消都能进入统一运行事实，并由 SSE 和运行界面还原。
+- 用本地 RunRecord 与 LangSmith Trace / Dataset / Experiment / Evaluator 形成可回查的观测和评估记录；LangSmith 不可用时保留真实失败和本地记录。
+
+完成第 67 节表示 Agent 应用开发的核心链路已经闭环。第 68–101 节仍需继续完成，用于建立 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow 和完整质量回归体系。
 
 ### 第一个框架 Agent 闭环
 
@@ -290,6 +312,6 @@ source/apps/review_assistant/           唯一产品
 - 能解释数据流、状态流、工具流、证据流和异常流。
 - 能展示正常完成、追问、等待确认、达到上限、工具失败和取消。
 - MCP、Skill、Tool、A2A 与 Workflow 的责任边界清楚。
-- Multi-Agent 相对单 Agent 有固定证据，而不是只增加 Prompt 数量。
+- 完成 Multi-Agent 与单 Agent 的同条件比较，记录质量、成本、延迟、证据一致性和失败定位差异；结果不足时保留单 Agent，不以角色数量证明能力。
 - 能完成自然 bad case、需求变更和回归。
 - 最终结果可引用、过程可观察、失败可定位、改动可验证。
