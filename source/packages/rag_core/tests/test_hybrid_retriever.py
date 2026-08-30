@@ -22,10 +22,19 @@ from rag_core import (
 )
 
 
-QUERY = "创建逆向服务时需要哪些字段"
+QUERY = "申请售后"
 SCOPE = "after_sale"
 ROLES = (SourceRole.REFERENCE_KNOWLEDGE,)
 ELIGIBILITIES = (EvidenceEligibility.CURRENT_EVIDENCE,)
+ORDER_STATUS_CHUNK = "仅已支付且已完成的订单可申请售后。\n虚拟商品不进入售后流程。"
+INTERFACE_CLIENT_CHUNK = (
+    "售后接口 v2 必须提供 source_channel。\n"
+    "Flutter 客户端必须使用相同的入口可见性规则。"
+)
+CHUNK_CONTENT = {
+    "order-status": ORDER_STATUS_CHUNK,
+    "interface-client": INTERFACE_CLIENT_CHUNK,
+}
 
 
 class FakeRetriever:
@@ -49,20 +58,20 @@ def _embedding() -> EmbeddingRecord:
         dimensions=3,
         config_ref="embedding.test",
         provider="test-provider",
-        text_id="query",
+        text_id="surface_match",
     )
 
 
 def _lexical_hit(chunk_id: str, rank: int, score: float) -> LexicalHit:
     return LexicalHit(
         chunk_id=chunk_id,
-        document_id="doc-rules",
+        document_id="KR-ORDER-STATE",
         document_version="1.0.0",
-        content=f"rule content: {chunk_id}",
+        content=CHUNK_CONTENT[chunk_id],
         source_role=ROLES[0],
         evidence_eligibility=ELIGIBILITIES[0],
         business_metadata={"knowledge_scope": SCOPE},
-        matched_terms=("逆向",),
+        matched_terms=("申请", "售后"),
         fts_rank=score,
         route_rank=rank,
     )
@@ -71,9 +80,9 @@ def _lexical_hit(chunk_id: str, rank: int, score: float) -> LexicalHit:
 def _dense_hit(chunk_id: str, rank: int, distance: float) -> DenseHit:
     return DenseHit(
         chunk_id=chunk_id,
-        document_id="doc-rules",
+        document_id="KR-ORDER-STATE",
         document_version="1.0.0",
-        content=f"rule content: {chunk_id}",
+        content=CHUNK_CONTENT[chunk_id],
         source_role=ROLES[0],
         evidence_eligibility=ELIGIBILITIES[0],
         business_metadata={"knowledge_scope": SCOPE},
@@ -83,15 +92,15 @@ def _dense_hit(chunk_id: str, rank: int, distance: float) -> DenseHit:
     )
 
 
-def _lexical_result(*hits: LexicalHit, visible: int = 6) -> LexicalSearchResult:
+def _lexical_result(*hits: LexicalHit, visible: int = 2) -> LexicalSearchResult:
     return LexicalSearchResult(
         hits=tuple(hits),
         diagnostics=LexicalDiagnostics(
             query=QUERY,
             normalized_query=QUERY,
-            query_terms=("逆向", "服务"),
-            postgres_query_terms=("逆向", "服务"),
-            tsquery="'逆向' | '服务'",
+            query_terms=("申请", "售后"),
+            postgres_query_terms=("申请", "售后"),
+            tsquery="'申请' | '售后'",
             query_operator=QueryOperator.OR,
             lexical_config_ref="lexical.test",
             retriever_config_ref="postgres_fts@test",
@@ -99,11 +108,11 @@ def _lexical_result(*hits: LexicalHit, visible: int = 6) -> LexicalSearchResult:
             knowledge_scope=SCOPE,
             source_roles=ROLES,
             evidence_eligibilities=ELIGIBILITIES,
-            indexed_chunk_count=10,
+            indexed_chunk_count=2,
             visible_chunk_count=visible,
             matched_chunk_count=len(hits),
             returned_chunk_count=len(hits),
-            candidate_k=3,
+            candidate_k=2,
             rank_name="postgresql_ts_rank",
             higher_is_better=True,
             latency_ms=1.0,
@@ -111,7 +120,7 @@ def _lexical_result(*hits: LexicalHit, visible: int = 6) -> LexicalSearchResult:
     )
 
 
-def _dense_result(*hits: DenseHit, visible: int = 6) -> DenseSearchResult:
+def _dense_result(*hits: DenseHit, visible: int = 2) -> DenseSearchResult:
     return DenseSearchResult(
         hits=tuple(hits),
         diagnostics=DenseDiagnostics(
@@ -125,10 +134,10 @@ def _dense_result(*hits: DenseHit, visible: int = 6) -> DenseSearchResult:
             knowledge_scope=SCOPE,
             source_roles=ROLES,
             evidence_eligibilities=ELIGIBILITIES,
-            indexed_chunk_count=10,
+            indexed_chunk_count=2,
             visible_chunk_count=visible,
             returned_chunk_count=len(hits),
-            candidate_k=3,
+            candidate_k=2,
             distance_name="pgvector_cosine_distance",
             lower_is_better=True,
             search_mode=DenseSearchMode.EXACT,
@@ -142,12 +151,12 @@ def _dense_result(*hits: DenseHit, visible: int = 6) -> DenseSearchResult:
 
 def _config(**overrides) -> HybridRetrieverConfig:
     values = {
-        "lexical_candidate_k": 3,
-        "dense_candidate_k": 3,
-        "lexical_min_rank": 0.5,
-        "dense_max_distance": 0.25,
+        "lexical_candidate_k": 2,
+        "dense_candidate_k": 2,
+        "lexical_min_rank": 0.2,
+        "dense_max_distance": 0.3,
         "rrf_k": 60,
-        "final_top_k": 2,
+        "final_top_k": 1,
         "knowledge_scope": SCOPE,
         "source_roles": ROLES,
         "evidence_eligibilities": ELIGIBILITIES,
@@ -159,16 +168,14 @@ def _config(**overrides) -> HybridRetrieverConfig:
 def test_fixed_hybrid_retriever_exposes_each_control_stage() -> None:
     lexical = FakeRetriever(
         _lexical_result(
-            _lexical_hit("shared", 1, 0.9),
-            _lexical_hit("exact-only", 2, 0.7),
-            _lexical_hit("lexical-low", 3, 0.2),
+            _lexical_hit("order-status", 1, 0.82),
+            _lexical_hit("interface-client", 2, 0.31),
         )
     )
     dense = FakeRetriever(
         _dense_result(
-            _dense_hit("semantic-only", 1, 0.1),
-            _dense_hit("shared", 2, 0.2),
-            _dense_hit("dense-far", 3, 0.8),
+            _dense_hit("order-status", 1, 0.12),
+            _dense_hit("interface-client", 2, 0.44),
         )
     )
 
@@ -185,14 +192,11 @@ def test_fixed_hybrid_retriever_exposes_each_control_stage() -> None:
         "rrf",
         "final_top_k",
     )
-    assert [item.chunk_id for item in result.candidates] == [
-        "shared",
-        "semantic-only",
-    ]
-    assert result.report.route_reports["lexical"].candidate_count == 3
+    assert [item.chunk_id for item in result.candidates] == ["order-status"]
+    assert result.report.route_reports["lexical"].candidate_count == 2
     assert result.report.route_reports["lexical"].passed_threshold_count == 2
     assert result.report.route_reports["dense"].dropped_threshold_count == 1
-    assert result.report.fusion_diagnostics.distinct_candidate_count == 3
+    assert result.report.fusion_diagnostics.distinct_candidate_count == 2
     assert result.report.final_selection[-1].reason == "dropped_by_final_top_k"
     assert result.report.no_result_reason is None
 
@@ -204,13 +208,17 @@ def test_fixed_hybrid_retriever_exposes_each_control_stage() -> None:
         assert options["knowledge_scope"] == SCOPE
         assert options["source_roles"] == ROLES
         assert options["evidence_eligibilities"] == ELIGIBILITIES
-    assert lexical_options["candidate_k"] == 3
-    assert dense_options["candidate_k"] == 3
+    assert lexical_options["candidate_k"] == 2
+    assert dense_options["candidate_k"] == 2
 
 
 def test_all_candidates_below_route_threshold_has_structured_reason() -> None:
-    lexical = FakeRetriever(_lexical_result(_lexical_hit("lexical", 1, 0.1)))
-    dense = FakeRetriever(_dense_result(_dense_hit("dense", 1, 0.9)))
+    lexical = FakeRetriever(
+        _lexical_result(_lexical_hit("order-status", 1, 0.1))
+    )
+    dense = FakeRetriever(
+        _dense_result(_dense_hit("interface-client", 1, 0.9))
+    )
 
     result = FixedHybridRetriever(lexical, dense).retrieve(
         QUERY,
@@ -262,4 +270,33 @@ def test_failed_route_remains_visible_instead_of_becoming_empty() -> None:
 
 
 def test_config_ref_changes_when_a_retrieval_control_changes() -> None:
-    assert _config().config_ref != _config(final_top_k=3).config_ref
+    assert _config().config_ref != _config(final_top_k=2).config_ref
+
+
+def test_final_top_k_only_changes_the_final_selection() -> None:
+    lexical_result = _lexical_result(
+        _lexical_hit("order-status", 1, 0.82),
+        _lexical_hit("interface-client", 2, 0.31),
+    )
+    dense_result = _dense_result(
+        _dense_hit("order-status", 1, 0.12),
+        _dense_hit("interface-client", 2, 0.20),
+    )
+
+    top_one = FixedHybridRetriever(
+        FakeRetriever(lexical_result), FakeRetriever(dense_result)
+    ).retrieve(QUERY, _embedding(), config=_config(final_top_k=1))
+    top_two = FixedHybridRetriever(
+        FakeRetriever(lexical_result), FakeRetriever(dense_result)
+    ).retrieve(QUERY, _embedding(), config=_config(final_top_k=2))
+
+    assert top_one.report.route_reports == top_two.report.route_reports
+    assert top_one.report.threshold_decisions == top_two.report.threshold_decisions
+    assert top_one.report.fusion_diagnostics == top_two.report.fusion_diagnostics
+    assert [item.chunk_id for item in top_one.candidates] == ["order-status"]
+    assert [item.chunk_id for item in top_two.candidates] == [
+        "order-status",
+        "interface-client",
+    ]
+    assert top_one.report.final_selection[-1].reason == "dropped_by_final_top_k"
+    assert all(item.selected for item in top_two.report.final_selection)
