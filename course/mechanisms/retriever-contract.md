@@ -28,7 +28,11 @@
 - 空列表来自范围为空、路线无匹配、阈值过严，还是依赖失败？
 - 这次结果使用了哪组 Retriever 配置，执行花了多久？
 
-如果应用只返回最终 `Chunk[]`，下游只能看到“剩下什么”，无法知道“为什么剩下”。第 14 节不新增第三条检索路线，而是把第 11–13 节已经出现的过滤、候选深度、原生分数和 RRF 收束成一个固定 Retriever 契约。
+如果应用只返回最终 `Chunk[]`，下游只能看到“剩下什么”，无法知道“为什么剩下”。
+
+这些控制问题在第 11–13 节里大多已经以零件出现过：Lexical 和 Dense 各自会过滤可见范围、截取 `candidate_k`，RRF 会合并名次并区分一路的成功、空结果与失败。当时各管一段，没有同一次调用的固定顺序，也没有一份能指出“候选死在哪一层”的统一报告。第 13 节的 `RRFResult` 默认输入已经是“可以进融合的人”；谁有资格进场、谁分数不够进不了场、合成之后下游只要几条，它不管。
+
+第 14 节不新增第三条检索路线，也不把五层写成五种新的检索算法。它把已有零件收束成一个固定 Retriever 契约：同一份资料、同一个问题，必须按同一组控制点走过，并且结果与过程绑在同一次运行上。新增的主要是两扇前面留给现在的门——每路原生阈值，以及融合之后的 `final_top_k`——再加上空结果分类和 Retriever 配置身份。
 
 ## 同一份资料和同一个问题贯穿本节
 
@@ -77,6 +81,22 @@ dataset_version = rag-retrieval-exploration-1.0.0
 
 接下来的数值都属于第二层。它们只用于手算，并在确定性测试中守住同一份控制契约。真实 demo 会重新调用 Provider，输出可能与这些数值不同。
 
+## 五层是控制点，不是五种检索
+
+把一次 Retriever 想成：在已经入库的售后资料里，为“申请售后”决定最终交给下游哪几段。库里始终是 A、B 那两段。五层是五道必须按顺序走过的门，不是五套各自再搜一遍的算法：
+
+```text
+1 谁有资格参加本轮比较
+2 每条路线最多带几条往下走
+3 各路用自己的分数线决定谁能进融合
+4 两路名次合成一张榜（第 13 节的 RRF）
+5 榜上只交给下游前几名
+```
+
+前面六条控制问题分别落在这些门上：准搜哪些资料是第 1 门；每路带几条进融合是第 2 门；两路阈值在哪是第 3 门；融合后交几条是第 5 门。空名单要看**第一次变成 0 的是哪一扇门**；配置身份和耗时不属于某一扇门，而是整次运行的工牌和计时。
+
+手算只证明顺序和去向。读每一层时先问：这一层结束后，B 还在不在？因为什么不在？
+
 ## 让两个真实 Chunk 走完五层控制
 
 继续查询“申请售后”。为了让每一层都能手算，暂时固定下面这组机制输入：
@@ -110,29 +130,46 @@ final_top_k = 1
 
 ### 第一层：Metadata Filter 先决定谁有资格竞争
 
-在只包含当前 fixture 身份的干净实验库中，两个 Chunk 都满足：
+`visible` 不是“库里总共有多少行”，而是**本轮这个问题还准许拿来比较的 Chunk 有多少条**。这一步不判断谁与“申请售后”更相关，只回答“本轮允许搜索谁”。
+
+三个范围字段要在两边对上，资料才会进入 `visible`：
+
+| 字段 | 贴在资料上的意思 | 本节两个 Chunk 的值 |
+| --- | --- | --- |
+| `knowledge_scope` | 属于哪块业务知识 | `after_sale` |
+| `source_role` | 在系统里扮演什么角色 | `reference_knowledge` |
+| `evidence_eligibility` | 现在能不能当证据用 | `current_evidence` |
+
+它们不是写在问题 JSON 里。资料变成 Chunk 时写入这些标签；本次 Retriever 配置再把同样的条件当作入场要求。两边一致才可见。实验入口默认使用上面这组值；若查询改成 `knowledge_scope = missing_scope`，资料标签仍是 `after_sale`，索引还在，但本轮可见集合为空。
+
+因此要分开数两个量：
 
 ```text
-knowledge_scope = after_sale
-source_role = reference_knowledge
-evidence_eligibility = current_evidence
+indexed_chunk_count
+→ 当前这条检索路的兼容索引里有多少条
+  （词面：同一套词法配置；向量：当前 Embedding 空间）
+
+visible_chunk_count
+→ 其中再通过本轮三个标签（向量还要空间一致）后剩多少条
 ```
 
-所以两路都得到：
+在只包含当前 fixture 身份的干净实验库中，两个 Chunk 的标签与本轮入场条件一致，所以两路都得到：
 
 ```text
 indexed_chunk_count = 2
 visible_chunk_count = 2
 ```
 
-这一步不判断谁与“申请售后”更相关，只回答“本轮允许搜索谁”。如果同一个 Query 把 `knowledge_scope` 改为 `missing_scope`，数据库和索引仍然存在，但两个 Chunk 都不再可见：
+含义是：索引里有本轮那两段，本轮也准许比较这两段。若把入场条件改成 `missing_scope`：
 
 ```text
 indexed = 2
 visible = 0
 ```
 
-这是真实 demo 能稳定观察的自然边界。当前 fixture 没有“一条可见、一条不可见”的混合 Metadata；若确定性测试临时改变其中一条的证据资格，那只是为了验证选择性过滤，不代表真实 fixture 已经这样标注。
+这是真实 demo 能稳定观察的自然边界：人在库里，本轮屋子不准进。当前 fixture 没有“一条可见、一条不可见”的混合 Metadata；若确定性测试临时改变其中一条的证据资格，那只是为了验证选择性过滤，不代表真实 fixture 已经这样标注。
+
+`indexed > 2` 或出现意外 `chunk_id` 时，先检查旧身份或其他同范围资料，不要把数量差归因于阈值或 `final_top_k`。词面和向量的 `indexed` 也不一定永远相等：一个数词法配置下的行，一个数某个 Embedding 空间里的向量。
 
 ### 第二层：每条路线只取自己的前 `candidate_k`
 
@@ -264,7 +301,7 @@ final_top_k
 | `source_roles` | 资料在系统中的角色 | `reference_knowledge` |
 | `evidence_eligibilities` | 当前是否允许成为证据候选 | `current_evidence` |
 
-它们决定资料能否参加本轮搜索，不判断它与 Query 有多相关。Dense 路线还必须保证 Query 与 Chunk 向量属于同一 Embedding 空间；空间兼容性和业务可见性是两个不同约束。
+它们决定资料能否参加本轮搜索，不判断它与 Query 有多相关。标签写在 Chunk 上，入场条件写在本次查询配置里；Filter 做的是两边比对，不是再算一遍相似度。Dense 路线还必须保证 Query 与 Chunk 向量属于同一 Embedding 空间；空间兼容性和业务可见性是两个不同约束。
 
 第一阶段当前是固定项目，这些字段不等于租户权限或文档 ACL。未来即使增加权限，权限过滤也必须在召回前生效，但不能假装现有 `knowledge_scope` 已经实现企业权限系统。
 
@@ -430,15 +467,16 @@ query + query_embedding + HybridRetrieverConfig
 不看正文，尝试回答：
 
 1. 第 11–13 节分别向固定 Retriever 提供了什么？
-2. 为什么第 14 节没有新增检索路线，却仍需要独立的 Retriever 契约？
-3. `candidate_k` 与 `final_top_k` 为什么不能互相补救？
-4. 为什么 lexical 和 dense 不能共用一个“0.7 相关度阈值”？
-5. `execution_status=success, post_threshold_status=empty` 表示什么？
-6. 同一个 `surface_match` 在 `missing_scope` 下得到空结果，为什么不是数据库失败？
-7. 一路失败、一路仍有候选时，`partial_failure` 与 `no_result_reason` 分别是什么？
-8. `retriever_config_ref` 能证明什么，不能证明什么？
-9. 为什么耗时属于诊断事实，却不能证明候选质量？
-10. 正文假设的分数、确定性测试和真实 Provider 输出分别能证明什么？
+2. 为什么第 14 节没有新增检索路线，却仍需要独立的 Retriever 契约？五层解决的是“再搜一遍”，还是“同一顺序下的去向”？
+3. `indexed` 与 `visible` 分别数什么？三个范围字段在入库和查询时各做什么？
+4. `candidate_k` 与 `final_top_k` 为什么不能互相补救？
+5. 为什么 lexical 和 dense 不能共用一个“0.7 相关度阈值”？
+6. `execution_status=success, post_threshold_status=empty` 表示什么？
+7. 同一个 `surface_match` 在 `missing_scope` 下得到空结果，为什么不是数据库失败？
+8. 一路失败、一路仍有候选时，`partial_failure` 与 `no_result_reason` 分别是什么？
+9. `retriever_config_ref` 能证明什么，不能证明什么？
+10. 为什么耗时属于诊断事实，却不能证明候选质量？
+11. 正文假设的分数、确定性测试和真实 Provider 输出分别能证明什么？
 
 如果你能使用同一份资料和“申请售后”问题，在运行前写出两个 Chunk 的预期去向，再从真实报告指出候选消失在哪一层，就完成了本节目标。
 
