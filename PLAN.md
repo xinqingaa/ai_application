@@ -26,14 +26,17 @@ LLM 调用与结构化输出
 → 文档解析、Chunk 与 Metadata
 → Lexical / Dense Retrieval
 → RRF 与 Retriever Contract
-→ Context 与可信生成
+→ Context 与可信生成（含结构化增量流式与最终校验边界）
 → Citation、证据充分性与 Refusal
-→ Review API
+→ 身份认证与角色（普通评审 / 管理员）
+→ 知识管理后台（上传、暂存、发布、dataset_version）
+→ Review API（含 SSE 事件契约）
 → Web 工作台
 → Golden Set 与固定对照
+→ Docker Compose 打包（应用 + Postgres/pgvector）
 ```
 
-第一阶段结束时，Retriever 必须可以作为稳定 Tool 被第二阶段直接调用。
+第一阶段结束时，Retriever 必须可以作为稳定 Tool 被第二阶段直接调用；身份认证与角色边界必须与第二阶段 Tool 权限保持概念上的独立，不能被后者直接复用或替代。
 
 ## 3. 第二阶段实现顺序
 
@@ -97,6 +100,8 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 
 - FastAPI 和产品服务。
 - Web 工作台。
+- 身份认证、会话或令牌生命周期，以及普通评审 / 管理员两个最小角色的路由与动作边界。这是产品领域策略，不进入通用 package；也不与第二阶段 `agent_core` 的 Tool 权限模块合并。
+- 知识管理后台：知识资料上传、解析诊断展示、入库暂存、管理员发布与 `dataset_version` 记录。发布动作是唯一能够改变检索候选池版本的入口，上传和暂存不直接生效。
 - 产品 Schema、状态和组合流程。
 - `agent/` 中的评审 Prompt、领域 Agent 组装、引用与证据策略、记忆策略和角色设计。
 - 产品测试、fixtures、eval 和数据库 migration。

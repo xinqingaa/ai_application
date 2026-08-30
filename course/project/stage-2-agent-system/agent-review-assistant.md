@@ -119,9 +119,9 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 
 ## 集成检查点
 
-### 第 67 节：Agent 应用开发核心链路里程碑
+### 第 69 节：Agent 应用开发核心链路里程碑
 
-第 67 节把前面的能力串成一个可以运行、观察和回归的核心闭环：
+第 69 节把前面的能力串成一个可以运行、观察和回归的核心闭环：
 
 ```text
 LangChain Agent
@@ -139,7 +139,7 @@ LangChain Agent
 - 让工具调用、状态变化、恢复与人工介入、真实错误和取消都能进入统一运行事实，并由 SSE 和运行界面还原。
 - 用本地 RunRecord 与 LangSmith Trace / Dataset / Experiment / Evaluator 形成可回查的观测和评估记录；LangSmith 不可用时保留真实失败和本地记录。
 
-完成第 67 节表示 Agent 应用开发的核心链路已经闭环。第 68–101 节仍需继续完成，用于建立 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow 和完整质量回归体系。
+完成第 69 节表示 Agent 应用开发的核心链路已经闭环。第 70–103 节仍需继续完成，用于建立 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow 和完整质量回归体系。
 
 ### 第一个框架 Agent 闭环
 

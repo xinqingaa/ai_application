@@ -41,7 +41,7 @@
 | 多路召回与 RRF | 主线 | 第一阶段 | 将不可直接相加的多路排名按统一候选身份融合，并保留路线贡献 | Lexical、Dense | [机制](mechanisms/multi-retrieval-and-rrf.md) · [实验](labs/multi-retrieval-and-rrf.md) | 产品必接；`rag_core/retrieval` |
 | Top-k、阈值、Filter 与诊断 | 主线 | 第一阶段 | 固定过滤、每路候选、阈值、融合和截断顺序，解释候选在哪层消失 | 多路召回 | [机制](mechanisms/retriever-contract.md) · [实验](labs/retriever-contract.md) | 产品必接；Retriever Contract |
 | Context 装配、预算与 Compression | 主线 | 第一阶段 | 从候选池选择模型本轮可见材料，保留来源并控制去重、分区和预算 | Retriever Contract | [机制](mechanisms/context-engineering.md) · [实验](labs/context-engineering.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
-| 可信生成与 Citation Candidate | 主线 | 第一阶段 | 限制模型只能声明本轮候选来源，并区分模型声明与应用验证 | Context、Structured Output | [机制](mechanisms/trusted-generation.md) · [实验](labs/trusted-generation.md) | 产品必接；`rag_core/generation` |
+| 可信生成与 Citation Candidate | 主线 | 第一阶段 | 限制模型只能声明本轮候选来源，并区分模型声明与应用验证；生成阶段真实走流式调用时，还要区分增量解析出的未校验局部结果与生成完成后的最终校验结果，二者在界面上不能混淆 | Context、Structured Output | [机制](mechanisms/trusted-generation.md) · [实验](labs/trusted-generation.md) | 产品必接；`rag_core/generation` |
 | Citation 支持性 | 主线 | 第一阶段 | 判断被引用内容是否真正支持对应结论，合法 ID 不能代替语义支持 | 可信生成 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
 | 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题 | Citation 支持性 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
 | Reranker 与准入证据 | 扩展 | 第一阶段 | 在固定召回基线后学习重排，以及什么收益证据才足以进入产品 | RRF、Golden Set | 待编写机制正文 | 条件接入；不作为固定基线默认能力 |
@@ -208,9 +208,11 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | Python、HTTP、JSON、异步与配置 | 必备基础 | 跨阶段 | 读写类型、异常、异步、网络请求、Schema、环境变量和配置，不展开通用语言课程 | 无 | `source/python_base/` | 产品必备；根项目 |
 | PostgreSQL、SQL 与本地运行 | 必备基础 | 第一阶段 | 理解 Server、Database、Schema、Role、migration、SQL 与真实权限 | Python 基础 | [概念](concepts/postgresql-for-ai-applications.md) · [实验](labs/lexical-retrieval.md) | 产品必备；产品 infra |
-| FastAPI 与 SSE | 主线 | 跨阶段 | 用稳定 HTTP API 和事件传输连接后端状态与 Web 工作台 | HTTP、异步 | 对应机制与实验篇 | 产品必接；产品 app |
-| Redis、后台任务与入库状态 | 扩展 | 第一阶段 | 处理跨进程状态、长任务和队列，只有真实异步产品问题出现时接入 | Review API | 按需机制篇 | 条件接入；产品 infra |
-| Docker Compose | 扩展 | 第二阶段 | 固定多服务本地环境，不能替代依赖契约、迁移和真实故障理解 | 产品服务 | 按需机制篇 | 条件接入；产品 infra |
+| 用户身份与认证 | 主线 | 第一阶段 | 建立注册/登录、凭证校验、会话或令牌签发、失效与登出的最小认证生命周期，为角色边界提供身份基础 | HTTP、异步 | 待编写机制正文 | 产品必接；`review_assistant/app` |
+| 角色与最小权限边界（产品 RBAC） | 主线 | 第一阶段 | 用普通评审 / 管理员两个最小角色区分可见路由与可执行动作；这里只回答产品界面上谁能点什么，不能与第二阶段 Tool 权限（模型能执行什么）混为一谈，二者在第 35 节显式对照 | 用户身份与认证 | 待编写机制正文 | 产品必接；`review_assistant/app` |
+| FastAPI 与 SSE | 主线 | 跨阶段 | 用稳定 HTTP API 和事件传输连接后端状态与 Web 工作台；第一阶段先用阶段状态流与结构化增量校验边界，第二阶段深化为完整 Agent Event 协议 | HTTP、异步 | 对应机制与实验篇 | 产品必接；产品 app |
+| Redis、后台任务与入库状态 | 扩展 | 第一阶段 | 处理跨进程状态、长任务和队列，只有真实异步产品问题出现时接入；知识资料上传的暂存/发布流程先用数据库状态字段与后台任务承担 | Review API | 按需机制篇 | 条件接入；产品 infra |
+| Docker Compose | 主线 | 第一阶段收尾 | 从第一阶段验收开始固定应用与 Postgres/pgvector 的本地多服务环境，不能替代依赖契约、迁移和真实故障理解 | 产品服务 | 按需机制篇 | 产品必接；产品 infra |
 | Kubernetes、多租户与权限中台 | 未来认知 | 未来 | 理解规模化部署与企业治理问题，当前课程不建设平台设施 | 完整产品运维 | 无当前正文 | 当前不实现 |
 
 ## 维护边界
