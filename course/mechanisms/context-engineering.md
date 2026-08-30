@@ -1,477 +1,404 @@
-# Context Engineering：Retriever 找到了，为什么模型仍然看不到
+# Context Engineering：输入装配、预算与证据边界
 
-> 这是一篇机制篇。固定 Retriever已经把 Lexical、Dense、RRF、过滤和截断收进一个可诊断的 `RetrievalResult`。本节只向前推进一步：把检索候选变成这一轮模型真正能看到、能定位、能引用的 `BuiltContext`。
+> 这是一篇机制篇。固定 Retriever 已经把过滤、每路候选、阈值、RRF 和最终截断收进 `RetrievalResult` 与 `RetrievalReport`。本文只向前推进一步：同一批最终候选怎样变成模型本轮真正可见、可定位、可声明来源的 `BuiltContext`。
 >
-> 学完后，你应该能从一条检索候选一路追到最终 Evidence，解释它为什么被保留、压缩或丢弃。这里还不会生成最终评审结论；真实生成与引用检查留到本节。
+> 学完后，你应该能从一条 `RetrievalResult.candidates` 候选追踪到 mapping、预算决定和 Citation Candidate，解释它为什么被保留、压缩或丢弃。本文不调用生成模型，也不判断某条结论是否真的获得证据支持。
 
-## 先从一个容易误判的问题开始
+## Retriever 找到了，为什么还可能看不到
 
-我们仍然评审同一个需求：
+继续固定同一份业务材料和同一个问题：
 
 ```text
-订单详情页新增“申请售后”入口。
+资料：order_rules.md
+dataset_version：rag-retrieval-exploration-1.0.0
+query_id：surface_match
+问题：申请售后
+范围：after_sale + reference_knowledge + current_evidence
 ```
 
-固定 Retriever的 `RetrievalReport` 已经告诉我们：订单状态规则和售后接口规则都进入了最终候选，接口规则还明确写着需要传 `source_channel`。可是模型的回答只谈了订单状态，完全没有提这个接口字段。
+当前资料经同一 Chunk 策略形成两个候选单元：
 
-如果只看最终回答，我们很容易断言“检索没找到接口规则”。但检索之后还有一条输入装配链：
+| Chunk | 真实业务内容 |
+| --- | --- |
+| A：当前订单状态规则 | 仅已支付且已完成的订单可申请售后；虚拟商品不进入售后流程 |
+| B：接口与客户端约束 | 售后接口 v2 必须提供 `source_channel`；Flutter 客户端使用相同入口可见性规则 |
+
+在干净课程数据库和本节当前真实运行中，两路检索都成功，A、B 都进入了 `RetrievalResult.candidates`。这只证明 Retriever 把它们交给了下游，还不证明模型一定能看到两条。
+
+假设 Context 的 Evidence 分区只能容纳 A。装配结果会变成：
+
+```text
+RetrievalResult.candidates = [A, B]
+→ A included
+→ B dropped: token_budget_exceeded
+→ BuiltContext 只包含 A
+→ Citation Candidate 也只包含 A
+```
+
+此时如果后续模型没有谈到 `source_channel`，不能回到数据库盲调 Embedding。B 已经被检索到，只是在 Context 装配阶段离开了模型输入。
+
+这就是本节的核心区别：
+
+```text
+Retriever 找到什么
+≠
+模型这一轮看到什么
+```
+
+## 从 RetrievalResult 到 BuiltContext
+
+本节只追踪一条输入装配链：
 
 ```text
 RetrievalResult.candidates
-        ↓ 映射并保留来源身份
+        ↓ 保留身份、位置和路线诊断
+Retrieval → Context mapping
+        ↓
 ContextSource 候选池
         ↓ 类型过滤、去重、排序
 分区候选
-        ↓ 总预算、分区预算、压缩
+        ↓ 总预算、分区预算、单来源上限、可选压缩
 BuiltContext
-        ↓ 和 Prompt 模板组合
-最终 messages
-        ↓
-模型
+        ├── ContextBuildReport
+        └── Citation Candidate[]
 ```
 
-接口规则可能在 `ContextSource` 映射时被排除，也可能因 Evidence 分区预算不足被丢弃，还可能在压缩时丢失关键句。
+`RetrievalReport` 仍解释候选怎样通过检索链；`ContextBuildReport` 解释候选怎样通过输入装配链。二者相邻，但不能合并成一个含义模糊的 `debug_info`。
 
-所以从本节开始，需要把两个问题分开：
+## 四个对象不能混成一个“上下文”
 
-1. Retriever 找到了什么？
-2. 模型这一轮实际看到了什么？
+### Retrieval Candidate
 
-第一个问题看 `RetrievalReport`，第二个问题看 `BuiltContext` 与 `ContextBuildReport`。两份报告相互衔接，但不能混成一个模糊的 `debug_info`。
+`RetrievalResult.candidates` 是固定 Retriever 最终选中的 Chunk。它携带稳定 `chunk_id`、文档版本、原文位置、RRF 排名、路线贡献和证据资格。
 
-## 先区分四个容易混淆的对象
+候选已经越过固定 Retriever 的 `final_top_k`，但尚未经过 Context 的类型、去重和预算控制。
 
-### 知识库：系统可能检索到的资料全集
+### ContextSource
 
-知识库里可以有业务规则、接口文档、客户端说明和历史评审。它通常远大于单次模型调用能容纳的内容。
+`ContextSource` 是 Context Builder 能够处理的统一材料单元。它不仅保存正文，还保存来源身份、类型、优先级和 metadata。
 
-知识库里“有”一条规则，不表示本次检索找到了它。
+RAG 适配器把每个 Retrieval Candidate 映射成 `ContextSource`。这个适配层只转换契约，不重新检索，也不重新实现预算算法。
 
-### Retrieval Candidates：Retriever 为本次问题选出的候选
+### BuiltContext
 
-固定 Retriever输出的 `RetrievalResult.candidates` 是知识库的一个小子集。每个候选带着：
+`BuiltContext` 是应用允许模型本轮看到的最终材料。它包含 Requirement、最终 Evidence block、其他已允许分区、included/dropped 结果和构建报告。
 
-- 稳定 `chunk_id`；
-- 文档 ID 与版本；
-- `source_spans` 原文位置；
-- Lexical / Dense 路由名次和原生分数；
-- RRF 融合名次；
-- 证据资格。
+知识库有某条规则、Retriever 找到某条规则，都不能替代检查 `BuiltContext` 中是否真的存在该规则。
 
-候选“被检索到”，仍不表示它一定进入模型输入。
+### Prompt
 
-### BuiltContext：应用允许模型在这一轮看到的材料
-
-`BuiltContext` 不只包含检索证据。它还可以包含当前 Requirement、当前可引用 Evidence、历史辅助材料、Agent 中间摘要和其他上下文。
-
-它已经经过类型过滤、去重、排序、分区预算和压缩，是一次确定的输入装配结果。
-
-### Prompt：模型应该怎样处理这些材料
-
-Prompt 会说明任务、输出格式和约束，例如：
+Prompt 规定模型应该怎样使用输入，例如“只能声明本轮允许的 source ID”。Context 决定模型拿到了哪些材料。
 
 ```text
-识别研发风险。
-只能引用本轮给出的 source_id。
-证据不足时不要编造确定结论。
+Prompt：怎样做
+Context：拿什么做
 ```
 
-Prompt 决定“怎样做”，Context 决定“拿什么做”。Prompt 写得再严格，也补不回 Builder 已经丢掉的接口规则。
+Prompt 写得再严格，也补不回 Builder 已经丢掉的 B。后续可信生成才会把 `BuiltContext` 交给真实生成模型。
 
-> 知识库不是 Context，检索候选也不是 Context；`BuiltContext` 才是模型这一轮实际拿到的材料集合。
+## Mapping 的第一条不变量：身份不能重编
 
-## 前置 RAG 链路的信息不能丢失
+### `source_id` 继续使用 `chunk_id`
 
-Chunk 身份、文档版本、原文定位、两路原生分数、RRF 贡献和过滤诊断必须随候选进入 Context 映射。若这里只复制正文，模型即使引用了材料，应用也无法回到原文或解释候选为什么出现。
-
-适配层只负责把 Retrieval Candidate 转换为 Context Source，并记录每条映射决定；它不能重新检索，也不能重新实现 Context Builder。
-
-## 适配器不是“复制一段文本”
-
-### `source_id` 为什么继续使用 `chunk_id`
-
-`chunk_id` 是从 Chunk、数据库、两路检索到 RRF 一直沿用的稳定身份。适配时若临时改成 `SOURCE-1`、`SOURCE-2`，同一个 Chunk 在不同运行中可能换编号，日志和引用也无法关联。
-
-当前链条因此使用同一个键：
+从资料进入固定 RAG 后，同一条内容一直使用同一个稳定身份：
 
 ```text
 数据库 Chunk
 ↔ Lexical / Dense candidate
 ↔ RRF candidate
+↔ RetrievalResult candidate
 ↔ ContextSource
 ↔ Citation Candidate
 ```
 
-额外加入的历史材料也不能复用检索 Chunk 的 ID。`build_rag_review_context` 会直接拒绝这种冲突，避免其中一条材料被静默覆盖。
+若适配时临时改成 `SOURCE-1`、`SOURCE-2`，同一 Chunk 在不同运行中可能获得不同编号。检索日志、Context 报告和后续来源声明将无法稳定关联。
 
-### 没有 locator，为什么直接报错
-
-当前适配器要求每条检索候选至少有一个 `source_span`。若候选只有文本却没有原文位置，它会抛出错误，而不是用“位置未知”继续运行。
-
-这不是故意让流程变脆，而是在守住Chunking 阶段建立的来源契约：
+因此当前适配器直接令：
 
 ```text
-source_id 只能回答“是哪条材料”
-locator 才能回答“原文在哪里”
+ContextSource.source_id = RetrievalCandidate.chunk_id
 ```
 
-缺少 locator 时，后续点击 Citation、复盘 bad case、核对文档版本都会失去依据。第一阶段宁可暴露这类契约错误，也不伪装成可追踪证据。
+额外材料也不能占用某个检索 Chunk 的 `source_id`。发生冲突时必须明确失败，不能让后加入的文字静默覆盖真实候选。
 
-### 检索信息保留在哪里
+### locator 缺失时不能伪装可追踪
 
-适配后的 `ContextSource.metadata` 会保留：
+`source_id` 只能回答“是哪条材料”，locator 才能回答“原文在哪里”。当前适配器要求每个检索候选至少携带一个 `source_span`：
+
+```text
+candidate 有 chunk_id，但没有 source_span
+→ mapping 失败
+→ 不构造“位置未知”的 Evidence
+```
+
+这条约束继承自文档解析和 Chunking。否则后续即使模型声明了 source ID，用户也无法回到原文核对。
+
+### 哪些诊断保留在 Source，哪些仍属于 Report
+
+映射后的 `ContextSource.metadata` 保留与该候选直接相关的信息：
 
 - `document_id`、`document_version`；
-- 来源角色与证据资格；
-- 原文 locator；
-- `fusion_rank` 与 `rrf_score`；
-- 每一路 `route_rank`；
-- 原生分数名称、数值和方向；
+- 来源角色和证据资格；
+- 原文 locators；
+- `fusion_rank`、`rrf_score`；
+- 各路线名次、原生分数名称、数值和方向；
 - `retriever_config_ref`。
 
-这些字段让我们能解释“这条候选为何排在前面”，但不能证明“这条内容一定正确”。
+每路 indexed、visible、threshold 状态和部分失败等运行级事实仍留在 `RetrievalReport`。适配器不会把整份检索报告复制进每条 Source；应用通过同一运行记录和配置身份把二者关联起来。
 
-### 为什么没有把 RRF 分数塞进通用 `score`
+## RRF 排名不是证据权威性
 
-`ContextSource` 有一个可选的 `score`，但 RAG 适配器不会把 RRF 分数冒充成统一可信度，而是把它留在诊断 metadata 中。
+RAG 适配器会用融合名次保持候选的预算选择顺序，但不会把 RRF 分数写成通用可信度：
 
 ```text
-PostgreSQL ts_rank       → 词面匹配强弱
-cosine distance          → 向量空间距离
-RRF score                → 多路名次融合后的排序信号
-来源权威性                → 资料是否适合支持当前结论
+PostgreSQL ts_rank  → 词面排序信号
+cosine distance     → 向量距离
+RRF score           → 多路名次融合信号
+证据资格             → 当前材料能否作为外部依据
 ```
 
-前三者都不是最后一个。检索排名可以影响预算选择顺序，却不能自动决定事实权威性。
+前三项回答“为何排在这里”，最后一项回答“允许怎样使用”。排序靠前不等于事实更权威，也不等于内容已经支持某条结论。
 
-## 证据、历史和不可用材料必须分开
+## 证据资格先决定进入哪个边界
 
-Retriever 返回的材料不一定都有相同资格。适配器会根据 `evidence_eligibility` 做明确决定：
+适配器根据 Retrieval Candidate 的 `evidence_eligibility` 做显式映射：
 
-| Retrieval 资格 | 映射结果 | 能否进入 Citation Candidate |
+| 检索资格 | Context 类型 | 后续能否成为 Citation Candidate |
 | --- | --- | --- |
-| `current_evidence` | 映射为 `evidence` | 可以，但必须最终被 included |
-| `historical_context` | 映射为 `history_review` | 不可以，只能辅助思考 |
-| `ineligible` | 明确排除 | 不可以，也不会进入 Context |
+| `current_evidence` | `evidence` | included 后可以 |
+| `historical_context` | `history_review` | 不可以 |
+| `ineligible` | 明确排除 | 不可以 |
 
-例如，历史评审写着“以前出现过重复提交”，它可以提醒模型检查幂等性，却不能证明当前售后接口一定缺少幂等控制。
+本节真实主路径的 A、B 都是 `current_evidence`。历史材料和不可用材料只用于确定性契约测试；它们不是 `order_rules.md` 中的新增业务事实。
 
-同样，当前 PRD 是 Requirement，是被评审对象；它不应该成为证明自身正确的 Citation Candidate。
+Requirement 是被评审对象，也不能用来证明自身正确。于是“模型可以看到”和“模型允许声明为来源”始终是两层判断。
 
-这一步把“模型可以看到”与“模型可以把它当作外部依据引用”分开了。
+## Builder 收到的是候选池，不是最终输入
 
-## 唯一的 Context Builder
-
-RAG 适配完成后仍进入同一个 Context Builder。输入包括被评审 Requirement、检索 Evidence 和可选历史材料；输出同时包含模型实际可见的 Context、Citation Candidate 以及解释每条材料保留、压缩或丢弃原因的报告。RAG 不维护第二套预算与装配算法。
-
-## Builder 收到的是候选池，不是最终 Context
-
-Builder 的输入 `sources` 只是材料候选池。真正构建前，它会先执行 `prepare_sources`：
+映射成功的 Source 进入唯一的 Context Builder。构建前先执行：
 
 ```text
-候选池
-  ↓ 按 policy 过滤 source_type
-允许进入的材料
+ContextSource 候选池
+  ↓ policy 允许的 source_type
+类型过滤
   ↓ 相同 source_id 去重
-身份唯一的材料
-  ↓ 规范化 content 去重
-内容唯一的材料
-  ↓ 按类型权重、priority、score、source_id 排序
-待分区材料
+身份唯一
+  ↓ 规范化内容去重
+内容唯一
+  ↓ 类型权重、priority、score、source_id
+稳定排序
 ```
 
-每个被排除的来源会留下原因，而不是凭空消失。
+每个被排除的来源都留下 reason，例如：
 
-### 两种去重解决的问题不同
+- `source_type_excluded`；
+- `duplicate_source_id`；
+- `duplicate_content`。
 
-相同 `source_id` 表示同一个身份重复出现。Builder 保留排序更高的版本，并为另一条记录 `duplicate_source_id`。
+相同 ID 表示身份冲突或重复输入；不同 ID 但文本相同表示内容重复。内容去重可以节省预算，却不能替代文档版本治理：两份文字暂时相同，不代表有效期和来源责任相同。
 
-不同 ID 的规范化内容相同，表示两个身份带来了重复文本。Builder 保留排序更高的一条，并记录 `duplicate_content`。
+对于本节真实 A、B，二者身份和内容都不同。干净基线不应依靠 `duplicate_content` 让其中一条消失。若真实运行出现非当前 fixture 的旧身份，应该先处理数据准备差异，再研究 Context 策略。
 
-内容去重可以省预算，但它也有边界：两份文本暂时相同，不代表来源版本和有效期相同。如果版本差异本身有业务含义，不能只靠文本去重解决，仍需要上游知识治理。
+## 为什么要同时有总预算和分区预算
 
-## 为什么要分区，而不是把所有文字拼起来
+Context 不只有 Evidence。通用 Builder 还支持 Requirement、History 等分区。当前固定 RAG 主路径只使用 Requirement 和 Evidence，但分区规则仍然重要：低优先级材料不能因为总预算有空就挤占当前证据的责任边界。
 
-准备好的来源会进入不同 section：
-
-| Section | 常见 source type | 当前作用 |
-| --- | --- | --- |
-| `requirement` | 当前需求文本 | 被评审对象，始终保留 |
-| `evidence` | `evidence`、`business_rule`、`api_doc`、`client_note` | 当前可引用依据 |
-| `history` | `history`、`history_review` | 历史辅助信息 |
-| `agent_summary` | `agent_summary`、`tool_result` | 中间结果，不等于事实来源 |
-| `other` | 其他类型 | 兜底材料 |
-
-Builder 按下面的顺序尝试填充：
+一次选择同时受三类空间限制：
 
 ```text
-Evidence → History → Agent Summary → Other
+总剩余预算
+当前分区剩余预算
+单来源上限（若配置）
 ```
 
-Requirement 在这之前已经进入 Context。这个顺序表示当前风险评审优先保留现行证据，不表示所有 AI 应用都必须使用相同顺序。
-
-## 总预算和分区预算怎样一起生效
-
-只设一个总预算会有一个明显问题：一份很长的历史评审可能占满空间，真正需要引用的接口规则反而进不来。
-
-所以 Context Policy 同时规定总预算、Requirement、Evidence、History、Agent Summary 等分区预算，以及单条来源上限与是否允许压缩。总预算控制整轮规模，分区预算防止低优先级材料挤占关键证据；两者缺一不可。
-
-先用一组简化数字理解它：
+对一条 Source，可用空间近似为：
 
 ```text
-总预算                         500
-Requirement 实际占用            120
-Evidence 分区上限               250
-History 分区上限                 70
-
-Evidence A                       90
-Evidence B                      180
-History C                        80
+available = min(总剩余预算, 当前分区剩余预算, 单来源上限)
 ```
 
-构建过程是：
+### 用同一 A、B 做确定性预算推演
 
-1. Requirement 先占用约 120，总剩余约 380；
-2. Evidence A 需要 90，既没超过 Evidence 剩余 250，也没超过总剩余，因此进入；
-3. Evidence B 需要 180，但 Evidence 只剩 160；即使总预算还够，它也只能尝试压到 160，否则丢弃；
-4. History C 需要 80，但 History 分区只有 70；即使总预算仍有空间，它也不能借用 Evidence 的空位。
-
-对单条来源来说，可用空间可以近似理解为：
+下面是机制推演，不是新的业务资料，也不是 Provider 计费结果。假设本地格式化后：
 
 ```text
-available = min(总剩余预算, 当前分区剩余预算)
+Requirement “申请售后”      约 3 tokens
+A                           约 302 tokens
+B                           约 293 tokens
+总预算                      2200
+Evidence 分区预算            350
 ```
 
-因此，“总预算还有空间”不等于“任意材料都能进入”。分区预算就是为了防止某一类材料挤占其他类别。
+Builder 按融合顺序处理：
 
-### `max_source_tokens` 又限制了什么
+1. Requirement 完整进入；
+2. A 需要约 302，没有超过 Evidence 的 350，因此 included；
+3. Evidence 只剩约 48，B 需要约 293；
+4. 当前 `full_context` 不允许压缩，因此 B 被标记为 `token_budget_exceeded`。
 
-若某条来源很长，即使当前 section 还有很多空间，`max_source_tokens` 也可以限制单条来源最多占多少。这样一篇超长接口文档不会吞掉整个 Evidence 分区。
+注意，总预算仍有大量空间，但 B 依然被丢弃。原因是 Evidence 分区空间不足，不是 Retriever 漏召回，也不是总窗口已经耗尽。
 
-最终单条来源的压缩目标还会受到它影响：
+真实 token 数应以实验当前 tokenizer、metadata 和格式化结果为准；这里的数字只用于把控制顺序说清楚。
+
+## 压缩不是“来源还在就没问题”
+
+当 policy 允许压缩且单条 Source 超过可用空间时，当前 Builder 使用确定性的抽取式压缩：
 
 ```text
-target = min(available, max_source_tokens)
+Requirement 提取关键词
+→ Source 按行和句子切分
+→ 按关键词重合排序
+→ 在目标预算内选择原文片段
+→ 恢复原始顺序
 ```
 
-如果 policy 不允许压缩，或目标小于 `min_compression_tokens`，Builder 不会硬切出一小截不可读文本，而是把该来源标记为 dropped。
+它不调用另一个模型改写事实，同样输入会产生稳定结果，`source_id` 和 metadata 继续保留。
 
-## 当前压缩算法具体做了什么
+但是 source ID 被保留，不等于业务条件被完整保留。若一个较长版本的接口 Chunk 同时包含 `source_channel`、入口规则和否定条件，抽取式压缩可能只留下与“申请售后”词面更接近的句子。
 
-当前实现是确定性的 extractive compression，不会调用另一个模型改写证据。
+这里的“较长版本”是确定性机制假设：当前 `order_rules.md` 只有两个短 Chunk，真实主实验不靠伪造长资料制造压缩成功。压缩契约由同主题的受控测试稳定验证；真实主路径仍显示 A、B 的原始内容。
+
+## Citation Candidate 只能来自最终 included Evidence
+
+Builder 完成选择后，从最终 included 的 Evidence 产生 Citation Candidate：
 
 ```text
-Requirement
-  ↓ 提取关键词
-来源内容
-  ↓ 按行和句子切分
-每个片段
-  ↓ 计算与 Requirement 的关键词重合
-按相关性选择能放进目标预算的片段
-  ↓ 恢复原文顺序
-压缩后的 ContextSource（source_id 不变）
+current evidence
+  ├── included              → Citation Candidate
+  ├── compressed + included → Citation Candidate
+  └── dropped               → 不是 Citation Candidate
+
+history / ineligible
+  └── 即使模型可见，也不能成为当前证据候选
 ```
 
-这种做法有三个适合学习实验的特点：
+Citation Candidate 只表达两件事：
 
-- 同样输入会得到稳定结果；
-- 原句被抽取，而不是由另一个模型重写事实；
-- source ID 与 metadata 仍能保留。
+1. 这条 Evidence 在本轮 `BuiltContext` 中真实存在；
+2. 后续模型可以声明它的 `source_id`。
 
-但它不理解完整语义。例如原文是：
+它不证明模型一定会声明、不证明内容支持某条结论，也不证明证据已经充分。后续可信生成只会先检查模型声明的 ID 是否属于候选集合；更强的支持性和充分性仍由后续机制完成。
 
-```text
-只有 status=paid 且 sub_status!=closed 时才允许售后。
-不满足条件时不得展示入口。
-```
+## BuiltContext 与 ContextBuildReport 各回答什么
 
-如果 Requirement 的关键词更多命中第一句，压缩可能保留条件，却漏掉第二句的否定约束。source ID 还在，不代表证据语义一定完整。
+| 对象 | 回答的问题 |
+| --- | --- |
+| `BuiltContext` | 模型这一轮实际能看到什么 |
+| `ContextBuildReport` | 为什么形成这些材料 |
 
-所以看到 `compressed=true` 时，不要只检查“这条来源有没有进入”，还要检查“关键条件和否定句有没有进入最终 Evidence block”。
+构建报告至少应解释：
 
-## Context 策略为什么需要对照
+- 使用了哪份有效 policy；
+- 总预算和分区预算；
+- 每个分区的实际估算用量；
+- included、dropped、compressed 来源；
+- dropped 或 compressed reason；
+- Citation Candidate 集合；
+- Requirement 超分区、Evidence 为空等 warning。
 
-同一批材料在完整、证据优先、紧预算和最小输入等策略下，会产生不同的保留、截断与丢弃结果。对照的目的不是选一个永远最好的配置，而是确认每次材料变化都能由预算、分区和优先级解释。运行方式与具体输出见[配套实验](../labs/context-engineering.md)。
+应用既不能只保存报告而丢掉真实输入，也不能只保存输入而丢掉决策过程。
 
-## Citation Candidate 是怎样产生的
+## 当前 token budget 不是 Provider 硬上限
 
-Builder 完成选择后，只从最终 included 的 Evidence 来源创建 `citation_candidates`：
+当前 token 数是本地估算。实现优先使用适配的 tokenizer 编码，不可用时会使用约定的回退估算。它控制的是 Context 选择，不是 Provider 对最终 messages 的计费结果。
 
-```text
-检索到的当前证据
-  ├── included → Citation Candidate
-  ├── compressed but included → Citation Candidate
-  └── dropped → 不是 Citation Candidate
+还有两个边界必须保留：
 
-History / Agent Summary
-  └── 即使 included，也不是 Citation Candidate
-```
+### Requirement 当前不会被静默截断
 
-所以 Citation Candidate 只表达：
+Requirement 超过自己的分区预算时，Builder 产生 `requirement_over_section_budget` warning，但仍保留完整 Requirement。若 Requirement 本身超过总预算，最终估算甚至可能大于配置值。
 
-> 这条来源在本轮 Evidence 中真实存在，模型可以声明引用它。
+### 最终 messages 还有额外开销
 
-它还没有证明模型真的引用了它、结论被它支持、当前证据已经充分，也没有证明来源内容没有过期。本节会先检查模型声明的 source ID 是否属于这个候选集合；更强的“引用内容是否支持结论”仍是后续能力。
-
-## BuiltContext 和构建报告分别回答什么
-
-BuiltContext 回答“模型实际看到了什么”，包括 Requirement、Evidence、已保留和已丢弃来源以及 Citation Candidate。构建报告回答“为什么形成这些材料”，包括策略、预算估算、分区用量、压缩、淘汰和告警。两者必须一起保存，不能用报告替代真实输入，也不能只留输入而丢掉决策过程。
-
-## 一个必须说清的边界：当前 token budget 不是硬上限
-
-这里很容易被一句“预算控制”误导。
-
-当前 token 数来自本地估算：优先使用 `tiktoken` 的模型编码；找不到对应编码时回退到 `o200k_base`；tokenizer 不可用时还会使用字符数近似。它不是 Provider 对最终请求的计费结果。
-
-而且当前 Builder 有两个明确边界。
-
-### Requirement 会被完整保留
-
-若 Requirement 本身超过 `requirement` 分区预算，Builder 会产生 `requirement_over_section_budget`，但不会截断被评审需求。若 Requirement 已经长于整个 `token_budget`，`estimated_tokens` 可能大于预算。
-
-这是当前第一阶段的选择：宁可暴露超预算，也不静默删掉需求正文。
-
-### 最终 Prompt 还有额外开销
-
-Builder 估算的是 Context section。真正请求还会加入 system message、任务说明、结构化输出约束和 Provider 特殊 token。因此：
+真实请求还会加入 system message、任务说明、结构化输出 Schema 和 Provider 特殊 token：
 
 ```text
 ContextBuildReport.estimated_tokens
-≠ Provider 最终 input_tokens
+≠
+Provider 最终 input_tokens
 ```
 
-所以本节里的 `token_budget` 应理解为：
+要提供严格窗口保证，必须在最终 messages 形成后再次按目标 Provider 计数，并定义超限时的拒绝、压缩或删减策略。当前第一阶段 Context Builder 还没有伪装成完成了这层生产保证。
 
-> 本地的 Context 选择与分区预算目标，用于做可解释取舍；不是“最终请求永远不会超过模型窗口”的硬保证。
+## 按候选第一次消失的位置诊断
 
-如果产品要提供硬保证，还需要在最终 messages 形成后再次按目标 Provider 计数，并定义超限时是拒绝、缩短 Requirement、继续压缩还是减少候选。当前机制尚未形成这层生产级闭环。
-
-## 用四层检查定位 `source_channel` 为什么消失
-
-现在回到开头的 bad case。不要从模型答案倒猜，从前往后查。
+仍以 B 的 `source_channel` 规则为例：
 
 ### 第一层：Retrieval
 
-先看 `RetrievalReport`：
+检查 `RetrievalResult.candidates` 是否有 B，并用 `RetrievalReport` 回看过滤、候选、阈值、RRF 和 `final_top_k`。
 
-- 接口规则是否成为 Lexical 或 Dense 候选？
-- 是否通过 route threshold？
-- 是否进入 RRF？
-- 是否被 `final_top_k` 保留？
+B 不在这里，问题仍属于固定 Retriever 或更早的资料链；调 Context budget 无效。
 
-如果它不在 `RetrievalResult.candidates`，问题仍在固定 Retriever及以前。
+### 第二层：Mapping
 
-### 第二层：Retrieval → ContextSource mapping
+检查 B 是否保持相同 `source_id`、locator、文档版本和证据资格。
 
-再看 `mapping.decisions`：
-
-- `chunk_id` 是否成为相同的 `source_id`？
-- locator 与文档版本是否保留？
-- 证据资格映射成了什么 `source_type`？
-- 是否因 `ineligible` 被明确排除？
-
-这里失败，说明两个 package 的契约没有正确接上。调 Context budget 不会修复缺失的 locator。
+若缺少 locator 或资格为 `ineligible`，问题发生在 Retrieval → Context 契约；加预算不能修复身份错误。
 
 ### 第三层：Context Builder
 
-查看已保留来源、被丢弃来源、被压缩来源和 Citation Candidate，并确认决策原因。
+检查 B 是 included、compressed 还是 dropped，并读取 reason、分区用量和最终 Evidence block。
 
-若接口规则被检索并成功映射，却因 `token_budget_exceeded` 被 dropped，应该检查：
-
-- Evidence 分区是不是太小；
-- 前面是否有更高优先级材料占满预算；
-- `max_source_tokens` 是否过小；
-- 是否应该允许压缩；
-- Retriever 是否返回了过多候选。
-
-这时先调 Embedding 没有意义，因为正确候选已经检索到了。
+若 reason 是 `token_budget_exceeded`，应检查 Evidence 分区、前序来源和压缩策略，而不是重新训练 Embedding。
 
 ### 第四层：Prompt 与模型
 
-只有当接口规则已经 included，而且 `source_channel` 关键句确实出现在最终 `evidence_block` 中，才进入下一层：
+只有 B 已 included，且 `source_channel` 真的出现在最终 Evidence block 中，才把问题交给 Prompt、真实模型和生成 Eval。本文到第三层为止。
 
-- Prompt 是否明确要求逐条核对接口约束；
-- 模型是否忽略了已有证据；
-- 结构化输出是否容纳这个风险；
-- 生成结果是否需要 Eval。
+## 正常边界与失败边界
 
-这四层把一句模糊的“RAG 没效果”拆成了四类可行动问题。
+| 现象 | 性质 | 应怎样解释 |
+| --- | --- | --- |
+| A、B 都 included | 正常路径 | 两条当前证据都对模型可见 |
+| B 因 Evidence budget 被 dropped | 正常配置边界 | Retriever 成功，Context 做了明确取舍 |
+| Evidence budget 为 0 | 自然边界 | Requirement 保留，无 Citation Candidate，并产生 warning |
+| Source 被压缩 | 受控取舍 | 身份保留，但必须检查关键条件是否仍在 |
+| 候选缺少 locator | 契约失败 | 明确停止，不伪造位置 |
+| 额外来源与 chunk ID 冲突 | 契约失败 | 明确停止，不静默覆盖 |
+| PostgreSQL 或 Embedding 失败 | 上游真实依赖失败 | Context Builder 尚未获得可信 RetrievalResult |
+| Retriever 部分失败 | 上游不完整结果 | 可以保留诊断，但不能当作完整成功基线 |
+| 出现非当前 fixture Chunk | 数据准备失败 | 先处理旧身份，不把去重误当策略效果 |
 
-## 真实链路必须接到 Context，而不是伪造候选
+## 当前能力由谁承载
 
-主实验应让同一 Query 经过真实 Lexical、Dense、RRF 和 Retriever 控制，再把最终候选交给 Context Builder。这样才能区分候选未被召回、映射时丢失来源、预算淘汰和 Prompt 未使用材料。命令、策略切换、输出展开和依赖排障见[配套实验](../labs/context-engineering.md)。
-
-## 一个自然 bad case：总预算有空，正确 History 仍被丢弃
-
-假设总预算还剩 100 tokens，而 History 分区只剩 20；一条 60-token 的历史材料会被丢弃。
-
-第一次看到时可能会觉得 Builder 出错了：“明明总空间够，为什么不放？”但这正是 section budget 在执行策略边界。
+本节没有引入 Agent 框架。职责分为两层：
 
 ```text
-候选池里有这条材料
-→ 类型映射正常
-→ History section 可用预算不足
-→ dropped reason = token_budget_exceeded
+rag_core Context adapter
+→ 把 RetrievalResult 映射成可追踪 ContextSource
+
+llm_core Context Builder
+→ 负责过滤、去重、排序、分区、预算、压缩和报告
 ```
 
-如果业务确认这条 History 必须保留，改的是 `section_budgets["history"]`，而不是 Embedding、RRF 或 Prompt。
+当前 Builder 是本地确定性实现，适合把输入边界和失败原因完整暴露出来。成熟框架可以提供文档压缩器、Prompt 模板或 token 计数器，但不能替应用决定：哪些材料是当前证据、历史是否可引用、locator 如何贯穿、分区预算如何分配，以及证据为空时产品应该怎样处理。
 
-反过来，如果一条当前接口证据被 History 挤掉，则需要检查它是否被错误标成了 `history_review`。这时加预算只是掩盖类型映射错误。
+需求评审助手负责提供领域材料、证据资格和 policy；通用 package 不写死某一个售后问题，也不维护第二套 Retriever。
 
-## 常见失败与对应层次
+## 向可信生成交付什么
 
-| 现象 | 先看哪里 | 不要先做什么 |
-| --- | --- | --- |
-| 正确 Chunk 根本不在最终候选 | `RetrievalReport` | 不要先改 Prompt |
-| 候选缺少 `source_spans` | RAG adapter 契约错误 | 不要填“未知位置”继续跑 |
-| 当前证据被映射成 History | `mapping.decisions` 和证据资格 | 不要只加 Evidence 预算 |
-| 不可用来源没有进入 Context | mapping reason | 不要误判成 Builder 随机丢失 |
-| 不同 ID 的重复文本少了一条 | `duplicate_content` | 不要先调 Retriever top-k |
-| 总预算有空间但某 section 仍丢材料 | `section_tokens` 与分区预算 | 不要把总预算当唯一限制 |
-| source included 但关键否定句不见了 | 压缩后的 Evidence block | 不要只检查 source ID |
-| History included 但不能引用 | Citation Candidate 规则 | 不要把辅助信息升级成现行证据 |
-| `estimated_tokens` 超过 budget | Requirement warning 与本地估算边界 | 不要宣称已有硬上限 |
-| Evidence 已包含关键句，模型仍漏答 | Prompt、模型行为与生成 Eval | 不要再反复调 Embedding |
+本节最终交付：
 
-## 确定性验证守住哪些不变量
+```text
+BuiltContext
++ ContextBuildReport
++ Citation Candidate IDs
+```
 
-确定性验证可以守住来源映射、分区隔离、去重、优先级、预算决策、Citation Candidate 集合和报告一致性。它不能证明检索候选正确，也不能证明最终模型会忠实使用材料；这两层需要各自的真实实验和后续生成评估。
-
-## 框架能替你做什么，不能替你决定什么
-
-很多框架能提供文本切分、Prompt 模板、Retriever 接口、文档压缩器和 token 计数器。这些组件能减少样板代码，但不会自动决定：
-
-- Requirement、Evidence、History 应该怎样分区；
-- 哪些来源具备当前证据资格；
-- 历史材料是否允许被引用；
-- 来源身份和 locator 怎样贯穿检索与生成；
-- 某个 section 应分到多少预算；
-- 压缩丢失否定条件时如何发现；
-- 无证据或超预算时产品应该继续、拒绝还是追问。
-
-因此 Context Engineering 不是“选一个框架的 memory 类”。它是应用对模型输入边界和证据责任的显式设计。
+下一步可以确认模型真实输入、列出允许声明的 source ID，并检查模型是否生成未知 ID。但“ID 合法”仍不等于“内容支持结论”。
 
 ## 学完后的自检
 
-先不看正文，回答下面的问题：
+- 为什么 `RetrievalResult.candidates` 有 B，不代表模型一定看到 B？
+- `RetrievalReport` 与 `ContextBuildReport` 分别解释哪段链路？
+- 为什么 `source_id` 要继续使用稳定 `chunk_id`？
+- locator 缺失时为什么不能填“未知位置”继续？
+- RRF 排名为什么不能作为来源权威性？
+- 总预算还有空间时，B 为什么仍可能因 Evidence 分区被丢弃？
+- `compressed=true` 时为什么仍要检查最终 Evidence block？
+- 为什么 dropped Evidence 不能成为 Citation Candidate？
+- 当前 token budget 为什么不是 Provider 的硬窗口保证？
+- B 在哪个层次第一次消失，就应该修改哪个层次？
 
-- 为什么“知识库有”不等于“Retriever 找到”，而“Retriever 找到”又不等于“模型看到”？
-- `RetrievalReport`、mapping decisions、`BuiltContext`、`ContextBuildReport` 分别解释哪段链路？
-- 为什么 Context 的 `source_id` 要继续使用稳定 `chunk_id`？
-- 为什么必须保留 locator，而不能只保留来源标题？
-- RRF 分数为什么能影响装配顺序，却不能代表来源权威性？
-- 为什么 History 可以 included，却不能成为 Citation Candidate？
-- 总预算还有空间时，来源为什么仍可能因 section budget 被丢弃？
-- `compressed=true` 时，为什么还要检查最终 Evidence block？
-- 为什么当前 `token_budget` 是选择目标，而不是 Provider 请求的硬上限？
-- 正确候选因 Context 预算丢失时，为什么不应该先调 Embedding？
-
-最后完成一次真实追踪：从 `RetrievalResult` 中选一条 Chunk，找到相同的 `source_id`，检查它的 locator、mapping decision、included/dropped 去向和 Citation Candidate 状态。再解释另一条材料为什么没有进入。
-
-做到这一步，你掌握的不是“把几段文字拼进 Prompt”，而是能解释模型这一轮究竟看到了什么，以及应用为什么做出这次取舍。
-
-回到 [标准学习路径](../learning-path.md) 后，本节会把 `BuiltContext` 交给真实模型，继续处理结构化生成、未知 source ID 和可信输出边界。
-
-## 延伸参考
-
-- [OpenAI Cookbook：How to count tokens with tiktoken](https://cookbook.openai.com/examples/how_to_count_tokens_with_tiktoken)：理解本地 token 计数为什么依赖模型编码，以及为什么最终 messages 仍有额外开销。
+最后沿同一个 `surface_match=申请售后` 追踪 A、B：确认 Retrieval Candidate、mapping decision、included/dropped、最终 Evidence block 和 Citation Candidate 中的身份是否一致。能够完成这条追踪，才算真正理解模型这一轮拿到了什么。

@@ -123,33 +123,35 @@ def test_citation_candidates_only_come_from_included_evidence_sources():
     assert [candidate.source_id for candidate in context.citation_candidates] == ["API-1"]
 
 
-def test_context_builder_compresses_long_sources_with_stable_source_id():
-    long_api_doc = "\n".join(
+def test_context_builder_compresses_assumed_expanded_order_rules_with_stable_id():
+    # Deterministic mechanism assumption: the real order_rules.md facts are
+    # repeated inside a longer same-topic document only to exercise compression.
+    expanded_order_rules = "\n".join(
         [
-            "售后接口 v2 路径 POST /api/after-sale/v2/cases，需要 order_id。",
-            "无关说明：" + "这是一段较长的背景文字。" * 40,
-            "订单状态 status=paid 且 sub_status!=closed 才允许发起售后。",
-            "错误码 AFTER_SALE_DUPLICATED 表示重复申请，需要前端提示。",
+            "仅已支付且已完成的订单可申请售后。",
+            "【确定性机制假设：同主题扩展段落】" + "售后流程背景说明。" * 40,
+            "虚拟商品不进入售后流程。",
+            "售后接口 v2 必须提供 source_channel。",
+            "Flutter 客户端必须使用相同的入口可见性规则。",
         ]
     )
     source = ContextSource(
-        source_id="API-LONG",
-        content=long_api_doc,
-        source_type="api_doc",
+        source_id="ASSUMED-EXPANDED-ORDER-RULES",
+        content=expanded_order_rules,
+        source_type="evidence",
         priority=90,
-        score=0.95,
     )
 
     context = build_review_context(
-        requirement_text="订单详情页新增申请售后按钮，需要关注售后接口 v2 和订单状态。",
+        requirement_text="申请售后",
         sources=[source],
         policy=get_context_policy("tight_budget"),
     )
 
-    assert "API-LONG" in context.included_source_ids
+    assert "ASSUMED-EXPANDED-ORDER-RULES" in context.included_source_ids
     assert context.report is not None
-    assert "API-LONG" in context.report.compressed_source_ids
-    assert "API-LONG" in context.evidence_block
+    assert "ASSUMED-EXPANDED-ORDER-RULES" in context.report.compressed_source_ids
+    assert "ASSUMED-EXPANDED-ORDER-RULES" in context.evidence_block
     assert "compressed=true" in context.evidence_block
 
 
