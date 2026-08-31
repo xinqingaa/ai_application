@@ -65,7 +65,7 @@ query = 申请售后
 dataset_version = rag-retrieval-exploration-1.0.0
 ```
 
-“本轮生成两个 Chunk”不自动等于“复用数据库中只有两行”。如果旧 Chunking 身份或其他同范围资料仍留在兼容索引中，lexical 和 dense 可能看到不同数量；真实 demo 会显示本轮两个 `chunk_id` 并警告意外候选。完成单变量对照前必须先解决数据准备差异，不能把旧身份带来的变化归因于 Retriever 参数。
+“本轮生成两个 Chunk”不自动等于“复用数据库中只有两行”。如果旧 Chunking 身份或其他同范围资料仍留在兼容索引中，lexical 和 dense 可能看到不同数量；真实 demo 会显示本轮两个 `chunk_id` 并警告意外候选。完成单变量对照前必须先解决数据准备差异，不能把旧身份带来的变化归因于 Retriever 参数。核对与清理步骤见[配套实验](../labs/retriever-contract.md#21-遇到意外候选身份-warning-时怎么处理)。
 
 为什么必须固定这些输入？因为本节要观察的是控制顺序。若一边改变 Query 和资料，一边修改阈值或 top-k，就无法判断候选变化究竟来自检索输入还是控制参数。
 

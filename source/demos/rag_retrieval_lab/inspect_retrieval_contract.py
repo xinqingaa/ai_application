@@ -290,8 +290,9 @@ def _render_summary(
     if unexpected:
         console.warning(
             "本轮候选包含不属于当前两个 fixture Chunk 的身份："
-            f"{', '.join(unexpected)}。当前数据库可能保留旧 Chunk 或其他同范围资料；"
-            "先核对 document/version，再做参数归因。"
+            f"{', '.join(unexpected)}。这是旧 Chunk 或其它同范围资料仍留在索引中，"
+            "不是 Retriever 参数失效。按 course/labs/retriever-contract.md 第 2.1 节"
+            "核对 document/version 并清理后再对照。"
         )
     console.hint("比较参数时一次只改一个；空结果先看 no_result_reason，再看各阶段数量")
 

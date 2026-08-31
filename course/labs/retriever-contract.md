@@ -26,7 +26,7 @@ query：申请售后
 | 当前订单状态规则 | 仅已支付且已完成的订单可申请售后；虚拟商品不进入售后流程 |
 | 接口与客户端约束 | 售后接口 v2 必须提供 `source_channel`；Flutter 客户端使用相同入口可见性规则 |
 
-本轮生成两个 Chunk，不代表复用数据库里一定只有两行。旧 Chunking 身份或其他同范围资料可能仍留在索引中；实验入口会显示当前两个 `chunk_id`，并在融合候选出现其他身份时给出 warning。出现 warning 时先解决数据准备差异，不能继续把候选变化归因于 top-k 或阈值。
+本轮生成两个 Chunk，不代表复用数据库里一定只有两行。`chunk_id` 由文档身份、版本、有效切分策略、文本和来源跨度算出；实验入口只按当前身份 `upsert`，不会删除旧身份。第 11–13 节若曾用不同切分策略或旧 identity 写入同一 `KR-ORDER-STATE` / `1.0.0`，旧行仍会通过 `after_sale` pre-filter。此时 `visible` 会大于 2，融合名单会出现本轮 `current fixture chunks` 以外的 ID，内容几乎重复。入口会给出 warning。这是数据准备问题，不是 top-k 或阈值失效。先按第 2.1 节处理，再做单变量对照。
 
 不要为了让某个参数“看起来有效”而更换 Query 或补充第三份资料。真实 Provider 返回的 dense distance 可以变化；发生变化时记录实际模型和空间身份，不把正文中的手算数值当作真实输出。
 
@@ -60,7 +60,7 @@ ORDER BY document_version, chunk_id;
 "
 ```
 
-干净实验库应只保留本轮生成的两个身份。如果同一 `document_id` / `document_version` 出现内容重复但 `chunk_id` 不同的旧行，不要盲目删除产品资料；使用干净课程数据库，或先按文档更新策略明确处理旧 Chunk，再继续本节对照。
+干净实验库里，`KR-ORDER-STATE` 应只保留本轮两个身份。若同一 `document_id` / `document_version` 出现内容重复、`chunk_id` 不同的旧行，先按第 2.1 节处理；不要继续本节对照，也不要改 Query 来“消掉”多余候选。
 
 再确认入口和参数：
 
@@ -69,7 +69,78 @@ uv sync
 uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py --help
 ```
 
-实验会幂等写入固定 Chunk 和当前 Embedding 空间的向量；重复运行不会无限复制相同 Chunk。它不会自动执行 migration，也不会清空产品表。
+实验会幂等写入固定 Chunk 和当前 Embedding 空间的向量；重复运行不会无限复制相同 Chunk。它不会自动执行 migration，也不会清空产品表，因此旧身份会一直参与检索。
+
+### 2.1 遇到意外候选身份 warning 时怎么处理
+
+若运行后看到类似输出：
+
+```text
+WARNING 本轮候选包含不属于当前两个 fixture Chunk 的身份：chunk_…, chunk_…。
+current fixture chunks  chunk_AAAA, chunk_BBBB
+visible 4 → candidate 4
+```
+
+先停在数据准备层。不要把 `visible=4`、重复内容和被 `final_top_k` 截掉的第四条当成 Retriever 参数效果。
+
+为什么会出现：
+
+```text
+同一份 order_rules.md
+→ 切分策略或 identity 输入变了，本轮算出新的两个 chunk_id
+→ upsert 只写入 / 更新这两个新身份
+→ 旧 chunk_id 仍留在 rag_chunks，向量仍留在 rag_chunk_embeddings
+→ document_id、document_version、knowledge_scope 仍是售后资料
+→ pre-filter 把新旧四行都当作可见候选
+```
+
+产品还没有“用新版本替换旧版本并删除旧 Chunk”的治理入口。课程实验故意不自动清空表，避免把知识更新问题伪装成检索成功。
+
+课程学习库按下面处理。先读本轮输出里的 `current fixture chunks`，只保留这两个身份：
+
+```bash
+set -a && source .env && set +a
+
+psql "$DATABASE_URL" -P pager=off -c "
+SELECT chunk_id, document_id, document_version, left(content, 60) AS content
+FROM review_assistant.rag_chunks
+WHERE document_id = 'KR-ORDER-STATE'
+ORDER BY chunk_id;
+"
+```
+
+确认多余行也是 `KR-ORDER-STATE` / `1.0.0`，且内容和当前两个售后段落重复后，删除**不属于本轮 fixture** 的旧身份。向量表对 `chunk_id` 有 `ON DELETE CASCADE`，不必单独删 embedding：
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "
+DELETE FROM review_assistant.rag_chunks
+WHERE document_id = 'KR-ORDER-STATE'
+  AND chunk_id NOT IN (
+    '本轮 current fixture chunks 的第一个 ID',
+    '本轮 current fixture chunks 的第二个 ID'
+  );
+"
+```
+
+再查一次，应只剩两行，且 `chunk_id` 与本轮 `current fixture chunks` 一致：
+
+```bash
+psql "$DATABASE_URL" -P pager=off -c "
+SELECT chunk_id
+FROM review_assistant.rag_chunks
+WHERE document_id = 'KR-ORDER-STATE'
+ORDER BY chunk_id;
+"
+```
+
+然后重跑第 3 节主入口。warning 应消失，干净库上两路 `visible` 应为 2。这时才能进入第 5 节单变量对照。
+
+不要做这些事：
+
+- 不要删除本轮 `current fixture chunks` 里的两个 ID。
+- 不要 `TRUNCATE` 整个 schema，除非 `DATABASE_URL` 明确指向专用课程库，并且接受第 11–13 节写入一并清空。
+- 不要删除你无法解释来源的其他 `document_id`。若多余候选属于别的售后文档，改用干净课程库，而不是在混用库上调阈值。
+- 不要改 Query、加资料或调 top-k 来掩盖这条 warning。
 
 ## 3. 唯一主入口、默认值和退出状态
 
@@ -141,7 +212,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_retrieval_contract.py \
 | `retriever config` | 标识本轮 candidate、阈值、RRF、final 和 Metadata 控制 |
 | `embedding latency` | 区分准备耗时与 Retriever 查询耗时 |
 
-只有这些身份一致，且没有“意外候选身份” warning，后续单变量对照才可比较。`indexed` 或 `visible` 大于 2 时，先判断是否存在旧 Chunk 或其他同范围资料。
+只有这些身份一致，且没有“意外候选身份” warning，后续单变量对照才可比较。出现 warning，或 `indexed` / `visible` 大于 2 时，先按第 2.1 节处理旧 Chunk，不要进入第 5 节。
 
 ### 4.2 按控制顺序读汇总表
 
@@ -313,7 +384,7 @@ uv run pytest \
 | `query` 字段不是 `surface_match=申请售后` | 实验输入 | 检查 `--query-id surface_match` |
 | Embedding space 前后不同 | 真实 Provider / 配置 | 对照 provider、model、dimensions、preprocessing 和 space ref |
 | `indexed=0` | 词法配置或向量空间 | 检查 Chunk 入库、Embedding 空间和 migration |
-| 出现意外候选身份 warning | 数据准备 / 旧 Chunk | 对照当前 fixture IDs，查询 `document_id` / `document_version`，使用干净课程数据库或先完成明确更新 |
+| 出现意外候选身份 warning，或 `visible>2` 且内容几乎重复 | 数据准备 / 旧 Chunk 身份仍留在索引 | 按第 2.1 节核对 `KR-ORDER-STATE`，只删除不属于本轮 `current fixture chunks` 的旧行，再重跑基线 |
 | `indexed>0, visible=0` | Metadata / 空间过滤 | 核对 scope、source role、evidence eligibility 和空间身份 |
 | lexical `matched=0` | 词法表示 | 查看 Query terms、资料词面和 PostgreSQL FTS |
 | `candidate>0, passed=0` | route threshold | 查看原生值、方向、阈值名称和值 |
