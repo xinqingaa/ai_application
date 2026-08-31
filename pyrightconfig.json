@@ -1,7 +1,6 @@
 {
   "include": [
-    "source",
-    "review_assistant"
+    "source"
   ],
   "extraPaths": [
     "source/packages"
