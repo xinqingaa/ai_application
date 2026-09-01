@@ -96,7 +96,7 @@ BuiltContext + citation candidate IDs
 | `tests/test_rrf.py` | 名次融合、空/失败路线、稳定身份和跨路线一致性不变量 |
 | `tests/test_hybrid_retriever.py` | 控制顺序、Metadata 传递、阈值方向、最终截断和失败分类 |
 | `tests/test_rag_context.py` | Chunk 来源保留、证据资格映射、预算去向和 source ID 冲突 |
-| `tests/test_trusted_generation.py` | 合法/未知 source、无引用风险、空证据和结构化失败边界 |
+| `tests/test_trusted_generation.py` | 合法/未知 source、无引用风险、空 allowlist、错误 excerpt 和结构化失败边界 |
 
 建议按能力链分组阅读。文档解析与 Chunk 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；Embedding、检索、融合、Context 与可信生成运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 

@@ -64,8 +64,14 @@ def _context(*, with_evidence: bool = True) -> BuiltContext:
     )
 
 
-def _risk_json(*, source_id: str | None) -> str:
-    citations = [] if source_id is None else [{"source_id": source_id}]
+def _risk_json(*, source_id: str | None, excerpt: str | None = None) -> str:
+    if source_id is None:
+        citations = []
+    else:
+        citation = {"source_id": source_id}
+        if excerpt is not None:
+            citation["excerpt"] = excerpt
+        citations = [citation]
     return json.dumps(
         {
             "risks": [
@@ -138,6 +144,38 @@ def test_no_evidence_still_calls_real_generation_boundary_with_empty_allowlist()
     rendered = "\n".join(message["content"] for message in client.calls[0][0])
     assert "Allowed Citation Source IDs" in rendered
     assert "（无）" in rendered
+
+
+def test_empty_allowlist_rejects_every_claimed_source_id() -> None:
+    client = FakeStructuredClient(_risk_json(source_id="invented-source"))
+
+    result = generate_trusted_review(
+        _context(with_evidence=False),
+        client=client,  # type: ignore[arg-type]
+    )
+
+    assert result.status is GenerationStatus.UNKNOWN_CITATION_SOURCE
+    assert result.report.evidence_state is EvidenceState.NO_CITATION_CANDIDATES
+    assert result.report.candidate_claim_count == 0
+    assert result.report.unknown_source_count == 1
+
+
+def test_known_id_with_unsupported_excerpt_only_passes_membership_boundary() -> None:
+    client = FakeStructuredClient(
+        _risk_json(
+            source_id="chunk-api",
+            excerpt="售后接口允许省略 source_channel。",
+        )
+    )
+
+    result = generate_trusted_review(_context(), client=client)  # type: ignore[arg-type]
+
+    assert result.status is GenerationStatus.SUCCEEDED
+    assert result.report.candidate_claim_count == 1
+    assert result.report.unknown_source_count == 0
+    assert result.report.citation_boundary == (
+        "candidate_membership_only_not_support_validation"
+    )
 
 
 def test_invalid_structured_output_keeps_parse_failure_visible() -> None:

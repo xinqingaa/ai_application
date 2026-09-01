@@ -41,7 +41,7 @@
 | 多路召回与 RRF | 主线 | 第一阶段 | 将不可直接相加的多路排名按统一候选身份融合，并保留路线贡献 | Lexical、Dense | [机制](mechanisms/multi-retrieval-and-rrf.md) · [实验](labs/multi-retrieval-and-rrf.md) | 产品必接；`rag_core/retrieval` |
 | Top-k、阈值、Filter 与诊断 | 主线 | 第一阶段 | 固定过滤、每路候选、阈值、融合和截断顺序，解释候选在哪层消失 | 多路召回 | [机制](mechanisms/retriever-contract.md) · [实验](labs/retriever-contract.md) | 产品必接；Retriever Contract |
 | Context 装配、预算与 Compression | 主线 | 第一阶段 | 把检索名单装成模型本轮可见 Context；Evidence 是专门放外部依据的一格，装入时控制身份、分区预算和允许声明的来源 | Retriever Contract | [机制](mechanisms/context-engineering.md) · [实验](labs/context-engineering.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
-| 可信生成与 Citation Candidate | 主线 | 第一阶段 | 限制模型只能声明本轮候选来源，并区分模型声明与应用验证；生成阶段真实走流式调用时，还要区分增量解析出的未校验局部结果与生成完成后的最终校验结果，二者在界面上不能混淆 | Context、Structured Output | [机制](mechanisms/trusted-generation.md) · [实验](labs/trusted-generation.md) | 产品必接；`rag_core/generation` |
+| 结构化生成与来源声明集合检查 | 主线 | 第一阶段 | 把 BuiltContext 交给真实结构化模型，并逐条检查模型声明的 source ID 是否属于本轮 Citation Candidate；`succeeded` 只表示结构合法且声明未越界，不判断内容支持性、证据充分性或流式界面状态 | Context、Structured Output | [机制](mechanisms/trusted-generation.md) · [实验](labs/trusted-generation.md) | 产品必接；`rag_core/generation` |
 | Citation 支持性 | 主线 | 第一阶段 | 判断被引用内容是否真正支持对应结论，合法 ID 不能代替语义支持 | 可信生成 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
 | 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题 | Citation 支持性 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
 | Reranker 与准入证据 | 扩展 | 第一阶段 | 在固定召回基线后学习重排，以及什么收益证据才足以进入产品 | RRF、Golden Set | 待编写机制正文 | 条件接入；不作为固定基线默认能力 |

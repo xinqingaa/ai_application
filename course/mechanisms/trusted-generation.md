@@ -1,12 +1,12 @@
-# 可信生成：模型写了来源编号，为什么还不能直接相信
+# 模型写了来源编号，为什么还不能直接相信
 
-> Context 装入已经把检索名单变成模型真正能看到的 `BuiltContext`，并产生本轮允许声明的来源 `Citation Candidate`。本文继续解释固定 RAG 的生成核心机制：调用真实模型生成结构化风险，并由应用检查模型声明的 `source_id` 是否来自本轮候选。
+> Context 装入已经交出模型本轮真正看到的 `BuiltContext`、装入报告和允许声明的来源 ID。现在的问题是：应用怎样调用真实模型生成结构化风险，并确认模型写出的 `source_id` 没有越过本轮允许集合？
 >
-> 学完后，你应该能区分“JSON 合法”“来源编号属于本轮候选”和“证据真的支持结论”这三个完全不同的判断。本文只解释前两个层次；Citation 支持性、证据充分性和 Refusal 需要后续机制继续完成。
+> 本文交付一条固定生成链：`BuiltContext → Prompt → Structured Output → 本地解析 → 来源声明集合检查 → 生成结果与报告`。学完后应能解释 `succeeded` 为什么只表示“结构合法且已声明 ID 未越界”。本文不判断来源内容是否支持风险，不决定证据是否充分、是否 Refusal 或追问，也不展开流式增量、SSE 和界面状态。操作、真实对照和修改任务见[配套实验](../labs/trusted-generation.md)。
 
-## 先看一个很像成功的结果
+## 一个看起来已经成功的结果
 
-模型返回：
+继续使用“订单详情页新增申请售后入口”的 Requirement。模型返回：
 
 ```json
 {
@@ -24,141 +24,107 @@
 }
 ```
 
-这个结果看起来很完整：JSON 能解析、字段齐全、风险合理，还有来源编号。
+它很像可以直接交给界面的成功结果：JSON 能解析，字段齐全，风险也符合直觉，还写了一个像文档名的编号。
 
-但程序至少还要问三个问题：
-
-1. 这些字段和枚举是否符合 `ReviewRiskList`？
-2. `API-AFTER-SALE-V2` 是否真的属于本轮允许引用的来源？
-3. 这条来源的内容是否真的支持“缺少来源渠道”这个结论？
-
-它们对应三层不同的可信边界：
+但本轮 Context 允许声明的其实是两个真实 Chunk 身份：
 
 ```text
-结构合法
-  ↓
-来源声明属于本轮候选
-  ↓
-来源内容支持当前结论
+A.chunk_id：当前订单状态规则
+B.chunk_id：接口与客户端约束
 ```
 
-当前机制完成前两层：
+`API-AFTER-SALE-V2` 不是 `B.chunk_id`。即使它像标题、接口名或人工简称，应用也不能把它当成本轮来源。
 
-- 使用 Structured Output 和本地解析检查结构；
-- 使用 Citation Candidate allowlist 检查来源声明。
-
-第三层需要读取声明对应的证据，并判断它与具体风险之间的支持关系。这是后续 Citation 支持性的 Citation 校验，不在本节伪装成已经完成。
-
-因此，本节标题里的“可信生成”应理解为：
-
-> 生成输入、输出结构和来源声明开始受到应用约束并可被检查，而不是模型的每条结论已经被证明为真。
-
-## 先把五个对象拆开
-
-初学时最容易把 Source、Citation Candidate 和 Citation 都叫“引用”。但从资料进入系统到成为经过验证的引用，中间要逐层收紧：
+这里至少有三个不同问题：
 
 ```text
-Source
-  ↓ Retriever 选择
-Retrieved Candidate
-  ↓ Context Builder 选择
-Citation Candidate
-  ↓ 模型在输出中声明
-Claimed Citation
-  ↓ 应用检查内容支持关系
-Validated Citation（后续 Citation 支持性）
+字段和枚举是否符合业务 Schema？
+        ↓
+模型声明的 source_id 是否属于本轮允许集合？
+        ↓
+这个来源的内容是否真的支持当前风险？
 ```
 
-### Source
+本文只完成前两个判断。第三个判断必须读取来源内容，并把具体风险和证据片段建立支持关系。它将接收本文的结果继续处理，不能因为模型写了一个合法 ID 就假装已经完成。
 
-系统中存在的一条资料或 Chunk。它只表示“系统拥有这份资料”，还不知道本轮是否相关。
+因此本节的“可信”不是“模型结论已被证明为真”，而是生成输入、输出形状和来源声明开始受到应用约束，并留下可诊断结果。
 
-### Retrieved Candidate
+## 为什么“有 JSON、有编号”仍然不够
 
-Retriever 为当前问题找到的候选。它可能通过 Lexical、Dense 或两路 RRF 进入最终检索结果，但仍可能在 Context Builder 中被去重、压缩或丢弃。
+一个简单方案是：让模型输出 JSON，解析成功后直接把 `citations[].source_id` 做成链接。它省掉了一次本地检查，却把一个概率性字符串误当成系统事实。
 
-### Citation Candidate
+模型生成 `source_id` 和生成标题、理由没有本质区别。它可能：
 
-Context Engineering最终 included 的 Evidence 来源。它满足两项事实：
+- 按自己的习惯缩写一个真实 ID；
+- 抄写 Evidence 标题而不是稳定身份；
+- 混入另一轮对话见过的编号；
+- 在空 Evidence 时编造一个看似合理的来源；
+- 输出完全不存在的字符串。
 
-- 模型在本轮输入中真的看到了它；
-- 应用允许模型使用它的 `source_id` 作为来源声明。
+Structured Output 可以把字段限制为字符串，却不能仅凭一个固定 Schema 知道“本轮允许哪几个字符串”。允许集合来自这一次 Context 装入，下一次运行可能不同。
 
-它还没有和某条具体风险建立支持关系。
-
-### Claimed Citation
-
-模型输出中的：
-
-```json
-{"source_id": "chunk-api"}
-```
-
-这只是模型的一次声明。模型能够生成任何字符串，即使 Structured Output 已经限制 `source_id` 必须是字符串，也不能保证这个字符串来自本轮候选。
-
-### Validated Citation
-
-应用已经确认：来源存在、可定位、版本有效，而且它的内容确实支持当前结论。本节还没有交付这一层。
-
-所以必须避免下面这个跳跃：
+所以必须把两类事实分开：
 
 ```text
-模型写了 source_id
-        ✗
-界面立即显示“已验证依据”
+固定业务形状
+→ risk 有哪些字段，level 和 category 有哪些枚举
+
+本轮动态资格
+→ 哪些 source_id 真的进入了本轮 Evidence 并允许声明
 ```
 
-本节最多能显示“模型声明的来源候选”，并保留当前检查边界。
+前者由 Schema 表达，后者由 Context 装入报告和生成后的集合检查表达。
 
-## 本节怎样接上前面的数据
+## 沿同一份售后 Context 走完生成链
 
-前面每一步保留下来的信息，在这里进入一次真实生成：
+Context 装入已经完成：
 
 ```text
-文档解析与 Chunking
-资料 → 带稳定 chunk_id 和 locator 的 Chunk
-        ↓
-检索链
-Lexical + Dense + RRF → RetrievalResult
-        ↓
-Context Engineering
-ContextSource → BuiltContext + Citation Candidate
-        ↓
-本节
-Prompt v5 + Structured Output → ReviewRisk[]
-        ↓
-Citation Candidate membership check
-        ↓
-TrustedGenerationResult + TrustedGenerationReport
+Requirement
+订单详情页新增申请售后入口的 PRD 片段
+
+Evidence
+A：订单状态规则
+B：接口与客户端约束
+
+允许声明的来源
+[A.chunk_id, B.chunk_id]
 ```
 
-本节没有重新实现前面已有的能力：
+生成阶段不重新检索，也不重新决定预算。它按固定顺序推进：
 
-- `BuiltContext` 提供 Requirement、Evidence、History 和候选 ID；
-- `review.risk_review@5.0.0` 负责生成任务协议；
-- `LLMClient.chat_structured` 负责真实模型调用和结构化解析；
-- `ReviewRiskList` 定义结果形状；
-- `rag_core.generate_trusted_review` 负责组合这些对象并检查来源声明。
+```text
+BuiltContext
+  + ContextBuildReport
+  + citation candidate IDs
+        ↓
+Prompt 显式列出本轮允许 ID
+        ↓
+真实模型生成结构化响应
+        ↓
+本地 JSON / Schema 解析
+        ↓
+逐条检查 claimed source_id 是否属于允许集合
+        ↓
+TrustedGenerationResult
+  + TrustedGenerationReport
+```
 
-这依然是固定 Pipeline。执行顺序由应用预先写好，模型没有决定是否调用 Retriever，也没有 Tool 或 Agent Loop。
+这仍然是固定 Pipeline。应用预先决定检索、装入、生成和检查顺序；模型没有决定是否调用 Retriever，也没有 Tool、Agent Loop 或动态补检索。
 
-## 生成边界接收什么，返回什么
+这条链有三道约束。它们不是重复检查，而是分别处理“模型应该怎样做”“输出是不是业务对象”和“本轮声明有没有越界”。
 
-可信生成只接收已经构建完成、带构建报告的 BuiltContext。它返回结构化风险、真实模型响应、实际模型输入、生成状态和来源声明报告。缺少构建报告时不能猜测哪些已保留来源具有引用资格，应直接暴露契约错误。
+## 第一道约束：Prompt 明确告诉模型允许声明什么
 
-这一步仍是固定 Pipeline：顺序由应用预先确定，模型还没有选择 Retriever、Tool 或循环行动的权力。
-
-## 第一道约束：Prompt 把候选 ID 明确列出来
-
-Context Engineering的 Evidence block 已经带有 source ID，但只让模型“自己从文本里找编号”不够明确。Prompt v5 会额外生成：
+Evidence block 中已经带有来源身份，但只让模型自己从长文本里寻找 ID 不够明确。生成 Prompt 会增加一段：
 
 ```text
 ## Allowed Citation Source IDs
-- chunk-order-rule
-- chunk-after-sale-api
+- A.chunk_id
+- B.chunk_id
 ```
 
-如果本轮没有 Citation Candidate，则是：
+如果 Context 中没有可引用 Evidence，则是：
 
 ```text
 ## Allowed Citation Source IDs
@@ -168,43 +134,45 @@ Context Engineering的 Evidence block 已经带有 source ID，但只让模型�
 Prompt 同时规定：
 
 - 只有依据 Current Evidence 的结论才添加 citation；
-- `source_id` 必须逐字选自 Allowed Citation Source IDs；
-- Requirement 是被评审对象，不能成为 citation；
-- Historical Context 只能提醒检查方向，不能成为 citation；
-- allowlist 为空时，所有 citations 必须为空；
-- 不确定时减少结论，不要生成未知 ID。
+- `source_id` 必须逐字选自允许集合；
+- Requirement 是被评审对象，不能引用自己证明自己；
+- History 只能提醒检查方向，不能证明当前规则；
+- 允许集合为空时，所有 citations 必须为空；
+- 不确定时减少结论，不生成未知 ID。
 
-这些规则解决的是“模型应该怎样做”。它们不能保证模型一定照做，所以 Prompt 是第一道防线，不是最终校验。
+这道约束让模型知道应该怎样做，也让实际 messages 可以被回查。但 Prompt 仍是发给概率模型的任务协议，不是权限检查。模型可能遵循，也可能忽略、缩写或改写。
 
-### 为什么 Requirement 风险可以没有 citation
+因此：
+
+```text
+Prompt 约束
+≠
+应用已经确认模型遵守
+```
+
+### Requirement 风险为什么可以没有 citation
 
 假设 Requirement 自己写着：
 
 ```text
-失败时区分网络错误和业务拒绝。
+失败时需要区分网络错误、业务拒绝和接口不可用。
 ```
 
-却没有说明两种失败分别如何展示。模型可以指出：
+却没有说明三种失败怎样映射到 UI。模型可以指出：
 
 ```text
-需求未定义网络错误与业务拒绝的交互反馈。
+需求没有定义不同失败类型的交互反馈。
 ```
 
-这是一条针对 Requirement 内部缺失的评审判断，不需要伪造一个外部来源。
+这条风险来自对 Requirement 自身完整性的评审，不需要伪造外部证据。Requirement 仍不能成为 citation，因为它是待检查对象。
 
-但如果模型声称：
+但如果模型声称“现行售后接口要求 `source_channel`”，它是在陈述外部规则，应当声明 B 的稳定身份。
 
-```text
-售后接口规定必须传 source_channel。
-```
+所以“没有 citation”不自动等于错误。本节只记录无 citation 风险数量，还没有语义判断每条风险是否本应依赖外部证据。
 
-这已经是在陈述外部规则，应当声明对应的 Current Evidence。
+## 第二道约束：Schema 只守住固定形状
 
-因此，“风险没有 citation”不自动等于错误；应用必须先区分它是在评审 Requirement 自身，还是在引用外部事实。当前本节只统计 `risk_without_citation_count`，还没有自动完成这种语义分类。
-
-## 第二道约束：Schema 检查输出形状
-
-真实调用使用 `ReviewRiskList`：
+真实模型输出要进入 `ReviewRiskList`：
 
 ```text
 ReviewRiskList
@@ -218,69 +186,90 @@ ReviewRiskList
         └── excerpt?: string
 ```
 
-当 Provider 支持时，`json_schema` 会把 Pydantic 生成的 Schema 作为严格 response format 发给模型。若 Provider 只支持 JSON object，可以显式选择 `json_object`，然后仍由本地解析器校验字段和枚举。
-
-无论使用哪种模式，本地都会经历：
+Provider 支持时，应用可以请求严格 JSON Schema；只支持 JSON object 时，也要在本地继续校验字段、类型和枚举。无论模型侧模式是什么，本地都要经过：
 
 ```text
-模型文本
-  ↓ JSON 解析
-Python 对象
-  ↓ ReviewRiskList / ReviewRisk 校验
-ReviewRisk[] 或 parse failure
+模型返回文本
+  ↓
+JSON 解析
+  ↓
+ReviewRiskList 校验
+  ↓
+ReviewRisk[] 或明确的 parse failure
 ```
 
-解析错误会保留发生阶段：
+失败阶段必须保留：
 
-| `parse_error_stage` | 含义 |
+| 阶段 | 含义 |
 | --- | --- |
-| `empty` | 模型没有返回内容 |
+| `empty` | Provider 返回的内容为空 |
 | `json` | 内容不是支持的 JSON 根结构或 JSON 语法错误 |
-| `schema` | JSON 可解析，但字段、枚举或类型不符合业务 Schema |
+| `schema` | JSON 可解析，但字段、类型或枚举不符合业务 Schema |
 
-解析失败时，`result.risks` 为空，状态是 `structured_output_invalid`。应用不能把原始字符串继续当成成功评审结果。
+解析失败时，原始字符串不能继续作为正式评审结果。应用返回空的结构化 risks，并把状态标为 `structured_output_invalid`。
 
-### 为什么 Schema 不能顺便校验本轮 source ID
+### 为什么不把本轮 ID 直接写成 Schema 枚举
 
-业务 Schema 只能规定 `source_id` 是字符串，但 `chunk-order-rule` 和 `chunk-after-sale-api` 是本轮检索与 Context 构建后才产生的动态集合。Schema 知道 `source_id` 必须是字符串，却不知道这一次只允许哪几个字符串。
-
-理论上可以为每次调用动态生成枚举 Schema，但当前项目没有采用这种设计。当前实现保持稳定业务 Schema，并在解析后执行动态集合检查。这两个职责因此分开：
+理论上可以为每次调用动态生成 `source_id` 枚举 Schema，但当前实现没有把动态 Evidence 资格混入稳定业务 Schema。它采用两步：
 
 ```text
-Schema                 → 这个字段是不是合法字符串
-Candidate membership  → 这个字符串是不是本轮允许的 ID
+Schema
+→ source_id 是不是合法字符串
+
+membership check
+→ 这个字符串是不是本轮允许的 ID
 ```
 
-## 第三道约束：应用逐项检查来源声明
+这种分层让 Review Schema 在不同 Context 间保持稳定，同时把动态集合及其报告放在生成边界。即使未来采用动态枚举，应用仍要保留本轮允许集合、原始声明和最终检查事实，不能只依赖模型侧约束。
 
-结构解析成功后，应用逐条遍历风险和 Citation，判断声明的 `source_id` 是否属于本轮 Citation Candidate 集合。每次检查都要保留风险位置、Citation 位置、原始 ID 和判断状态，使未知来源能够定位到具体声明。集合成员检查只确认 ID 合法，不判断内容是否支持结论。
+## 第三道约束：应用逐条检查来源声明
 
-### 为什么不能按标题自动猜来源
+结构解析成功后，模型输出中的来源编号才第一次成为一个需要检查的对象。可以把它叫作 **Claimed Citation**：模型声称某个来源支持当前风险，但应用还没有接受这个声明。
 
-假设真正候选 ID 是：
+应用遍历每条 risk 的每个 citation，比较：
 
 ```text
-chunk_f34162ec83acabe4
+claimed source_id ∈ citation candidate IDs ?
 ```
 
-模型却输出：
+每次检查保留：
+
+- risk 的位置和标题；
+- citation 在该风险中的位置；
+- 模型原始 `source_id`；
+- `candidate` 或 `unknown_source` 状态。
+
+例如：
 
 ```text
-API-AFTER-SALE-V2
+risk 1, citation 1
+API-AFTER-SALE-V2 → unknown_source
 ```
 
-它看起来可能像接口文档标题，但应用不能自动找“最相似”的来源并替换。否则会把模型的无效声明篡改成看似合法的 Citation，用户再也分不清原始输出和应用猜测。
+`candidate` 的准确含义只有一句：
 
-正确做法是：
+> 这个原始 ID 属于本轮 Context 允许声明的来源集合。
 
-- 保留模型原始 `source_id`；
-- 标记为 `unknown_source`；
-- 将整次结果置为非成功状态；
-- 再从 Prompt、Evidence 格式或模型能力层定位原因。
+它不表示 excerpt 存在，不表示来源内容支持当前风险，也不表示证据充分。
 
-## 三种状态是怎样得到的
+### 为什么不能按标题自动修复未知 ID
 
-当前 `GenerationStatus` 只有三种：
+如果模型写出 `API-AFTER-SALE-V2`，而真实候选是 `B.chunk_id`，应用不能搜索标题或相似文本并自动替换。那会把模型的无效声明篡改成看似合法的 Citation，原始失败也从报告中消失。
+
+正确处理是：
+
+```text
+保留 API-AFTER-SALE-V2
+→ 标记 unknown_source
+→ 本次生成不能成为业务成功结果
+→ 回查 Prompt、Context 和模型行为
+```
+
+稳定身份的价值就在这里：资料、检索候选、Context Source 和来源声明必须使用同一个 `chunk_id`，不能在生成末端靠人类可读简称重新猜一次身份。
+
+## 三种生成状态怎样得到
+
+来源检查只在结构解析成功后发生：
 
 ```text
 parse ok?
@@ -290,90 +279,55 @@ parse ok?
     └── 不存在 unknown      → succeeded
 ```
 
-| 状态 | 确定知道什么 | 本节应怎样处理 |
+| `GenerationStatus` | 当前确定知道什么 | 不能推出什么 |
 | --- | --- | --- |
-| `succeeded` | 结构合法；所有已声明的 source ID 都属于候选 | 可以作为本节生成结果，但不能标成已验证 Citation |
-| `structured_output_invalid` | 模型结果未通过 JSON / Schema 解析 | 生成失败，不进入业务成功结果 |
-| `unknown_citation_source` | 结构合法，但至少一个声明不在 allowlist | 生成失败，不能把未知 ID 做成可信链接 |
+| `structured_output_invalid` | 模型响应没有通过 JSON / Schema 解析 | Retriever、Context 或业务资料一定错误 |
+| `unknown_citation_source` | 结构合法，但至少一个声明不在 allowlist | 合法声明的内容已经得到支持 |
+| `succeeded` | 结构合法，所有已声明 ID 都属于本轮候选 | 所有需要证据的风险都有 citation，或 Citation 已验证 |
 
-### 一个容易忽略的逻辑：没有 citation 也可能 `succeeded`
+`TrustedGenerationReport` 同时保存 Prompt、模型配置、Structured Mode、allowlist、Evidence 状态、解析阶段、风险数量、无 citation 数量和每个声明的检查。
 
-集合检查只检查“已经声明的 citation”。如果一条或多条风险完全没有 citation：
+报告还固定声明边界：
+
+```text
+candidate_membership_only_not_support_validation
+```
+
+它防止调用方把 `candidate_claim_count=2` 改写成“两条引用正确”。本文交给后续能力的是模型风险、原始声明和成员检查报告；只有内容支持关系确认后，才能形成经过支持性校验的 Citation。
+
+## 三个必须保留的边界反例
+
+### 没有 citation 仍可能 `succeeded`
+
+集合检查只检查已经声明的 citation。如果模型输出两条风险，但 citations 都为空：
 
 ```text
 claimed_citation_count = 0
 unknown_source_count = 0
 ```
 
-只要结构解析成功，当前状态仍是 `succeeded`。
+结构合法时，当前状态仍可能是 `succeeded`。
 
-这不表示系统已证明“这些风险不需要证据”，也不表示模型正确执行了 Prompt。它只表示：没有出现未知来源声明。
+这只表示没有未知来源声明，不表示应用已经证明这些风险都不需要外部证据。判断“某条外部事实是否遗漏 citation”需要理解风险内容和证据需求，超出了集合成员检查。
 
-因此下面两个判断不能混淆：
+### 空 allowlist 不自动等于 Refusal
 
-```text
-所有 claimed IDs 都合法
-≠
-所有需要外部证据的结论都提供了 citation
-```
-
-后一个判断需要理解风险内容和证据需求，属于证据充分性与生成评估边界。
-
-## `TrustedGenerationReport` 怎样避免过度宣称
-
-报告会记录：
-
-- `prompt_ref`、`config_ref` 与 `structured_mode`；
-- `citation_candidate_ids`；
-- 当前 `evidence_state`；
-- parse 是否成功及错误阶段；
-- risk 总数和无 citation 的 risk 数量；
-- claimed citation 总数；
-- candidate / unknown 数量；
-- 每个声明的逐项检查；
-- `citation_boundary`。
-
-当前 `citation_boundary` 固定为：
-
-```text
-candidate_membership_only_not_support_validation
-```
-
-它的中文含义是：
-
-> 只检查来源声明是否属于本轮 Citation Candidate，不检查来源内容是否支持该风险。
-
-这个字段不是注释，而是报告语义的一部分。看到 `candidate_claim_count = 3` 时，只能说“3 个声明来自本轮候选”，不能改写成“3 条引用正确”或“3 条风险有证据支持”。
-
-## 空 Evidence 时，系统实际完成了什么
-
-当 `citation_candidate_ids` 为空时，报告的：
+当 Context 没有可引用 Evidence 时：
 
 ```text
 evidence_state = no_citation_candidates
+allowlist = []
 ```
 
-它可能由不同上游原因造成：
+上游可能是 Retriever 没有候选，也可能是候选在 Context 装入时全部被丢掉，还可能只有不可引用的 History。生成层不会重新猜测原因，只把空集合明确交给 Prompt。
 
-- Retriever 没有最终候选；
-- 候选在 Context Builder 中全部被去重、策略排除或预算丢弃；
-- 本轮只有 History，没有可引用的 Current Evidence。
+空集合下：
 
-生成层不会重新猜测原因，只把空 allowlist 和 Context 一起交给 Prompt，并要求 citations 为空。
+- 模型仍可以指出 Requirement 自身明确缺失；
+- 任何 claimed source ID 都会成为 `unknown_source`；
+- 一条无 citation 的外部事实可能暂时逃过 membership 检查。
 
-模型仍然可以针对 Requirement 本身指出明确缺失或矛盾。例如 Requirement 要求区分错误类型，却没有定义 UI 行为；这是评审输入本身可见的问题。
-
-模型不可以在空 Evidence 时声称：
-
-```text
-接口错误码是 CLIENT_PARAM_INVALID。
-```
-
-因为这个事实既不在 Requirement，也没有外部 Evidence 支持。
-
-当前实现会检查空 allowlist 下模型是否编造了 source ID：任何 citation 都会成为 `unknown_source`。但如果模型写了一条无 citation 的外部事实，本节的集合检查看不出来。
-
-这正是为什么：
+所以：
 
 ```text
 NO_CITATION_CANDIDATES
@@ -382,239 +336,143 @@ NO_CITATION_CANDIDATES
 ≠ 所有无 citation 结论都合理
 ```
 
-完整 Refusal、补充问题和证据充分性策略在后续 Citation 支持性建立。
+是否拒绝强结论、提出什么补充问题，需要独立的证据充分性策略。
 
-## 一个合法 ID 仍可能引用错误内容
+### 合法 ID 搭配错误内容仍可能 `succeeded`
 
-假设候选 `chunk-api` 的真实内容是：
+假设 B 的真实内容是：
 
 ```text
-售后接口需要 order_id。
+售后接口 v2 必须提供 source_channel。
 ```
 
 模型却输出：
 
 ```json
 {
-  "title": "必须传 source_channel",
-  "rationale": "接口要求来源渠道",
-  "citations": [
-    {
-      "source_id": "chunk-api",
-      "excerpt": "必须传 source_channel"
-    }
-  ]
+  "source_id": "B.chunk_id",
+  "excerpt": "售后接口允许省略 source_channel。"
 }
 ```
 
-`chunk-api` 确实属于本轮 allowlist，所以当前状态会是 `succeeded`。但这条 excerpt 并不存在，来源内容也不支持该结论。
+ID 属于 allowlist，因此 membership 可以通过。但 excerpt 不在原文中，含义也与真实规则相反。
 
-本节没有检查：
+当前机制没有检查：
 
-- excerpt 是否出现在来源原文；
-- 引用定位是否仍对应正确版本；
-- 证据是否蕴含、支持或反驳风险；
-- 一条风险的证据是否充分；
+- excerpt 是否能回到来源原文；
+- 证据是否支持、反驳或只与风险主题相关；
+- 文档版本和定位是否仍有效；
+- 一条风险是否获得足够证据；
 - 多条证据之间是否冲突。
 
-这个例子不是代码 bug，而是当前机制刻意保留的能力边界。若正文把 `candidate` 翻译成“引用正确”，就会把尚未实现的后续 Citation 支持性能力写成成功事实。
+这个例子不是集合检查的代码 bug，而是它刻意保留的责任边界。
 
-## 为什么真实实验要比较三种 Context
+## 从未知声明反向定位第一次偏离
 
-只运行“正确 RAG Evidence”很难判断模型究竟是在使用证据，还是看见任意 Evidence 后就变得更肯定。
-
-当前实验对同一个 Requirement 构造三组 Context：
-
-```text
-同一个售后 Requirement
-├── rag_evidence
-│   └── 真实 Retriever 找到的售后规则
-├── normal_noise
-│   └── 合法格式但只描述营销活动入口的 Evidence
-└── empty_evidence
-    └── 没有 Citation Candidate
-```
-
-三组都调用真实模型，不使用预写的模型答案。
-
-### `rag_evidence` 观察什么
-
-它经过真实 Loader、Chunker、PostgreSQL FTS、pgvector、RRF 和 Context Builder。观察模型是否使用真正属于本轮售后证据的 ID。
-
-### `normal_noise` 观察什么
-
-这条材料的身份和格式都合法，也被明确放进 Evidence，但内容只描述营销活动入口。它用于观察模型会不会把“任意合法 Evidence”错误当成当前需求依据。
-
-注意：noise 是生成层的对照探针，不是 Retriever 自然召回结果。它不会写入售后知识范围，也不能用来证明 Metadata Filter 失效。
-
-### `empty_evidence` 观察什么
-
-它用于观察 allowlist 为空时模型是否保持 citations 为空，以及模型会不会仍然编造外部资料事实。
-
-三组对照的重点不是比较 risk 数量谁最多，而是观察：
-
-- 外部事实是否随着 Evidence 内容合理变化；
-- claimed IDs 是否都属于各自 Context 的 allowlist；
-- normal noise 是否被错误引用来支持售后结论；
-- empty evidence 是否出现未知 ID；
-- 无 citation 风险究竟是在评审 Requirement，还是在陈述无依据外部事实。
-
-最后两项仍需要学习者阅读输出或后续 Eval，不能只靠 membership 数量自动判断。
-
-## 真实生成对照应该验证什么
-
-同一生成入口应分别接收真实 RAG Evidence、正常但无关的噪声和空 Evidence。对照时观察结构化结果、声明的来源 ID、membership 校验和最终状态，不能只看语言是否流畅。运行、日志、单 variant、Provider 兼容与排障见[配套实验](../labs/trusted-generation.md)。
-
-## 一个完整 bad case 怎样从后往前定位
-
-表现如下：模型返回一条接口风险，声明 `API-V2`，但界面无法打开这个来源，生成状态是 `unknown_citation_source`。
-
-不要只改 Prompt。按链路检查：
-
-### 1. 先看模型究竟输出了什么
-
-从 `TrustedGenerationReport.claim_checks` 找到：
-
-```text
-risk 1, citation 1
-API-V2 → unknown_source
-```
-
-确认不是 UI 丢字段，也不是显示层拼错 ID。
-
-### 2. 看本轮 allowlist
-
-检查本轮报告保存的 Citation Candidate ID 集合
-
-若真实候选是稳定 Chunk ID `chunk_f34162ec83acabe4`，而模型写了文档简称 `API-V2`，membership check 的失败是正确的。
-
-### 3. 看最终 Prompt
-
-检查 `result.messages` 中的 Allowed Citation Source IDs 是否真的包含稳定 ID。若候选报告里有、Prompt 里没有，问题在变量装配或模板渲染；若 Prompt 里有但模型仍改写了 ID，问题更接近 Prompt 遵循或模型能力。
-
-### 4. 再回查 Context Builder
-
-如果你原本期待 `API-V2` 对应的来源进入，却根本不在 allowlist，回到Context Engineering看它是否：
-
-- 被映射成 History；
-- 因预算 dropped；
-- 因重复内容被去重；
-- 不是 current evidence。
-
-### 5. 必要时才回查 Retriever
-
-如果 Context 候选池里从未出现这条来源，再查 RetrievalReport。不要因为模型声明了一个听起来合理的名字，就反向假定 Retriever 曾经找到它。
-
-这条定位链可以写成：
+假设最终状态是 `unknown_citation_source`，模型写了 `API-V2`。不要直接修改 Prompt，也不要从数据库重新调 Embedding。按相反方向回查同一条链：
 
 ```text
 claim check
-→ allowlist
+→ 本轮 allowlist
 → rendered messages
 → ContextBuildReport
 → RetrievalReport
 ```
 
-它与前面“从 Retriever 向模型追踪来源”方向相反，但检查的是同一条可追踪链。
+第一步看原始声明和具体位置，确认不是 UI 改写或丢字段。
 
-## 真实依赖失败和结果失败不是一回事
+第二步看 allowlist。若真实候选只有 A、B 的稳定 `chunk_id`，那么把 `API-V2` 判为未知是正确结果。
 
-`generate_trusted_review` 返回的三种 `GenerationStatus` 都发生在 Provider 已经返回响应之后。
+第三步看最终 messages：候选报告里有 B，但 Allowed Citation Source IDs 没有 B，问题在变量装配或模板渲染；messages 已明确列出 B，但模型仍缩写，问题更接近 Prompt 遵循或模型能力。
 
-下面这些失败则可能直接抛出 `LLMError`：
+第四步才看 Context 装入。原本期待的来源没有进入 allowlist，可能因为它被映射成 History、因 Evidence 预算被丢掉、被去重或不具备当前证据资格。
 
-- API key 缺失或鉴权失败；
-- 限流或网络超时；
-- endpoint / model 不存在；
+只有 Context 候选池里从未出现该来源时，才继续回查 Retriever。模型写出的字符串不能反向证明 Retriever 曾经找到它。
+
+## 结果失败和真实依赖失败不是一层
+
+三种 `GenerationStatus` 都以 Provider 已经返回响应为前提。下面这些失败发生得更早：
+
+- Chat key 缺失或鉴权失败；
+- 限流、网络超时或 Provider 5xx；
+- endpoint 或 model 不存在；
 - 配置角色不是 chat；
-- Provider 不支持所选 structured response format。
+- Provider 不支持所选 Structured Output 模式。
 
-因此运行层至少要区分：
+因此完整异常边界是：
 
 ```text
-模型调用没有成功
+模型调用没有完成
   → LLMError / dependency failure
 
-模型调用成功但内容无法进入程序
+模型返回内容但不能进入业务对象
   → structured_output_invalid
 
-内容结构合法但来源声明越界
+业务对象合法但来源声明越界
   → unknown_citation_source
 
-结构与已声明 ID 都通过本节边界
+结构与已声明 ID 通过当前边界
   → succeeded
 ```
 
-把鉴权失败转换成 `risks=[]` 会制造“模型认为没有风险”的假象；把 parse failure 的原文直接展示成正式报告，则绕过了应用 Schema。两种做法都会破坏可观察边界。
+把鉴权失败转换成 `risks=[]`，会伪装成“模型认为没有风险”；把 parse failure 的原始字符串显示成正式报告，会绕过业务 Schema。真实失败必须继续向调用方暴露。
 
-## 确定性验证能证明什么
+## 当前实现怎样承载这条机制
 
-确定性验证可以证明状态推导、结构契约、逐项来源 membership 和诊断报告符合规则；它不能证明引用内容真正支持结论，也不能证明 Evidence 已经充分。后两项需要独立的 Citation 支持性和证据充分性机制。
+本节没有引入 Agent 框架。实现使用成熟 Provider SDK 发出结构化 Chat 请求，使用 Pydantic Schema 完成本地解析，再由 `rag_core` 的确定性代码做动态集合检查。
 
-## SDK 和框架封装不了哪些业务判断
+职责分层是：
 
-模型 SDK、Pydantic 和各种 RAG 框架可以帮助我们：
+| 层次 | 当前责任 | 不替应用决定什么 |
+| --- | --- | --- |
+| Provider / SDK | 鉴权、请求传输、结构化响应能力、原始响应 | Requirement、Evidence 资格和未知 ID 业务后果 |
+| `llm_core` | 模型配置、Prompt 渲染、Structured Output 和错误转换 | 哪些 Chunk 是本轮 Citation Candidate |
+| Context Builder | 分区、预算、included/dropped 和允许声明的来源 | 模型是否真的遵循来源要求 |
+| `rag_core` 生成边界 | 组合已有对象、逐条检查声明、形成结果与报告 | 内容支持性、充分性和 Refusal 策略 |
+| 需求评审助手领域 | Review Schema、Prompt、证据与后续拒答规则 | Provider 的底层协议实现 |
 
-- 发送 messages；
-- 请求 JSON object 或 JSON Schema；
-- 解析业务对象；
-- 组织 Retriever 与 Context；
-- 保存 token、latency 和原始响应。
+成熟框架或 SDK 可以帮助发送 messages、请求 JSON Schema、解析对象和保留 usage、latency，却不知道 Requirement 为什么不能引用自己、History 为什么不能证明当前规则、未知 ID 是否应让整次结果失败，以及空 Evidence 时产品应回答、拒绝还是追问。
 
-但它们不会自动知道：
+本地实现只补充这些应用契约，不重写 Provider SDK，也不建立第二套 RAG 或 Agent Runtime。
 
-- Requirement 为什么不能成为 Citation；
-- History 为什么只能辅助而不能证明当前规则；
-- 本轮哪些 included source 具备引用资格；
-- 未知 ID 是否应该让整次业务结果失败；
-- 一条无 citation 风险是否只基于 Requirement；
-- 某条证据是否真正支持当前风险；
-- 空证据时应该继续评审、拒答还是追问。
+## 固定 RAG 核心链到这里闭环
 
-这些是需求评审助手的证据责任和阶段边界，必须由应用契约、代码与后续 Eval 共同建立。
-
-## 到本节，固定 RAG 学到了什么程度
-
-完成固定 RAG 核心链，并亲自运行实验、解释报告、定位边界和完成修改题后，可以称为：
-
-> 完成固定 RAG 核心机制入门。
-
-此时你已经能解释：
+现在可以沿同一份售后资料画出完整主链：
 
 ```text
 外部资料
-→ 可追踪 Chunk
-→ Lexical + Dense + RRF
-→ 可诊断 RetrievalResult
-→ 受预算控制的 BuiltContext
+→ 可定位的 DocumentElement
+→ 带稳定身份和 Metadata 的 Chunk
+→ Lexical / Dense 两路候选
+→ RRF 融合
+→ 带过程报告的 RetrievalResult
+→ 受 Evidence 预算控制的 BuiltContext
 → 真实结构化生成
-→ Citation Candidate membership report
+→ 模型声明是否属于本轮允许集合
 ```
 
-但“本节读完”不等于“RAG 全部掌握”。还需要：
+这条链已经回答：一条业务规则怎样从文件进入可检索单位，怎样成为最终候选，怎样进入模型本轮输入，以及模型写出的来源身份有没有越界。每一步都保留了能向前或向后追踪的身份、状态和报告。
 
-- 第一阶段后续：Citation 内容支持性、来源定位、证据充分性、Refusal、补充问题、API、Web 工作台、固定对照、最小评估和阶段验收；
-- 第二阶段：需要动态决策时，再进入 Query Rewrite、Source Routing、Retriever as Tool 和单 Agent RAG；完整 Trace、回归、bad case 与反馈在第二阶段后部收束。
+但核心链闭环不等于固定 RAG 产品已经完成，更不等于所有 RAG 能力已经掌握。当前交货仍停在：
 
-判断自己是否“掌握”，不看读了多少篇，而看能否解释、验证、修改、调试和取舍这条链。
+```text
+结构化风险
++ 模型原始来源声明
++ Citation Candidate membership report
++ 明确的 citation_boundary
+```
+
+合法 ID 之后还要判断内容是否支持风险；部分引用正确之后，还要判断证据是否足以形成强结论；产品还要把这些结果、缺口和真实错误通过稳定 API 与界面交付。这些能力继续建立在同一条身份和证据链上，而不是回头重做另一套 Retriever。
 
 ## 学完后的自检
 
-先不看正文，回答：
+选模型输出中的一条 citation，只追踪它：
 
-- 为什么 JSON Schema 通过后，`source_id` 仍可能是模型编造的？
-- Source、Retrieved Candidate、Citation Candidate、Claimed Citation 和 Validated Citation 分别是什么？
-- `candidate` 状态具体证明了什么，又没有证明什么？
-- 为什么 Requirement 内部缺失风险可以没有 citation？
-- 为什么无 citation 风险仍可能让当前本节状态成为 `succeeded`？
-- 空 Evidence 时，为什么不能简单理解成“模型必须什么都不说”？
-- 合法 source ID 搭配虚假 excerpt 时，当前机制为什么仍可能通过？
-- `unknown_citation_source` 为什么不能自动按标题匹配一个来源？
-- `LLMError`、`structured_output_invalid` 和 `unknown_citation_source` 分别发生在哪一层？
-- normal noise 对照能观察什么，不能证明什么？
+1. 在 `BuiltContext` 的允许集合中找到真实 `chunk_id`；
+2. 在渲染后的 Prompt 中确认它被逐字列出；
+3. 在模型原始结构化输出中找到 Claimed Citation；
+4. 在逐条检查中确认它是 `candidate` 还是 `unknown_source`；
+5. 根据 parse 与 unknown 数量推出 `GenerationStatus`；
+6. 最后说清这条声明距离“内容真正支持风险”还缺什么。
 
-再做一次完整追踪：从一条 `Citation Candidate` 开始，在渲染后的 allowlist 中找到它，运行真实模型，找到对应 Claimed Citation 和 `CitationClaimCheck`，最后说出它距离 Validated Citation 还缺哪一步。
-
-如果你能完成这条追踪，并且不会把 `succeeded` 解释成“引用内容已验证”，就完成了本节的核心目标。
-
-后续还需要完成 Citation 支持性和证据充分性，再把这条固定 RAG 核心链交付为 API、Web 工作台和可比较的第一阶段产品基线。阅读顺序仍以[标准学习路径](../learning-path.md)为准。
+如果能够完成这条追踪，并且不会把 `succeeded` 解释成“引用已经验证”或“证据已经充分”，就掌握了固定 RAG 核心链最后一段的机制。

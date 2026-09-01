@@ -68,8 +68,8 @@
     “数据库中存在”不等于最终 Retriever 一定返回。本节固定过滤、每路候选、阈值、融合和最终截断的控制顺序，并在[Retriever 诊断实验](labs/retriever-contract.md)中定位候选在哪一层消失。
 15. **[检索名单怎样变成模型本轮 Context](mechanisms/context-engineering.md)** · 可学习
     Retriever 找到候选后，应用还要把名单装成模型本轮真正看到的 Context。本节先说明 Evidence 是专门放外部依据的那一格，再用同一组 A、B 走完映射、分区预算和允许声明的来源，不调用生成模型；配套[Context 实验](labs/context-engineering.md)只改变 Evidence 格子观察去向。
-16. **[可信生成、Sources、Citation Candidate 与证据不足](mechanisms/trusted-generation.md)** · 可学习
-    模型写出来源编号仍不能证明结论获得支持。本节解释候选来源、模型声明和应用校验的分层；当生成走真实流式调用时，还要区分增量解析出的未校验局部结果与生成完成后的最终校验结果，二者在界面上不能混淆。配套[可信生成实验](labs/trusted-generation.md)观察正常证据、噪声和空证据下的结构化结果。
+16. **[模型写了来源编号，为什么还不能直接相信](mechanisms/trusted-generation.md)** · 可学习
+    Context 已经交出模型本轮可见的 Evidence 和允许声明的来源，但模型仍可能改写或编造编号。本节沿“Prompt 明示允许集合 → Structured Output → 本地解析 → 逐条成员检查”生成结构化风险，准确区分 `succeeded`、结构失败和未知来源，并收住第 7–16 节固定 RAG 核心链；配套[来源声明集合检查实验](labs/trusted-generation.md)冻结上游，只改变真实 RAG Evidence、正常噪声和空 Evidence。
 
 ## 完成可信 RAG 与产品交付
 
@@ -208,7 +208,7 @@
 63. **长期偏好记忆、确认与治理** · 待编写
     本节只保存用户明确确认的跨会话偏好，记录来源、作用域和版本，支持查看、更新、删除和关闭；偏好不能冒充业务证据。
 64. **Token Stream 与 Event Stream 的边界** · 待编写
-    Token 只表示文本增量，Agent 还需要表达 Tool、证据、等待、错误和停止。本节建立两类 Stream 的边界和组合方式，并与第一阶段第 16、22 节已经使用的结构化增量流式做区分：那里只有一次生成调用的局部字段推送，这里要表达多步骤 Agent 循环中的异构事实。
+    Token 只表示文本增量，Agent 还需要表达 Tool、证据、等待、错误和停止。本节建立两类 Stream 的边界和组合方式，并与第一阶段第 22–24 节的一次结构化生成调用做区分：那里推送未校验的局部字段并用最终校验结果替换，这里要表达多步骤 Agent 循环中的异构事实。
 65. **Agent Event 类型、身份、顺序与版本** · 待编写
     本节完善事件信封、`run_id`、序号、时间、事件类型和版本，使框架、Tool、产品后端和 UI 能解释同一运行事实。
 66. **取消、重复消费、迟到结果与一致性** · 待编写
