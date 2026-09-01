@@ -40,7 +40,7 @@
 | pgvector、Dense Retrieval 与 ANN | 主线 | 第一阶段 | 区分 Embedding 服务与向量存储，在数据库中保存同一空间的向量，建立 exact 基线后再理解 ANN 的收益与边界 | Embedding、PostgreSQL | [机制](mechanisms/vector-store-and-pgvector.md) · [实验](labs/vector-store-and-pgvector.md) | 产品必接；`rag_core/retrieval` 与 pgvector |
 | 多路召回与 RRF | 主线 | 第一阶段 | 将不可直接相加的多路排名按统一候选身份融合，并保留路线贡献 | Lexical、Dense | [机制](mechanisms/multi-retrieval-and-rrf.md) · [实验](labs/multi-retrieval-and-rrf.md) | 产品必接；`rag_core/retrieval` |
 | Top-k、阈值、Filter 与诊断 | 主线 | 第一阶段 | 固定过滤、每路候选、阈值、融合和截断顺序，解释候选在哪层消失 | 多路召回 | [机制](mechanisms/retriever-contract.md) · [实验](labs/retriever-contract.md) | 产品必接；Retriever Contract |
-| Context 装配、预算与 Compression | 主线 | 第一阶段 | 从候选池选择模型本轮可见材料，保留来源并控制去重、分区和预算 | Retriever Contract | [机制](mechanisms/context-engineering.md) · [实验](labs/context-engineering.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
+| Context 装配、预算与 Compression | 主线 | 第一阶段 | 把检索名单装成模型本轮可见 Context；Evidence 是专门放外部依据的一格，装入时控制身份、分区预算和允许声明的来源 | Retriever Contract | [机制](mechanisms/context-engineering.md) · [实验](labs/context-engineering.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
 | 可信生成与 Citation Candidate | 主线 | 第一阶段 | 限制模型只能声明本轮候选来源，并区分模型声明与应用验证；生成阶段真实走流式调用时，还要区分增量解析出的未校验局部结果与生成完成后的最终校验结果，二者在界面上不能混淆 | Context、Structured Output | [机制](mechanisms/trusted-generation.md) · [实验](labs/trusted-generation.md) | 产品必接；`rag_core/generation` |
 | Citation 支持性 | 主线 | 第一阶段 | 判断被引用内容是否真正支持对应结论，合法 ID 不能代替语义支持 | 可信生成 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
 | 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题 | Citation 支持性 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |

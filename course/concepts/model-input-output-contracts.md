@@ -342,6 +342,6 @@ Schema 回答：
 
 - [Prompt Engineering](../mechanisms/prompt-engineering.md)
 - [Structured Output](../mechanisms/structured-output.md)
-- [Context Engineering](../mechanisms/context-engineering.md)
+- [检索名单怎样变成模型本轮 Context](../mechanisms/context-engineering.md)
 
 完成后回到 [标准学习路径](../learning-path.md)。

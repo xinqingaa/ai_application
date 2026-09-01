@@ -439,7 +439,7 @@ query + query_embedding + HybridRetrieverConfig
 
 它也不是 Agent：路线、顺序和停止条件都由应用预先固定，模型没有选择检索路线、改写 Query 或决定再次检索。
 
-## 本节向 Context Engineering 交付什么
+## 本节向 Context 装入交付什么
 
 完成本节后，第 11–13 节的候选能力已经收束为：
 

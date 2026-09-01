@@ -454,4 +454,4 @@ uv run pytest \
 - 从 demo 找到公共入口、核心控制步骤和测试。
 - 完成 final 上限修改题，并说明测试不能证明真实检索质量。
 
-完成后回到[机制正文](../mechanisms/retriever-contract.md)，用真实输出核对两个 Chunk 在五层控制中的实际去向，再由[标准学习路径](../learning-path.md)进入 Context Engineering。
+完成后回到[机制正文](../mechanisms/retriever-contract.md)，用真实输出核对两个 Chunk 在五层控制中的实际去向，再由[标准学习路径](../learning-path.md)进入[检索名单怎样变成模型本轮 Context](../mechanisms/context-engineering.md)。

@@ -66,8 +66,8 @@
     Lexical 和 Dense 各自返回有序候选，却没有可直接相加的统一分数。本节解释统一候选契约、排名融合和路线状态，并在[RRF 对照实验](labs/multi-retrieval-and-rrf.md)中手算贡献、改变候选数量并观察失败路线。
 14. **[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)** · 可学习
     “数据库中存在”不等于最终 Retriever 一定返回。本节固定过滤、每路候选、阈值、融合和最终截断的控制顺序，并在[Retriever 诊断实验](labs/retriever-contract.md)中定位候选在哪一层消失。
-15. **[Context Engineering：输入装配、预算与证据边界](mechanisms/context-engineering.md)** · 可学习
-    Retriever 找到候选后，应用仍要决定模型本轮真正看到什么。本节区分候选、Context、Prompt 和 Citation Candidate，解释分区、去重与预算，并在[Context 实验](labs/context-engineering.md)中观察来源信息怎样保留或丢失。
+15. **[检索名单怎样变成模型本轮 Context](mechanisms/context-engineering.md)** · 可学习
+    Retriever 找到候选后，应用还要把名单装成模型本轮真正看到的 Context。本节先说明 Evidence 是专门放外部依据的那一格，再用同一组 A、B 走完映射、分区预算和允许声明的来源，不调用生成模型；配套[Context 实验](labs/context-engineering.md)只改变 Evidence 格子观察去向。
 16. **[可信生成、Sources、Citation Candidate 与证据不足](mechanisms/trusted-generation.md)** · 可学习
     模型写出来源编号仍不能证明结论获得支持。本节解释候选来源、模型声明和应用校验的分层；当生成走真实流式调用时，还要区分增量解析出的未校验局部结果与生成完成后的最终校验结果，二者在界面上不能混淆。配套[可信生成实验](labs/trusted-generation.md)观察正常证据、噪声和空证据下的结构化结果。
 

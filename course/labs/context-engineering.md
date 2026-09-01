@@ -1,6 +1,6 @@
 # 从 RetrievalResult 到 BuiltContext
 
-> 这是 [Context Engineering：输入装配、预算与证据边界](../mechanisms/context-engineering.md)的实验篇。它直接接住[固定 Retriever 控制与诊断实验](retriever-contract.md)的真实 `RetrievalResult`，继续使用 `order_rules.md` 和 `surface_match=申请售后`，不更换材料制造更理想的 Context。
+> 这是 [检索名单怎样变成模型本轮 Context](../mechanisms/context-engineering.md)的实验篇。它直接接住[固定 Retriever 控制与诊断实验](retriever-contract.md)的真实 `RetrievalResult`，继续使用 `order_rules.md` 和 `surface_match=申请售后`，不更换材料制造更理想的 Context。
 
 本文只回答：怎样在真实 PostgreSQL、真实 Embedding 和固定 Retriever 上保持候选不变，只改变 Evidence 分区预算，观察同一条来源为什么 included、dropped，或者不再成为 Citation Candidate？
 

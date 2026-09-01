@@ -1,43 +1,43 @@
-# Context Engineering：输入装配、预算与证据边界
+# 检索名单怎样变成模型本轮 Context
 
-> 这是一篇机制篇。固定 Retriever 已经把过滤、每路候选、阈值、RRF 和最终截断收进 `RetrievalResult` 与 `RetrievalReport`。本文只向前推进一步：同一批最终候选怎样变成模型本轮真正可见、可定位、可声明来源的 `BuiltContext`。
+> 这是一篇机制篇。模型输入输出契约已经区分 Prompt、Context 和 Schema；固定 Retriever 也已经交出最终名单。本文只回答：同一批候选怎样变成模型这一轮真正看到的 Context。
 >
-> 学完后，你应该能从一条 `RetrievalResult.candidates` 候选追踪到 mapping、预算决定和 Citation Candidate，解释它为什么被保留、压缩或丢弃。本文不调用生成模型，也不判断某条结论是否真的获得证据支持。
+> 学完后，你应该能沿同一组 A、B 讲清谁被原样带入、谁因格子不够被丢掉，以及丢掉的那条为什么不能再被声明为来源。本文不调用生成模型，也不判断某条结论是否真的获得证据支持。完整命令和对照见[配套实验](../labs/context-engineering.md)。
 
-## Retriever 找到了，为什么还可能看不到
+## 名单有了，模型还不一定看得到
 
-继续固定同一份业务材料和同一个问题：
+继续使用同一份资料和同一个问题：
 
 ```text
 资料：order_rules.md
-dataset_version：rag-retrieval-exploration-1.0.0
-query_id：surface_match
 问题：申请售后
-范围：after_sale + reference_knowledge + current_evidence
 ```
 
-当前资料经同一 Chunk 策略形成两个候选单元：
+当前 Chunk 策略仍得到两个真实候选：
 
 | Chunk | 真实业务内容 |
 | --- | --- |
 | A：当前订单状态规则 | 仅已支付且已完成的订单可申请售后；虚拟商品不进入售后流程 |
 | B：接口与客户端约束 | 售后接口 v2 必须提供 `source_channel`；Flutter 客户端使用相同入口可见性规则 |
 
-在干净课程数据库和本节当前真实运行中，两路检索都成功，A、B 都进入了 `RetrievalResult.candidates`。这只证明 Retriever 把它们交给了下游，还不证明模型一定能看到两条。
+在干净课程数据库里，两路检索都会成功，A、B 都进入最终名单。这只证明 Retriever 把它们交给了下游，还不证明模型一定能看到两条。
 
-假设 Context 的 Evidence 分区只能容纳 A。装配结果会变成：
+Context 不是一整袋混在一起的文字。装入时要先分格，因为不同材料的职责不同：
+
+- **Requirement** 是本轮被评审的对象。这里就是问题「申请售后」。它告诉模型要评什么，但不能拿来证明自己正确。
+- **Evidence** 是本轮允许模型当作外部依据的材料。对需求评审助手来说，就是知识库里那些已经检索到、并且被标成「当前证据」的规则，例如 A 的订单状态条件和 B 的 `source_channel`。后文说 Evidence 格子或 Evidence 预算，指的都是给这些外部依据预留了多少输入空间。它不是「结论已经被证明」，只是 Context 里专门放依据的那一格。
+
+假设 Evidence 格子只能装下 A：
 
 ```text
-RetrievalResult.candidates = [A, B]
-→ A included
-→ B dropped: token_budget_exceeded
-→ BuiltContext 只包含 A
-→ Citation Candidate 也只包含 A
+最终名单 = [A, B]
+→ A 装入
+→ B 因格子不够被丢掉
+→ 模型这轮只看到 A
+→ 允许声明的来源也只剩 A
 ```
 
-此时如果后续模型没有谈到 `source_channel`，不能回到数据库盲调 Embedding。B 已经被检索到，只是在 Context 装配阶段离开了模型输入。
-
-这就是本节的核心区别：
+此时如果后续模型没有谈到 `source_channel`，不能回到数据库盲调 Embedding。B 已经被检索到，只是在装入 Context 时离开了模型输入。
 
 ```text
 Retriever 找到什么
@@ -45,360 +45,230 @@ Retriever 找到什么
 模型这一轮看到什么
 ```
 
-## 从 RetrievalResult 到 BuiltContext
+## 为什么不能把名单全文直接拼进 Prompt
 
-本节只追踪一条输入装配链：
+如果应用把最终名单直接拼进 Prompt，看起来少一步，却会丢掉装入必须回答的问题：
+
+- 这条材料还是原来的 Chunk，还是被临时改成了 `SOURCE-1`？
+- 用户能不能回到 `order_rules.md` 的原文位置核对？
+- 被评审的需求和外部依据是否挤在同一段文字里？
+- 名单太长时，谁被静默截断，谁应该明确丢掉？
+- 后面如何解释「模型为什么没引用 B」？
+
+所以需要一次显式装入：保留身份和原文位置，按格子装，并记下谁进谁出。简单拼接省掉的不是步骤，而是诊断。
+
+## 沿着 A、B 走完一次装入
+
+本节只走这一条链。先用自然语言看完去向，再对上实现名字。
 
 ```text
-RetrievalResult.candidates
-        ↓ 保留身份、位置和路线诊断
-Retrieval → Context mapping
-        ↓
-ContextSource 候选池
-        ↓ 类型过滤、去重、排序
-分区候选
-        ↓ 总预算、分区预算、单来源上限、可选压缩
-BuiltContext
-        ├── ContextBuildReport
-        └── Citation Candidate[]
+检索名单
+  → 原样映射
+  → 过滤、去重、排序
+  → 按总预算、分区预算、单条上限装入
+  → 模型本轮 Context
+       └── 允许声明的来源 ID
 ```
 
-`RetrievalReport` 仍解释候选怎样通过检索链；`ContextBuildReport` 解释候选怎样通过输入装配链。二者相邻，但不能合并成一个含义模糊的 `debug_info`。
+### 第一步：原样带入，不换号、不丢位置
 
-## 四个对象不能混成一个“上下文”
+名单上的 Chunk 进入装入单元时，继续使用原来的 `chunk_id`，并带上能指回原文的位置。适配层只转换契约，不重新检索，也不重做预算。
 
-### Retrieval Candidate
+同一条内容从入库到后面被声明，必须一直是同一个身份：
 
-`RetrievalResult.candidates` 是固定 Retriever 最终选中的 Chunk。它携带稳定 `chunk_id`、文档版本、原文位置、RRF 排名、路线贡献和证据资格。
+```text
+数据库 Chunk
+↔ 词面 / 向量候选
+↔ RRF 融合结果
+↔ 检索名单
+↔ 装入单元
+↔ 允许声明的来源
+```
 
-候选已经越过固定 Retriever 的 `final_top_k`，但尚未经过 Context 的类型、去重和预算控制。
+对当前资料，A 仍指向「当前订单状态规则」，B 仍指向「接口与客户端约束」，并且都能回到 `order_rules.md` 的对应标题和行。它们只是换了一张「可以装进 Context」的工牌。若临时改成 `SOURCE-1`、`SOURCE-2`，下次运行编号会漂，检索日志、装入报告和后面的来源声明就对不上。
 
-### ContextSource
+### 第二步：先看这批材料允许当什么
 
-`ContextSource` 是 Context Builder 能够处理的统一材料单元。它不仅保存正文，还保存来源身份、类型、优先级和 metadata。
+不是名单里的每条材料都能进 Evidence 格，更不是看见了就能被声明为来源：
 
-RAG 适配器把每个 Retrieval Candidate 映射成 `ContextSource`。这个适配层只转换契约，不重新检索，也不重新实现预算算法。
+| 材料资格 | 装进哪一格 | 装进去后能否被声明为来源 |
+| --- | --- | --- |
+| 当前证据 | Evidence | 可以 |
+| 历史材料 | History | 不可以 |
+| 不可用材料 | 明确排除 | 不可以 |
 
-### BuiltContext
+本节真实主路径的 A、B 都是当前证据：订单状态条件和 `source_channel` 都来自知识库，不是被评审的需求本身，因此都走向 Evidence 格。历史材料和不可用材料只用于确定性契约测试，不是 `order_rules.md` 里的新业务事实。
 
-`BuiltContext` 是应用允许模型本轮看到的最终材料。它包含 Requirement、最终 Evidence block、其他已允许分区、included/dropped 结果和构建报告。
+Requirement 始终单独一格，这里仍是「申请售后」。于是「模型看得到」和「模型允许声明为来源」从一开始就是两层判断。
 
-知识库有某条规则、Retriever 找到某条规则，都不能替代检查 `BuiltContext` 中是否真的存在该规则。
+### 第三步：去重并排好装入顺序
 
-### Prompt
+映射成功的材料先进入候选池，还不是最终输入：
 
-Prompt 规定模型应该怎样使用输入，例如“只能声明本轮允许的 source ID”。Context 决定模型拿到了哪些材料。
+```text
+装入单元
+  → 去掉当前策略不允许的类型
+  → 相同身份只留一份
+  → 正文相同的只留一份
+  → 按类型权重、优先级、分数和身份稳定排序
+```
+
+被排除的来源会留下原因，实验里常见这三项：
+
+- `source_type_excluded`：这一格不接收该类型；
+- `duplicate_source_id`：同一个身份出现了两次；
+- `duplicate_content`：身份不同，但正文相同。
+
+相同身份表示重复输入或冲突；不同身份但文本相同表示内容重复。内容去重能省格子，却不能替代文档版本治理：两份文字暂时相同，不代表有效期和来源责任相同。
+
+对当前这份资料，A、B 身份和内容都不同，排序后仍会按融合顺序进入 Evidence 格。干净基线不应靠内容去重让其中一条消失。若真实运行冒出旧的 `chunk_id`，先处理数据准备差异，再研究装入策略。
+
+### 第四步：按更紧的那把尺子装
+
+一次选择同时受三把尺子限制：
+
+```text
+可用空间 = min(总剩余预算, 当前格子剩余预算, 单条上限)
+```
+
+当前固定 RAG 主路径只用 Requirement 和 Evidence 两格。History 等格子可以空着，但分区规则仍然重要：低优先级材料不能因为总预算有空，就挤占 Evidence 这一格的责任边界。
+
+下面是机制推演，不是新的业务资料，也不是 Provider 计费结果。假设本地格式化后：
+
+```text
+Requirement「申请售后」   约 3 tokens
+A                        约 302 tokens
+B                        约 293 tokens
+总预算                    2200
+Evidence 格子             350
+```
+
+按融合顺序处理：
+
+1. Requirement 完整进入；
+2. A 需要约 302，没有超过 Evidence 的 350，因此装入；
+3. Evidence 只剩约 48，B 需要约 293；
+4. 当前策略不允许压缩，因此 B 被明确丢掉，原因是格子不够。
+
+总预算还剩一大截，B 照样走。真正卡它的是 Evidence 格子，不是 Retriever 漏召回，也不是总窗口耗尽。真实 token 数以实验当前 tokenizer 和格式化结果为准；这里的数字只用于把控制顺序说清楚。
+
+格子不够且策略允许压缩时，当前实现做确定性抽取，不另调一个模型改写：
+
+```text
+从 Requirement 提取关键词
+→ 按行和句子切开 Source
+→ 按与关键词的重合排序
+→ 在剩余格子里挑选原文片段
+→ 按原文顺序拼回
+```
+
+身份和 metadata 会留下，但业务条件不一定还在。若一个较长的接口 Chunk 同时写了 `source_channel`、入口规则和否定条件，抽取可能只留下与「申请售后」词面更近的句子。当前两个真实 Chunk 很短，主路径看不到这一步；压缩契约由受控测试验证，不靠伪造长文制造一次「压缩成功」。
+
+### 第五步：只有装进去的当前证据，才能被声明为来源
+
+装入结束后，从最终留在 Evidence 格里的当前证据产生允许声明的来源：
+
+```text
+当前证据
+  ├── 完整装入     → 可以声明
+  ├── 压缩后装入   → 可以声明，但必须再看格子里还剩什么
+  └── 被丢掉       → 不能声明
+
+历史材料 / 不可用材料
+  └── 即使模型看见，也不能当本轮来源
+```
+
+它只承诺两件事：这条依据确实在本轮 Context 里，以及后续模型可以声明它的身份。它不承诺模型一定会引用，也不承诺内容已经支持某条结论。
+
+在「Evidence 格子 = 350」这条推演里，A 进入允许声明的来源，B 不会。后续可信生成只会先检查模型写出的编号是否属于这个集合。
+
+走到这里，实现里的名字才需要对上，方便阅读代码和后续可信生成：
+
+| 人话 | 实现名 |
+| --- | --- |
+| 检索名单上的 Chunk | Retrieval Candidate |
+| 原样带入后的装入单元 | `ContextSource` |
+| 模型本轮真正看到的材料 | `BuiltContext` |
+| 允许声明的来源 | Citation Candidate |
+| 检索过程为什么剩下这些 | `RetrievalReport` |
+| 装入过程为什么留下这些 | `ContextBuildReport` |
+
+`ContextSource` 还是原来那条 Chunk，不是第二种检索结果。`BuiltContext` 里通常有：完整 Requirement、最终 Evidence 文本、其他已允许但当前为空的分区、谁被装入或丢掉，以及装入报告。里面有没有某条规则，不能用「知识库里有」或「名单里有」代替。
+
+## 装的时候有两条不能破的规矩
+
+**身份不能重编。** 从数据库 Chunk 到允许声明的来源，同一条内容必须继续使用同一个 `chunk_id`。额外材料也不能占用某个检索 Chunk 的身份；发生冲突时必须明确失败，不能让后加入的文字静默覆盖真实候选。
+
+**没有原文位置就不能装成可追踪依据。** 身份只回答「是哪条」，位置才回答「在 `order_rules.md` 的哪一段」。候选有 `chunk_id` 但没有原文跨度时，映射失败，不构造「位置未知」的 Evidence。否则后面即使声明了来源编号，用户也无法回到原文核对。
+
+检索过程仍看检索报告；装入决定另记一份报告。二者相邻，不要合成一个含义模糊的调试字段。
+
+## 容易混的几件事
+
+**Prompt 和 Context 不是一层。** Prompt 规定模型怎样使用材料，例如「只能声明本轮允许的来源」。Context 决定模型拿到了哪些材料。Prompt 写得再严，也补不回已经丢掉的 B。
 
 ```text
 Prompt：怎样做
 Context：拿什么做
 ```
 
-Prompt 写得再严格，也补不回 Builder 已经丢掉的 B。后续可信生成才会把 `BuiltContext` 交给真实生成模型。
+**RRF 只决定先装谁。** 词面排序、向量距离和融合名次回答「为什么排在这里」；证据资格回答「允许怎样使用」。排序靠前不等于事实更权威，也不等于内容已经支持某条结论。
 
-## Mapping 的第一条不变量：身份不能重编
+**本地 token 数是装货尺，不是账单。** 实现优先用适配的 tokenizer，不可用时按约定回退。它控制谁被装入，不是 Provider 对最终 messages 的计费结果。Requirement 超过自己的格子时会告警，但当前不会被静默截断。
 
-### `source_id` 继续使用 `chunk_id`
+**装入估算也不是 Provider 硬窗口。** 真实请求还会加入 system message、任务说明和 Schema。要提供硬窗口保证，必须在最终 messages 形成后再按目标 Provider 计数；本节没有伪装完成这层保证。
 
-从资料进入固定 RAG 后，同一条内容一直使用同一个稳定身份：
+B 第一次在哪消失，就改哪一层：
 
-```text
-数据库 Chunk
-↔ Lexical / Dense candidate
-↔ RRF candidate
-↔ RetrievalResult candidate
-↔ ContextSource
-↔ Citation Candidate
-```
-
-若适配时临时改成 `SOURCE-1`、`SOURCE-2`，同一 Chunk 在不同运行中可能获得不同编号。检索日志、Context 报告和后续来源声明将无法稳定关联。
-
-因此当前适配器直接令：
-
-```text
-ContextSource.source_id = RetrievalCandidate.chunk_id
-```
-
-额外材料也不能占用某个检索 Chunk 的 `source_id`。发生冲突时必须明确失败，不能让后加入的文字静默覆盖真实候选。
-
-### locator 缺失时不能伪装可追踪
-
-`source_id` 只能回答“是哪条材料”，locator 才能回答“原文在哪里”。当前适配器要求每个检索候选至少携带一个 `source_span`：
-
-```text
-candidate 有 chunk_id，但没有 source_span
-→ mapping 失败
-→ 不构造“位置未知”的 Evidence
-```
-
-这条约束继承自文档解析和 Chunking。否则后续即使模型声明了 source ID，用户也无法回到原文核对。
-
-### 哪些诊断保留在 Source，哪些仍属于 Report
-
-映射后的 `ContextSource.metadata` 保留与该候选直接相关的信息：
-
-- `document_id`、`document_version`；
-- 来源角色和证据资格；
-- 原文 locators；
-- `fusion_rank`、`rrf_score`；
-- 各路线名次、原生分数名称、数值和方向；
-- `retriever_config_ref`。
-
-每路 indexed、visible、threshold 状态和部分失败等运行级事实仍留在 `RetrievalReport`。适配器不会把整份检索报告复制进每条 Source；应用通过同一运行记录和配置身份把二者关联起来。
-
-## RRF 排名不是证据权威性
-
-RAG 适配器会用融合名次保持候选的预算选择顺序，但不会把 RRF 分数写成通用可信度：
-
-```text
-PostgreSQL ts_rank  → 词面排序信号
-cosine distance     → 向量距离
-RRF score           → 多路名次融合信号
-证据资格             → 当前材料能否作为外部依据
-```
-
-前三项回答“为何排在这里”，最后一项回答“允许怎样使用”。排序靠前不等于事实更权威，也不等于内容已经支持某条结论。
-
-## 证据资格先决定进入哪个边界
-
-适配器根据 Retrieval Candidate 的 `evidence_eligibility` 做显式映射：
-
-| 检索资格 | Context 类型 | 后续能否成为 Citation Candidate |
+| B 第一次消失的位置 | 该查什么 | 不该做什么 |
 | --- | --- | --- |
-| `current_evidence` | `evidence` | included 后可以 |
-| `historical_context` | `history_review` | 不可以 |
-| `ineligible` | 明确排除 | 不可以 |
+| 检索名单里没有 | 过滤、每路候选、阈值、RRF、最终截断 | 去加 Evidence 预算 |
+| 映射失败 | 身份是否被改号、有没有原文位置、资格是不是不可用 | 用更大的格子修复身份错误 |
+| 装入时被丢掉 | Evidence 剩余空间、前序来源、是否允许压缩 | 重训 Embedding |
+| 已经装入，文本里也有 `source_channel` | Prompt、真实模型和后续生成评估 | 继续盲调检索或预算 |
 
-本节真实主路径的 A、B 都是 `current_evidence`。历史材料和不可用材料只用于确定性契约测试；它们不是 `order_rules.md` 中的新增业务事实。
-
-Requirement 是被评审对象，也不能用来证明自身正确。于是“模型可以看到”和“模型允许声明为来源”始终是两层判断。
-
-## Builder 收到的是候选池，不是最终输入
-
-映射成功的 Source 进入唯一的 Context Builder。构建前先执行：
-
-```text
-ContextSource 候选池
-  ↓ policy 允许的 source_type
-类型过滤
-  ↓ 相同 source_id 去重
-身份唯一
-  ↓ 规范化内容去重
-内容唯一
-  ↓ 类型权重、priority、score、source_id
-稳定排序
-```
-
-每个被排除的来源都留下 reason，例如：
-
-- `source_type_excluded`；
-- `duplicate_source_id`；
-- `duplicate_content`。
-
-相同 ID 表示身份冲突或重复输入；不同 ID 但文本相同表示内容重复。内容去重可以节省预算，却不能替代文档版本治理：两份文字暂时相同，不代表有效期和来源责任相同。
-
-对于本节真实 A、B，二者身份和内容都不同。干净基线不应依靠 `duplicate_content` 让其中一条消失。若真实运行出现非当前 fixture 的旧身份，应该先处理数据准备差异，再研究 Context 策略。
-
-## 为什么要同时有总预算和分区预算
-
-Context 不只有 Evidence。通用 Builder 还支持 Requirement、History 等分区。当前固定 RAG 主路径只使用 Requirement 和 Evidence，但分区规则仍然重要：低优先级材料不能因为总预算有空就挤占当前证据的责任边界。
-
-一次选择同时受三类空间限制：
-
-```text
-总剩余预算
-当前分区剩余预算
-单来源上限（若配置）
-```
-
-对一条 Source，可用空间近似为：
-
-```text
-available = min(总剩余预算, 当前分区剩余预算, 单来源上限)
-```
-
-### 用同一 A、B 做确定性预算推演
-
-下面是机制推演，不是新的业务资料，也不是 Provider 计费结果。假设本地格式化后：
-
-```text
-Requirement “申请售后”      约 3 tokens
-A                           约 302 tokens
-B                           约 293 tokens
-总预算                      2200
-Evidence 分区预算            350
-```
-
-Builder 按融合顺序处理：
-
-1. Requirement 完整进入；
-2. A 需要约 302，没有超过 Evidence 的 350，因此 included；
-3. Evidence 只剩约 48，B 需要约 293；
-4. 当前 `full_context` 不允许压缩，因此 B 被标记为 `token_budget_exceeded`。
-
-注意，总预算仍有大量空间，但 B 依然被丢弃。原因是 Evidence 分区空间不足，不是 Retriever 漏召回，也不是总窗口已经耗尽。
-
-真实 token 数应以实验当前 tokenizer、metadata 和格式化结果为准；这里的数字只用于把控制顺序说清楚。
-
-## 压缩不是“来源还在就没问题”
-
-当 policy 允许压缩且单条 Source 超过可用空间时，当前 Builder 使用确定性的抽取式压缩：
-
-```text
-Requirement 提取关键词
-→ Source 按行和句子切分
-→ 按关键词重合排序
-→ 在目标预算内选择原文片段
-→ 恢复原始顺序
-```
-
-它不调用另一个模型改写事实，同样输入会产生稳定结果，`source_id` 和 metadata 继续保留。
-
-但是 source ID 被保留，不等于业务条件被完整保留。若一个较长版本的接口 Chunk 同时包含 `source_channel`、入口规则和否定条件，抽取式压缩可能只留下与“申请售后”词面更接近的句子。
-
-这里的“较长版本”是确定性机制假设：当前 `order_rules.md` 只有两个短 Chunk，真实主实验不靠伪造长资料制造压缩成功。压缩契约由同主题的受控测试稳定验证；真实主路径仍显示 A、B 的原始内容。
-
-## Citation Candidate 只能来自最终 included Evidence
-
-Builder 完成选择后，从最终 included 的 Evidence 产生 Citation Candidate：
-
-```text
-current evidence
-  ├── included              → Citation Candidate
-  ├── compressed + included → Citation Candidate
-  └── dropped               → 不是 Citation Candidate
-
-history / ineligible
-  └── 即使模型可见，也不能成为当前证据候选
-```
-
-Citation Candidate 只表达两件事：
-
-1. 这条 Evidence 在本轮 `BuiltContext` 中真实存在；
-2. 后续模型可以声明它的 `source_id`。
-
-它不证明模型一定会声明、不证明内容支持某条结论，也不证明证据已经充分。后续可信生成只会先检查模型声明的 ID 是否属于候选集合；更强的支持性和充分性仍由后续机制完成。
-
-## BuiltContext 与 ContextBuildReport 各回答什么
-
-| 对象 | 回答的问题 |
-| --- | --- |
-| `BuiltContext` | 模型这一轮实际能看到什么 |
-| `ContextBuildReport` | 为什么形成这些材料 |
-
-构建报告至少应解释：
-
-- 使用了哪份有效 policy；
-- 总预算和分区预算；
-- 每个分区的实际估算用量；
-- included、dropped、compressed 来源；
-- dropped 或 compressed reason；
-- Citation Candidate 集合；
-- Requirement 超分区、Evidence 为空等 warning。
-
-应用既不能只保存报告而丢掉真实输入，也不能只保存输入而丢掉决策过程。
-
-## 当前 token budget 不是 Provider 硬上限
-
-当前 token 数是本地估算。实现优先使用适配的 tokenizer 编码，不可用时会使用约定的回退估算。它控制的是 Context 选择，不是 Provider 对最终 messages 的计费结果。
-
-还有两个边界必须保留：
-
-### Requirement 当前不会被静默截断
-
-Requirement 超过自己的分区预算时，Builder 产生 `requirement_over_section_budget` warning，但仍保留完整 Requirement。若 Requirement 本身超过总预算，最终估算甚至可能大于配置值。
-
-### 最终 messages 还有额外开销
-
-真实请求还会加入 system message、任务说明、结构化输出 Schema 和 Provider 特殊 token：
-
-```text
-ContextBuildReport.estimated_tokens
-≠
-Provider 最终 input_tokens
-```
-
-要提供严格窗口保证，必须在最终 messages 形成后再次按目标 Provider 计数，并定义超限时的拒绝、压缩或删减策略。当前第一阶段 Context Builder 还没有伪装成完成了这层生产保证。
-
-## 按候选第一次消失的位置诊断
-
-仍以 B 的 `source_channel` 规则为例：
-
-### 第一层：Retrieval
-
-检查 `RetrievalResult.candidates` 是否有 B，并用 `RetrievalReport` 回看过滤、候选、阈值、RRF 和 `final_top_k`。
-
-B 不在这里，问题仍属于固定 Retriever 或更早的资料链；调 Context budget 无效。
-
-### 第二层：Mapping
-
-检查 B 是否保持相同 `source_id`、locator、文档版本和证据资格。
-
-若缺少 locator 或资格为 `ineligible`，问题发生在 Retrieval → Context 契约；加预算不能修复身份错误。
-
-### 第三层：Context Builder
-
-检查 B 是 included、compressed 还是 dropped，并读取 reason、分区用量和最终 Evidence block。
-
-若 reason 是 `token_budget_exceeded`，应检查 Evidence 分区、前序来源和压缩策略，而不是重新训练 Embedding。
-
-### 第四层：Prompt 与模型
-
-只有 B 已 included，且 `source_channel` 真的出现在最终 Evidence block 中，才把问题交给 Prompt、真实模型和生成 Eval。本文到第三层为止。
+本文只走到装入这一层。
 
 ## 正常边界与失败边界
 
-| 现象 | 性质 | 应怎样解释 |
-| --- | --- | --- |
-| A、B 都 included | 正常路径 | 两条当前证据都对模型可见 |
-| B 因 Evidence budget 被 dropped | 正常配置边界 | Retriever 成功，Context 做了明确取舍 |
-| Evidence budget 为 0 | 自然边界 | Requirement 保留，无 Citation Candidate，并产生 warning |
-| Source 被压缩 | 受控取舍 | 身份保留，但必须检查关键条件是否仍在 |
-| 候选缺少 locator | 契约失败 | 明确停止，不伪造位置 |
-| 额外来源与 chunk ID 冲突 | 契约失败 | 明确停止，不静默覆盖 |
-| PostgreSQL 或 Embedding 失败 | 上游真实依赖失败 | Context Builder 尚未获得可信 RetrievalResult |
-| Retriever 部分失败 | 上游不完整结果 | 可以保留诊断，但不能当作完整成功基线 |
-| 出现非当前 fixture Chunk | 数据准备失败 | 先处理旧身份，不把去重误当策略效果 |
+| 现象 | 应怎样解释 |
+| --- | --- |
+| A、B 都装入 | 两条当前证据都对模型可见 |
+| B 因 Evidence 格子被丢掉 | 检索成功，装入做了明确取舍 |
+| Evidence 格子为 0 | 本轮不允许放入外部依据，不是知识库没答案 |
+| 来源被压缩 | 身份还在，但必须检查关键条件是否仍在 |
+| 候选缺少原文位置 | 契约失败，明确停止，不伪造位置 |
+| 额外来源与 Chunk 身份冲突 | 契约失败，明确停止，不静默覆盖 |
+| PostgreSQL 或 Embedding 失败 | 还没有可信名单，谈不上装入 |
+| Retriever 部分失败 | 可以保留诊断，但不能当作完整成功基线 |
+| 出现非当前资料的旧身份 | 先处理数据，不要当成去重策略生效 |
 
-## 当前能力由谁承载
+## 在需求评审助手中的位置
 
-本节没有引入 Agent 框架。职责分为两层：
+本节没有引入 Agent 框架。RAG 适配器负责把检索名单映射成可追踪的装入单元；通用 Context Builder 负责过滤、去重、排序、分格、预算、压缩和报告。当前 Builder 是本地确定性实现，适合把「谁被留下、谁被丢掉」完整暴露出来。
 
-```text
-rag_core Context adapter
-→ 把 RetrievalResult 映射成可追踪 ContextSource
+成熟框架可以提供压缩器、Prompt 模板或 token 计数器，但不能替应用决定：哪些材料是当前证据、历史能否引用、原文位置如何贯穿、格子怎么分，以及 Evidence 为空时产品应该怎样处理。
 
-llm_core Context Builder
-→ 负责过滤、去重、排序、分区、预算、压缩和报告
-```
+需求评审助手负责提供领域材料、证据资格和格子大小；通用能力不写死某一个售后问题，也不再维护第二套 Retriever。
 
-当前 Builder 是本地确定性实现，适合把输入边界和失败原因完整暴露出来。成熟框架可以提供文档压缩器、Prompt 模板或 token 计数器，但不能替应用决定：哪些材料是当前证据、历史是否可引用、locator 如何贯穿、分区预算如何分配，以及证据为空时产品应该怎样处理。
-
-需求评审助手负责提供领域材料、证据资格和 policy；通用 package 不写死某一个售后问题，也不维护第二套 Retriever。
-
-## 向可信生成交付什么
-
-本节最终交付：
+本节交给可信生成的是：
 
 ```text
-BuiltContext
-+ ContextBuildReport
-+ Citation Candidate IDs
+模型本轮 Context
++ 装入报告
++ 允许声明的来源 ID
 ```
 
-下一步可以确认模型真实输入、列出允许声明的 source ID，并检查模型是否生成未知 ID。但“ID 合法”仍不等于“内容支持结论”。
+下一步可以确认模型真实输入，并检查它是否声明了未知编号。编号合法仍不等于内容支持结论。
 
 ## 学完后的自检
 
-- 为什么 `RetrievalResult.candidates` 有 B，不代表模型一定看到 B？
-- `RetrievalReport` 与 `ContextBuildReport` 分别解释哪段链路？
-- 为什么 `source_id` 要继续使用稳定 `chunk_id`？
-- locator 缺失时为什么不能填“未知位置”继续？
-- RRF 排名为什么不能作为来源权威性？
-- 总预算还有空间时，B 为什么仍可能因 Evidence 分区被丢弃？
-- `compressed=true` 时为什么仍要检查最终 Evidence block？
-- 为什么 dropped Evidence 不能成为 Citation Candidate？
-- 当前 token budget 为什么不是 Provider 的硬窗口保证？
-- B 在哪个层次第一次消失，就应该修改哪个层次？
+沿同一个「申请售后」追踪 A、B：
 
-最后沿同一个 `surface_match=申请售后` 追踪 A、B：确认 Retrieval Candidate、mapping decision、included/dropped、最终 Evidence block 和 Citation Candidate 中的身份是否一致。能够完成这条追踪，才算真正理解模型这一轮拿到了什么。
+- 最终名单里有没有它们？
+- 映射后是否仍是原来的身份，并且能回到原文位置？
+- 谁被装入，谁因 Evidence 格子被丢掉？
+- 最终 Context 里还有没有 `source_channel`？
+- 允许声明的来源里还有没有 B？
+
+能够完成这条追踪，才算理解模型这一轮拿到了什么。
