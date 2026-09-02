@@ -13,8 +13,8 @@
 仓库只维护“需求评审助手”一个产品：
 
 ```text
-真实业务资料
-→ 固定 RAG 与可信评审
+真实业务资料与结构化需求输入
+→ 固定 RAG、可信评审、需求基线、人工批准与交付包
 → Agent Harness 与受治理 Tools
 → MCP、通用工具、Agentic RAG 与 Agent Skills
 → Deep Research
@@ -27,7 +27,7 @@
 
 ## 垂直切口与架构可迁移性
 
-“售后入口与订单状态”以及后续“售后接口 v2 与多端契约一致性评审”是贯穿学习、实验和验收的稳定垂直切口。固定切口是为了复用同一批业务事实、控制比较变量，并观察固定 RAG 怎样演进为 Agent 与 Multi-Agent；它不是产品只能回答这一个问题的白名单。需求评审助手可以处理不同主题的需求，以及 PRD、会议纪要、验收条件、接口契约、客户端模型、配置和验证结果等配套材料，但当前产品职责仍然是需求评审。
+“售后入口与订单状态”以及后续“售后接口 v2 与多端契约一致性评审”是贯穿学习、实验和验收的稳定垂直切口。固定切口是为了复用同一批业务事实、控制比较变量，并观察固定 RAG 怎样演进为 Agent 与 Multi-Agent；它不是产品只能回答这一个问题的白名单。需求评审助手可以处理不同主题的需求，以及 PRD、会议纪要、验收条件、接口契约、客户端模型、配置和验证结果等配套材料，但当前产品职责始终是围绕需求基线的需求定义、评审与交付，不扩展为通用项目管理或文档协作平台。
 
 架构同时区分通用运行能力和领域装配。Model Provider、Structured Output、RAG 基础能力、Agent Harness、Tool Runtime、状态与事件、Deep Research、Multi-Agent 和必要 Workflow 原语应尽量保持领域可复用；Prompt、业务 Schema、知识库与 Metadata、Agent Skills、工具与权限策略、Agent 责任、证据与拒答规则、评估标准和产品交互则由具体领域决定。
 
@@ -35,18 +35,20 @@
 
 ## 第一阶段：RAG 应用基础
 
-交付可运行、可诊断、具备最小可信证据的固定 RAG 需求评审助手：
+交付可运行、可诊断、具备最小可信证据的固定 RAG 需求定义、评审与交付工作台：
 
 - 真实文档解析、Chunk、Metadata 和来源定位。
 - PostgreSQL FTS、pgvector、RRF 与 Retriever 诊断。
 - Context、Structured Output、Citation、Refusal 和补充问题。
+- 需求对象模型：项目、需求、版本、条目与基线；固定表单与导入 PRD 两个入口。
+- 评审结果落为可定位的 Finding，由人逐项决策，版本经人工批准成为基线，并从不可变基线导出交付包。
 - Review API、Web 工作台、Golden Set 与固定对照。
 
-第一阶段不建设 Agent、Multi-Agent、通用 Workflow 或完整质量平台。结束时 Retriever 必须形成稳定 Tool 契约。
+第一阶段不建设 Agent、Multi-Agent、通用 Workflow 或完整质量平台；所有状态迁移由人的显式动作触发。结束时 Retriever 必须形成稳定 Tool 契约，需求对象模型必须能被第二阶段 Agent 以同一写入路径复用。
 
 ## 第二阶段：Agent、Tools 与 Multi-Agent
 
-在同一产品上增加动态决策、工具执行、研究和协作：
+在同一产品和同一需求对象模型上增加动态决策、工具执行、研究和协作：Agent 从模糊想法出发追问缺失信息并形成需求 Brief，以"提出补丁 → 展示差异 → 人工确认 → 写入"的方式推动需求收敛，并在版本迭代时分析变更影响；批准、导出与成员管理仍只能由人触发。
 
 - Agent Harness、Tool Runtime、权限和停止治理。
 - MCP、Search、Browser、File 与 Code Tool。

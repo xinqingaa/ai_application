@@ -6,15 +6,20 @@
 
 ## 产品目标
 
-需求评审助手围绕 PRD、业务规则、接口文档、客户端规则和历史评审记录，逐步完成：
+需求评审助手是以需求基线为核心的需求定义、评审与交付工作台。它接收固定表单输入、已有 PRD 或对已有需求的变更，结合业务规则、接口文档、客户端规则、历史评审记录和项目内已批准的需求，把输入收敛为结构化、可追溯、经人逐项决策、可人工批准、可版本化的需求基线，并导出交付包。产品逐步完成：
 
 ```text
 真实文档解析与 PostgreSQL FTS / pgvector 检索
 → 应用侧 RRF 多路召回与 Retrieval 诊断
-→ Context、结构化评审、Citation、Refusal 与补充问题
-→ Review API、最小评审工作台和固定 RAG 对照
+→ Context、结构化生成、Citation 支持性、证据充分性、Refusal 与补充问题
+→ 需求对象模型（项目 / 需求 / 版本 / 条目 / 基线）、固定表单与导入 PRD 两个入口
+→ 可定位 Finding、人的 Decision、条目级 Diff
+→ 版本生命周期、人工批准、基线切换、事务后索引与交付包
+→ 身份认证、两层角色、知识管理后台
+→ ReviewRun、Review API、以需求正文为中心的工作台和固定 RAG 对照
 → Agent Harness、Tool Runtime 与单 Agent 动态补检索、追问和运行界面
-→ MCP 与 Search / Browser / File / Code Tool
+→ 需求 Brief 追问、propose / Diff / apply 确认门
+→ MCP 与 Search / Browser / File / Code Tool、变更影响分析
 → Agentic RAG、Agent Skills 与 Deep Research
 → Multi-Agent 分工、并行、汇总、冲突处理与 A2A
 → 必要 Workflow、恢复和人工介入
@@ -67,11 +72,11 @@ source/apps/review_assistant/
 
 当前产品只维护 Web 工作台，不建设或并行维护 Flutter App。课程中的 Flutter 仍可作为业务影响范围和学习者既有经验出现，但不是当前两个阶段的产品入口或验收项。
 
-第二阶段仍围绕同一个产品场景推进：受控工作区中同时存在 PRD、OpenAPI、Web / Flutter 客户端模型、配置和定向测试；外部资料通过 MCP、Search 与 Browser 进入。File Tool 负责选择性读取并保留路径、版本、哈希和定位，写入只进入运行级暂存区；Code Tool 只运行白名单内的契约校验、静态检查或定向测试，不提供任意 Shell。这里描述的是已确定的产品边界，不表示这些能力当前已经实现；具体需求与实施顺序分别以根 [SPEC.md](../../../SPEC.md) 和 [PLAN.md](../../../PLAN.md) 为准。
+第二阶段仍围绕同一个产品场景和同一个需求对象模型推进：受控工作区中同时存在 PRD、OpenAPI、Web / Flutter 客户端模型、配置和定向测试；外部资料通过 MCP、Search 与 Browser 进入。File Tool 负责选择性读取并保留路径、版本、哈希和定位，写入只进入运行级暂存区、不创建交付包；正式需求写入只走 `propose_requirement_patch` → Diff → 人工确认 → `apply_requirement_patch`；批准、导出与成员管理只能由人触发。Code Tool 只运行白名单内的契约校验、静态检查或定向测试，不提供任意 Shell。这里描述的是已确定的产品边界，不表示这些能力当前已经实现；具体需求与实施顺序分别以根 [SPEC.md](../../../SPEC.md) 和 [PLAN.md](../../../PLAN.md) 为准。
 
 ## 当前已落地的运行能力
 
-当前目录尚未形成完整 Review API 和 Web 产品入口，但第一阶段的真实资料 fixture、PostgreSQL FTS 与 pgvector 基础设施已经开始落地。已有通用能力和学习期实验分别位于：
+当前目录尚未形成需求对象模型、Review API 和 Web 产品入口，但第一阶段的真实资料 fixture、PostgreSQL FTS 与 pgvector 基础设施已经开始落地。已有通用能力和学习期实验分别位于：
 
 - `source/packages/llm_core/`
 - `source/packages/rag_core/`（当前已实现文档加载、Chunking、Embedding 表示实验、中文词法分析、PostgreSQL FTS、pgvector 持久化与 Dense Retrieval）
@@ -80,7 +85,7 @@ source/apps/review_assistant/
 
 `source/apps/review_assistant/fixtures/rag/` 是受控 RAG 实验数据的稳定物理路径。其中的 ingestion fixtures 供 `rag_ingestion_lab` 观察 TXT、Markdown、DOCX、文本型 PDF、当前支持边界和确定性错误契约。这些是模拟业务内容和真实文件格式，不是生产资料；资料存在也不表示产品入库、检索 API 或工作台已经完成。
 
-当前已能使用真实 PostgreSQL 保存 Chunk 并运行 FTS，使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；应用侧 RRF 按稳定 `chunk_id` 融合两路贡献，Retriever Contract 固定 Metadata pre-filter、每路候选和阈值、RRF、`final_top_k` 的顺序并返回诊断报告；Context 适配将最终候选连同文档版本、locator 和路线诊断接入共享 Context Builder；可信生成调用真实模型生成结构化风险，并检查 claimed source ID 是否属于本轮 Citation Candidate。当前这些仍是共享 package 与机制实验入口，不表示产品已经提供资料管理 API、后台入库任务或 Review API；Citation 内容支持性、Refusal 和证据充分性仍未实现。
+当前已能使用真实 PostgreSQL 保存 Chunk 并运行 FTS，使用真实 Embedding 和 pgvector 运行 Dense Retrieval，并可为当前 Embedding 空间建立 HNSW 索引；应用侧 RRF 按稳定 `chunk_id` 融合两路贡献，Retriever Contract 固定 Metadata pre-filter、每路候选和阈值、RRF、`final_top_k` 的顺序并返回诊断报告；Context 适配将最终候选连同文档版本、locator 和路线诊断接入共享 Context Builder；可信生成调用真实模型生成结构化风险，并检查 claimed source ID 是否属于本轮 Citation Candidate。当前这些仍是共享 package 与机制实验入口，不表示产品已经提供资料管理 API、后台入库任务或 Review API；Citation 内容支持性、Refusal 和证据充分性仍未实现；需求对象模型、Finding 与 Decision、版本生命周期、批准门、交付包、身份认证与角色也都尚未落地。
 
 ## PostgreSQL 本地准备
 

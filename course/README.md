@@ -1,6 +1,6 @@
 # AI 应用课程
 
-本课程只围绕一个产品展开：把需求评审助手从固定 RAG 应用演进为以 Agentic RAG 为知识基础的多 Agent 协作系统。
+本课程只围绕一个产品展开：把需求评审助手——一个以需求基线为核心的需求定义、评审与交付工作台——从固定 RAG 应用演进为以 Agentic RAG 为知识基础、在用户裁决下推动需求收敛与变更影响分析的多 Agent 协作系统。
 
 ## 从哪里开始
 
@@ -24,11 +24,13 @@
 
 ```text
 模型调用与结构化输出
-→ 固定 RAG、可信证据与产品交付
+→ 固定 RAG 与可信证据
+→ 需求对象模型、Finding 与决策、人工批准与交付包
 → agent_core 与 LangChain 第一个真实 Agent
 → Tool Runtime、Agentic RAG 与运行治理
 → LangGraph 状态、恢复与人工介入
-→ MCP、Search、Browser、File 与 Code Tool
+→ 需求 Brief 追问与 propose / Diff / apply 确认门
+→ MCP、Search、Browser、File 与 Code Tool、变更影响分析
 → Conversation、Run State、记忆、事件和运行界面
 → Agent Skills
 → Deep Research
@@ -43,8 +45,8 @@
 
 | 阶段 | 交付目标 |
 | --- | --- |
-| 第一阶段：RAG 应用基础 | 固定 RAG、可信证据边界、Review API、Web 工作台和最小质量基线 |
-| 第二阶段：Agent、Tools 与 Multi-Agent | 框架驱动的 Agent 与 `agent_core`、受治理工具、可恢复状态、记忆、研究、协作和统一质量闭环 |
+| 第一阶段：RAG 应用基础 | 固定 RAG 的需求定义、评审与交付工作台：可信证据边界、需求对象模型、可定位 Finding 与人的逐项决策、人工批准与基线、交付包、两层角色、Review API、Web 工作台和最小质量基线 |
+| 第二阶段：Agent、Tools 与 Multi-Agent | 同一对象模型上框架驱动的 Agent 与 `agent_core`、受治理工具、可恢复状态、记忆、研究、协作和统一质量闭环；Agent 追问缺失信息、经 propose / Diff / apply 在用户裁决下推动需求收敛、分析变更影响，批准与导出仍由人触发 |
 
 两个阶段沿同一产品连续演进，不建立阶段内版本轴。
 

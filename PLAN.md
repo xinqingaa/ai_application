@@ -27,16 +27,22 @@ LLM 调用与结构化输出
 → Lexical / Dense Retrieval
 → RRF 与 Retriever Contract
 → Context 与可信生成（含结构化增量流式与最终校验边界）
-→ Citation、证据充分性与 Refusal
-→ 身份认证与角色（普通评审 / 管理员）
-→ 知识管理后台（上传、暂存、发布、dataset_version）
-→ Review API（含 SSE 事件契约）
+→ Citation 支持性、证据充分性与 Refusal
+→ 需求对象模型与状态机（Project / Requirement / RequirementVersion / RequirementItem、SourceArtifact、Brief 修订历史、migration）
+→ 结构化需求草稿（固定表单补全与导入 PRD 映射，第二个 Prompt 族）
+→ Finding 定位、Decision 与条目级 Diff
+→ 身份认证与两层角色（系统 admin / member，项目 owner / editor / viewer）
+→ 知识管理后台（上传、暂存、发布、dataset_version）与 approved_requirement 项目检索池
+→ 版本生命周期、批准门、基线切换、事务后索引与交付包
+→ Review API（ReviewRun、证据快照、SSE 事件契约）
 → Web 工作台
 → Golden Set 与固定对照
 → Docker Compose 打包（应用 + Postgres/pgvector）
 ```
 
-第一阶段结束时，Retriever 必须可以作为稳定 Tool 被第二阶段直接调用；身份认证与角色边界必须与第二阶段 Tool 权限保持概念上的独立，不能被后者直接复用或替代。
+`review_assistant` 的领域模块（对象 Schema、状态机、migration）在“需求对象模型与状态机”这一步首次落地，早于 API 与认证，由脚本和确定性测试驱动；结构化草稿生成与 Finding / Decision 在其上组合 `llm_core` 与 `rag_core`。进入这两步之前必须先做一次职责对齐：通用 Structured Output、Context 与来源成员检查机制保留在 package，需求领域 Schema、Prompt 与组合留在产品层。
+
+第一阶段结束时，Retriever 必须可以作为稳定 Tool 被第二阶段直接调用；需求对象的内容写入路径必须能被第二阶段的 `apply_requirement_patch` 直接复用；身份认证与角色边界必须与第二阶段 Tool 权限保持概念上的独立，不能被后者直接复用或替代。
 
 ## 3. 第二阶段实现顺序
 
@@ -66,7 +72,9 @@ LLM 调用与结构化输出
 
 ### `rag_core`
 
-负责解析、Chunk、Embedding、Lexical / Dense Retrieval、RRF、Retriever Contract、Context 适配、可信生成和证据校验。
+负责解析、Chunk、Embedding、Lexical / Dense Retrieval、RRF、Retriever Contract、Context 适配、可信生成和证据校验（Citation Candidate 成员资格、Citation 支持性、证据充分性）。
+
+`rag_core` 保持领域无关，不承载 Finding、Decision 或任何需求对象，也不做 Finding 目标校验。为支撑产品的项目检索池，只允许两处通用扩展：`SourceRole` 枚举增加 `approved_requirement`；Retriever Metadata pre-filter 支持按 `document_version` 集合过滤。二者都不把需求对象带进 `rag_core`。“集合成员检查”是编程技巧，不是共享业务能力，不为它增加通用职责。
 
 ### `agent_core`
 
@@ -100,8 +108,15 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 
 - FastAPI 和产品服务。
 - Web 工作台。
-- 身份认证、会话或令牌生命周期，以及普通评审 / 管理员两个最小角色的路由与动作边界。这是产品领域策略，不进入通用 package；也不与第二阶段 `agent_core` 的 Tool 权限模块合并。
-- 知识管理后台：知识资料上传、解析诊断展示、入库暂存、管理员发布与 `dataset_version` 记录。发布动作是唯一能够改变检索候选池版本的入口，上传和暂存不直接生效。
+- 需求领域 Schema 与 migration：Project、Brief 修订历史、Requirement、RequirementVersion、RequirementItem、SourceArtifact、ReviewRun、Finding、Decision、DeliveryPackage 的持久模型、四个持久状态与派生状态、批准门不变量。
+- 结构化需求草稿生成：固定表单补全与导入 PRD 到条目的映射及未映射诊断，组合 `llm_core` 与 `rag_core`，属于第二个 Prompt 族。
+- Finding 目标成员资格校验与按 `finding_kind` 的依据资格校验；`external_fact` 只由系统赋予的写入规则；`confirmation_state` 的创建期确定规则。
+- 乐观并发控制（`revision` 只随内容递增）、同一 Requirement 单开放版本约束、`pending_approval` 与活跃 ReviewRun 期间拒写。
+- 批准事务（基线切换 + `superseded` + 审计同事务）与事务后索引：`index_state`、重试、进入项目检索池；ReviewRun 证据快照（需求修订、`brief_revision`、`dataset_version`、`approved_requirement_version_ids`）。
+- 身份认证、会话生命周期，以及系统 admin / member 与项目 owner / editor / viewer 两层角色的路由与动作边界。这是产品领域策略，不进入通用 package；也不与第二阶段 `agent_core` 的 Tool 权限模块合并。
+- 知识管理后台：知识资料上传、解析诊断展示、入库暂存、管理员发布与 `dataset_version` 记录。发布动作是唯一能够改变全局知识库候选池版本的入口，上传和暂存不直接生效；项目检索池由已批准版本索引维护，是另一个池子。
+- DeliveryPackage 导出（只从 `approved` / `superseded` 版本）与草稿非正式预览。
+- 第二阶段 `propose_requirement_patch` / `apply_requirement_patch`：Agent 提出补丁、人确认 Diff、写入 `draft` 版本并记录 Decision，是产品专用写入能力，不是 File Write。
 - 产品 Schema、状态和组合流程。
 - `agent/` 中的评审 Prompt、领域 Agent 组装、引用与证据策略、记忆策略和角色设计。
 - 产品测试、fixtures、eval 和数据库 migration。
@@ -112,7 +127,7 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 
 通用算法进入 package，产品业务取舍留在 app。
 
-第二阶段继续复用“售后入口与订单状态”垂直切片，并增加可执行的多端契约工作区。真实实现到达对应能力时，产品 fixture 至少覆盖 PRD、OpenAPI、Flutter / Web 客户端模型、配置、定向验证入口和预期失败；fixture、Tool 实现、实验和测试一起落地，不提前创建空目录。
+第二阶段继续复用“售后入口与订单状态”垂直切片（同一 Project、同一 Requirement 的新 RequirementVersion），并增加可执行的多端契约工作区。真实实现到达对应能力时，产品 fixture 至少覆盖 PRD、OpenAPI、Flutter / Web 客户端模型、配置、定向验证入口和预期失败；fixture、Tool 实现、实验和测试一起落地，不提前创建空目录。
 
 File Read 默认只访问本次运行批准的工作区；File Write 默认只访问 `run_id` 隔离的暂存输出。Code Tool 默认只读挂载输入、隔离输出、禁用网络，并使用命令和环境白名单。产品若扩大路径、命令或网络能力，必须先更新 SPEC 的安全与验收边界。
 
@@ -141,5 +156,6 @@ MCP 与 A2A 优先通过官方 SDK 或成熟适配器实现协议连接，不在
 - 主路径使用真实模型与真实外部服务。
 - 单元测试只证明确定性契约。
 - 集成测试验证数据库、Provider 或协议边界。
-- 固定数据集比较质量、成本和延迟。
+- 固定数据集比较质量、成本和延迟；第一阶段固定数据集的对照物是 ReviewRun 的已校验 Finding 与 `evidence_decision`，Target Requirement fixture 经导入成为 RequirementVersion 后作为固定评审对象。
+- 需求对象模型、批准门、并发与索引状态的规则以确定性测试证明，不依赖 LLM Judge。
 - 重要变更同步更新 SPEC、项目篇、产品 README、测试和评估样例中真正受影响的真源。

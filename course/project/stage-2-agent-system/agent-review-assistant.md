@@ -4,13 +4,16 @@
 
 ## 业务目标
 
-第一阶段固定 RAG 已经能从内部资料中检索证据并生成可信评审。第二阶段处理无法完全预先固定的任务：问题可能需要改写、选择知识源、补检索、搜索外部资料、调用工具、追问用户或由多个评审角色协作。
+第一阶段固定 RAG 已经能把固定表单或导入的 PRD 收敛为结构化需求版本，从内部资料中检索证据生成可定位的 Finding，由人逐项决策、批准为基线并导出交付包。第二阶段处理无法完全预先固定的任务：需求可能从一个模糊想法开始，问题可能需要改写、选择知识源、补检索、搜索外部资料、调用工具、追问用户或由多个评审角色协作，版本迭代时还要分析变更影响。
 
-最终产品仍是同一个需求评审助手，不新建第二个应用。
+最终产品仍是同一个需求评审助手，沿用第一阶段的需求对象模型、批准门与交付包，不新建第二个应用，也不为 Agent 建立第二套写入路径。
 
 ## 贯穿场景
 
-第二阶段继续使用第一阶段“售后入口与订单状态”基线，不通过更换案例规避固定 RAG、单 Agent 和 Multi-Agent 的比较。新增任务是评审“售后接口 v2 与多端契约一致性”：需求要求增加或收紧 `source_channel`，并要求 Web 与 Flutter 客户端使用一致的入口可见性规则。
+第二阶段继续使用第一阶段的 Project（电商 App）与 Requirement（“售后入口”需求主题），不通过更换案例规避固定 RAG、单 Agent 和 Multi-Agent 的比较。贯穿场景有两条线：
+
+- **从模糊想法到基线**：用户只给出一句“售后入口要支持新的渠道来源”，Agent 识别缺失信息并追问，结合内部 RAG、MCP、Search / Browser 形成产品 Brief 与结构化草稿，以 `propose_requirement_patch` 提出、经 Diff 确认后写入 `draft` 版本，再进入评审、决策、批准与交付。
+- **从基线到变更影响**：评审“售后接口 v2 与多端契约一致性”——需求要求增加或收紧 `source_channel`，并要求 Web 与 Flutter 客户端使用一致的入口可见性规则。它是同一 Requirement 从现有基线派生的新 RequirementVersion，不是新 Requirement；Agent 产出条目级差异，结合规则、接口契约、客户端模型与定向测试分析影响，结论落为 Finding，由人决策、批准，并导出增量交付包。
 
 一次评审可以收到：
 
@@ -21,7 +24,7 @@
 - 外部需求系统中的 issue、验收条件和关联资料。
 - 需要回查的官方 SDK 文档或版本说明。
 
-这些输入共同构成受控评审工作区，但证据资格不同：当前 PRD 是评审主体，内部现行规则来自 RAG，外部资料来自 MCP 或 Browser，文件和代码执行结果是 Tool Evidence。任何来源都不能仅因被 Agent 读取或执行成功就自动成为已校验 Citation。
+这些输入共同构成受控评审工作区，但证据资格不同：当前需求版本是评审主体，内部现行规则来自 RAG，同项目已批准需求来自项目检索池，外部资料来自 MCP 或 Browser，文件和代码执行结果是 Tool Evidence。任何来源都不能仅因被 Agent 读取或执行成功就自动成为已校验 Citation；Agent 的推断只有携带已校验 Citation 时才能写成 `external_fact` 条目，其余只能是 `product_intent` 并由人确认。
 
 ## 已有能力
 
@@ -30,7 +33,9 @@
 - 稳定的文档、Chunk、Embedding 与检索链。
 - Retriever 输入、输出、诊断和错误契约。
 - Context、Structured Output、Citation、Refusal 和补充问题。
-- Review API、最小工作台和固定 RAG 基线。
+- 需求对象模型：Project / Requirement / RequirementVersion / RequirementItem、SourceArtifact、Brief 修订历史、四个持久状态、批准门与乐观修订号。
+- Finding 定位与五类 Decision、条目级 Diff、批准事务与事务后索引、DeliveryPackage 导出。
+- Review API、以需求正文为中心的工作台和固定 RAG 基线。
 - Golden Set、成本和延迟记录。
 
 ## 本阶段新增结果
@@ -71,8 +76,12 @@
 - Search：根据研究问题发现候选来源，不把搜索摘要直接当作最终证据。
 - Browser：打开候选来源，提取官方文档、版本说明或接口规范，并保留 URL、标题、时间和内容定位。
 - File Read：在批准的工作区中选择性读取 PRD、OpenAPI、客户端模型、配置和测试入口，保留相对路径、内容哈希和定位。
-- File Write：用户确认后，只向运行级暂存区写入评审报告、补充问题、证据清单或带批注需求副本；不直接覆盖原始需求和代码。
+- File Write：用户确认后，只向运行级暂存区写入附件与中间产物（补充问题清单、证据清单、带批注需求副本、影响分析明细）；不直接覆盖原始需求和代码，也不创建 DeliveryPackage。正式交付包只由人触发的导出动作产生。
 - Code：当专用 Validator 不足而需要运行项目已有检查时，在受控沙箱中执行允许的契约校验、静态检查或定向测试。
+
+### 正式需求写入
+
+Agent 不通过 File Write 修改需求。正式需求写入只走产品专用能力：`propose_requirement_patch` 提出条目级补丁 → 工作台展示 Diff → 人确认 → `apply_requirement_patch` 写入 `draft` 版本。它复用第一阶段的内容写入路径：写入携带 `revision` 并递增它，受 `pending_approval` 与活跃 ReviewRun 期间拒写约束；人对 Diff 的确认同时记录为一条 Decision，使写入的条目直接成为 `confirmed`；补丁中携带已校验 Citation 的条目走 `external_fact` 路径，其余为 `product_intent`。批准、导出与成员管理仍只能由人触发，Agent 以发起者的项目角色行动，没有独立角色。
 
 Code Tool 第一版不接受任意 Shell，也不让模型自由生成并执行代码。应用选择允许的 `command_ref`，只读挂载输入工作区、隔离输出、默认禁网并限制时间、资源、环境和产物。执行结果保留退出码、stdout、stderr、耗时、超时和产物身份。
 
@@ -113,22 +122,24 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 - 本轮使用的短期摘要、已确认长期偏好和记忆变更结果。
 - 累计成本、延迟和预算。
 - Agent 分工、局部结果和冲突。
+- 提出的需求补丁、Diff 与人的确认结果。
 - 最终停止原因。
 
-最终业务输出继续沿用第一阶段的结构化风险、Sources、Citation、Refusal 和补充问题，不让 Agent 中间文本绕过产品契约。
+最终业务输出继续沿用第一阶段的对象模型：Finding（含 Sources、Citation、`evidence_decision` 与补充问题）挂到需求版本的条目、分区或版本上，需求变更只能经 propose / Diff / apply 进入 `draft` 版本，交付仍是从已批准版本导出的 DeliveryPackage；不让 Agent 中间文本绕过产品契约。
 
 ## 集成检查点
 
-### 第 69 节：Agent 应用开发核心链路里程碑
+### 第 76 节：Agent 应用开发核心链路里程碑
 
-第 69 节把前面的能力串成一个可以运行、观察和回归的核心闭环：
+第 76 节把前面的能力串成一个可以运行、观察和回归的核心闭环：
 
 ```text
 LangChain Agent
 → Agentic RAG
 → Tool Runtime
 → LangGraph State / Checkpoint / Interrupt
-→ MCP / File / Code
+→ 需求 Brief 追问与 propose / Diff / apply 确认门
+→ MCP / File / Code 与变更影响分析
 → Event / SSE / 运行界面
 → LangSmith Trace / Dataset / Experiment / Evaluator
 ```
@@ -137,9 +148,10 @@ LangChain Agent
 
 - 在同一需求评审助手中保留固定 RAG 基线，并让单 Agent 动态决定是否检索、调用工具、继续、追问或停止；固定样例同时覆盖工具轨迹、摘要保真和长期偏好治理。
 - 让工具调用、状态变化、恢复与人工介入、真实错误和取消都能进入统一运行事实，并由 SSE 和运行界面还原。
+- Agent 对需求的每次修改都经 propose / Diff / 人确认 / apply 进入 `draft` 版本，并留下 Decision；批准、导出、成员管理仍由人触发。
 - 用本地 RunRecord 与 LangSmith Trace / Dataset / Experiment / Evaluator 形成可回查的观测和评估记录；LangSmith 不可用时保留真实失败和本地记录。
 
-完成第 69 节表示 Agent 应用开发的核心链路已经闭环。第 70–103 节仍需继续完成，用于建立 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow 和完整质量回归体系。
+完成第 76 节表示 Agent 应用开发的核心链路已经闭环。第 77–110 节仍需继续完成，用于建立 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow 和完整质量回归体系。
 
 ### 第一个框架 Agent 闭环
 
@@ -177,6 +189,21 @@ LangChain Agent
 - Checkpoint、Resume 与 Interrupt 能处理等待、取消和人工确认。
 - 重试或恢复不会重复产生写入和外部副作用。
 
+### 需求 Brief 形成与缺失信息追问
+
+- Agent 从一句模糊想法出发，能识别 Project Brief 与需求分区中缺失的信息，并通过 Interrupt 追问，而不是直接生成整份需求。
+- 追问的每个问题能回到具体缺口（哪个分区、哪类事实、哪份规则本应覆盖），用户的回答保留为 `provenance=user_input` 的条目来源。
+- 内部 RAG、MCP 与 Search / Browser 的结果只作为候选证据进入草稿，携带已校验 Citation 的条目才成为 `external_fact`。
+- 追问循环有预算与停止条件；用户不回答时运行停在“需要补充”，不伪造默认值。
+
+### 正式需求写入的 propose / Diff / apply 确认门
+
+- Agent 只能通过 `propose_requirement_patch` 提出补丁，工作台展示条目级 Diff，人确认后才由 `apply_requirement_patch` 写入 `draft` 版本。
+- 写入复用第一阶段的 `revision` 乐观并发与拒写规则；补丁基于过期 `revision` 时整个被拒绝，不留部分变更。
+- 人的确认落为一条 Decision，使写入的条目直接 `confirmed`；被拒绝或修改后再确认的补丁能回查原提案。
+- 重放、恢复或重复请求不会把同一补丁写入两次；Agent 不能经此路径触发提交批准、批准、导出或成员变更。
+- 与 File Write 的区别可解释：File Write 只写运行级暂存附件，不改需求、不产生 DeliveryPackage。
+
 ### MCP 与通用工具
 
 - 接入一个真实 MCP Tool 或 Resource，并记录协议修订、SDK 和服务身份。
@@ -186,6 +213,13 @@ LangChain Agent
 - Code Tool 至少完成一次接口或客户端契约验证，并展示成功、校验失败、超时或权限拒绝中的多种结果。
 - Code 执行不能访问工作区外文件、秘密环境变量或未批准网络，也不能把非零退出码伪装为空结果。
 - MCP 失败、版本不兼容或能力 Schema 不兼容不会绕过内部 Runtime，也不会伪装成空结果。
+
+### 变更影响分析
+
+- 从现有基线派生新版本后，Agent 产出的条目级差异按 `item_key` 对齐，并能说明每条差异的来源（用户变更、外部资料、推断）。
+- 影响分析把差异分别对照 RAG 现行规则、File Tool 读取的 OpenAPI 与客户端模型、Code Tool 沙箱中的定向测试，结论落为 Finding：与规则或契约的冲突走 `external_fact_conflict`（必须有 Citation 或 Tool Evidence 转成的 Citation），多端影响走 `impact_inference` 并标为推断。
+- 分析结论不自动修改需求，也不自动做 Decision；人逐项处理后重新评审、批准，再导出相对上一基线的增量 DeliveryPackage。
+- 评审派生版本时项目检索池排除自身旧基线，版本间差异由 Diff 负责，检索不制造“与旧版本冲突”的噪声。
 
 ### 状态、事件与单 Agent 评估
 
@@ -251,6 +285,10 @@ LangChain Agent
 10. 为什么需要多个 Agent，各自责任是什么，框架协作原语没有替代哪些产品契约。
 11. 为什么需要 A2A 而不是本地 Delegation，采用的规范版本、SDK 和协议绑定是什么。
 12. Workflow 只接管哪些需要恢复、确认或副作用治理的路径。
+13. 为什么 Agent 写需求必须走 propose / Diff / apply 而不是 File Write，人的确认为什么同时是一条 Decision。
+14. 追问应该在哪些缺口上停下来问人，哪些缺口可以由内部 RAG 或外部资料补齐，怎样避免把模型推断写成用户意图。
+15. 变更影响分析中哪些结论有资格成为 `external_fact_conflict`，哪些只能是 `impact_inference`，Tool Evidence 怎样才能转成 Citation。
+16. 为什么 Agent 以发起者的项目角色行动而没有独立角色，批准与导出为什么不能由 Agent 代替人触发。
 
 ## 自然 bad case
 
@@ -260,7 +298,10 @@ LangChain Agent
 - MCP 请求能够到达服务，但协议版本或能力 Schema 不兼容。
 - Search 返回多个互相转载的弱来源。
 - 文件路径通过 `..` 或符号链接逃逸获准工作区。
-- Agent 试图覆盖原始 PRD，或重试导致同一报告重复写入。
+- Agent 试图覆盖原始 PRD，或重试导致同一补丁或暂存产物重复写入。
+- Agent 的补丁基于过期 `revision`，或试图写入 `pending_approval` 版本、直接把条目标成 `external_fact`。
+- 追问循环反复提出同一缺口，或把模型自己的推断当作用户已回答的意图写进草稿。
+- 影响分析把 Tool 输出直接当成 Citation，或把与旧基线的正常差异误报为冲突 Finding。
 - OpenAPI 声明 `source_channel` 必填，但 Flutter 模型或 Web 类型缺少该字段。
 - Code Tool 超时、返回非零退出码，或尝试读取未授权环境变量。
 - Skill 占用 Context 却没有被当前任务使用。
@@ -298,7 +339,8 @@ source/apps/review_assistant/           唯一产品
 - 任意 MCP Server 自动获得信任。
 - 无沙箱的 Code Tool。
 - 任意 Shell、任意工作目录、默认联网或读取秘密环境变量的 Code Tool。
-- 让 File Tool 任意覆盖原始 PRD、代码或配置。
+- 让 File Tool 任意覆盖原始 PRD、代码或配置，或用 File Write 生成正式交付包。
+- 让 Agent 绕过 propose / Diff / apply 直接改需求，或代替人触发提交批准、批准、导出、成员管理。
 - 把所有步骤都交给模型。
 - 从零实现与 LangChain / LangGraph 竞争的 Agent 框架，或在通用层复制框架运行时。
 - 同时维护多套框架或观测主路径，只为罗列生态工具。
@@ -311,6 +353,7 @@ source/apps/review_assistant/           唯一产品
 - 产品主路径真实运行，没有平行实现。
 - 能解释数据流、状态流、工具流、证据流和异常流。
 - 能展示正常完成、追问、等待确认、达到上限、工具失败和取消。
+- 两条贯穿线都在同一 Requirement 上闭环：模糊想法经追问、propose / Diff / apply、评审、人工批准成为基线；变更经影响分析、决策、批准导出增量交付包。
 - MCP、Skill、Tool、A2A 与 Workflow 的责任边界清楚。
 - 完成 Multi-Agent 与单 Agent 的同条件比较，记录质量、成本、延迟、证据一致性和失败定位差异；结果不足时保留单 Agent，不以角色数量证明能力。
 - 能完成自然 bad case、需求变更和回归。
