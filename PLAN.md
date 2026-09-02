@@ -42,6 +42,8 @@ LLM 调用与结构化输出
 
 `review_assistant` 的领域模块（对象 Schema、状态机、migration）在“需求对象模型与状态机”这一步首次落地，早于 API 与认证，由脚本和确定性测试驱动；它必须实现固定分区的 `addressed / not_applicable / needs_input` 契约，以及 editor / owner 创建目标 Requirement draft 的路径。结构化草稿生成与 Finding / Decision 在其上组合 `llm_core` 与 `rag_core`。进入这两步之前必须先做一次职责对齐：通用 Structured Output、Context 与来源成员检查机制保留在 package，需求领域 Schema、Prompt 与组合留在产品层。已有课程实验中的评审风险 Schema 或 Prompt 不得继续演化为产品领域真源；实现产品对象时按这一边界迁移或适配。
 
+产品实现还必须提供从空白环境开始的最小引导：系统 member 创建 Project 后成为 owner，系统建立初始空 Brief，owner 或 editor 以标题和自然语言种子创建第一个 Requirement `draft`。空的全局知识库或项目检索池是合法状态，ReviewRun 必须把零候选呈现为证据不足；第一个批准且索引成功的 RequirementVersion 才开始向项目检索池沉淀。固定电商 fixture 仅用于稳定评估，不是产品启动前置。
+
 第一阶段结束时，Retriever 必须可以作为稳定 Tool 被第二阶段直接调用；需求对象的内容写入路径必须能被第二阶段的 `apply_requirement_patch` 直接复用；身份认证与角色边界必须与第二阶段 Tool 权限保持概念上的独立，不能被后者直接复用或替代。
 
 ## 3. 第二阶段实现顺序
@@ -63,6 +65,8 @@ LLM 调用与结构化输出
 → 复杂 Workflow 组合
 → Trace、Regression 与 Feedback
 ```
+
+第二阶段涉及的 Agent Skills、Deep Research、Multi-Agent、A2A、Workflow 和质量收束都是课程必学与真实对照范围；是否成为产品默认执行路径，必须由同条件的质量、成本、延迟、稳定性和失败定位证据决定。课程完整性不等于产品默认启用全部复杂能力。
 
 该顺序是工程依赖关系，不是第二套课程编号。LangChain 与 LangGraph 是同一个 Agent 运行时的两种使用深度——`create_agent` 本身构建在 LangGraph 之上；这条顺序是从高层用法逐步下沉到底层原语，不是先实现一套运行时再迁移到另一套。
 

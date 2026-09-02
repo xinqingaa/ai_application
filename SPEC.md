@@ -15,6 +15,8 @@
 
 阶段不是并行产品版本，仓库只维护一个需求评审助手。
 
+课程的完整学习范围、阶段顺序和学习编号以 [标准学习路径](course/learning-path.md) 为唯一真源。高级 Agent 能力、协议和质量方法都必须学习、实验并完成真实受控比较；某项能力是否成为日常默认路线，仍由同条件下的质量、成本、延迟、稳定性与失败定位证据决定，不以“已经学习”或 Agent 数量替代产品取舍。
+
 ## 2. 用户、角色与核心任务
 
 主要用户是需要定义、评审和交付需求的产品与研发人员，评审重点是规则冲突、遗漏、歧义以及 Web、Flutter、服务端影响。
@@ -28,6 +30,7 @@
 
 用户需要完成的核心任务：
 
+- 从空白环境创建 Project；创建者成为 owner，并以最小 Project Brief 与第一个 Requirement draft 启动新需求。
 - 从固定表单、已有 PRD 或已批准基线形成结构化需求版本。
 - 由 editor 或 owner 明确创建或选择一个 Requirement，作为后续固定流程或 Agent 运行唯一可写入的 draft 容器。
 - 区分人写、导入、AI 建议、外部事实与旧版本派生等来源。
@@ -55,7 +58,9 @@
 
 第一阶段不接收模糊想法，也不使用动态 Agent 追问；这属于第二阶段。
 
-模糊想法进入第二阶段前必须已有明确的 Project，且由 editor 或 owner 人工创建或选择目标 Requirement 的 `draft` 版本。Agent 可以建议标题、分区和内容，但不创建正式 Requirement；它只在这个 draft 上提出补丁，仍由人确认后写入。
+模糊想法进入第二阶段前必须已有明确的 Project。editor 或 owner 先以轻量动作创建或选择目标 Requirement 的 `draft`：创建时只需需求标题与一句自然语言种子，目标分区可选，不要求人先写完整需求。随后 Agent 才能追问、建议标题或分区并在该 draft 上提出补丁。Agent 不创建正式 Requirement，不能把自然语言种子直接变成正式写入，仍须经 Diff 和人的确认。
+
+第一阶段同时支持新项目冷启动和已有项目迭代。新 Project 的项目检索池可以为空，相关全局资料也可能为空；检索零候选是可解释的证据不足结果，不是系统错误，应用必须给出 Refusal 或可回答的补充问题，不能伪造外部事实。项目在批准第一个 RequirementVersion 后，已批准版本经事务后索引逐步进入项目检索池；后续需求和变更才可复用这些已批准的项目决定。
 
 ### 输出
 
@@ -78,7 +83,7 @@
 Project → Requirement → RequirementVersion → RequirementItem
 ```
 
-- Project 保存成员、Project Brief 和导入原文。
+- Project 保存成员、初始且可修订的 Project Brief 和导入原文；成员创建 Project 后成为 owner。
 - Requirement 是一个可独立版本化、批准和交付的稳定需求主题，持有当前基线指针。
 - RequirementVersion 是一次可评审、可批准的内容快照；批准后不可修改。
 - RequirementItem 是需求正文的最小单位，通过稳定业务身份跨版本对齐。
@@ -116,6 +121,7 @@ Project → Requirement → RequirementVersion → RequirementItem
 
 - 真实文档、真实 PostgreSQL、真实 Embedding 和真实模型主路径。
 - 固定表单创建与导入 PRD 两个入口，汇入同一需求对象模型。
+- 从空 Project 创建 Brief、Requirement draft 和第一个需求的冷启动路径；空检索池必须暴露为证据不足而非依赖失败。
 - 固定分区完成度的确定性检查；缺失分区产生可定位的补充需求，不能因模型未报告而通过批准。
 - 来源、Citation 和 Decision 三分，产品意图不因缺 Citation 被拒绝，外部事实不能靠人的确认代替 Citation。
 - 可定位 Finding、逐项 Decision、条目级 Diff 和证据不足时的 Refusal 或补充问题。
@@ -134,7 +140,7 @@ Project → Requirement → RequirementVersion → RequirementItem
 - 框架驱动的 Agent Harness、Tool Runtime、状态、停止、恢复、事件和观测。
 - Agentic RAG、Query Rewrite、Source Routing 和受控补检索。
 - 从模糊想法识别缺口并通过 Interrupt 追问，形成 Brief 草案与结构化需求草稿。
-- editor 或 owner 先人工创建或选择目标 Requirement draft；Agent 只在该版本上追问和提出补丁，不创建正式 Requirement。
+- editor 或 owner 先以标题和自然语言种子等最小输入人工创建或选择目标 Requirement draft；Agent 只在该版本上追问和提出补丁，不创建正式 Requirement。
 - `propose_requirement_patch → Diff → 人确认 → apply_requirement_patch` 的正式写入门；apply 后仍需重新评审。
 - MCP、Search、Browser、File Read、运行级暂存写入和受控 Code Tool。
 - 条目差异对规则、接口契约、客户端模型和定向测试的变更影响分析。
@@ -155,6 +161,8 @@ Agent 只能形成 Brief 草案，不能写 Project Brief；正式需求只能�
 - 第二阶段的“售后接口 v2 与多端契约一致性评审”是同一“售后入口”Requirement 的新版本，不是新 Requirement。
 
 固定切口用于控制比较变量，不表示产品只能处理这一类需求。
+
+固定切口还提供一个已沉淀项目检索池的稳定 fixture，用于证明 RAG 的项目级收益。真实产品不依赖该 fixture：新项目可以从空池启动，已批准、已索引的 RequirementVersion 与管理员发布的全局资料分别按既有权限和证据资格逐步沉淀；产品不因此扩展为通用企业向量数据库或无治理的资料平台。
 
 ## 8. 产品交互原则
 
@@ -198,6 +206,7 @@ Agent 只能形成 Brief 草案，不能写 Project Brief；正式需求只能�
 - 保证六类人工动作不能被 Agent、Tool 或系统管理员身份绕过。
 - 对真实模型、数据库、Embedding、文件、协议和工具失败给出可定位错误。
 - 只有固定分区均已覆盖或被人明确标为不适用、且满足既有 Finding、Citation、Decision 与批准门后，需求版本才能作为完整基线批准。
+- 新建空 Project 能以最小 Brief 和 Requirement draft 启动；空检索池的证据不足、后续批准版本的项目级沉淀及已有项目迭代都可回查。
 - 保留固定 RAG 基线，并对 Agent 和 Multi-Agent 的收益与代价形成同条件证据。
 - 能修改一个业务规则、工具或 Agent 责任并完成回归。
 

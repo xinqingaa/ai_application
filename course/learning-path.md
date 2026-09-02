@@ -27,7 +27,7 @@
 
 第一阶段回答：真实资料怎样成为可检索证据，固定 RAG 怎样形成可诊断、可引用、可拒答的评审结论，这些结论又怎样落到有身份、有状态的需求版本上，经人逐项决策、人工批准成为基线并导出交付包，最终通过 API 与 Web 工作台交付？
 
-开始前先阅读[第一阶段项目篇](project/stage-1-rag-application/rag-review-assistant.md)中的业务场景、学习检查点和非目标，并了解根 [SPEC](../SPEC.md) 的第一阶段要求。
+开始前先阅读[第一阶段项目篇](project/stage-1-rag-application/rag-review-assistant.md)中的业务场景、学习检查点和非目标，并了解根 [SPEC](../SPEC.md) 的第一阶段要求。文中的电商“售后入口”只是固定教学与评估 fixture；产品集成必须同时理解空 Project 冷启动、首个基线沉淀和已有项目迭代。
 
 ## 模型进入应用
 
@@ -80,7 +80,7 @@
 18. **证据充分性、Refusal 与补充问题** · 待编写
     部分引用正确时，系统仍可能缺少形成强结论的关键事实。本节判断何时继续回答、何时拒绝，以及怎样把缺口转成用户能够补充的具体问题；继续使用结构化 Claim 与 EvidenceDecision 表达结论与缺口，不提前使用产品对象术语。
 19. **需求对象模型：项目、需求、版本、条目与基线** · 待编写
-    评审结论要挂在什么上面、由谁批准、怎样交付？一次性报告无法承载这些问题。本节建立 Project → Requirement → RequirementVersion → RequirementItem 主链、Requirement 粒度的基线指针，以及跨版本稳定的 `item_key`、只随内容递增的 `revision` 和 Project Brief 的 `brief_revision` 与最小字段边界（哪些信息属于项目、哪些属于单个 Requirement）；同时建立来源、引用与决策三分——条目来源说明它怎样形成，Citation 证明外部事实，Decision 记录人的裁决，三者不能互相冒充。补充固定分区的 `addressed / not_applicable / needs_input` 完整性语义：完整需求是每个固定分区都被处理，而不是正文足够长；本节不讲实现，不定义 API。
+    评审结论要挂在什么上面、由谁批准、怎样交付？一次性报告无法承载这些问题。本节建立 Project → Requirement → RequirementVersion → RequirementItem 主链、Requirement 粒度的基线指针，以及跨版本稳定的 `item_key`、只随内容递增的 `revision` 和 Project Brief 的 `brief_revision` 与最小字段边界（哪些信息属于项目、哪些属于单个 Requirement）；同时建立来源、引用与决策三分——条目来源说明它怎样形成，Citation 证明外部事实，Decision 记录人的裁决，三者不能互相冒充。补充固定分区的 `addressed / not_applicable / needs_input` 完整性语义，以及从空 Project 建立初始 Brief、Requirement 和首个 draft 的冷启动对象链；完整需求是每个固定分区都被处理，而不是正文足够长；本节不讲实现，不定义 API。
 20. **结构化需求草稿：从固定表单或已有 PRD 到条目** · 待编写
     用户手里只有一份 PRD 或几个表单字段，怎样变成有分区、有来源、可评审的条目？本节建立第二个 Prompt 族与导入映射：固定表单的人写条目创建即 `confirmed`，检索后由固定生成补全草稿；导入 PRD 保存为 SourceArtifact 并映射到固定分区，条目一律 `proposed` 且保留原文定位，未映射内容进入诊断；每个分区同时得到已覆盖、不适用或待补充的处理状态，待补充不能被默认值填平；`external_fact` 只由系统赋予，导入与人写永不产生它。这是固定步骤，不是对话式 Agent。配套实验冻结检索，只改变输入来源，观察来源、陈述类型与分区完成度怎样落到条目上。
 21. **Finding 定位、决策记录与条目级差异** · 待编写
@@ -92,13 +92,13 @@
 24. **系统角色与项目成员角色：产品 RBAC 与 Tool 权限的区别** · 待编写
     有了身份还不能决定谁能做什么。本节建立系统 admin / member 与项目 owner / editor / viewer 两层角色、取交集的授权规则和只能由人触发的六类动作（提交批准、退回 / 撤回、批准、正式导出、成员管理、编辑 Brief），区分可见路由与可执行动作；这里的产品角色只回答“界面上谁能点什么”，不能与第 39 节的 Tool 权限（模型能执行什么）混为一谈，二者在那里显式对照。
 25. **知识资料 API 与资料生命周期** · 待编写
-    资料怎样从上传变成可检索候选？本节定义知识资料 API 的请求、响应与错误分层，资料生命周期与 `dataset_version` 的产生规则；同时加入 `approved_requirement` 来源角色，说明项目检索池与全局知识库是两个池子、两个快照身份，“发布产生 `dataset_version`”只约束后者。已批准版本的索引状态 `pending / indexed / index_failed` 在此定义，触发时机在第 26 节。
+    资料怎样从上传变成可检索候选？本节定义知识资料 API 的请求、响应与错误分层，资料生命周期与 `dataset_version` 的产生规则；同时加入 `approved_requirement` 来源角色，说明项目检索池与全局知识库是两个池子、两个快照身份，“发布产生 `dataset_version`”只约束后者。明确新 Project 可以为空池，首个批准且索引成功的 RequirementVersion 才开始沉淀项目级证据；已批准版本的索引状态 `pending / indexed / index_failed` 在此定义，触发时机在第 26 节。
 26. **需求版本生命周期、人工批准、基线切换与交付语义** · 待编写
     一个版本什么时候可以被批准、批准后发生什么、交付包从哪里来？本节只跟踪一条主流：草稿 → 提交 → 批准 → 基线切换 → 事务后索引 → 从不可变版本导出。定义四个持久状态与三个派生状态、编辑规则（内容与 Decision 都只在 `draft` 可写）、乐观修订号并发、同一 Requirement 单开放版本，以及提交时预检、批准时复检的批准门不变量：所有固定分区必须已覆盖或有人工不适用理由，不能有待补充分区；同时冻结 `approved_decision_ids / approved_decision_set_hash`。Brief 修改使待批准版本过期后必须先退回草稿。DeliveryPackage 只讲导出语义，不展开第二套独立生命周期。
 27. **ReviewRun、Review API 与 SSE 事件契约** · 待编写
     一次评审此刻处于什么状态，客户端据此显示什么？本节只跟踪 ReviewRun 一个生命周期：`submitted → retrieving → generating_unverified → validating → completed | failed | cancelled`，进入检索时钉住需求修订、Brief 修订、`dataset_version` 与可见已批准需求的证据快照；区分业务证据不足与系统执行失败，定义结构化增量与最终校验替换的 SSE 事件契约和增量撤回语义。
 28. **需求工作台集成检查点** · 待编写
-    怎样把需求创建 / 导入、评审、决策、批准、导出与知识管理接入同一 Web 工作台？本节完成最小真实前后端联调：项目列表 → 需求列表 → 需求工作区，验证两个入口、从评审循环到批准导出的完整闭环、增量撤回和两层角色边界。不做 Golden Set、四路对照和质量门槛，它们属于第 33 节。
+    怎样把项目创建、空 Brief 初始化、需求创建 / 导入、评审、决策、批准、导出与知识管理接入同一 Web 工作台？本节完成最小真实前后端联调：创建 Project → owner 初始化 Brief → 创建 Requirement draft → 固定表单 / PRD 导入 → 需求工作区，并同时验证空检索池的证据不足路径、首个基线沉淀、已有项目迭代、增量撤回和两层角色边界。不做 Golden Set、四路对照和质量门槛，它们属于第 33 节。
 
 ## 建立最小比较能力
 
@@ -119,12 +119,12 @@
 
 第二阶段回答：当查询、知识源、工具和协作步骤不能完全预先固定时，怎样让 Agent 动态行动，同时由应用控制权限、状态、停止、证据、恢复和评估？
 
-第二阶段分为两个连续的学习里程碑，但不是两条互相替代的路线：
+第二阶段分为两个连续的学习里程碑，但不是两条互相替代的路线。第 34–76 节先完成核心产品链，第 77–110 节仍是必修学习范围；后者的产品默认接入与否由比较证据决定，不影响其课程必修性：
 
 - **第 34–76 节：Agent 应用开发核心链路。** 从 LangChain Agent 出发，完成 Agentic RAG、Tool Runtime、LangGraph 的状态与恢复、需求 Brief 追问与 propose / Diff / apply 确认门、MCP / File / Code 与变更影响分析、事件、运行界面和 LangSmith 观测评估的第一个可运行闭环。
 - **第 77–110 节：高级 Agent 能力与完整体系。** 在核心闭环上继续学习 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow、跨系统观测与回归。第 76 节是一个里程碑，不是课程终点；后续内容仍属于完整 Agent 开发知识范围。
 
-开始第 34 节前，先阅读[第二阶段项目篇](project/stage-2-agent-system/agent-review-assistant.md)的贯穿场景、检查点和非目标。第二阶段继续复用“售后入口”这一 Requirement 及其基线，增加 OpenAPI、Flutter / Web 客户端模型、配置、外部需求和定向验证，v2 是同一 Requirement 的新版本，不更换基线案例；Agent 复用第一阶段的需求对象模型与批准门，正式写入只走 propose / Diff / apply。
+开始第 34 节前，先阅读[第二阶段项目篇](project/stage-2-agent-system/agent-review-assistant.md)的贯穿场景、检查点和非目标。课程继续使用“售后入口”这一 Requirement 及其基线作为固定 fixture，增加 OpenAPI、Flutter / Web 客户端模型、配置、外部需求和定向验证，v2 是同一 Requirement 的新版本，不更换基线案例；真实产品同时支持空 Project 冷启动和已有项目迭代。Agent 复用第一阶段的需求对象模型与批准门，正式写入只走 propose / Diff / apply。
 
 框架不是附加在机制课程之外的第二条路线。框架能力本身进入机制篇：每个框架单元都以一个产品问题为入口，解释框架怎样实现当前能力、公开抽象怎样协作、应用还承担什么责任以及失败边界在哪里；具体安装、SDK 版本、完整调用、日志和调试进入配套实验。
 

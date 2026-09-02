@@ -43,6 +43,8 @@ Project → Requirement → RequirementVersion → RequirementItem
 
 Project 拥有成员、SourceArtifact 与 Project Brief。Brief 是 Project 上的独立字段集合，不伪装成 Requirement。
 
+系统 member 创建 Project 后成为该 Project 的 owner。创建 Project 时系统建立 `brief_revision=0` 的初始 Brief；它可以只有项目名称等最小识别信息，其余字段允许为空。空 Brief 不阻止创建第一个 Requirement draft 或启动固定表单 / 导入流程，但 ReviewRun 与 Agent 必须把实际缺失的项目语境表达为可定位的内部缺口或追问，不能伪造默认事实。owner 后续编辑 Brief 时才产生递增修订。
+
 Brief 最小字段：
 
 - 产品或项目背景与业务域。
@@ -60,6 +62,8 @@ Brief 以“项目语境”进入 ReviewRun Context，不进入 Evidence 分区�
 Requirement 是可独立版本化、批准和交付的稳定需求容器，对应一个功能点或可独立交付的需求主题，不与单个条目混用。它持有 `baseline_version_id` 指向当前基线。
 
 同一 Requirement 同时最多存在一个 `draft | pending_approval` 开放版本。全产品基线、Requirement 归档和并行开放分支不在当前范围。
+
+editor 或 owner 创建 Requirement 是普通人工产品动作，不是 Agent Tool。创建者可只提供标题和一句自然语言种子，系统立即建立该 Requirement 的唯一 `draft` 版本；条目、分区状态和完整内容可随后由固定流程或第二阶段 Agent 协助形成。这个轻量容器动作提供稳定身份、Project 归属和写入授权，不等于人必须预先填写完整需求。
 
 ### 3.4 RequirementVersion
 
@@ -348,6 +352,7 @@ RequirementVersion 批准 → index_state=pending
 - 当前待评审版本和自身旧基线不进入候选，版本差异由 Diff 负责。
 - `superseded` 版本因不在快照集合中自然离开候选，不重标角色。
 - 诊断列出未进入候选的项目当前基线，包含 `requirement_version_id`、`index_state=pending | index_failed` 和不可见原因。
+- 新 Project 可以同时没有可见全局资料和已索引项目基线；此时两个候选集合为空，ReviewRun 以 `completed + evidence_decision=refusal` 或等价的证据不足结果完成，而不是进入 `failed`。第一个批准且索引成功的 RequirementVersion 才开始为后续同项目运行提供 `approved_requirement` 候选。
 
 ### 8.4 知识资料生命周期
 
@@ -362,7 +367,7 @@ uploaded → parsing → parse_failed
 
 ### 9.1 Brief 追问
 
-Agent 从模糊想法识别 Project Brief 与 Requirement 分区缺口，通过可恢复人工节点追问。运行开始前，editor 或 owner 已人工创建或选择目标 Requirement 的 `draft`；Agent 不能创建正式 Requirement，只能建议标题或在该 draft 上提出内容补丁。用户回答保留为用户输入来源；Retriever、MCP、Search 和 Browser 结果只是候选证据。
+Agent 从模糊想法识别 Project Brief 与 Requirement 分区缺口，通过可恢复人工节点追问。运行开始前，editor 或 owner 已人工创建或选择目标 Requirement 的 `draft`；创建可以只包含标题与一句自然语言种子。Agent 不能创建正式 Requirement，只能建议标题或在该 draft 上提出内容补丁。用户回答保留为用户输入来源；Retriever、MCP、Search 和 Browser 结果只是候选证据。
 
 Agent 只能生成 Brief 草案和需求草稿：
 
@@ -479,6 +484,7 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 - 导入映射与人的直接输入不产生 `external_fact`；人不能升级为 `external_fact`，编辑外部事实正文会自动降级并清空 Citation。
 - AI 外部事实 Citation 通过后为 `verified`；未通过时 `confirm_items` 拒绝，只能改类或删除。
 - 产品意图不因无 Citation 被拒；外部事实缺 Citation 不能伪装成已支持。
+- member 创建 Project 后成为 owner，初始空 Brief 与最小 Requirement draft 可启动冷启动路径；没有合格候选资料时必须产生证据不足结果，而不能伪造 Citation 或依赖失败。
 
 ### 13.2 Finding 与 Decision
 
@@ -536,7 +542,7 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 
 ## 15. 固定垂直切口
 
-Project 为电商 App；主 Requirement 为“售后入口”。第一阶段 v1 从 Target Requirement fixture 导入并批准为基线。同项目存在“订单状态展示”Requirement 的已批准、已索引基线，使 `approved_requirement` 池主路径非空，并稳定支撑一条与售后入口规则冲突的样例。
+验收 fixture 的 Project 为电商 App；主 Requirement 为“售后入口”。第一阶段 v1 从 Target Requirement fixture 导入并批准为基线。同项目存在“订单状态展示”Requirement 的已批准、已索引基线，使 `approved_requirement` 池主路径非空，并稳定支撑一条与售后入口规则冲突的样例。真实产品不绑定电商主题，新 Project 可以按第 3.2 节的冷启动路径从空 Brief 和空检索池开始。
 
 第二阶段“售后接口 v2 与多端契约一致性评审”是同一主 Requirement 的新 RequirementVersion：
 

@@ -6,11 +6,11 @@
 
 第一阶段固定 RAG 已经能把固定表单或导入的 PRD 收敛为结构化需求版本，从内部资料中检索证据生成可定位的 Finding，由人逐项决策、批准为基线并导出交付包。第二阶段处理无法完全预先固定的任务：需求可能从一个模糊想法开始，问题可能需要改写、选择知识源、补检索、搜索外部资料、调用工具、追问用户或由多个评审角色协作，版本迭代时还要分析变更影响。
 
-最终产品仍是同一个需求评审助手，沿用第一阶段的需求对象模型、批准门与交付包，不新建第二个应用，也不为 Agent 建立第二套写入路径。
+最终产品仍是同一个需求评审助手，沿用第一阶段的需求对象模型、批准门与交付包，不新建第二个应用，也不为 Agent 建立第二套写入路径。Skills、Research、Multi-Agent、A2A、Workflow 和质量方法都是课程必学范围；产品是否将某项能力设为默认路径，必须通过同条件比较决定。
 
 ## 贯穿场景
 
-第二阶段继续使用第一阶段的 Project（电商 App）与 Requirement（“售后入口”需求主题），不通过更换案例规避固定 RAG、单 Agent 和 Multi-Agent 的比较。贯穿场景有两条线：
+第二阶段继续使用第一阶段的 Project（电商 App）与 Requirement（“售后入口”需求主题）作为固定 fixture，不通过更换案例规避固定 RAG、单 Agent 和 Multi-Agent 的比较。真实产品也必须支持从空 Project、空 Brief 和空检索池开始，随后在首个基线批准并索引后沉淀项目证据。贯穿场景有两条线：
 
 - **从模糊想法到基线**：用户只给出一句“售后入口要支持新的渠道来源”，先由 editor 或 owner 人工创建或选择目标 Requirement 的 `draft`，再由 Agent 识别缺失信息并追问，结合内部 RAG、MCP、Search / Browser 形成 Brief 草案与结构化需求草稿。需求草稿以 `propose_requirement_patch` 提出、经 Diff 确认后写入该 `draft` 版本，再进入评审、决策、批准与交付；Brief 草案只呈现给 `owner`，是否写入 Project Brief 由 `owner` 人工编辑决定，Agent 不创建正式 Requirement，也不产生 `brief_revision`。
 - **从基线到变更影响**：评审“售后接口 v2 与多端契约一致性”——需求要求增加或收紧 `source_channel`，并要求 Web 与 Flutter 客户端使用一致的入口可见性规则。它是同一 Requirement 从现有基线派生的新 RequirementVersion，不是新 Requirement；Agent 产出条目级差异，结合规则、接口契约、客户端模型与定向测试分析影响，结论落为 Finding，由人决策、批准，并导出增量交付包。
@@ -131,9 +131,9 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 
 ## 集成检查点
 
-### 第 76 节：Agent 应用开发核心链路里程碑
+### Agent 应用开发核心链路里程碑
 
-第 76 节把前面的能力串成一个可以运行、观察和回归的核心闭环：
+这个里程碑把前面的能力串成一个可以运行、观察和回归的核心闭环：
 
 ```text
 LangChain Agent
@@ -153,7 +153,7 @@ LangChain Agent
 - Agent 对需求的每次修改都经 propose / Diff / 人确认 / apply 进入 `draft` 版本，并留下 Decision；SPEC 第 2 节定义的六类人工动作仍只能由人触发。
 - 用本地 RunRecord 与 LangSmith Trace / Dataset / Experiment / Evaluator 形成可回查的观测和评估记录；LangSmith 不可用时保留真实失败和本地记录。
 
-完成第 76 节表示 Agent 应用开发的核心链路已经闭环。第 77–110 节仍需继续完成，用于建立 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow 和完整质量回归体系。
+完成这个里程碑表示 Agent 应用开发的核心链路已经闭环；后续高级能力、协议和质量方法仍需继续学习，用于建立完整 Agent 体系。
 
 ### 第一个框架 Agent 闭环
 

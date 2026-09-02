@@ -25,9 +25,13 @@
 
 “完整”指业务闭环完整，不指功能平台庞大。产品必须有真实输入输出、可追溯证据、可见状态与失败、明确权限与停止、最小质量证据和可交互入口。
 
+课程的完整范围和阅读顺序以 [标准学习路径](../course/learning-path.md) 为唯一真源。Agent Skills、Deep Research、Multi-Agent、A2A、必要 Workflow、观测和质量回归都必须学习、实验并完成同条件比较；这不预设它们全部成为产品默认路径。产品默认路径只采纳有明确质量、成本、延迟、稳定性和失败定位收益的能力，课程学习范围与产品运行取舍保持分离。
+
 ## 垂直切口与架构可迁移性
 
 “售后入口与订单状态”以及后续“售后接口 v2 与多端契约一致性评审”是贯穿学习、实验和验收的稳定垂直切口。固定切口是为了复用同一批业务事实、控制比较变量，并观察固定 RAG 怎样演进为 Agent 与 Multi-Agent；它不是产品只能回答这一个问题的白名单。需求评审助手可以处理不同主题的需求，以及 PRD、会议纪要、验收条件、接口契约、客户端模型、配置和验证结果等配套材料，但当前产品职责始终是围绕需求基线的需求定义、评审与交付，不扩展为通用项目管理或文档协作平台。
+
+固定切口只是稳定评估 fixture。真实产品必须支持两种运行形态：新 Project 从空 Brief、空项目检索池和第一个 Requirement draft 冷启动；已有 Project 则复用已批准且事务后索引的 RequirementVersion 与管理员发布的全局资料。空检索池是合法的证据不足状态，不是系统失败；随着需求基线批准并索引，项目级证据逐步沉淀。产品仍是受治理的需求证据库，不因此扩展为无边界的企业向量数据库。
 
 架构同时区分通用运行能力和领域装配。Model Provider、Structured Output、RAG 基础能力、Agent Harness、Tool Runtime、状态与事件、Deep Research、Multi-Agent 和必要 Workflow 原语应尽量保持领域可复用；Prompt、业务 Schema、知识库与 Metadata、Agent Skills、工具与权限策略、Agent 责任、证据与拒答规则、评估标准和产品交互则由具体领域决定。
 
@@ -41,6 +45,7 @@
 - PostgreSQL FTS、pgvector、RRF 与 Retriever 诊断。
 - Context、Structured Output、Citation、Refusal 和补充问题。
 - 需求对象模型：项目、需求、版本、条目与基线；固定表单与导入 PRD 两个入口。
+- 新 Project 的最小创建、空 Brief、Requirement draft 与冷启动路径；首个批准版本事务后索引并逐步沉淀为项目检索证据。
 - 评审结果落为可定位的 Finding，由人逐项决策，版本经人工批准成为基线，并从不可变基线导出交付包。
 - Review API、Web 工作台、Golden Set 与固定对照。
 
