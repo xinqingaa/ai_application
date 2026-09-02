@@ -15,6 +15,7 @@
 - AI Coding 掌握标准：`docs/ai-coding-mastery.md`。
 - AI 协作路由：`docs/ai-collaboration.md`。
 - 编写或审查 `course/**/*.md`：必须读取 `skills/course-writing/SKILL.md`。
+- 制作、审查或重构课程架构图、流程图、机制图及系列技术图：必须读取 `skills/editorial-system-diagrams/SKILL.md`。
 
 评估平台能力时另读 `docs/ai-application-platform.md`；涉及代码编写、审查或掌握判断时读取 `docs/ai-coding-mastery.md`。
 

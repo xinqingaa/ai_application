@@ -1,0 +1,4 @@
+interface:
+  display_name: "Editorial System Diagrams"
+  short_description: "Create clear editorial architecture and process diagrams"
+  default_prompt: "Use $editorial-system-diagrams to turn this material into a clear, consistent architecture or process diagram."
