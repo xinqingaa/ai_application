@@ -72,7 +72,7 @@ source/apps/review_assistant/
 
 当前产品只维护 Web 工作台，不建设或并行维护 Flutter App。课程中的 Flutter 仍可作为业务影响范围和学习者既有经验出现，但不是当前两个阶段的产品入口或验收项。
 
-第二阶段仍围绕同一个产品场景和同一个需求对象模型推进：受控工作区中同时存在 PRD、OpenAPI、Web / Flutter 客户端模型、配置和定向测试；外部资料通过 MCP、Search 与 Browser 进入。File Tool 负责选择性读取并保留路径、版本、哈希和定位，写入只进入运行级暂存区、不创建交付包；正式需求写入只走 `propose_requirement_patch` → Diff → 人工确认 → `apply_requirement_patch`；批准、导出与成员管理只能由人触发。Code Tool 只运行白名单内的契约校验、静态检查或定向测试，不提供任意 Shell。这里描述的是已确定的产品边界，不表示这些能力当前已经实现；具体需求与实施顺序分别以根 [SPEC.md](../../../SPEC.md) 和 [PLAN.md](../../../PLAN.md) 为准。
+第二阶段仍围绕同一个产品场景和同一个需求对象模型推进：受控工作区中同时存在 PRD、OpenAPI、Web / Flutter 客户端模型、配置和定向测试；外部资料通过 MCP、Search 与 Browser 进入。File Tool 负责选择性读取并保留路径、版本、哈希和定位，写入只进入运行级暂存区、不创建交付包；正式需求写入只走 `propose_requirement_patch` → Diff → 人工确认 → `apply_requirement_patch`；提交批准、退回、批准、正式导出、成员管理与 Project Brief 编辑只能由人触发。Code Tool 只运行白名单内的契约校验、静态检查或定向测试，不提供任意 Shell。这里描述的是已确定的产品边界，不表示这些能力当前已经实现；具体需求与实施顺序分别以根 [SPEC.md](../../../SPEC.md) 和 [PLAN.md](../../../PLAN.md) 为准。
 
 ## 当前已落地的运行能力
 

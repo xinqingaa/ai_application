@@ -10,7 +10,7 @@
 
 > 给定一份待定义或待评审的需求和一组固定业务资料，应用能否把需求收敛为结构化条目，先检索相关证据，再基于证据输出可定位、可逐项决策、可重复比较的评审结论，并让人把收敛后的版本批准为基线、从基线导出交付包？
 
-第一阶段使用固定 RAG Pipeline，不使用 Agent 动态决策；所有状态迁移都由人的显式动作触发。直接调用 LLM 只作为对照基线，用来证明外部知识和检索链路是否真的带来价值。
+第一阶段使用固定 RAG Pipeline，不使用 Agent 动态决策；需求版本的持久状态迁移全部由人的显式动作触发，ReviewRun、知识解析与索引状态由固定程序推进，且不自动改变需求版本状态。直接调用 LLM 只作为对照基线，用来证明外部知识和检索链路是否真的带来价值。
 
 ## 业务场景
 
@@ -21,7 +21,7 @@
 - **Target Requirement**：当前被定义和评审的“售后入口 PRD”。第一阶段通过导入入口保存为 SourceArtifact，再映射为 RequirementVersion 的条目；它是评审主体，可以支撑内部缺失与矛盾 Finding 的定位，但不进入 Retriever 候选池，不能成为 Citation Candidate。
 - **Reference Knowledge**：订单状态规则、售后接口文档和客户端展示规则，是当前有效、允许成为业务证据的参考知识，进入全局知识库。
 - **Historical Material**：历史需求评审记录，用于提供历史背景或已知 bad case；必须标明历史属性，不能自动覆盖当前有效规则。
-- **Approved Requirement**：同一 Project 内其他 Requirement 已批准并已索引的基线，以 `approved_requirement` 角色进入项目检索池，用于说明“项目内已批准的产品决定”；它不自动覆盖现行业务规则，二者冲突时应产生可见 Finding。
+- **Approved Requirement**：同一 Project 内其他 Requirement 已批准并已索引的基线，以 `approved_requirement` 角色进入项目检索池，用于说明“项目内已批准的产品决定”；它不自动覆盖现行业务规则，二者冲突时应产生可见 Finding。因为派生版本评审时排除自身基线，主路径上必须有一个独立的第二个 Requirement 才能让这个池子非空：固定业务集提供一个同 Project 的小型“订单状态展示”需求，以已批准、已索引的基线 fixture 形式存在，其中至少一条条目与售后入口需求存在可复现的冲突点（例如可进入售后的订单状态集合）。
 
 Reference Knowledge 与 Historical Material 必须共同覆盖 TXT 或 Markdown、DOCX 和文本型 PDF，不能只用手写 JSON 或已经整理好的字符串替代真实文档加载。扫描 PDF、OCR、图片、音频和视频不作为第一阶段产品输入。
 
@@ -57,7 +57,7 @@ Target Requirement 不与 Reference Knowledge 混在同一个 Retriever 候选�
 
 第一阶段可以分段实现，但进入产品组合前必须先确定下面这些契约。这里检查的是设计是否具备实施条件，不要求产品已经完成：
 
-- 固定“售后入口与订单状态”的 Target Requirement、Reference Knowledge、Historical Material、问题集和数据集版本；后续只增量补样例，不替换基线。
+- 固定“售后入口与订单状态”的 Target Requirement、Reference Knowledge、Historical Material、同项目“订单状态展示”已批准基线 fixture、问题集和数据集版本；后续只增量补样例，不替换基线。
 - 明确四类对象的身份、作用域和证据资格：当前需求版本是评审主体，现行规则是主要证据，历史材料只能以明确的历史角色进入 Context，已批准需求以 `approved_requirement` 角色进入项目检索池且不覆盖现行规则。
 - 明确 TXT / Markdown、DOCX、文本型 PDF 的解析范围、所选解析库和已知不支持结构。
 - 明确 `KnowledgeDocument`、`Chunk`、来源定位和稳定标识契约。
@@ -154,7 +154,7 @@ Target Requirement
 - 状态 `submitted → retrieving → generating_unverified → validating → completed | failed | cancelled`；`completed` 带 `evidence_decision`（可回答 / 部分回答 / 拒答）。
 - 本轮检索到的来源候选和实际使用的证据。
 - 生成过程中的增量结果与生成完成后经过完整校验的最终结果的明确区分标记。
-- 模型、Prompt、Retriever、Token、延迟和错误等诊断，错误至少区分模型鉴权失败、限流、超时、能力不支持、结构化校验失败与用户取消；因 `index_failed` 而不可见的已批准需求列入诊断。
+- 模型、Prompt、Retriever、Token、延迟和错误等诊断，错误至少区分模型鉴权失败、限流、超时、能力不支持、结构化校验失败与用户取消；所有未进入本轮候选的项目内当前基线（`index_state=pending | index_failed`）连同不可见原因列入诊断。
 
 每条 `Finding` 至少表达：`finding_kind`、严重度、`target_kind + target_ref`（属于该版本当时修订的条目、分区或版本本身）、说明、建议，以及按类型要求的依据——内部缺失 / 矛盾回到当前版本定位，外部事实冲突回到已校验 Citation，影响推断带推断标记，证据缺口转成用户可回答的问题。
 
@@ -268,11 +268,11 @@ Requirement 是稳定容器，RequirementVersion 是内容快照，RequirementIt
 
 ### 9. 批准门与两步人工门
 
-四个持久状态 `draft / pending_approval / approved / superseded`，每个迁移都由人触发；“评审中”“待补充”“已交付”是派生展示状态。批准门在提交时预检、批准时复检：门禁运行必须是当前 `revision` 上最近一次 `completed` 且 `brief_revision` 匹配的 ReviewRun，`proposed_count_at_start=0`，其全部 Finding 的活动 Decision 只能是 `reject` / `waive`。必须解释为什么 `accept_suggestion` / `supplement` 递增 `revision` 就自然逼出“最后一轮零内容变更”，循环因此有限收敛。
+四个持久状态 `draft / pending_approval / approved / superseded`，每个迁移都由人触发；“评审中”“待补充”“已交付”是派生展示状态。批准门在提交时预检、批准时复检：门禁运行必须是当前 `revision` 上最近一次 `completed` 且 `brief_revision` 匹配的 ReviewRun，`proposed_count_at_start=0`，其全部 Finding 的活动 Decision 只能是 `reject` / `waive`。Decision 只在 `draft` 可创建或替换，提交后只读，批准时把活动 Decision 集合冻结为 `approved_decision_ids` 与 `approved_decision_set_hash`，DeliveryPackage 固定使用 IDs 并校验哈希——否则批准后改一条 `reject` 为 `waive`，导出的交付包就与 owner 批准时看到的不是同一份。Brief 修改使待批准版本过期后必须先退回 `draft`，再重新评审、处理 Finding 并提交。必须解释为什么 `accept_suggestion` / `supplement` 递增 `revision` 就自然逼出“最后一轮零内容变更”，循环因此有限收敛。
 
 ### 10. 两层角色边界
 
-系统 admin / member 与项目 owner / editor / viewer 两层，权限取交集；系统 admin 不因系统角色获得项目批准权。批准、退回、编辑 Brief、管理成员归 owner；创建需求、编辑草稿、运行评审、处理 Finding、提交批准、导出归 editor 及以上。这里的角色只回答产品界面上谁能点什么，是产品 RBAC，不是第二阶段 Tool 权限（模型能执行什么）；两者概念独立，不能相互替代或合并实现。
+系统 admin / member 与项目 owner / editor / viewer 两层，权限取交集；系统 admin 不因系统角色获得项目批准权。批准、退回、编辑 Brief、管理成员归 owner；创建需求、编辑草稿、运行评审、处理 Finding、提交批准、导出归 editor 及以上。其中提交批准、退回 / 撤回、批准、正式导出、成员管理、编辑 Brief 六类动作只能由人触发。这里的角色只回答产品界面上谁能点什么，是产品 RBAC，不是第二阶段 Tool 权限（模型能执行什么）；两者概念独立，不能相互替代或合并实现。
 
 ### 11. 两个检索池与事务后索引
 
@@ -385,7 +385,7 @@ RequirementVersion（当前修订）→ ReviewRun 快照 → Lexical + Dense →
 
 三个独立状态机加派生状态，不写第四套生命周期：
 
-- **版本持久态**：`draft → pending_approval → approved → superseded`，`pending_approval → draft` 由 owner 退回或撤回；每个迁移由人触发。派生展示状态“评审中”（存在活跃 ReviewRun）、“待补充”（门禁运行存在未处理的 `evidence_gap` / `internal_gap`）、“已交付”（存在成功 DeliveryPackage）由查询得出。
+- **版本持久态**：`draft → pending_approval → approved → superseded`，`pending_approval → draft` 由 owner 退回或撤回；每个迁移由人触发。内容写入与 Decision 写入都只在 `draft` 允许。派生展示状态“评审中”（存在活跃 ReviewRun）、“待补充”（门禁运行存在未处理的 `evidence_gap` / `internal_gap`）、“已交付”（存在成功 DeliveryPackage）由查询得出。
 - **ReviewRun**：`submitted → retrieving → generating_unverified → validating → completed | failed | cancelled`；`completed` 带 `evidence_decision`；失败不改变版本状态；一个版本可跑多次；SSE 连接断开是传输层事件，不改变任何业务状态。
 - **已批准版本索引**：`pending → indexed | index_failed`，`index_failed` 可重试，只影响该版本能否作为 `approved_requirement` 被检索。
 
@@ -406,7 +406,7 @@ DeliveryPackage 是导出记录（成功 / 失败、哈希、导出人），不�
 - 模型鉴权、限流、超时或能力不支持。
 - Structured Output 校验失败。
 - Finding 目标不属于当前修订，或依据资格不满足（`external_fact_conflict` 缺 Citation）。
-- 基于旧 `revision` 的写入被拒绝；`pending_approval` 或活跃 ReviewRun 期间的写入被拒绝。
+- 基于旧 `revision` 的写入被拒绝；`pending_approval` 或活跃 ReviewRun 期间的写入被拒绝；非 `draft` 状态下创建或替换 Decision 被拒绝。
 - 批准门预检 / 复检失败：过期运行、未处理 Finding、`proposed` 条目、过期 Brief。
 - 导入原文哈希变化后旧映射不能沿用。
 
@@ -470,7 +470,7 @@ DeliveryPackage 是导出记录（成功 / 失败、哈希、导出人），不�
 - 期望覆盖的 `finding_kind` 与目标。
 - 是否应该明确表示证据不足。
 
-`development` Case 用于观察失败、选择 Chunk 策略和调整 Retriever 参数；`acceptance` Case 在首次验收运行前冻结，不能用于选择参数。两部分都至少覆盖词面一致、同义改写、精确接口名或枚举、无答案、噪声相似和 Metadata Filter 六类问题，每类至少有一个稳定 Case。Reference Knowledge 与 Historical Material 至少各有明确角色，知识资料格式至少各有一个可重复解析的 TXT 或 Markdown、DOCX 和文本型 PDF fixture。另加需求草稿引用正确性样例：固定表单补全与导入映射产生的条目，其来源、`proposed` 状态与 `external_fact` 归属可确定性验证。
+`development` Case 用于观察失败、选择 Chunk 策略和调整 Retriever 参数；`acceptance` Case 在首次验收运行前冻结，不能用于选择参数。两部分都至少覆盖词面一致、同义改写、精确接口名或枚举、无答案、噪声相似和 Metadata Filter 六类问题，每类至少有一个稳定 Case；另至少一个 Case 的期望来源落在同项目“订单状态展示”已批准基线上，用于验证 `approved_requirement` 池确实可检索并能支撑 `external_fact_conflict`。Reference Knowledge 与 Historical Material 至少各有明确角色，知识资料格式至少各有一个可重复解析的 TXT 或 Markdown、DOCX 和文本型 PDF fixture。另加需求草稿引用正确性样例：固定表单补全与导入映射产生的条目，其来源、`proposed` 状态与 `external_fact` 归属可确定性验证。
 
 样例数量可以增长，但删除、改写或改变 Case 的 split 必须提升 `dataset_version` 并说明原因。验收失败后可以保留失败记录并创建新实验，但不能根据 acceptance 结果删除 Case、降低门槛或把 Case 移入 development；若要改变验收集，必须发布新的数据集版本，并把原结果保留为历史证据。第一阶段只建立小型基线，完整数据集治理和评估平台保留为后续质量收束或扩展能力。
 
@@ -572,9 +572,10 @@ Definition of Ready 完成后，第一阶段主路径默认冻结：
 - [ ] 导入 PRD 后条目覆盖与未映射内容可见，导入条目能回到 SourceArtifact 的哈希与原文定位；固定表单创建的人写条目创建即 `confirmed`，AI 补全条目为 `proposed`。
 - [ ] 导入映射与人的直接输入永不产生 `external_fact`；人只能降级不能升级；编辑 `external_fact` 正文自动降级并清空 Citation。
 - [ ] 五类 Decision 按规则生效：`confirm_items` 不指向 Finding、不递增 `revision`；`accept_suggestion` / `supplement` 递增 `revision` 并使当前运行失去批准资格；活动 Decision 可替换且旧记录 `deactivated` 可查；目标已删除的 Finding 只允许 `reject` / `waive`。
-- [ ] 批准门在提交与批准时用同一规则拒绝过期运行、未处理 Finding、`proposed` 条目、过期 Brief，`proposed_count_at_start` 必须为 0；批准记录能回到对应 ReviewRun。
+- [ ] 批准门在提交与批准时用同一规则拒绝过期运行、未处理 Finding、`proposed` 条目、过期 Brief，`proposed_count_at_start` 必须为 0；批准记录能回到对应 ReviewRun、`approved_decision_ids` 与 `approved_decision_set_hash`；Brief 修改使待批准版本过期后必须先退回草稿。
+- [ ] 非 `draft` 状态下创建或替换 Decision 被拒绝；DeliveryPackage 使用的决策集合与 `approved_decision_ids`、`approved_decision_set_hash` 一致。
 - [ ] 批准在同一事务内切换 `baseline_version_id` 并把旧基线置为 `superseded`；索引失败时 `index_state=index_failed`、可重试、不回滚批准；同一 Requirement 存在开放版本时派生被拒绝。
-- [ ] ReviewRun 钉住 `requirement_version_id + revision`、`brief_revision`、`dataset_version` 与 `approved_requirement_version_ids`，`superseded` 版本不出现在新运行的项目池候选中，`index_failed` 版本列入诊断。
+- [ ] ReviewRun 钉住 `requirement_version_id + revision`、`brief_revision`、`dataset_version` 与 `approved_requirement_version_ids`，`superseded` 版本不出现在新运行的项目池候选中，`pending` 与 `index_failed` 版本都列入诊断并标明原因；同项目“订单状态展示”基线能被检索到并支撑至少一条 `external_fact_conflict`。
 - [ ] 乐观修订号拒绝基于旧 `revision` 的写入；`pending_approval` 与活跃 ReviewRun 期间拒绝内容写入；Brief 修订历史 append-only 且可取回。
 - [ ] DeliveryPackage 只从 `approved` / `superseded` 版本导出，与钉住的版本和 `approved_brief_revision` 哈希一致；草稿只能生成带标记的非正式预览。
 - [ ] 条目级 Diff 能按 `item_key` 对齐并给出原因；历史 Finding 与 Decision 可按 `item_key` 回查，不自动迁移。

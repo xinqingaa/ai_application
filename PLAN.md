@@ -52,7 +52,9 @@ LLM 调用与结构化输出
 → 最小 Run State、Event、停止原因与 LangSmith Trace
 → Agent 运行契约与框架适配收束
 → LangGraph State、Checkpoint、Interrupt 与恢复
+→ 需求 Brief 草案追问，propose_requirement_patch / Diff / apply_requirement_patch 确认门（`apply_patch` Decision）
 → MCP 与 Search / Browser / File / Code Tool
+→ 变更影响分析（条目差异 × 规则 / 契约 / 客户端 / 测试 → Finding）
 → Conversation、短期记忆、长期偏好、完整事件和运行界面
 → Agent Skills
 → Deep Research
@@ -116,7 +118,7 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 - 身份认证、会话生命周期，以及系统 admin / member 与项目 owner / editor / viewer 两层角色的路由与动作边界。这是产品领域策略，不进入通用 package；也不与第二阶段 `agent_core` 的 Tool 权限模块合并。
 - 知识管理后台：知识资料上传、解析诊断展示、入库暂存、管理员发布与 `dataset_version` 记录。发布动作是唯一能够改变全局知识库候选池版本的入口，上传和暂存不直接生效；项目检索池由已批准版本索引维护，是另一个池子。
 - DeliveryPackage 导出（只从 `approved` / `superseded` 版本）与草稿非正式预览。
-- 第二阶段 `propose_requirement_patch` / `apply_requirement_patch`：Agent 提出补丁、人确认 Diff、写入 `draft` 版本并记录 Decision，是产品专用写入能力，不是 File Write。
+- 第二阶段 `propose_requirement_patch` / `apply_requirement_patch`：Agent 提出补丁、人确认 Diff、写入 `draft` 版本并记录 `apply_patch` Decision，是产品专用写入能力，不是 File Write；Agent 形成的 Brief 草案只进运行状态或暂存区，Project Brief 仍由 owner 人工编辑。
 - 产品 Schema、状态和组合流程。
 - `agent/` 中的评审 Prompt、领域 Agent 组装、引用与证据策略、记忆策略和角色设计。
 - 产品测试、fixtures、eval 和数据库 migration。

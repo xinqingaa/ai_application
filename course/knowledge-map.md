@@ -174,8 +174,8 @@
 | State、Node 与状态转换 | 主线 | 第二阶段 | 通过 LangGraph 将必须稳定执行的步骤表达为合法状态转换，区分确定性节点和模型决策；产品定义 State 语义，框架负责执行 | Agent State、LangChain Agent | 待编写机制正文 | 产品必接于需要恢复的路径；`agent_core/langgraph` 适配 |
 | Checkpoint、持久化与 Resume | 主线 | 第二阶段 | 使用框架持久化能力保存可恢复状态，并处理代码、配置或输入变化后的恢复边界，不重复实现 Checkpointer | Workflow State | 待编写机制正文 | 产品必接于长任务 |
 | Interrupt 与 Human-in-the-loop | 主线 | 第二阶段 | 使用正式 Interrupt 将等待确认、批准、拒绝、修改和超时表达为可恢复状态 | Checkpoint | 待编写机制正文 | 产品必接于写入和高风险行动 |
-| 需求 Brief 形成与缺失信息追问 | 主线 | 第二阶段 | 从模糊想法出发识别分区与事实缺口，经 Interrupt 追问；回答保留为用户输入来源，检索与外部资料只作候选证据；追问有预算与停止条件，不伪造默认值、不写入正式需求 | Interrupt、需求对象模型、证据缺口路由 | 待编写机制正文 | 产品必接；`review_assistant/agent` |
-| 正式需求写入的 propose / Diff / apply 确认门 | 主线 | 第二阶段 | Agent 只能提出条目级补丁，人确认 Diff 后写入 `draft` 版本；复用 `revision` 并发与拒写规则，确认落为 Decision 使条目直接 `confirmed`，重放不重复写入；不是 File Write，批准、导出与成员管理仍只由人触发 | Interrupt、重放安全、需求版本生命周期 | 待编写机制正文 | 产品必接；`review_assistant` 专用写入能力 |
+| 需求 Brief 形成与缺失信息追问 | 主线 | 第二阶段 | 从模糊想法出发识别分区与事实缺口，经 Interrupt 追问；回答保留为用户输入来源，检索与外部资料只作候选证据；产出是 Brief 草案与需求草稿，Agent 不写 Project Brief、不产生 `brief_revision`，采纳由 `owner` 人工编辑；追问有预算与停止条件，不伪造默认值、不写入正式需求 | Interrupt、需求对象模型、证据缺口路由 | 待编写机制正文 | 产品必接；`review_assistant/agent` |
+| 正式需求写入的 propose / Diff / apply 确认门 | 主线 | 第二阶段 | Agent 只能提出条目级补丁，人确认 Diff 后写入 `draft` 版本；复用 `revision` 并发与拒写规则，确认落为第二阶段新增的 `apply_patch` Decision（不挂 Finding、不代替评审 Decision）使条目直接 `confirmed`，apply 后必须重新评审，重放不重复写入；不是 File Write，SPEC 定义的六类人工动作仍不进入任何 Tool 权限 | Interrupt、重放安全、需求版本生命周期 | 待编写机制正文 | 产品必接；`review_assistant` 专用写入能力 |
 | 重放安全：重试、执行记录与幂等 | 主线 | 第二阶段 | 恢复和重放先依靠执行记录与幂等键避免重复外部行动；无法以幂等消除影响时，再显式定义补偿责任 | Tool Runtime、Run State、Workflow State | 待编写机制正文 | 产品必接；写入与外部行动 |
 | 可恢复 Workflow 组合 | 主线 | 第二阶段 | 只把确实需要显式状态和恢复的 Research 或协作片段放入 Workflow | 完整 Workflow 原语 | 项目检查点 | 产品必接的最小组合，不建设画布 |
 | Workflow as Tool 与子 Agent 编排 | 扩展 | 第二阶段 | 理解把固定流程暴露为 Tool 或嵌入 Agent 的组合边界，避免循环所有权不清 | Workflow、Agent | 待编写机制正文 | 条件接入 |
@@ -190,7 +190,7 @@
 | 需求对象模型与状态 | 主线 | 第一阶段 | 用 Project → Requirement → RequirementVersion → RequirementItem 主链承载评审结论；Requirement 粒度的基线指针、跨版本稳定的 `item_key`、只随内容递增的 `revision` 与 Project Brief 的 `brief_revision`；来源、引用与决策三分，不让条目来源、外部 Citation 与人的 Decision 互相冒充；全产品基线、归档与自定义分区是非目标 | Citation、Refusal | 待编写概念正文 | 产品必接；`review_assistant` 领域 Schema 与 migration |
 | 结构化需求草稿 | 主线 | 第一阶段 | 把固定表单或导入 PRD 映射为有分区、有来源的条目：人写条目创建即 `confirmed`，AI 与导入条目为 `proposed`；导入原文保存为 SourceArtifact 并保留定位；`external_fact` 只由系统赋予；这是固定步骤，不是对话式 Agent | 需求对象模型、Structured Output、固定 RAG | 待编写机制与实验 | 产品必接；第二个 Prompt 族，`review_assistant` |
 | Finding 定位与决策 | 主线 | 第一阶段 | 评审结论固定到版本修订上的条目、分区或版本；五类 `finding_kind` 各有目标与依据资格，内部缺失 / 矛盾不伪造 Citation，外部事实冲突缺 Citation 时拒绝写入；五类 Decision、活动 Decision 替换、`confirm_items` 无 Finding 路径与按 `item_key` 对齐的条目级 Diff | 需求对象模型、证据充分性 | 待编写机制与实验 | 产品必接；`review_assistant` 决策与 Diff |
-| 需求版本生命周期与交付包 | 主线 | 第一阶段 | 四个持久状态、三个派生状态，每个迁移由人触发；乐观修订号并发与单开放版本；提交预检、批准复检同一批准门；批准事务内切换基线，索引在事务之后；DeliveryPackage 只从不可变版本导出，可配置审批链、委托与通知是非目标 | Finding 与决策、产品 RBAC | 待编写机制正文 | 产品必接；`review_assistant` 状态机与导出 |
+| 需求版本生命周期与交付包 | 主线 | 第一阶段 | 四个持久状态、三个派生状态，每个迁移由人触发；内容与 Decision 都只在 `draft` 可写；乐观修订号并发与单开放版本；提交预检、批准复检同一批准门，批准时冻结 `approved_decision_ids` 与 `approved_decision_set_hash`；Brief 修改使待批准版本过期后必须先退回草稿；批准事务内切换基线，索引在事务之后；DeliveryPackage 只从不可变版本导出并固定使用冻结的决策集合，可配置审批链、委托与通知是非目标 | Finding 与决策、产品 RBAC | 待编写机制正文 | 产品必接；`review_assistant` 状态机与导出 |
 | 已批准需求作为证据来源（`approved_requirement`） | 主线 | 第一阶段 | 已批准且已索引的基线以独立来源角色进入同项目检索池，说明项目内已批准的产品决定而不覆盖现行规则；ReviewRun 钉住 `approved_requirement_version_ids` 快照，`superseded` 版本按身份自然离开，当前版本与自身基线不进入候选；与全局知识库是两个池子、两个快照身份 | 来源角色、Metadata Filter、版本生命周期 | 待编写机制正文 | 产品必接；`rag_core` 只扩展 `SourceRole` 与按 `document_version` 集合过滤 |
 | ReviewRun、Review API 与证据快照 | 主线 | 第一阶段 | 将评审运行暴露为稳定 API：ReviewRun 单一生命周期、进入检索时钉住的需求修订 / Brief 修订 / `dataset_version` / 可见已批准需求快照，区分业务证据不足与系统执行失败，SSE 只服务一次生成调用的阶段状态与结构化增量 | 固定 RAG、需求对象模型 | 待编写机制与实验 | 产品必接；产品 app |
 | 需求正文、证据、Refusal 与决策界面 | 主线 | 第一阶段 | 以需求正文为中心，让用户逐条看到条目来源与确认状态、Finding、证据、缺口、补充问题、Decision 和真实状态；推断标为推断，增量结果被已校验结果替换或撤回 | Citation、Refusal、Finding 与决策 | 待编写机制与实验 | 产品必接；Web 工作台 |
@@ -216,8 +216,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | Python、HTTP、JSON、异步与配置 | 必备基础 | 跨阶段 | 读写类型、异常、异步、网络请求、Schema、环境变量和配置，不展开通用语言课程 | 无 | `source/python_base/` | 产品必备；根项目 |
 | PostgreSQL、SQL 与本地运行 | 必备基础 | 第一阶段 | 理解 Server、Database、Schema、Role、migration、SQL 与真实权限 | Python 基础 | [概念](concepts/postgresql-for-ai-applications.md) · [实验](labs/lexical-retrieval.md) | 产品必备；产品 infra |
-| 用户身份与认证 | 主线 | 第一阶段 | 建立注册/登录、凭证校验、会话签发、失效与登出的最小认证生命周期，为角色边界提供后端可依赖的身份事实 | HTTP、异步 | 待编写机制正文 | 产品必接；`review_assistant/app` |
-| 系统角色与项目成员角色（产品 RBAC） | 主线 | 第一阶段 | 用系统 admin / member 与项目 owner / editor / viewer 两层角色、取交集的授权规则区分可见路由与可执行动作；批准、导出、成员管理与编辑 Brief 只能由人触发，系统 admin 不因系统角色获得项目批准权；这里只回答产品界面上谁能点什么，不能与第二阶段 Tool 权限（模型能执行什么）混为一谈，二者在第 39 节显式对照，Agent 以发起者的项目角色行动、没有独立角色 | 用户身份与认证 | 待编写机制正文 | 产品必接；`review_assistant/app` |
+| 用户身份与认证 | 主线 | 第一阶段 | 建立注册/登录、凭证校验、Cookie Session 签发、失效与登出的最小认证生命周期，为角色边界提供后端可依赖的身份事实；认证方式的选择传导到 SSE 传输实现 | HTTP、异步 | 待编写机制正文 | 产品必接；`review_assistant/app` |
+| 系统角色与项目成员角色（产品 RBAC） | 主线 | 第一阶段 | 用系统 admin / member 与项目 owner / editor / viewer 两层角色、取交集的授权规则区分可见路由与可执行动作；提交批准、退回 / 撤回、批准、正式导出、成员管理与编辑 Brief 六类动作只能由人触发，系统 admin 不因系统角色获得项目批准权；这里只回答产品界面上谁能点什么，不能与第二阶段 Tool 权限（模型能执行什么）混为一谈，二者在第 39 节显式对照，Agent 以发起者的项目角色行动、没有独立角色 | 用户身份与认证 | 待编写机制正文 | 产品必接；`review_assistant/app` |
 | FastAPI 与 SSE | 主线 | 跨阶段 | 用稳定 HTTP API 和事件传输连接后端状态与 Web 工作台；第一阶段先用阶段状态流与结构化增量校验边界，第二阶段深化为完整 Agent Event 协议 | HTTP、异步 | 对应机制与实验篇 | 产品必接；产品 app |
 | Redis、后台任务与入库状态 | 扩展 | 第一阶段 | 处理跨进程状态、长任务和队列，只有真实异步产品问题出现时接入；知识资料上传的暂存/发布流程与已批准版本的事务后索引先用数据库状态字段（含 `index_state`）与后台任务承担 | Review API | 按需机制篇 | 条件接入；产品 infra |
 | Docker Compose | 主线 | 第一阶段收尾 | 从第一阶段验收开始固定应用与 Postgres/pgvector 的本地多服务环境，不能替代依赖契约、迁移和真实故障理解 | 产品服务 | 按需机制篇 | 产品必接；产品 infra |

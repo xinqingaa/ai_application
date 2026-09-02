@@ -108,7 +108,7 @@ Citation 成员资格（已完成，第 16 节）
 
 ### Finding 与 Decision（第 21 节定义）
 
-五类 `finding_kind` 的目标与依据资格、阻断规则；五类 `decision_type`，同一 Finding 只有一条 `active` Decision、可替换并保留 `deactivated`；`confirm_items` 不指向 Finding、不递增 `revision`。第 26 节的批准门直接消费本节的“活动 Decision”与“门禁运行”定义。
+五类 `finding_kind` 的目标与依据资格、阻断规则（条目与 Project Brief 矛盾归入 `internal_conflict`，依据另附 `brief_field` locator，不产生外部 Citation）；五类 `decision_type`，同一 Finding 只有一条 `active` Decision、可替换并保留 `deactivated`，创建与替换只在 `draft` 允许；`confirm_items` 不指向 Finding、不递增 `revision`。第 26 节的批准门直接消费本节的“活动 Decision”与“门禁运行”定义。
 
 ### 版本状态机与批准门（第 26 节定义）
 
@@ -117,7 +117,7 @@ draft → pending_approval → approved → superseded
 pending_approval → draft（owner 退回 / 撤回）
 ```
 
-派生状态“评审中 / 待补充 / 已交付”由查询得出。编辑规则、乐观修订号、单开放版本、Brief 修改的失效效果、批准事务与事务后索引都在本节定义；第 27 节只引用“活跃 ReviewRun 期间拒写”。
+派生状态“评审中 / 待补充 / 已交付”由查询得出。编辑规则、乐观修订号、单开放版本、Brief 修改的失效效果、批准事务与事务后索引、`approved_decision_ids / approved_decision_set_hash` 冻结都在本节定义；第 21 节只定义“Decision 只在 `draft` 可写”这一状态前提，第 27 节只引用“活跃 ReviewRun 期间拒写”。Brief 修改使待批准版本过期后必须先退回 `draft`，不能在 `pending_approval` 直接产生新的门禁运行。
 
 ### ReviewRun 状态机（第 27 节定义）
 
@@ -201,7 +201,9 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **已有输入**：第 18 节的结论与 gap；第一阶段项目篇的业务场景。
 - **交付**：对象主链、基线指针、稳定身份三件（`item_key`、`revision`、`brief_revision`）、来源 / 引用 / 决策三分的判据。
 - **必须讲清的两个“为什么不”**：为什么 Brief 是 Project 上的字段集合而不是特殊 Requirement；为什么基线只在 Requirement 粒度、全产品基线是非目标。
+- **Brief 的内容边界**：按 SPEC §4 给出最小字段（背景与业务域、项目级目标与非目标、目标平台与全局约束、术语与业务主体、项目级默认规则）和归属规则——Brief 只放跨 Requirement 不变的信息，Requirement 的 `problem / goals / non_goals / constraints` 只写本需求特有内容；Brief 进入 Context 的“项目语境”分区、不产生 Citation，条目与 Brief 矛盾走 `internal_conflict` + `brief_field` locator（第 21 节承接）。
 - **必须讲清的一个死锁**：若允许人把条目标为 `external_fact` 或允许导入器产生它，批准门会在“缺 Citation 的外部事实”上卡死；这是第 20 节写入路径的动机。
+- **与 1–16 节旧例子的衔接**：第 4 节概念篇仍以 `ReviewReport` 作 Structured Output 示例，那是冻结正文，不改；本节点一句"产品对象已改为挂在需求版本上的 Finding，`ReviewReport` 只是当时讲 Schema 校验的例子"，避免学习者把两者当成并存的两套输出。
 - **非目标**：不讲实现、不定义 API、不画状态机（状态机在第 26 节）、不讨论 Agent 写入。
 - **代码落点**：无；本节是第 20、21、26 节的概念前置。
 
@@ -211,7 +213,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **核心问题**：用户手里只有一份 PRD 或几个表单字段，怎样变成有分区、有来源、可评审的条目？
 - **已有输入**：第 19 节对象模型；第 7–16 节固定 RAG；第 5 节 Structured Output。
 - **交付**：第二个 Prompt 族（补全草稿）的 Schema 与校验；导入映射器（SourceArtifact → 条目 + 未映射诊断）；条目字段写入路径。
-- **两条入口共享一条循环**，本节要画清汇合点：无论入口 A 还是 B，产出都是 `draft` 版本上的 `proposed` 条目，下一步都是处理 `proposed`。
+- **两条入口共享一条循环**，本节要画清汇合点：无论入口 A 还是 B，产出都是同一份 `draft` 版本加上待处理的 `proposed` 条目（若有）——入口 A 先有人写的 `confirmed` 条目，再叠加 AI 补全的 `proposed`；入口 B 全部是 `proposed`。下一步都是处理 `proposed`，没有 `proposed` 时直接进入评审。不要写成"两条入口产出的全是 `proposed`"。
 - **固定步骤，不是对话式 Agent**：补全草稿是“检索 → 一次生成 → 校验”，没有追问循环；模糊想法与追问属于第 52 节。
 - **实验单变量**：冻结检索与模型，只改变输入来源——同一需求分别走固定表单与导入 PRD，比较条目的 `provenance`、`statement_kind`、`confirmation_state`、`citation_state` 与未映射诊断；再加一个 fixture 让 AI 草稿携带不可验证 Citation，观察条目停在 `proposed + unverified` 且 `confirm_items` 拒绝。
 - **非目标**：不做 Finding；不做 Decision；不做批准；不建独立的 Brief 编辑界面。
@@ -224,6 +226,8 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **已有输入**：第 18 节 EvidenceDecision 与 gap；第 20 节的条目与写入路径。
 - **交付**：Finding（五类、目标成员资格、按类型依据资格、阻断规则）；Decision（五类、活动替换、`confirm_items`）；按 `item_key` 对齐的条目级 Diff；批准门预检所需的“门禁运行”定义。
 - **目标成员资格校验与第 16 节是同一技巧**：正文点明，但不在 `rag_core` 建通用能力。
+- **`external_fact_conflict` 的样例只用已有资料**：用 Reference Knowledge（现行订单状态规则）构造一条与之冲突的售后入口条目，观察 Finding 携带指向规则 Chunk 的已校验 Citation。正文只提一句"`approved_requirement` 也是这类 Finding 的合格依据，来源池在第 25 节建立"，不在本节使用任何第 25 节才引入的 fixture；"与已批准需求冲突"的端到端样例在第 28 节验收。
+- **Decision 只在 `draft` 可写**：本节定义 Decision 的状态前提——创建与替换只允许在 `draft`，提交后只读；批准时的集合冻结（`approved_decision_ids / approved_decision_set_hash`）由第 26 节承接。
 - **实验必须覆盖七种场景**：无 Finding 的 `confirm_items`；有 Finding 的四类 Decision；替换活动 Decision（旧记录 `deactivated`）；`accept_suggestion` 递增 `revision` 并把已验证 Citation 写回条目；同一轮连续接受多条建议后一次重跑（新运行产生新 Finding，界面按 `(finding_kind, item_key)` 提示沿用但仍是新 Decision）；对目标已删除的 Finding 做 `accept_suggestion` / `supplement` 被拒绝、`reject` / `waive` 仍允许；门禁只统计门禁运行的 Finding（上一轮同目标的 Decision 不算）。
 - **非目标**：不做批准动作本身（第 26 节）；不做 API（第 27 节）；不做 UI。
 - **代码落点**：`source/apps/review_assistant/`
@@ -240,9 +244,9 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **非目标**：不写具体组件、不定义运行状态名、不建设通用 AI 工作台。
 - **可验收判据（交给第 28 节执行）**：给一个 partial 的 run，用户在不打开诊断区的前提下，能说出哪几条 Finding 可直接 `reject` / `waive`、回答哪个问题能把剩下的补齐。
 
-### 23 用户身份与认证
+### 23 用户身份与认证：登录、Cookie Session 与会话生命周期
 
-- **类型**：机制篇；验证并入第 25 节实验
+- **类型**：机制篇；验证并入第 25 节实验（只验证登录与会话，角色动作见第 25 节实验说明）
 - **核心问题**：登录、凭证校验、会话签发、失效和登出如何形成后端可依赖的身份事实？
 - **交付**：后端可依赖的 principal，而不是前端自报角色。
 - **使用 Cookie Session**，理由见“已确定的决定”第 6 条。
@@ -252,9 +256,9 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 
 ### 24 系统角色与项目成员角色：产品 RBAC 与 Tool 权限的区别
 
-- **类型**：机制篇；验证并入第 25 节实验
+- **类型**：机制篇；验证分两处——发布端点的角色边界并入第 25 节实验，批准 / 导出的角色边界并入第 26 节确定性测试
 - **核心问题**：系统 admin / member 与项目 owner / editor / viewer 分别能看什么、做什么？为什么取交集？
-- **交付**：路由级与动作级两层授权决定；“只能由人触发”的动作清单（批准、导出、成员管理、编辑 Brief）。
+- **交付**：路由级与动作级两层授权决定；“只能由人触发”的六类动作清单（提交批准、退回 / 撤回、批准、正式导出、成员管理、编辑 Brief）。
 - **必须显式对照第 39 节**：本节回答“界面上谁能点什么”，第 39 节回答“模型能执行什么”。两者概念独立，不能相互替代或合并实现；Agent 以发起者的项目角色行动，没有独立角色。
 - **必须讲清一个反直觉**：系统 admin 不能批准项目需求，除非先成为项目 owner；理由是全局知识治理与项目决策是两种责任。
 - **非目标**：不做可配置审批链、委托与通知；不做两层之外的权限模型；不做多租户。
@@ -268,8 +272,10 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **本节第一次引入 FastAPI**：这条流确定性、无流式、无模型调用，认知负担最小，适合建立请求/响应/错误分层与依赖注入。它也符合真实数据依赖顺序——没有发布过 `dataset_version`，评审根本检索不到东西。
 - **解析诊断的归属**：诊断对象的形状是 `rag_core` 从第 8 节起就有的输出，本节只负责存储与暴露，不重新定义。
 - **`rag_core` 只扩两处**：`SourceRole.approved_requirement`、Metadata pre-filter 按 `document_version` 集合过滤。正文说明为什么只扩这两处。
-- **实验**：合并承担第 23、24 节的验证——真实登录取得会话，系统 admin 与非成员 member、项目 owner / editor / viewer 分别调用发布端点、批准端点与导出端点，观察 403 同时出现在路由层与动作层，并观察系统 admin 在未加入项目时批准被拒。授权缺陷只在真实请求里现形，但为它单开两个薄实验不划算。
-- **非目标**：不写评审流的 API；不写 SSE；不写前端；不实现批准事务（第 26 节）。
+- **实验**：合并承担第 23、24 节的验证，但只使用本节已有的端点——真实登录取得会话，系统 admin 能发布知识资料；非成员 member、项目 owner / editor / viewer 调用发布端点均得 403，且 403 同时出现在路由层与动作层；未登录请求得 401。授权缺陷只在真实请求里现形，但为它单开两个薄实验不划算。批准、导出与"系统 admin 未加入项目时不能批准"涉及第 26 节才存在的动作，放到第 26 节的确定性测试与第 28 节联调验收，本节实验不触碰。
+- **同项目第二个已批准需求 fixture**：为让 `approved_requirement` 池在主路径上非空，本节引入一个同 Project、独立的小 Requirement 已批准基线 fixture（"订单状态展示"，见第一阶段项目篇业务场景），以 `indexed` 状态进入项目检索池。本节实验只验证池子非空、`approved_requirement_version_ids` 过滤生效、该基线能被检索到；"它支撑一条 `external_fact_conflict`"的端到端验证放在第 28 节。若没有它，双池只能演示"能索引、检索不到"。
+- **索引诊断**：ReviewRun 诊断列出所有未进入候选的项目内当前基线（`pending` 与 `index_failed` 都列）及不可见原因；本节定义诊断形状，第 27 节在 ReviewRun 里暴露它。
+- **非目标**：不写评审流的 API；不写 SSE；不写前端；不实现批准事务与导出（第 26 节）；不在本节实验里调用批准或导出端点。
 - **代码落点**：`source/apps/review_assistant/`
 
 ### 26 需求版本生命周期、人工批准、基线切换与交付语义
@@ -277,10 +283,11 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **类型**：机制篇
 - **核心问题**：一个版本什么时候可以被批准、批准后发生什么、交付包从哪里来？
 - **已有输入**：第 19 节对象模型；第 21 节 Finding / Decision 与门禁运行定义；第 25 节 `index_state` 与项目检索池。
-- **交付**：四个持久状态与三个派生状态；编辑规则、乐观修订号、单开放版本；批准门不变量（预检 = 复检）；批准事务边界与事务后索引；派生新版本；DeliveryPackage 导出语义。
+- **交付**：四个持久状态与三个派生状态；编辑规则（内容与 Decision 都只在 `draft` 可写）、乐观修订号、单开放版本；Brief 修改后的强制退回规则；批准门不变量（预检 = 复检）与批准时冻结的 `approved_decision_ids / approved_decision_set_hash`；批准事务边界与事务后索引；派生新版本；DeliveryPackage 导出语义（固定使用 IDs 并校验集合哈希）。
+- **必须讲清"为什么冻结决策集合"**：`approval_review_run_id` 只钉住运行，不钉住那一刻的决策；若批准后还能把 `reject` 换成 `waive`，owner 批准时看到的与后来导出的就不是同一份。Decision 在提交后只读 + 批准时写入 `approved_decision_ids` 与 `approved_decision_set_hash`，两条一起才让"不可变基线"成立。
 - **只跟踪一条主流**：草稿 → 提交 → 批准 → 基线切换 → 事务后索引 → 从不可变版本导出。退回 / 撤回、Brief 修改的失效效果、索引失败重试作为主流上的分支写，不另起小节。
 - **必须讲清两个边界**：为什么索引不在批准事务内（索引是外部服务调用，失败不应回滚一个已完成的人工决定）；为什么派生版本评审时排除自身基线而交给 Diff（否则检索会制造“与旧版本冲突”的噪声）。
-- **验证**：本节的规则全部由确定性测试证明（`SPEC.md` 第 14 节第一阶段验收契约中与状态、并发、批准门、索引、导出相关的条目），不依赖模型；测试在第 28 节联调前已存在。
+- **验证**：本节的规则全部由确定性测试证明（`SPEC.md` 第 14 节第一阶段验收契约中与状态、并发、批准门、索引、导出相关的条目），不依赖模型；测试在第 28 节联调前已存在。第 24 节角色规则中涉及批准与导出的部分（owner 才能批准、editor 及以上才能导出、系统 admin 未加入项目时批准被拒）在本节测试中验证。
 - **非目标**：不做 ReviewRun 状态（第 27 节）；不做 UI；不做可配置审批链；不做归档。
 - **代码落点**：`source/apps/review_assistant/`
 
@@ -306,9 +313,10 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
   - 系统 admin 上传 → 查看解析诊断 → 暂存 → 发布 → 产生新 `dataset_version`，且发布前候选池不变。
   - editor 走固定表单与导入 PRD 两条入口，得到同一形态的 `draft` 版本与 `proposed` 条目；导入条目能回到原文定位，未映射内容可见。
   - 处理 `proposed` → 运行评审 → 增量流式 → 最终校验替换 → Finding 挂在条目 / 分区 / 版本上；校验失败时未校验增量被显式撤回，界面无残留。
-  - 对 Finding 做 Decision，`accept_suggestion` 后 `revision` 递增、旧运行失去批准资格、界面提示需重新评审。
+  - 对 Finding 做 Decision，`accept_suggestion` 后 `revision` 递增、旧运行失去批准资格、界面提示需重新评审；提交后 Decision 按钮不可用，退回后恢复。
   - 最后一轮只剩 `reject` / `waive` → editor 提交 → owner 批准 → 基线切换 → 索引状态可见 → 导出 DeliveryPackage；草稿导出只得到带标记的非正式预览。
-  - 从基线派生新版本，Diff 按 `item_key` 对齐；派生版本评审的快照不含自身基线。
+  - 从基线派生新版本，Diff 按 `item_key` 对齐；派生版本评审的快照不含自身基线，但含同项目"订单状态展示"的 `indexed` 基线，且能产生一条指向它的 `external_fact_conflict`——这是"已批准需求支撑冲突 Finding"的唯一端到端验证点，第 21、25 节都不承担它。
+  - 导出的 DeliveryPackage 决策集合与 `approved_decision_ids / approved_decision_set_hash` 一致；批准后无法再替换 Decision。
   - viewer 看不到也调不到编辑、评审、批准、导出动作；未加入项目的系统 admin 看不到该项目的批准动作。
   - 第 22 节的 partial 判据：不打开诊断区即可说出哪些 Finding 可处理、回答哪个问题能补齐剩下的。
 

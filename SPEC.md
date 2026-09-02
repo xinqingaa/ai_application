@@ -10,7 +10,7 @@
 
 产品分为两个连续阶段：
 
-- 第一阶段用固定 RAG 建立完整闭环。输入只有固定表单和导入 PRD；所有状态迁移由人的显式动作触发。
+- 第一阶段用固定 RAG 建立完整闭环。输入只有固定表单和导入 PRD；RequirementVersion 的持久状态迁移全部由人的显式动作触发，ReviewRun、知识资料解析与已批准版本索引的状态由固定程序推进，且不得自动改变 RequirementVersion 的状态。
 - 第二阶段在同一对象模型上增加 Agent、Tools、Deep Research 与 Multi-Agent。Agent 接收模糊想法、追问缺失信息、在用户裁决下推动需求收敛，并在迭代时分析变更影响。
 
 阶段不是产品版本，代码只维护一条演进主线。核心对象、身份、来源与状态见第 4 节。
@@ -22,7 +22,7 @@
 - 系统级：`admin` 与 `member`。系统 `member` 可以创建项目，创建后成为该项目的 `owner`；系统 `admin` 额外负责维护全局知识资料。
 - 项目级：`owner`、`editor` 与 `viewer`。
 
-权限取两层交集：系统 `admin` 不因系统角色自动获得任何项目的批准、导出或成员管理权，必须先成为项目成员。这是产品内的最小权限边界，回答“界面上谁能点什么”，不是第二阶段 Tool 权限（模型能执行什么）的替代或前置。批准、导出、成员管理和编辑 Project Brief 只能由人触发；Agent 以发起者的项目角色行动，没有独立角色，即使发起者是 `owner` 也不能代替人触发上述动作。
+权限取两层交集：系统 `admin` 不因系统角色自动获得任何项目的批准、导出或成员管理权，必须先成为项目成员。这是产品内的最小权限边界，回答“界面上谁能点什么”，不是第二阶段 Tool 权限（模型能执行什么）的替代或前置。六类动作只能由人触发：提交批准、退回 / 撤回、批准、正式导出、项目成员管理、编辑 Project Brief。Agent 以发起者的项目角色行动，没有独立角色，即使发起者是 `owner` 也不能代替人触发上述动作。
 
 核心任务包括：
 
@@ -46,8 +46,8 @@
 | 运行评审、取消自己发起的 ReviewRun | 否 | 是 | 是 | 按项目角色 |
 | 取消任何 ReviewRun | 否 | 否 | 是 | 按项目角色 |
 | 处理 Finding，形成 Decision | 否 | 是 | 是 | 按项目角色 |
-| 提交批准（`draft → pending_approval`） | 否 | 是 | 是 | 按项目角色 |
-| 退回 / 撤回（`pending_approval → draft`） | 否 | 否 | 是 | 按项目角色 |
+| 提交批准（`draft → pending_approval`） | 否 | 是，且必须由人触发 | 是，且必须由人触发 | 按项目角色 |
+| 退回 / 撤回（`pending_approval → draft`） | 否 | 否 | 是，且必须由人触发 | 按项目角色 |
 | 批准版本 | 否 | 否 | 是，且必须由人触发 | 不因系统 admin 身份自动获得 |
 | 编辑 Project Brief | 否 | 否 | 是，且必须由人触发 | 不因系统 admin 身份自动获得 |
 | 导出 `approved` / `superseded` 版本 | 否 | 是，且必须由人触发 | 是，且必须由人触发 | 按项目角色 |
@@ -96,9 +96,9 @@
 
 `Project → Requirement → RequirementVersion → RequirementItem`。
 
-- Project：拥有成员、SourceArtifact 与 Project Brief。Brief 是 Project 上的独立字段集合，不伪装成 Requirement；`brief_revision` 单调递增，每次修订的内容以 append-only 历史持久化，ReviewRun 与 DeliveryPackage 钉住修订号即可复现当时的 Brief。第一阶段不建独立 Brief 版本界面。
+- Project：拥有成员、SourceArtifact 与 Project Brief。Brief 是 Project 上的独立字段集合，不伪装成 Requirement；`brief_revision` 单调递增，每次修订的内容以 append-only 历史持久化，ReviewRun 与 DeliveryPackage 钉住修订号即可复现当时的 Brief。第一阶段不建独立 Brief 版本界面。Brief 的最小字段：产品 / 项目背景与业务域；项目级目标与非目标；目标平台与全局约束（Web / Flutter / 服务端范围、合规与性能底线）；通用术语与业务主体；项目级默认规则或成功标准。归属规则：Brief 只放跨 Requirement 不变的信息，单个 Requirement 的 `problem / goals / non_goals / constraints` 分区只写本需求特有内容，不复述 Brief。Brief 以“项目语境”分区进入 ReviewRun 的 Context，不进入 Evidence 分区、不产生 Citation Candidate；条目与 Brief 冲突走 `internal_conflict`，依据定位使用 `brief_field` locator 指向 Brief 字段。
 - Requirement：可独立版本化、批准和交付的稳定需求容器，对应一个功能点或可独立交付的需求主题，不与单个条目混用。它持有 `baseline_version_id` 指向当前基线；基线只在 Requirement 粒度，全产品基线是非目标。
-- RequirementVersion：一次可评审、可批准的内容快照。保留 `derived_from_version_id`、只随内容变化递增的 `revision`、批准时写入的 `approved_brief_revision` 与 `approval_review_run_id`、批准后的 `index_state`。已批准版本内容不可修改。
+- RequirementVersion：一次可评审、可批准的内容快照。保留 `derived_from_version_id`、只随内容变化递增的 `revision`、批准时写入的 `approved_brief_revision`、`approval_review_run_id`、`approved_decision_ids`（门禁运行全部 Finding 的活动 Decision 集合）与 `approved_decision_set_hash`（该集合及关键决策内容的完整性哈希）、批准后的 `index_state`。已批准版本的内容与决策集合都不可修改。
 - RequirementItem：需求正文的最小单位。保留 `item_id`（当前版本实例）、`item_key`（跨版本稳定业务身份）、可选 `derived_from_item_id`、`section_key`、`provenance`、`statement_kind`、`confirmation_state`、`citations` 与 `citation_state`。
 - SourceArtifact：导入的 PRD 原文，至少包含文件名或来源标识、格式、内容哈希、版本与 locator 契约。由它映射得到的条目保留 `source_artifact_id`、`source_locator` 与 `mapping_method`；未映射内容作为诊断保留。导入原文是被定义和评审的对象，可支持内部结构与矛盾 Finding 的定位，不因被导入而成为外部 Citation Candidate。
 - ReviewRun：对某个版本某个修订的一次评审运行，产出 Finding。
@@ -133,7 +133,7 @@
 | 类型 | 含义 | 目标 | 依据资格 | 阻断 |
 | --- | --- | --- | --- | --- |
 | `internal_gap` | 当前版本缺失 | section | 当前版本定位 | 否 |
-| `internal_conflict` | 当前版本内部矛盾 | item | 当前版本定位 | 是 |
+| `internal_conflict` | 当前版本内部矛盾，或条目与 Project Brief 矛盾 | item | 当前版本定位；与 Brief 矛盾时另附 `brief_field` locator | 是 |
 | `external_fact_conflict` | 与外部规则或已批准需求冲突 | item / section | 必须有合格 Citation，缺 Citation 时拒绝写入而不是降级 | 是 |
 | `impact_inference` | Web / Flutter / 服务端影响推断 | item / section / document | 允许无 Citation，界面必须标为推断 | 否 |
 | `evidence_gap` | 证据不足转成的补充问题 | item / section | 当前版本定位 | 否 |
@@ -142,15 +142,16 @@ Finding 的 `target_kind + target_ref` 必须属于该版本当时修订的条�
 
 ### Decision
 
-`decision_type` 固定枚举：
+`decision_type` 固定枚举（第一阶段五类，第二阶段增加 `apply_patch`）：
 
 - `accept_suggestion`：采纳建议并修改条目，若 Finding 携带已验证 Citation 则写回条目，递增 `revision`。
 - `reject`：判定 Finding 不成立，内容不变。
 - `waive`：Finding 成立但接受风险，必须留理由，内容不变，原 Finding 保留。
 - `supplement`：回答补充问题并新增或修改条目，递增 `revision`。
 - `confirm_items`：确认 `proposed` 条目，不指向 Finding，可一次指向多个条目，只改 `confirmation_state`，不写 Citation、不递增 `revision`。
+- `apply_patch`（第二阶段新增）：人确认 Agent 提出的需求补丁 Diff 并写入 `draft` 版本。不指向 Finding，可指向多个受影响条目，记录补丁来源与确认人；写入的条目直接 `confirmed`；它是一次内容写入，递增 `revision`，因此使当前 ReviewRun 失去批准资格。`apply_patch` 不代替任何评审 Decision，apply 之后仍必须重新运行 ReviewRun 才能进入批准门。第一阶段不实现该类型。
 
-前四类必须指向本版本某次已完成运行的 Finding，且目标仍能解析到当前修订（`reject` / `waive` 不依赖目标，始终允许；`accept_suggestion` / `supplement` 要求目标条目仍存在）；目标已删除的 Finding 只读。同一 Finding 同时只有一条 `active` Decision；活动 Decision 可被替换，旧记录置为 `deactivated` 保留审计。所有 Decision 记录操作人、时间、理由和零个或多个受影响的条目，是条目级 Diff 的原因。
+前四类必须指向本版本某次已完成运行的 Finding，且目标仍能解析到当前修订。`accept_suggestion` / `supplement` 要求目标条目仍存在，目标已删除时被拒绝；`reject` / `waive` 不依赖目标，目标已删除时仍允许。同一 Finding 同时只有一条 `active` Decision；活动 Decision 可被替换，旧记录置为 `deactivated` 保留审计。Decision 的创建与替换只允许在版本处于 `draft` 时进行；`pending_approval | approved | superseded` 下所有 Decision 只读，要改动必须先由 `owner` 退回 `draft`。所有 Decision 记录操作人、时间、理由和零个或多个受影响的条目，是条目级 Diff 的原因。
 
 Decision 可作用于本版本任何已完成运行的 Finding，因此用户可以在一轮评审后连续接受多条建议再重跑一次。新一轮运行产生新的 Finding 对象；界面可按 `(finding_kind, item_key)` 匹配上一轮 Decision 供一键沿用，但沿用仍是一条新的、由人确认的 Decision，不自动迁移。旧版本的 Finding 与 Decision 继续可回查，新版本必须重新评审。
 
@@ -169,11 +170,11 @@ approved → superseded           同一 Requirement 的新版本被批准
 
 ### 编辑规则与并发
 
-- `draft` 可写；`pending_approval`、`approved`、`superseded` 拒绝任何内容写入，要修改 `pending_approval` 的版本必须先退回 `draft`。
+- `draft` 可写；`pending_approval`、`approved`、`superseded` 拒绝任何内容写入与任何 Decision 写入（创建、替换），要修改 `pending_approval` 的版本必须先退回 `draft`。
 - 该版本存在活跃 ReviewRun 时拒绝内容写入，必须先取消运行。
-- `revision` 只随条目与分区内容变化递增（含增删条目、改正文、改 `statement_kind`、改分区归属）；Decision 不递增 `revision`。每次内容写入携带客户端持有的 `revision`，不匹配则整个请求拒绝，不留部分变更；不建单编辑者锁。
+- `revision` 只随条目与分区内容变化递增（含增删条目、改正文、改 `statement_kind`、改分区归属）；Decision 记录本身不递增 `revision`，只有它引起的条目变化（`accept_suggestion` / `supplement` 的修改、`apply_patch` 写入的补丁）递增。每次内容写入携带客户端持有的 `revision`，不匹配则整个请求拒绝，不留部分变更；不建单编辑者锁。
 - 同一 Requirement 同时最多一个 `draft | pending_approval` 版本；没有开放版本时才能从基线派生新版本。
-- `owner` 编辑 Brief 不改变任何版本的持久状态，但让项目内所有匹配旧 `brief_revision` 的 ReviewRun 失去批准资格；处于 `pending_approval` 的版本显示“评审已过期”，`owner` 只能退回或在重新评审后批准。
+- `owner` 编辑 Brief 不改变任何版本的持久状态，但让项目内所有匹配旧 `brief_revision` 的 ReviewRun 失去批准资格；处于 `pending_approval` 的版本显示“评审已过期”，必须由 `owner` 先退回 `draft`，再重新评审、处理新 Finding 并重新提交。`pending_approval` 状态不得创建可用于批准的新门禁运行。
 
 ### 批准门
 
@@ -183,21 +184,21 @@ approved → superseded           同一 Requirement 的新版本被批准
 - 门禁运行的 `proposed_count_at_start` 为 0，即时序钉死为“先确认、再评审”。
 - 门禁运行产生的每条 Finding 都有 `active` Decision，且只能是 `reject` 或 `waive`；任何 `accept_suggestion` / `supplement` 都会递增 `revision` 并使当次运行失去资格，因此最后一轮评审必然是零内容变更的一轮。
 - 没有 `confirmation_state=proposed` 的活动条目；每条 `external_fact` 活动条目 `citation_state=verified`（按写入路径构造上恒成立，门禁只做一致性断言）。
-- 批准时将 `approval_review_run_id` 与 `approved_brief_revision` 写入不可变版本。
+- 提交批准时冻结门禁运行的活动 Decision 集合（自提交起 Decision 只读）；批准时将 `approval_review_run_id`、`approved_brief_revision`、`approved_decision_ids` 与 `approved_decision_set_hash` 写入不可变版本，并断言该集合恰好覆盖门禁运行的全部 Finding、每条为 `reject | waive`。DeliveryPackage 固定使用 `approved_decision_ids` 并用 `approved_decision_set_hash` 验证完整性，不重新查询当前活动 Decision。
 
 ### 基线切换、索引与两个检索池
 
 - 新版本批准、`baseline_version_id` 切换、旧基线进入 `superseded` 与批准审计记录在同一数据库事务内完成，任一步失败则全部回滚。
 - 已批准版本的索引是批准事务之后的独立步骤：Chunk、Embedding 与写入项目检索池随后执行，版本上保留 `index_state=pending | indexed | index_failed`；失败真实暴露、可重试、不回滚批准。
 - 已批准且作为当前基线的版本以 `approved_requirement` 来源角色进入同一 Project 的检索候选池。它用于说明项目内已批准的产品决定，不自动覆盖更高资格的现行业务规则；二者冲突时产生可见 Finding。
-- ReviewRun 进入检索时钉住证据快照：`requirement_version_id + revision`、`brief_revision`、`dataset_version`、本轮可见的 `approved_requirement_version_ids`（只含 `indexed` 版本，排除本 Requirement 自身基线）以及 `proposed_count_at_start`；全部检索、校验与报告都在该快照内进行。诊断列出因 `index_failed` 而不可见的已批准需求。
+- ReviewRun 进入检索时钉住证据快照：`requirement_version_id + revision`、`brief_revision`、`dataset_version`、本轮可见的 `approved_requirement_version_ids`（只含 `indexed` 版本，排除本 Requirement 自身基线）以及 `proposed_count_at_start`；全部检索、校验与报告都在该快照内进行。诊断列出所有未进入本轮候选的项目内当前基线，每条带 `requirement_version_id`、`index_state=pending | index_failed` 与不可见原因，使用户不会把“尚未索引”误读为“项目内不存在相关基线”。
 - 项目检索池由 `approved_requirement_version_ids` 按版本身份过滤：`superseded` 版本因不在集合内自然离开池子，不做角色重标；把被替代版本作为历史材料参与检索是非目标。当前待评审版本不能把自身伪装成外部证据；派生版本的评审排除自身基线，版本间差异由 Diff 负责。
 - 项目检索池与全局知识库是两个池子、两个快照身份（`approved_requirement_version_ids` 与 `dataset_version`），互不替代；“发布是产生新 `dataset_version` 的唯一动作”只约束全局知识库。
 
 ### 迭代与交付
 
 - 第一阶段迭代 = 人手动从基线派生新版本；条目级 Diff 按 `item_key` 对齐并给出原因；Agent 驱动的变更分析属于第二阶段。
-- DeliveryPackage 只能从 `approved` 或 `superseded` 版本导出（后者用于回溯历史交付），记录需求版本、`approved_brief_revision`、`compared_to_version_id`、导出人、时间、格式、内容哈希与成功 / 失败；一个版本可导出多次。草稿的非正式预览不产生 DeliveryPackage 记录。与具体下游系统的协作契约不在本规格内。
+- DeliveryPackage 只能从 `approved` 或 `superseded` 版本导出（后者用于回溯历史交付），使用该版本的 `approved_decision_ids` 作为决策来源并校验 `approved_decision_set_hash`，记录需求版本、`approved_brief_revision`、`compared_to_version_id`、导出人、时间、格式、内容哈希与成功 / 失败；一个版本可导出多次。草稿的非正式预览不产生 DeliveryPackage 记录。与具体下游系统的协作契约不在本规格内。
 
 ## 5. 第一阶段能力
 
@@ -247,9 +248,9 @@ approved → superseded           同一 Requirement 的新版本被批准
 - Agent Harness：模型、上下文、工具、状态、权限、循环、停止、事件和观测。
 - Tool Runtime：Schema 校验、执行、超时、取消、权限、审计和结构化错误。
 - Agentic RAG：Query Rewrite、Source Routing、Retriever as Tool、补检索和追问。
-- 需求 Brief 形成与缺失信息追问：Agent 接收模糊想法，识别缺失信息并通过正式的人工介入节点追问，结合内部 RAG、MCP、Search / Browser 形成产品 Brief 与结构化草稿。
-- 正式需求写入的确认门：Agent 只能通过 `propose_requirement_patch` 提出补丁，展示 Diff 并等待人确认后由 `apply_requirement_patch` 写入 `draft` 版本；这是一次内容写入（递增 `revision`），人对 Diff 的确认同时记录为一条 Decision，使写入的条目直接成为 `confirmed`；Agent 携带已校验 Citation 的条目走 `external_fact` 路径，其余为 `product_intent`。
-- 变更影响分析：选定基线、输入变更后，Agent 产出条目级差异，并结合 RAG 规则、File Tool 读取的 OpenAPI 与客户端模型、Code Tool 沙箱中的定向测试分析影响，经 Diff 确认形成新版本与增量交付包。
+- 需求 Brief 形成与缺失信息追问：Agent 接收模糊想法，识别缺失信息并通过正式的人工介入节点追问，结合内部 RAG、MCP、Search / Browser 形成**Brief 草案**与结构化需求草稿。Brief 草案只存在于运行状态或运行级暂存区，Agent 不写 Project Brief、不产生 `brief_revision`；正式 Project Brief 仍由 `owner` 人工编辑写入，Agent 至多把草案呈现给 `owner` 供其采纳。需求草稿部分走下一条确认门。
+- 正式需求写入的确认门：Agent 只能通过 `propose_requirement_patch` 提出补丁，展示 Diff 并等待人确认后由 `apply_requirement_patch` 写入 `draft` 版本；这是一次内容写入（递增 `revision`），人对 Diff 的确认记录为一条 `decision_type=apply_patch` 的 Decision（见第 4 节），使写入的条目直接成为 `confirmed`；Agent 携带已校验 Citation 的条目走 `external_fact` 路径，其余为 `product_intent`。apply 之后必须重新运行 ReviewRun 才能进入批准门。
+- 变更影响分析：选定基线、输入变更后，Agent 产出条目级差异，并结合 RAG 规则、File Tool 读取的 OpenAPI 与客户端模型、Code Tool 沙箱中的定向测试分析影响；差异经 Diff 确认写入新版本，影响结论落为 Finding，重新评审并经人工批准后由人导出增量交付包。
 - MCP：连接外部 Tool / Resource；内部治理仍由 Tool Runtime 负责。
 - 通用工具：Browser、Search、File 与受控 Code Tool。
 - Agent Skills：按需加载需求评审领域说明、资源和脚本，不绕过 Tool Runtime。
@@ -259,7 +260,7 @@ approved → superseded           同一 Requirement 的新版本被批准
 - A2A：在本地责任契约成立后交换任务、状态、结果和错误。
 - 必要 Workflow：显式状态、Checkpoint、恢复、人工介入和副作用治理。
 
-Agent 修改正式需求前必须展示 Diff 并等待确认；主界面以需求文档和决策为中心，运行轨迹放在可展开详情。批准、导出与成员管理仍只能由人触发。
+Agent 修改正式需求前必须展示 Diff 并等待确认；主界面以需求文档和决策为中心，运行轨迹放在可展开详情。第 2 节列出的六类动作仍只能由人触发。
 
 ## 7. 第二阶段产品取舍
 
@@ -277,7 +278,7 @@ Agent 修改正式需求前必须展示 Diff 并等待确认；主界面以需�
 
 ## 8. 第二阶段垂直场景
 
-固定切口映射到对象模型：Project 是一个电商 App；Requirement 是“售后入口”需求主题；第一阶段的 v1 由导入现有 Target Requirement fixture 得到并经人工批准成为基线。第二阶段的“售后接口 v2 与多端契约一致性评审”是同一 Requirement 的新 RequirementVersion，不是新 Requirement：
+固定切口映射到对象模型：Project 是一个电商 App；Requirement 是“售后入口”需求主题；第一阶段的 v1 由导入现有 Target Requirement fixture 得到并经人工批准成为基线。同一 Project 另有一个小型“订单状态展示”Requirement 的已批准、已索引基线 fixture，使 `approved_requirement` 池在主路径上非空，并为“与已批准需求冲突”类 Finding 提供稳定样例。第二阶段的“售后接口 v2 与多端契约一致性评审”是同一 Requirement 的新 RequirementVersion，不是新 Requirement：
 
 - 变更要求售后接口增加或收紧 `source_channel`，并要求 Web 与 Flutter 客户端采用一致的入口可见性规则。
 - Agent 从基线派生新版本，以 `propose_requirement_patch` 提出条目级差异，经 Diff 确认后写入。
@@ -322,8 +323,8 @@ Agent 修改正式需求前必须展示 Diff 并等待确认；主界面以需�
 - 模型提出行动，应用负责校验和执行。
 - 工具默认最小权限，读取与写入分开。
 - 高风险或不可逆操作需要人工确认。
-- 批准、导出与成员管理只能由人触发；Agent 以发起用户的身份和项目角色行动，没有独立角色，任何接口都不能让 Agent 绕过这些门。
-- 正式需求写入只走 `propose_requirement_patch` → Diff → 人工确认 → `apply_requirement_patch`，不是文件写入；File Write 不能创建 DeliveryPackage。
+- 提交批准、退回 / 撤回、批准、正式导出、项目成员管理与 Project Brief 编辑只能由人触发；Agent 以发起用户的身份和项目角色行动，没有独立角色，任何接口都不能让 Agent 绕过这些门。
+- 正式需求写入只走 `propose_requirement_patch` → Diff → 人工确认 → `apply_requirement_patch`，不是文件写入；File Write 不能创建 DeliveryPackage；Agent 不能写 Project Brief，Brief 草案只能由 `owner` 人工采纳。
 - 文件路径、符号链接、命令、工作目录、环境变量、网络和输出产物必须由应用校验，不能信任模型生成值。
 - 缺少 Key、鉴权失败、限流、超时和能力不支持必须真实暴露。
 - 不允许静默降级到 Mock、假向量、内存检索或静态成功结果。
@@ -377,14 +378,15 @@ source/demos/                     机制实验代码
 - `accept_suggestion` 把 Finding 的已验证 Citation 写回条目，写回后 `citation_state=verified`；`accept_suggestion` / `supplement` 递增 `revision` 并使当前 ReviewRun 失去批准资格，`reject` / `waive` 不递增。
 - 新一轮运行的 Finding 没有 Decision 即不能通过门禁，即使上一轮同目标同类 Finding 已有 Decision；“沿用”产生新的 Decision 记录。
 - 门禁运行的 `proposed_count_at_start` 必须为 0：先评审再 `confirm_items` 的顺序无法通过批准门。
-- 批准门拒绝未处理的任何 Finding、未确认的 `proposed` 条目、缺 Citation 的 `external_fact` 条目、过期需求修订或过期 Brief 修订；提交时预检与批准时复检使用同一规则；批准记录能回到对应 ReviewRun。
+- 批准门拒绝未处理的任何 Finding、未确认的 `proposed` 条目、缺 Citation 的 `external_fact` 条目、过期需求修订或过期 Brief 修订；提交时预检与批准时复检使用同一规则；批准记录能回到对应 ReviewRun、`approved_decision_ids` 与 `approved_decision_set_hash`。
+- `pending_approval | approved | superseded` 下创建或替换 Decision 被拒绝；退回 `draft` 后可以替换；Brief 修改使 `pending_approval` 版本过期后必须先退回 `draft`，不能直接以新运行批准；批准后导出的 DeliveryPackage 中的决策集合与 `approved_decision_ids`、`approved_decision_set_hash` 一致，且不受版本批准后任何查询结果变化影响。
 - Decision 能追踪到 Finding 与最终条目变化；条目级 Diff 能按 `item_key` 对齐并给出原因。
 - 新版本批准前旧基线保持不变；批准时 `baseline_version_id` 原子切换，旧版本进入 `superseded`；同一 Requirement 存在 `draft | pending_approval` 版本时，派生新版本被拒绝。
 - 批准事务成功而索引失败时：基线已切换、`index_state=index_failed`、可重试、批准不回滚；重试成功后新 ReviewRun 的快照才包含它。
 - ReviewRun 固定 `requirement_version_id + revision`、`brief_revision`、`dataset_version` 与 `approved_requirement_version_ids`，并在运行记录和报告中可见；内容或 Brief 修改后旧运行不能用于批准。
-- 派生版本的 ReviewRun 快照不包含本 Requirement 自身基线；包含同项目其他 Requirement 的 `indexed` 基线；`index_failed` 的基线不在快照内且在诊断中列出；`superseded` 版本的 Chunk 不出现在任何新 ReviewRun 的项目池候选中，无需重标角色。
+- 派生版本的 ReviewRun 快照不包含本 Requirement 自身基线；包含同项目其他 Requirement 的 `indexed` 基线；`pending` 与 `index_failed` 的基线不在快照内且都在诊断中列出并标明原因；`superseded` 版本的 Chunk 不出现在任何新 ReviewRun 的项目池候选中，无需重标角色。
 - `pending_approval` 状态下的内容写入被拒绝；存在活跃 ReviewRun 时的内容写入被拒绝；乐观修订号能拒绝基于旧 `revision` 的覆盖写入，失败不留部分条目变更。
 - Brief 修订历史 append-only：任一 ReviewRun 或 DeliveryPackage 钉住的 `brief_revision` 都能取回当时内容。
 - DeliveryPackage 的 Markdown / JSON 与固定的已批准版本和 `approved_brief_revision` 一致（哈希可验）；草稿版本不能导出正式交付包，非正式预览带明确标记且不产生 DeliveryPackage 记录；`superseded` 版本可重新导出并标明已被替代。
-- 任何接口（含第二阶段 Agent）无法绕过人工批准、导出和成员管理门禁；系统 admin 不能仅凭系统角色批准项目需求。
+- 任何接口（含第二阶段 Agent）无法绕过提交批准、退回、批准、导出、成员管理和 Brief 编辑六类人工门禁；系统 admin 不能仅凭系统角色批准项目需求。
 - 已有 Golden Set / 四路对照 / 检索指标契约不变，另加需求草稿引用正确性样例。
