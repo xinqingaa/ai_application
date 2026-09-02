@@ -1,6 +1,6 @@
 # AI 应用学习战略
 
-本文只维护仓库的长期定位、唯一目标和两个阶段。产品要求见根 [SPEC.md](../SPEC.md)，学习规则见 [learning-guide.md](learning-guide.md)，课程顺序见 [learning-path.md](../course/learning-path.md)。
+本文只维护仓库的长期定位、唯一目标和两个阶段。产品要求见根 [SPEC.md](../SPEC.md)，系统详细设计见根 [SDD.md](../SDD.md)，学习规则见 [learning-guide.md](learning-guide.md)，课程顺序见 [learning-path.md](../course/learning-path.md)。
 
 ## 定位
 
@@ -48,7 +48,7 @@
 
 ## 第二阶段：Agent、Tools 与 Multi-Agent
 
-在同一产品和同一需求对象模型上增加动态决策、工具执行、研究和协作：Agent 从模糊想法出发追问缺失信息并形成 Brief 草案与需求草稿，以"提出补丁 → 展示差异 → 人工确认 → 写入"的方式推动需求收敛，并在版本迭代时分析变更影响；提交批准、退回、批准、导出、成员管理与 Project Brief 编辑仍只能由人触发。
+在同一产品和同一需求对象模型上增加动态决策、工具执行、研究和协作：Agent 从模糊想法出发追问缺失信息并形成 Brief 草案与需求草稿，以"提出补丁 → 展示差异 → 人工确认 → 写入"的方式推动需求收敛，并在版本迭代时分析变更影响；提交批准、退回 / 撤回、批准、正式导出、成员管理与 Project Brief 编辑仍只能由人触发。
 
 - Agent Harness、Tool Runtime、权限和停止治理。
 - MCP、Search、Browser、File 与 Code Tool。

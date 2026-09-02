@@ -1,6 +1,6 @@
 # 第二阶段：Agent 协作需求评审系统
 
-本文是第二阶段综合实践教材。产品要求以根 [SPEC](../../../SPEC.md) 为准，工程实现边界以 [PLAN](../../../PLAN.md) 为准，学习顺序回到[标准学习路径](../../learning-path.md)。
+本文是第二阶段综合实践教材。产品要求以根 [SPEC](../../../SPEC.md) 为准，领域对象与系统契约以 [SDD](../../../SDD.md) 为准，工程实现边界以 [PLAN](../../../PLAN.md) 为准，学习顺序回到[标准学习路径](../../learning-path.md)。
 
 ## 业务目标
 
@@ -292,7 +292,7 @@ LangChain Agent
 14. 为什么 Agent 只能形成 Brief 草案而不能写 Project Brief，`owner` 采纳草案为什么仍算一次人工 Brief 编辑。
 15. 追问应该在哪些缺口上停下来问人，哪些缺口可以由内部 RAG 或外部资料补齐，怎样避免把模型推断写成用户意图。
 16. 变更影响分析中哪些结论有资格成为 `external_fact_conflict`，哪些只能是 `impact_inference`，Tool Evidence 怎样才能转成 Citation。
-17. 为什么 Agent 以发起者的项目角色行动而没有独立角色，提交批准、退回、批准、导出、成员管理与 Brief 编辑为什么不能由 Agent 代替人触发。
+17. 为什么 Agent 以发起者的项目角色行动而没有独立角色，提交批准、退回 / 撤回、批准、正式导出、成员管理与 Brief 编辑为什么不能由 Agent 代替人触发。
 
 ## 自然 bad case
 

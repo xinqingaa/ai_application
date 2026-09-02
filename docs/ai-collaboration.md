@@ -6,7 +6,7 @@
 
 1. 用户当前明确目标。
 2. 根 `AGENTS.md`。
-3. `SPEC.md`、`PLAN.md` 与 `docs/strategy.md`。
+3. `SPEC.md`、`SDD.md`、`PLAN.md` 与 `docs/strategy.md`。
 4. `docs/learning-guide.md` 和任务对应的课程、代码 README。
 5. `docs/ai-coding-mastery.md` 与远期平台参考。
 
@@ -17,6 +17,7 @@
 开始前先判断主要任务：
 
 - 产品规格：决定做什么、输入输出、安全和验收。
+- 系统设计：决定领域对象、状态、权限、证据、事务与接口契约怎样协作。
 - 工程方案：决定怎样在 `source/` 分层实现。
 - 课程规划：决定学习顺序、前置、粒度和文档入口。
 - 课程写作：编写概念、机制、实验或项目篇。
@@ -31,7 +32,8 @@
 | 任务 | 首要真源 | 必须补读 |
 | --- | --- | --- |
 | 产品范围或行为 | `SPEC.md` | 项目篇、产品代码与测试 |
-| 工程结构与实现顺序 | `PLAN.md` | SPEC、相关 package 与 app |
+| 领域对象、状态或系统契约 | `SDD.md` | SPEC、项目篇、产品代码与测试 |
+| 工程结构与实现顺序 | `PLAN.md` | SPEC、SDD、相关 package 与 app |
 | 学习方式或文档职责 | `docs/learning-guide.md` | Course Writing Skill |
 | 课程正文 | Course Writing Skill | 学习路径、知识地图、相邻正文、代码与测试 |
 | 阅读顺序 | `course/learning-path.md` | 项目篇和知识地图 |

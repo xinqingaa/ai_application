@@ -10,6 +10,6 @@
 | [ai-collaboration.md](ai-collaboration.md) | AI Agent 的任务路由和执行边界 |
 | [ai-application-platform.md](ai-application-platform.md) | 企业平台远期能力地图 |
 
-产品规格位于根 [SPEC.md](../SPEC.md)，工程实现方案位于根 [PLAN.md](../PLAN.md)。课程位于 `course/`，唯一产品位于 `source/apps/review_assistant/`。
+产品规格位于根 [SPEC.md](../SPEC.md)，系统详细设计位于根 [SDD.md](../SDD.md)，工程实现方案位于根 [PLAN.md](../PLAN.md)。课程位于 `course/`，唯一产品位于 `source/apps/review_assistant/`。
 
 同一规则只在一个真源中详细维护，其他文档通过链接引用。

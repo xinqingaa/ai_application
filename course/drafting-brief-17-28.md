@@ -2,7 +2,7 @@
 
 > **临时文档。** 本文只服务于第 17–28 节的起草过程。第 28 节完成、`learning-path.md` 与 `knowledge-map.md` 的对应条目更新后即删除，不进入长期文档集。
 >
-> **使用方式。** 起草 17–28 期间，课程编号、切分、交付和非目标以本文为准；写完一节再把该节的最终介绍同步回 `learning-path.md`，起草过程中不改动它。若本文与 `SPEC.md` 冲突，以 `SPEC.md` 为准并在此处修正。对象、状态与枚举的规格在 `SPEC.md` 第 4 节，本文只记切分与起草决定，不复制规格。
+> **使用方式。** 起草 17–28 期间，课程编号、切分、交付和非目标以本文为准；写完一节再把该节的最终介绍同步回 `learning-path.md`，起草过程中不改动它。产品目标与范围冲突时以 `SPEC.md` 为准，领域对象、状态和不变量冲突时以 `SDD.md` 为准并在此处修正。本文只记切分与起草决定，不复制规格或详细设计。
 
 ## 这一段课程要回答什么
 
@@ -79,7 +79,7 @@ Citation 成员资格（已完成，第 16 节）
 4. **第 17 节做两段校验**：确定性引文定位在前，模型支持性判断在后。只做前者会让 17 退化成第 16 节的加强版，失去独立核心问题。
 5. **第 28 节新建文件**，位于 `course/project/stage-1-rag-application/`，与 `rag-review-assistant.md` 并列。理由是学习路径的状态标记按编号对应文件；28 可写而 33 等待前置，共用一个文件无法标状态。
 6. **认证使用 Cookie Session，不用 Bearer Token。** 原生 `EventSource` 无法设置请求头，Bearer 方案会迫使 token 进 query string（进访问日志）或放弃 `EventSource` 自行解析流。单一同源 Web 工作台、无移动端，Bearer 的好处一个都用不上。这条决定属于第 23 节，并向第 27 节的传输实现传导，正文中要说明这层传导关系。
-7. **两层角色、权限取交集**：系统 admin / member 与项目 owner / editor / viewer；系统 admin 不因系统角色获得项目批准权。动作矩阵以 `SPEC.md` 第 2 节为准，第 24 节只解释规则与两层授权决定，不复制矩阵。
+7. **两层角色、权限取交集**：系统 admin / member 与项目 owner / editor / viewer；系统 admin 不因系统角色获得项目批准权。动作矩阵以 `SDD.md` 第 6 节为准，第 24 节只解释规则与两层授权决定，不复制矩阵。
 8. **`revision` 只随内容变化递增**，Decision 不递增；它同时是乐观并发判据与“旧 ReviewRun 是否仍可用于批准”的判据。不建单编辑者锁。
 9. **批准门在提交时预检、批准时复检，同一规则**：门禁运行 = 当前 `revision` 上最近一次 `completed` 且 `brief_revision` 匹配的运行，`proposed_count_at_start=0`，全部 Finding 的活动 Decision 只能是 `reject` / `waive`。正文要讲清 `accept_suggestion` / `supplement` 递增 `revision` 如何逼出“最后一轮零内容变更”。
 10. **DeliveryPackage 只作导出记录**，不写第四套生命周期；只从 `approved` / `superseded` 导出，草稿只能生成带标记的非正式预览。
@@ -100,7 +100,7 @@ Citation 成员资格（已完成，第 16 节）
 
 ### 对象主链与三分（第 19 节定义）
 
-`Project → Requirement → RequirementVersion → RequirementItem`；`item_key` 跨版本稳定、`revision` 只随内容递增、`brief_revision` 单调递增且 append-only。来源（`provenance`）、引用（`citations`）、决策（Decision）三分：产品意图不因缺 Citation 被拒，外部事实不因人的确认免除 Citation。固定 `section_key` 枚举与 `statement_kind` / `confirmation_state` / `citation_state` 的取值以 `SPEC.md` 第 4 节为准。
+`Project → Requirement → RequirementVersion → RequirementItem`；`item_key` 跨版本稳定、`revision` 只随内容递增、`brief_revision` 单调递增且 append-only。来源（`provenance`）、引用（`citations`）、决策（Decision）三分：产品意图不因缺 Citation 被拒，外部事实不因人的确认免除 Citation。固定 `section_key` 枚举与 `statement_kind` / `confirmation_state` / `citation_state` 的取值以 `SDD.md` 第 3–5 节为准。
 
 ### 条目字段写入路径（第 20 节定义）
 
@@ -287,7 +287,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **必须讲清"为什么冻结决策集合"**：`approval_review_run_id` 只钉住运行，不钉住那一刻的决策；若批准后还能把 `reject` 换成 `waive`，owner 批准时看到的与后来导出的就不是同一份。Decision 在提交后只读 + 批准时写入 `approved_decision_ids` 与 `approved_decision_set_hash`，两条一起才让"不可变基线"成立。
 - **只跟踪一条主流**：草稿 → 提交 → 批准 → 基线切换 → 事务后索引 → 从不可变版本导出。退回 / 撤回、Brief 修改的失效效果、索引失败重试作为主流上的分支写，不另起小节。
 - **必须讲清两个边界**：为什么索引不在批准事务内（索引是外部服务调用，失败不应回滚一个已完成的人工决定）；为什么派生版本评审时排除自身基线而交给 Diff（否则检索会制造“与旧版本冲突”的噪声）。
-- **验证**：本节的规则全部由确定性测试证明（`SPEC.md` 第 14 节第一阶段验收契约中与状态、并发、批准门、索引、导出相关的条目），不依赖模型；测试在第 28 节联调前已存在。第 24 节角色规则中涉及批准与导出的部分（owner 才能批准、editor 及以上才能导出、系统 admin 未加入项目时批准被拒）在本节测试中验证。
+- **验证**：本节的规则全部由确定性测试证明（`SDD.md` 第 13 节中与状态、并发、批准门、索引、导出相关的不变量），不依赖模型；测试在第 28 节联调前已存在。第 24 节角色规则中涉及批准与导出的部分（owner 才能批准、editor 及以上才能导出、系统 admin 未加入项目时批准被拒）在本节测试中验证。
 - **非目标**：不做 ReviewRun 状态（第 27 节）；不做 UI；不做可配置审批链；不做归档。
 - **代码落点**：`source/apps/review_assistant/`
 
@@ -308,7 +308,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **核心问题**：怎样把需求创建 / 导入、评审、决策、批准、导出与知识管理接入同一 Web 工作台？
 - **交付**：最小真实前后端联调与验收证据。
 - **必须显式声明的非目标**：不做 Golden Set、不做四路对照、不设质量门槛、不做需求变更题——全部属于第 33 节。本节只验证闭环能真实跑通。
-- **引用纪律**：只引用 `SPEC.md` 中与联调相关的几条（两层角色、上传暂存发布、两条入口、批准门、增量流式与最终校验、导出），质量门槛部分一个字不碰，直接指向第 33 节。
+- **引用纪律**：产品能力引用 `SPEC.md`，对象、角色、状态、批准门和增量流式契约引用 `SDD.md`；质量门槛部分一个字不碰，直接指向第 33 节。
 - **至少包含的验收项**：
   - 系统 admin 上传 → 查看解析诊断 → 暂存 → 发布 → 产生新 `dataset_version`，且发布前候选池不变。
   - editor 走固定表单与导入 PRD 两条入口，得到同一形态的 `draft` 版本与 `proposed` 条目；导入条目能回到原文定位，未映射内容可见。
@@ -333,6 +333,6 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 
 - **不新增课程编号。** 17–28 是固定的十二个编号，起草期间不许插节、不许拆节。若某节确实装不下，先回本文调整切分，再动笔。
 - **不扩展知识地图。** 除上方清单里的调整外，起草 17–28 期间不向 `knowledge-map.md` 增加节点。新出现的知识先判断能否合并进已有条目。
-- **不复制 SPEC。** 枚举、字段、验收契约以 `SPEC.md` 第 4 节与第 14 节为准，正文引用、不抄写；发现 SPEC 有误先改 SPEC。
+- **不复制 SPEC 或 SDD。** 产品目标与范围以 `SPEC.md` 为准，枚举、字段和确定性验收不变量以 `SDD.md` 为准；正文引用、不抄写，发现上游契约有误先改对应真源。
 - **超出范围的想法记在这里，不写进正文。** 起草中冒出的扩展能力（Reranker、文档删除与 Citation 失效、可配置审批链、Requirement 归档、自定义分区、Brief 版本界面、跨版本知识治理、断线重连、Agent 写入）一律不进第一阶段，它们在知识地图里已有“扩展”“非目标”或第二阶段的位置。
 - 本文只记决定，不记进度、不记讨论过程。第 28 节完成且上方清单清空后删除本文。

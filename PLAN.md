@@ -1,6 +1,6 @@
 # 需求评审助手工程实现方案
 
-本文说明怎样在 `source/` 中实现 [SPEC.md](SPEC.md)。它是稳定的工程分解，不记录实时进度，不替代 `course/learning-path.md` 的学习顺序。
+本文说明怎样在 `source/` 中实现 [SPEC.md](SPEC.md) 的产品要求与 [SDD.md](SDD.md) 的详细设计。它是稳定的工程分解，不重复领域契约，不记录实时进度，也不替代 `course/learning-path.md` 的学习顺序。
 
 ## 1. 代码结构
 

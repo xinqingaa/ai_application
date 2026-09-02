@@ -1,8 +1,8 @@
 # 第一阶段：固定 RAG 需求评审助手
 
-本文是第一阶段综合实践教材。产品要求以根 [SPEC](../../../SPEC.md) 为准，工程实现边界以 [PLAN](../../../PLAN.md) 为准；本文负责设计题、检查点、需求变更和学习验收，不复制完整产品规格。
+本文是第一阶段综合实践教材。产品要求以根 [SPEC](../../../SPEC.md) 为准，领域对象与系统契约以 [SDD](../../../SDD.md) 为准，工程实现边界以 [PLAN](../../../PLAN.md) 为准；本文负责设计题、检查点、需求变更和学习验收，不复制上游规格与详细设计。
 
-> 使用方式：阶段开始时只读“业务场景”“Definition of Ready”“输入与输出契约”和“明确不做”，理解本阶段要解决的产品问题；完成[第一阶段标准学习路径](../../learning-path.md)中的概念、机制和实验后，再回到本文完成实现、真实 bad case、变更题和阶段验收。产品要求始终以根 `SPEC.md` 为准。
+> 使用方式：阶段开始时只读“业务场景”“Definition of Ready”“输入与输出契约”和“明确不做”，理解本阶段要解决的产品问题；完成[第一阶段标准学习路径](../../learning-path.md)中的概念、机制和实验后，再回到本文完成实现、真实 bad case、变更题和阶段验收。产品范围以根 `SPEC.md` 为准，详细契约以根 `SDD.md` 为准。
 
 第一阶段要交付需求评审助手的第一个可运行产品。
 
@@ -64,15 +64,12 @@ Target Requirement 不与 Reference Knowledge 混在同一个 Retriever 候选�
 - 明确 PostgreSQL 与 pgvector 版本、迁移方式，以及 Embedding Provider、配置、模型、向量维度和预处理版本共同构成的空间身份。
 - 明确 lexical、dense、RRF 的参数语义、过滤顺序、阈值位置和诊断字段。
 - 明确 Citation 支持性、证据充分性、Refusal 和补充问题的最小业务语义。
-- 明确需求对象主链 Project → Requirement → RequirementVersion → RequirementItem 的稳定身份（`item_key`、`revision`、`baseline_version_id`、`brief_revision`）、固定 `section_key` 枚举、条目的来源 / 陈述类型 / 确认状态写入路径，以及 SourceArtifact 的哈希与定位契约。
-- 明确 `finding_kind` 五类枚举、各自的目标与依据资格、阻断规则，以及 `decision_type` 五类枚举和活动 Decision 的替换规则。
-- 明确四个持久状态、三个派生状态、批准门不变量、乐观修订号并发规则和“同一 Requirement 只有一个开放版本”的约束。
-- 明确批准事务与事务后索引的边界：哪些在同一事务内，`index_state` 怎样暴露与重试，项目检索池与全局知识库怎样分别快照。
+- 接受 SDD 第 3–8 节定义的需求对象身份、来源与陈述写入路径、Finding / Decision、版本状态、批准门、基线事务、索引和证据快照契约，并能把它们映射到 Schema 与确定性测试。
 - 明确 Review API 的业务结果与错误分层，以及唯一 Web 工作台入口。
-- 明确用户身份认证的最小生命周期，以及系统 admin / member 与项目 owner / editor / viewer 两层角色各自能看到的路由和能执行的动作；这条边界不与第二阶段 Tool 权限混用。
+- 接受 SDD 第 6 节的两层角色与人工动作矩阵，并明确认证生命周期、可见路由与后端动作授权；这条边界不与第二阶段 Tool 权限混用。
 - 明确知识资料上传后的暂存与发布流程：谁能触发入库、诊断信息如何展示、哪一个动作才会产生新的 `dataset_version`。
 - 明确生成阶段结构化增量流式的事件契约：模型流式调用怎样被增量解析为局部 Finding、“生成中未校验”与“已校验完成”两种状态怎样在 SSE 事件和界面上区分、校验失败时增量内容如何被撤回。
-- 明确 DeliveryPackage 的导出前提、内容与哈希可验规则，以及草稿非正式预览的标记。
+- 接受 SDD 第 10 节的 DeliveryPackage 导出前提与可验证契约，并明确草稿非正式预览的界面标记。
 - 为第一次基线实验登记数据集、对照组、参数、指标、通过条件、成本和延迟预算。
 - 确认不需要 Agent、Reranker、OCR、多模态平台、Flutter App 或其他第一阶段非目标。
 
@@ -114,15 +111,7 @@ Target Requirement
 
 ### 需求对象
 
-产品的业务对象以 SPEC 第 4 节为准，项目篇只规定业务上必须表达的信息：
-
-- `Project`：成员、SourceArtifact、Project Brief（`brief_revision` 单调递增，append-only 修订历史）。
-- `Requirement`：一个可独立版本化、批准和交付的需求主题，持有 `baseline_version_id`。
-- `RequirementVersion`：`derived_from_version_id`、只随内容变化递增的 `revision`、四个持久状态、批准时钉住的 `approved_brief_revision` 与 `approval_review_run_id`、批准后的 `index_state`。
-- `RequirementItem`：`item_id`、跨版本稳定的 `item_key`、`section_key`、`provenance`（用户输入 / 导入 PRD / AI 建议 / 派生自旧版本）、`statement_kind`、`confirmation_state`、已验证 `citations` 与 `citation_state`。
-- `SourceArtifact`：导入原文的文件名或来源标识、格式、内容哈希、版本与 locator 契约；导入条目保留 `source_artifact_id`、`source_locator`、`mapping_method`。
-
-导入的 PRD 可以来自粘贴文本或上传文件，两种输入共享同一个 SourceArtifact 契约；导入本身不代表这份内容进入知识检索候选池。
+需求对象、稳定身份、来源和写入规则直接采用 [SDD 第 3–5 节](../../../SDD.md#3-领域对象与稳定身份)，项目实现不再定义第二套字段或枚举。这里需要证明的是两条入口确实汇入同一对象链：固定表单形成可编辑条目，粘贴文本或上传文件先保存 SourceArtifact 再映射条目；两者随后共享评审、Decision、批准、基线与交付流程。导入本身不代表原文进入知识检索候选池。
 
 ### 知识候选
 
@@ -148,19 +137,7 @@ Target Requirement
 
 ### 评审运行与结论
 
-一次 `ReviewRun` 至少表达：
-
-- 运行身份，以及进入检索时钉住的证据快照：`requirement_version_id + revision`、`brief_revision`、`dataset_version`、`approved_requirement_version_ids`（只含 `indexed` 版本，排除本 Requirement 自身基线）与 `proposed_count_at_start`。
-- 状态 `submitted → retrieving → generating_unverified → validating → completed | failed | cancelled`；`completed` 带 `evidence_decision`（可回答 / 部分回答 / 拒答）。
-- 本轮检索到的来源候选和实际使用的证据。
-- 生成过程中的增量结果与生成完成后经过完整校验的最终结果的明确区分标记。
-- 模型、Prompt、Retriever、Token、延迟和错误等诊断，错误至少区分模型鉴权失败、限流、超时、能力不支持、结构化校验失败与用户取消；所有未进入本轮候选的项目内当前基线（`index_state=pending | index_failed`）连同不可见原因列入诊断。
-
-每条 `Finding` 至少表达：`finding_kind`、严重度、`target_kind + target_ref`（属于该版本当时修订的条目、分区或版本本身）、说明、建议，以及按类型要求的依据——内部缺失 / 矛盾回到当前版本定位，外部事实冲突回到已校验 Citation，影响推断带推断标记，证据缺口转成用户可回答的问题。
-
-每条 `Decision` 至少表达：`decision_type`、操作人、时间、理由、指向的 Finding（`confirm_items` 除外）、受影响的条目与 `active | deactivated` 状态。
-
-`DeliveryPackage` 只从 `approved` / `superseded` 版本导出，按版本生成 Markdown 与 JSON，记录 `approved_brief_revision`、`compared_to_version_id`、导出人、时间、格式、内容哈希与成功 / 失败。
+ReviewRun、Finding、Decision、DeliveryPackage 的状态、字段和不变量直接采用 [SDD 第 5、8、10、11 节](../../../SDD.md#5-finding-与-decision)。项目实现需要额外提供可观察证据：能回放一次运行使用的需求、Brief 和知识快照，能区分候选来源与实际 Citation，能区分生成中未校验增量与最终结果，并能从业务拒绝一路定位到检索、模型、校验或真实依赖错误。
 
 [可信生成](../../mechanisms/trusted-generation.md)先展示来源候选，并校验模型声明的来源是否属于本轮候选；Citation 支持性机制继续判断内容能否支持声明，证据充分性机制再决定 Refusal 和补充问题；产品层再按 `finding_kind` 校验依据资格与目标成员资格。项目验收不能把“模型写出了来源编号”当成证据已经支持结论；同样不能把“生成过程中出现的增量内容”当成已经校验的结论——校验失败时，增量内容必须从界面上被显式撤回，不能只是停止更新。
 
@@ -538,7 +515,7 @@ Definition of Ready 完成后，第一阶段主路径默认冻结：
 
 - 只有缺少某项能力会使第一阶段输入、输出、可信性、可用性或验收契约不成立，或者现有内容无法解释已复现的阻塞失败时，才允许增加第一阶段主线知识。
 - 新框架、数据库、模型或平台功能本身不是扩展理由；优先合并进现有机制，或按分级准入进入概念、机制和未来认知。
-- 改变支持格式、检索路线、产品入口、对象模型、状态规则或产品验收要求时，先更新根 `SPEC.md`；改变稳定工程分解时更新 `PLAN.md`，随后再实现代码并提升受影响的数据集或实验版本。
+- 改变支持格式、检索路线、产品入口或产品验收要求时先更新根 `SPEC.md`；改变对象模型、状态规则、权限、证据或事务契约时先更新 `SDD.md`；改变稳定工程分解时更新 `PLAN.md`，随后再实现代码并提升受影响的数据集或实验版本。
 - 实现中的任务拆分、实时进度和运行结果不写回 `course/learning-path.md`；它们进入代码、产品 README、测试、eval 配置和运行记录。
 
 ## 明确不做
@@ -561,36 +538,17 @@ Definition of Ready 完成后，第一阶段主路径默认冻结：
 
 ## 完成标准
 
-- [ ] 使用固定 Target Requirement、Reference Knowledge 和 Historical Material 跑通完整 RAG 数据流。
-- [ ] 当前需求版本作为评审主体进入 Context，不会无说明地进入参考知识候选或成为 Citation Candidate；派生版本评审时不检索自身基线。
-- [ ] TXT 或 Markdown、DOCX 和文本型 PDF 知识资料都能进入同一 Document / Chunk 契约并保留来源角色与位置。
-- [ ] 主路径调用真实 Embedding 和真实 LLM；失败不降级 Mock。
-- [ ] 使用 PostgreSQL FTS、pgvector 和应用侧 RRF 完成 lexical、dense 与多路融合召回。
-- [ ] 能看到 Chunk、Metadata、每路排名、融合排名、Top-k、阈值、过滤结果和最终上下文。
-- [ ] 输出通过本地业务 Schema 校验。
-- [ ] 外部事实 Finding 能回到经过应用校验的 Citation；内部缺失 / 矛盾 Finding 回到当前版本定位且不伪造 Citation；证据不足时 Refusal 或 `evidence_gap` 补充问题。
-- [ ] 导入 PRD 后条目覆盖与未映射内容可见，导入条目能回到 SourceArtifact 的哈希与原文定位；固定表单创建的人写条目创建即 `confirmed`，AI 补全条目为 `proposed`。
-- [ ] 导入映射与人的直接输入永不产生 `external_fact`；人只能降级不能升级；编辑 `external_fact` 正文自动降级并清空 Citation。
-- [ ] 五类 Decision 按规则生效：`confirm_items` 不指向 Finding、不递增 `revision`；`accept_suggestion` / `supplement` 递增 `revision` 并使当前运行失去批准资格；活动 Decision 可替换且旧记录 `deactivated` 可查；目标已删除的 Finding 只允许 `reject` / `waive`。
-- [ ] 批准门在提交与批准时用同一规则拒绝过期运行、未处理 Finding、`proposed` 条目、过期 Brief，`proposed_count_at_start` 必须为 0；批准记录能回到对应 ReviewRun、`approved_decision_ids` 与 `approved_decision_set_hash`；Brief 修改使待批准版本过期后必须先退回草稿。
-- [ ] 非 `draft` 状态下创建或替换 Decision 被拒绝；DeliveryPackage 使用的决策集合与 `approved_decision_ids`、`approved_decision_set_hash` 一致。
-- [ ] 批准在同一事务内切换 `baseline_version_id` 并把旧基线置为 `superseded`；索引失败时 `index_state=index_failed`、可重试、不回滚批准；同一 Requirement 存在开放版本时派生被拒绝。
-- [ ] ReviewRun 钉住 `requirement_version_id + revision`、`brief_revision`、`dataset_version` 与 `approved_requirement_version_ids`，`superseded` 版本不出现在新运行的项目池候选中，`pending` 与 `index_failed` 版本都列入诊断并标明原因；同项目“订单状态展示”基线能被检索到并支撑至少一条 `external_fact_conflict`。
-- [ ] 乐观修订号拒绝基于旧 `revision` 的写入；`pending_approval` 与活跃 ReviewRun 期间拒绝内容写入；Brief 修订历史 append-only 且可取回。
-- [ ] DeliveryPackage 只从 `approved` / `superseded` 版本导出，与钉住的版本和 `approved_brief_revision` 哈希一致；草稿只能生成带标记的非正式预览。
-- [ ] 条目级 Diff 能按 `item_key` 对齐并给出原因；历史 Finding 与 Decision 可按 `item_key` 回查，不自动迁移。
-- [ ] 直接 LLM、Lexical RAG、Dense RAG 和 RRF RAG 使用同一组样例比较，对照物是已校验 Finding 与 `evidence_decision`。
-- [ ] 能区分检索失败、上下文失败、生成失败与状态规则拒绝。
-- [ ] 至少完成一个真实 bad case / 策略边界观察和一个需求变更。
-- [ ] 有最小固定评估样例和运行记录。
-- [ ] 通用能力只存在于唯一 `rag_core`，需求领域 Schema 与 Prompt 留在产品层。
-- [ ] 产品入口位于 `source/apps/review_assistant/`，没有在 `source/apps/` 维护第二份产品。
-- [ ] 工作台能创建 / 导入需求、展示结构化正文、Finding、Decision、Citation、补充问题、版本状态与真实失败，并能提交、批准、导出。
-- [ ] 用户能够登录，两层角色的可见路由和可执行动作有明确边界，系统 admin 不能仅凭系统角色批准项目需求，且这条边界没有与第二阶段 Tool 权限混用。
-- [ ] 系统 admin 能够上传知识资料、查看解析诊断，并通过独立的发布动作产生新的 `dataset_version`；上传和暂存本身不改变检索候选池。
-- [ ] 评审生成阶段有结构化增量流式展示，生成完成后的最终校验结果能够清晰替换未校验的增量内容；校验失败时增量内容被显式撤回。
-- [ ] 能对模型调用失败（鉴权、限流、超时、能力不支持）与结构化校验失败分别给出可定位错误，并通过统一 SSE 事件契约呈现。
-- [ ] 本地可以用 Docker Compose 一次性启动应用与 Postgres/pgvector 两个服务。
-- [ ] 能解释为什么第一阶段不需要 Agent，以及第二阶段 Agent 将怎样复用同一写入路径与批准门。
+- [ ] 以固定“售后入口与订单状态”数据跑通 SPEC 第 5 节的完整第一阶段产品链，并提交可复现的运行记录。
+- [ ] TXT / Markdown、DOCX 和文本型 PDF 进入同一知识契约；主路径使用真实 PostgreSQL、Embedding 和 LLM，失败不降级 Mock。
+- [ ] lexical、dense、RRF 和直接 LLM 在同一 Golden Set 上比较，能查看候选、过滤、排名、Context、成本、延迟与淘汰原因。
+- [ ] 当前需求与自身基线不会伪装成外部证据；外部 Finding 回到合格 Citation，内部 Finding 回到需求或 Brief 定位，证据不足时拒绝强结论并产生可回答问题。
+- [ ] 固定表单与导入 PRD 两条入口共享对象链，条目、Finding、Decision、Diff、批准、基线和交付在工作台中形成闭环。
+- [ ] 用确定性测试证明 [SDD 第 13 节](../../../SDD.md#13-确定性验收不变量) 的全部第一阶段不变量，包括写入、并发、目标成员资格、批准快照、基线事务、索引和导出。
+- [ ] 两层 RBAC 在后端生效，系统管理员不能仅凭系统身份批准项目需求，六类人工动作不存在 Agent 或 Tool 旁路。
+- [ ] 知识上传与发布分离，ReviewRun 快照可回放；同项目“订单状态展示”基线能进入项目池并稳定产生预设冲突。
+- [ ] 结构化流式把“生成中未校验”和最终校验结果分开，失败时撤回增量；真实依赖错误、业务拒绝和证据不足可被区分。
+- [ ] 至少复现一个自然 bad case、完成一个需求变更题，并验证受影响测试与评估数据。
+- [ ] 通用能力只存在于唯一 package，需求领域 Schema、Prompt、状态与权限留在产品层；本地可启动产品和 Postgres / pgvector。
+- [ ] 能解释固定 Pipeline 足以完成第一阶段的原因，以及第二阶段怎样复用 Retriever、需求写入路径和人工批准门。
 
 达到这些标准后，固定 RAG 与需求对象模型已具备进入第二阶段 Agent Harness、Retriever as Tool 与 `propose_requirement_patch` / `apply_requirement_patch` 的稳定契约。
