@@ -4,6 +4,10 @@
 >
 > 读完后，你应该能沿 `Metadata pre-filter → route candidate_k → route threshold → RRF → final_top_k` 跟踪两个真实 Chunk，并区分正常空结果、路线失败和实验准备失败。本文不讨论 Context token 预算、Reranker，也不把示例阈值包装成产品最佳参数。完整命令、真实输出和修改任务见[配套实验](../labs/retriever-contract.md)。
 
+![Retriever 候选依次通过五层控制](../assets/rag-core/14-retriever-contract.svg)
+
+*图：候选按固定顺序通过过滤、每路数量、路线阈值、RRF 和最终截断，并由报告记录第一次消失的位置。*
+
 ## RRF 已经融合，为什么还不能直接交给 Context
 
 前面的三节已经分别交付：

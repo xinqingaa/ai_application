@@ -4,6 +4,10 @@
 >
 > 课程位置：[标准学习路径](../learning-path.md)。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md)。本文用 PDF 建立复杂文档的完整心智模型；当前项目支持 TXT、Markdown、DOCX 和文本型 PDF。本文不产生 Chunk，不建立索引，也不实现 OCR/VLM。
 
+![文档内容识别、解析路由与统一表示](../assets/rag-core/08-document-loading-and-cleaning.svg)
+
+*图：文件先经过内容形态判断与解析选路，再恢复结构、保留来源并形成统一文档表示。*
+
 ## 先问文件里有什么，而不是先问用哪个库
 
 需求评审助手收到一份 `after-sale-rules.pdf`。文件存在、大小正常，上传接口也返回成功，但这只能证明应用拿到了文件字节。

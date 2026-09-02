@@ -4,6 +4,10 @@
 >
 > 本文交付一条固定生成链：`BuiltContext → Prompt → Structured Output → 本地解析 → 来源声明集合检查 → 生成结果与报告`。学完后应能解释 `succeeded` 为什么只表示“结构合法且已声明 ID 未越界”。本文不判断来源内容是否支持风险，不决定证据是否充分、是否 Refusal 或追问，也不展开流式增量、SSE 和界面状态。操作、真实对照和修改任务见[配套实验](../labs/trusted-generation.md)。
 
+![结构化生成与来源集合成员检查](../assets/rag-core/16-trusted-generation.svg)
+
+*图：模型输出先通过 JSON 与 Schema 解析，再逐条检查来源编号是否属于本轮允许集合，并保留三类明确结果。*
+
 ## 一个看起来已经成功的结果
 
 继续使用“订单详情页新增申请售后入口”的 Requirement。模型返回：

@@ -4,6 +4,10 @@
 >
 > 课程位置：[标准学习路径](../learning-path.md)。Embedding 阶段提供 Embedding、向量和相似度的前置直觉；Lexical Retrieval提供同一批资料上的词面检索对照，但不是本节的知识前置。本文解释机制和边界，不承担实验准备、完整命令或运行排障；这些内容见[Dense Retrieval 实验篇](../labs/vector-store-and-pgvector.md)。
 
+![Chunk 向量写入 pgvector 并参与 Dense Retrieval](../assets/rag-core/12-vector-store-and-pgvector.svg)
+
+*图：离线阶段保存 Chunk 向量与空间身份，在线阶段先限定资格范围，再选择 exact 或 ANN 完成距离排序。*
+
 ## 先分清两条检索路线
 
 资料中有一句：

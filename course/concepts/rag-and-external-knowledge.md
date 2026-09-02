@@ -4,6 +4,10 @@
 >
 > 阅读顺序见[标准学习路径](../learning-path.md)。必要前置是 [LLM 在 AI 应用中的位置与边界](llm-in-ai-applications.md)；本文交付 RAG 的心智模型、第一阶段固定 RAG 总图、方案选择边界和失败分层，不展开文档解析、Chunk、Embedding 与检索算法。
 
+![固定 RAG 从资料准备到本轮评审的总图](../assets/rag-core/07-fixed-rag-overview.svg)
+
+*图：资料在离线阶段经过解析、Chunk、向量化与索引，在线阶段再沿固定链路形成候选、Context 和受检查的结果。*
+
 ## 模型会评审，不代表知道团队规则
 
 产品同学提交一段需求：

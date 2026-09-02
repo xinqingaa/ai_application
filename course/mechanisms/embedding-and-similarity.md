@@ -4,6 +4,10 @@
 >
 > 课程位置：[标准学习路径](../learning-path.md)。必要前置是 [RAG 与外部知识的边界](../concepts/rag-and-external-knowledge.md) 和 [Chunking](chunking-and-metadata.md)；后者已经建立在文档加载之上。本文交付真实 Embedding 调用与成对相似度观察；分数只说明表示空间中的接近程度，不证明事实正确，也不等于已经从资料里找出该看的几段。
 
+![Query 与 Chunk 在同一 Embedding 空间中比较](../assets/rag-core/10-embedding-and-similarity.svg)
+
+*图：Query 与 Chunk 必须进入同一向量空间，并在明确的度量与排序方向下比较相似程度。*
+
 ## Chunking 阶段已经有 Chunk，为什么还不够
 
 Chunking 阶段已经把售后规则组织成可回查的 Chunk。例如，Markdown 路径会得到类似下面的材料：

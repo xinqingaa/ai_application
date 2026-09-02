@@ -4,6 +4,10 @@
 >
 > 课程位置：[标准学习路径](../learning-path.md)。必要前置是 [文档内容识别、解析路由、结构还原与来源保留](document-loading-and-cleaning.md)。本文产生可追踪 Chunk，但不建立 Embedding、全文索引、向量索引或 Retriever，也不使用最终回答判断策略质量。
 
+![文档元素形成检索 Chunk 并保留来源链](../assets/rag-core/09-chunking-and-metadata.svg)
+
+*图：Chunking 重组检索单元，父子块、Metadata 和 SourceSpan 共同保留检索语境与原文回查路径。*
+
 ## 文档解析阶段已经得到 Element，为什么还要继续加工
 
 文档解析阶段把 `order_rules.md` 解析成七个 `DocumentElement`：

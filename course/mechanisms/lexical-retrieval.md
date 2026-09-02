@@ -6,6 +6,10 @@
 
 Embedding 阶段只比较几段已知文本在 Embedding 空间中是否接近；本节把用户问题真正拿去和一批 Chunk 做词面候选检索；Dense Retrieval会沿用同一批 Chunk 和问题，用向量距离再做一次候选检索。这样后面比较 lexical、dense 和 RRF 时，变化来自检索路线，而不是偷偷更换资料。
 
+![Lexical Retrieval 从共享词法处理到候选排序](../assets/rag-core/11-lexical-retrieval.svg)
+
+*图：资料与 Query 共享词法配置，倒排索引先确定候选范围，再按词面相关度排序。*
+
 ## 先学会按词找候选
 
 假设资料中有两段话：

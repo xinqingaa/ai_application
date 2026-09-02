@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
   <title id="title">固定 RAG：资料怎样成为本轮生成依据</title>
-  <desc id="desc">外部业务资料先离线完成解析、来源保留、切片和索引，再在在线评审中经过检索、Context 装配、模型生成与应用校验，形成结构化结果和来源候选。</desc>
+  <desc id="desc">外部业务资料先离线完成解析、来源保留、切片、Embedding 向量化和索引，再在在线评审中经过检索、Context 装配、模型生成与应用校验，形成结构化结果和来源候选。</desc>
 
   <defs>
     <marker id="arrow-primary" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
@@ -64,9 +64,9 @@
   <path d="M648 354H694" class="data-arrow"/>
 
   <rect x="704" y="298" width="256" height="112" rx="14" class="card"/>
-  <text x="832" y="335" text-anchor="middle" class="sans ink card-title">Chunk 与索引</text>
-  <text x="832" y="369" text-anchor="middle" class="sans muted card-copy">稳定身份与 Metadata</text>
-  <text x="832" y="394" text-anchor="middle" class="sans muted card-copy">Lexical / Dense 表示</text>
+  <text x="832" y="335" text-anchor="middle" class="sans ink card-title">Chunk、向量化与索引</text>
+  <text x="832" y="369" text-anchor="middle" class="sans muted card-copy">稳定身份 · Metadata</text>
+  <text x="832" y="394" text-anchor="middle" class="sans muted card-copy">Lexical / Dense 两路</text>
 
   <path d="M960 354H1006" class="data-arrow"/>
 

@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">文档解析：先识别内容，再恢复结构</title>
+  <desc id="desc">文件先经过容器验证与内容形态判断，再选择文本抽取路线；当前主线不实现 OCR 和 VLM，最终交付带来源位置的统一文档表示与加载报告。</desc>
+  <defs>
+    <marker id="arrow-primary" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#1557B0"/></marker>
+    <marker id="arrow-data" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M1 1L11 6L1 11Z" fill="#0F7C83"/></marker>
+    <style>
+      .sans{font-family:Inter,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif}.ink{fill:#102A56}.muted{fill:#536986}.title{font-size:44px;font-weight:750;letter-spacing:-.6px}.claim{font-size:21px;font-weight:450}.band-title{font-size:22px;font-weight:700}.card-title{font-size:24px;font-weight:700}.card-copy{font-size:17px;font-weight:450}.small{font-size:16px;font-weight:550}.chip{font-size:16px;font-weight:700}.takeaway{font-size:24px;font-weight:700}.card{fill:#fff;stroke:#AFC3E3;stroke-width:2}.data{fill:#F2FAFA;stroke:#0F7C83;stroke-width:2.5}.caution{fill:#FFF8EE;stroke:#C76B00;stroke-width:2}.output{fill:#F4FAF6;stroke:#2C7A53;stroke-width:2.5}.arrow{fill:none;stroke:#1557B0;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow-primary)}.data-arrow{fill:none;stroke:#0F7C83;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrow-data)}
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="#F7F9FC"/>
+  <text x="64" y="76" class="sans ink title">文档解析：先识别内容，再恢复结构</text>
+  <text x="64" y="119" class="sans muted claim">扩展名只说明容器；应用还要判断页面或区域里有什么，再选择能够保留结构与来源的解析路线。</text>
+  <rect x="1328" y="48" width="208" height="48" rx="24" fill="#EAF1FC" stroke="#AFC3E3" stroke-width="1.5"/>
+  <text x="1432" y="79" text-anchor="middle" class="sans ink chip">第 8 节 · 解析路线</text>
+
+  <rect x="64" y="158" width="1472" height="610" rx="24" fill="#fff" stroke="#86A9D9" stroke-width="2.5"/>
+  <text x="96" y="202" class="sans band-title" fill="#1557B0">两层知识生产</text>
+  <text x="278" y="202" class="sans muted small">内容识别与解析路由 → 结构还原与统一表示</text>
+
+  <rect x="96" y="238" width="218" height="168" rx="16" class="card"/>
+  <text x="205" y="279" text-anchor="middle" class="sans ink card-title">文件容器</text>
+  <text x="205" y="316" text-anchor="middle" class="sans muted card-copy">TXT · Markdown</text>
+  <text x="205" y="345" text-anchor="middle" class="sans muted card-copy">DOCX · PDF</text>
+  <text x="205" y="380" text-anchor="middle" class="sans small" fill="#C76B00">先验证类型与可读性</text>
+
+  <path d="M314 322H356" class="arrow"/>
+
+  <rect x="366" y="238" width="250" height="168" rx="16" class="data"/>
+  <text x="491" y="279" text-anchor="middle" class="sans ink card-title">识别内容形态</text>
+  <text x="491" y="316" text-anchor="middle" class="sans muted card-copy">可靠文本层</text>
+  <text x="491" y="345" text-anchor="middle" class="sans muted card-copy">扫描页 / 图文混排</text>
+  <text x="491" y="380" text-anchor="middle" class="sans small" fill="#0F7C83">按页或区域判断</text>
+
+  <path d="M616 322H658" class="data-arrow"/>
+
+  <rect x="668" y="218" width="344" height="356" rx="18" fill="#F5F8FD" stroke="#AFC3E3" stroke-width="2"/>
+  <text x="840" y="256" text-anchor="middle" class="sans ink card-title">选择解析路线</text>
+  <rect x="696" y="282" width="288" height="78" rx="13" class="data"/>
+  <text x="840" y="315" text-anchor="middle" class="sans ink card-title">确定性文本抽取</text>
+  <text x="840" y="343" text-anchor="middle" class="sans muted card-copy">读取段落、表格、页码</text>
+  <rect x="696" y="378" width="288" height="74" rx="13" class="caution"/>
+  <text x="840" y="409" text-anchor="middle" class="sans ink card-title">OCR 路线</text>
+  <text x="840" y="437" text-anchor="middle" class="sans muted card-copy">当前主线不实现</text>
+  <rect x="696" y="470" width="288" height="74" rx="13" class="caution"/>
+  <text x="840" y="501" text-anchor="middle" class="sans ink card-title">VLM / 版面理解</text>
+  <text x="840" y="529" text-anchor="middle" class="sans muted card-copy">当前主线不实现</text>
+
+  <path d="M1012 322H1054" class="data-arrow"/>
+
+  <rect x="1064" y="238" width="248" height="168" rx="16" class="card"/>
+  <text x="1188" y="279" text-anchor="middle" class="sans ink card-title">结构还原与清洗</text>
+  <text x="1188" y="316" text-anchor="middle" class="sans muted card-copy">阅读顺序 · 标题 · 表格</text>
+  <text x="1188" y="345" text-anchor="middle" class="sans muted card-copy">确定性文本归一化</text>
+  <text x="1188" y="380" text-anchor="middle" class="sans small" fill="#C76B00">不改写业务语义</text>
+
+  <path d="M1312 322H1354" class="arrow"/>
+
+  <rect x="1364" y="218" width="140" height="208" rx="16" class="output"/>
+  <text x="1434" y="260" text-anchor="middle" class="sans ink card-title">统一表示</text>
+  <text x="1434" y="299" text-anchor="middle" class="sans muted card-copy">Document</text>
+  <text x="1434" y="326" text-anchor="middle" class="sans muted card-copy">Element[]</text>
+  <line x1="1388" y1="346" x2="1480" y2="346" stroke="#CFE3D6" stroke-width="1.5"/>
+  <text x="1434" y="377" text-anchor="middle" class="sans small" fill="#2C7A53">来源位置</text>
+  <text x="1434" y="403" text-anchor="middle" class="sans small" fill="#2C7A53">业务身份</text>
+
+  <rect x="96" y="616" width="1408" height="112" rx="16" fill="#F2FAFA" stroke="#B9DADB" stroke-width="1.5"/>
+  <text x="124" y="653" class="sans band-title" fill="#0F7C83">伴随交付｜LoadReport</text>
+  <text x="124" y="689" class="sans muted card-copy">记录 Parser、清洗动作、warning 与明确失败；无文本层、损坏容器、编码错误不能合并成“空成功”。</text>
+  <rect x="1262" y="642" width="214" height="52" rx="26" fill="#fff" stroke="#0F7C83" stroke-width="1.5"/>
+  <text x="1369" y="675" text-anchor="middle" class="sans small" fill="#0F7C83">本节不产生 Chunk</text>
+
+  <rect x="64" y="792" width="1472" height="76" rx="18" fill="#FFF8EE" stroke="#E1B370" stroke-width="1.8"/>
+  <circle cx="104" cy="830" r="20" fill="#C76B00"/>
+  <text x="104" y="838" text-anchor="middle" class="sans" font-size="24" font-weight="800" fill="#fff">!</text>
+  <text x="144" y="838" class="sans ink takeaway">提取到文字 ≠ 恢复出知识结构；统一表示必须同时保留真实结构、来源位置和解析诊断。</text>
+</svg>
