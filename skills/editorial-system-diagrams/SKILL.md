@@ -56,6 +56,8 @@ Keep the editable source whenever the renderer supports it. A raster export alon
 
 Inspect the actual rendered result, not only its source. Check it at intended display size and at a reduced size representative of the final reading context.
 
+Run a dedicated collision pass after rendering. Text, connector labels, arrow shafts, arrowheads, node borders, and section boundaries must not overlap unless the contact is the intentional endpoint of a connector. Cross-boundary routes need a visible corridor and must stay clear of section titles and explanatory text.
+
 Read [review-rubric.md](references/review-rubric.md) for a formal review or before final delivery. Fix issues in this order:
 
 1. semantic correctness and boundaries;
@@ -71,6 +73,8 @@ Do not polish a diagram that still teaches the wrong boundary.
 - Give every figure a clear title and, when needed, one short orienting sentence.
 - Limit the main figure to one claim and usually three to six primary stages or groups.
 - Make the central path recognizable before the reader parses the labels.
+- Keep rendered text and connector labels inside their visual safe areas; do not let glyphs touch borders, arrows, or neighboring containers.
+- Terminate connectors at explicit node edges. Arrowheads must not intrude into a card's text area, and connector routes must not run through labels or section headings.
 - Use color by semantic role, not merely to distinguish adjacent boxes.
 - Give dashed lines one documented meaning per figure.
 - Connect status, diagnostics, and exceptions to the stage they describe; do not leave them as visual islands.

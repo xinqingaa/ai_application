@@ -39,6 +39,10 @@ Any P0 issue requires structural correction before visual polish.
 
 - Are equivalent stages aligned and consistently sized?
 - Are there avoidable crossings, long perimeter lines, or ambiguous arrowheads?
+- Does every text label retain visible padding from its card or section border at both full and reduced size?
+- Are connector shafts, arrowheads, and connector labels clear of ordinary text and section headings?
+- Do connectors meet node borders only at intentional ports, without arrowheads intruding into the text area?
+- Do cross-boundary routes use a clear corridor instead of colliding with a boundary title, explanatory copy, or corner?
 - Does every dashed line have one consistent meaning?
 - Are branches labeled where necessary?
 - Are auxiliary bands separated from the main flow?

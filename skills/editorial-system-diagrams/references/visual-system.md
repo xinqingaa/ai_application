@@ -66,12 +66,22 @@ Adopt an 8-unit spacing system. Prefer gaps and padding drawn from 8, 16, 24, 32
 - Use a consistent border weight. Increase weight only for a real boundary or focal path.
 - Give the main flow generous surrounding whitespace. Empty space is part of the explanation.
 
+### Collision-safe layout
+
+- Judge spacing from the rendered glyphs and strokes, not only from source coordinates or nominal text boxes.
+- Keep text inside a card's safe area with visible padding on every side. If a label approaches a border, widen the card, shorten or wrap the label, or change the composition; do not solve it with cramped typography.
+- Do not allow non-semantic overlap among text, connector labels, arrow shafts, arrowheads, card borders, section borders, or neighboring containers.
+- A connector may touch a node border only at its deliberate entry or exit point. Stop the arrowhead at the border and keep it outside the node's text safe area.
+- When a connector crosses a band or system boundary, route it through a clear corridor, cross the boundary cleanly, and keep the route away from the boundary title and orientation copy.
+- Place connector labels beside a line with clear separation, or interrupt the line behind the label. Never place readable text directly on top of a stroke.
+
 ## 6. Connectors
 
 - Establish one dominant spine before adding branches.
 - Prefer short horizontal or vertical connectors over long perimeter routes.
 - Label decision branches, transformations, and feedback triggers when their meaning is not self-evident.
 - Use solid lines for the main flow.
+- Keep arrowheads subordinate to the nodes and labels. As a starting point, use an arrowhead length around 1.5–2 times the connector stroke width, then inspect it at the final embedded size.
 - Assign dashed lines one secondary meaning, such as diagnostics, optional paths, or feedback. Never use the same dash style for several meanings.
 - Attach failures, statuses, and notes to the stage that emits them.
 - Avoid crossings. When crossings are unavoidable, reconsider grouping or split the figure.
@@ -131,5 +141,5 @@ Keep the contract stable even when individual diagrams use different composition
 - Maintain readable contrast for text, strokes, and pale tints.
 - Do not encode state by color alone; pair color with a label, shape, or icon.
 - Verify the smallest text at the final embedded size, not only on the source canvas.
-- Inspect both full-size and reduced-size exports for clipping, blur, crowded labels, and overly thin lines.
+- Inspect both full-size and reduced-size exports for clipping, blur, crowded labels, overly thin lines, and every text/connector/border collision.
 - Preserve editable source and export a deterministic SVG or high-resolution PNG when possible.
