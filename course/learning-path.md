@@ -80,9 +80,9 @@
 18. **证据充分性、Refusal 与补充问题** · 待编写
     部分引用正确时，系统仍可能缺少形成强结论的关键事实。本节判断何时继续回答、何时拒绝，以及怎样把缺口转成用户能够补充的具体问题；继续使用结构化 Claim 与 EvidenceDecision 表达结论与缺口，不提前使用产品对象术语。
 19. **需求对象模型：项目、需求、版本、条目与基线** · 待编写
-    评审结论要挂在什么上面、由谁批准、怎样交付？一次性报告无法承载这些问题。本节建立 Project → Requirement → RequirementVersion → RequirementItem 主链、Requirement 粒度的基线指针，以及跨版本稳定的 `item_key`、只随内容递增的 `revision` 和 Project Brief 的 `brief_revision` 与最小字段边界（哪些信息属于项目、哪些属于单个 Requirement）；同时建立来源、引用与决策三分——条目来源说明它怎样形成，Citation 证明外部事实，Decision 记录人的裁决，三者不能互相冒充。本节不讲实现，不定义 API。
+    评审结论要挂在什么上面、由谁批准、怎样交付？一次性报告无法承载这些问题。本节建立 Project → Requirement → RequirementVersion → RequirementItem 主链、Requirement 粒度的基线指针，以及跨版本稳定的 `item_key`、只随内容递增的 `revision` 和 Project Brief 的 `brief_revision` 与最小字段边界（哪些信息属于项目、哪些属于单个 Requirement）；同时建立来源、引用与决策三分——条目来源说明它怎样形成，Citation 证明外部事实，Decision 记录人的裁决，三者不能互相冒充。补充固定分区的 `addressed / not_applicable / needs_input` 完整性语义：完整需求是每个固定分区都被处理，而不是正文足够长；本节不讲实现，不定义 API。
 20. **结构化需求草稿：从固定表单或已有 PRD 到条目** · 待编写
-    用户手里只有一份 PRD 或几个表单字段，怎样变成有分区、有来源、可评审的条目？本节建立第二个 Prompt 族与导入映射：固定表单的人写条目创建即 `confirmed`，检索后由固定生成补全草稿；导入 PRD 保存为 SourceArtifact 并映射到固定分区，条目一律 `proposed` 且保留原文定位，未映射内容进入诊断；`external_fact` 只由系统赋予，导入与人写永不产生它。这是固定步骤，不是对话式 Agent。配套实验冻结检索，只改变输入来源，观察来源与陈述类型怎样落到条目上。
+    用户手里只有一份 PRD 或几个表单字段，怎样变成有分区、有来源、可评审的条目？本节建立第二个 Prompt 族与导入映射：固定表单的人写条目创建即 `confirmed`，检索后由固定生成补全草稿；导入 PRD 保存为 SourceArtifact 并映射到固定分区，条目一律 `proposed` 且保留原文定位，未映射内容进入诊断；每个分区同时得到已覆盖、不适用或待补充的处理状态，待补充不能被默认值填平；`external_fact` 只由系统赋予，导入与人写永不产生它。这是固定步骤，不是对话式 Agent。配套实验冻结检索，只改变输入来源，观察来源、陈述类型与分区完成度怎样落到条目上。
 21. **Finding 定位、决策记录与条目级差异** · 待编写
     第 18 节的缺口与结论要落在需求的哪个位置、由谁处理、处理后需求怎样变化？本节把评审结论落为固定到版本修订的 Finding：五类 `finding_kind`、目标成员资格校验、按类型的依据资格；建立五类 Decision、同一 Finding 只有一条活动 Decision 且可替换、`confirm_items` 的无 Finding 路径，以及按 `item_key` 对齐并带原因的条目级 Diff。配套实验必须覆盖：无 Finding 的 `confirm_items`、有 Finding 的四类 Decision、替换活动 Decision、`accept_suggestion` 递增 `revision` 并写回 Citation、同一轮连续接受多条建议后一次重跑、目标删除后 `accept_suggestion / supplement` 被拒绝而 `reject / waive` 仍允许、门禁只统计门禁运行的 Finding。
 22. **AI Native 界面与不确定性表达** · 待编写
@@ -94,7 +94,7 @@
 25. **知识资料 API 与资料生命周期** · 待编写
     资料怎样从上传变成可检索候选？本节定义知识资料 API 的请求、响应与错误分层，资料生命周期与 `dataset_version` 的产生规则；同时加入 `approved_requirement` 来源角色，说明项目检索池与全局知识库是两个池子、两个快照身份，“发布产生 `dataset_version`”只约束后者。已批准版本的索引状态 `pending / indexed / index_failed` 在此定义，触发时机在第 26 节。
 26. **需求版本生命周期、人工批准、基线切换与交付语义** · 待编写
-    一个版本什么时候可以被批准、批准后发生什么、交付包从哪里来？本节只跟踪一条主流：草稿 → 提交 → 批准 → 基线切换 → 事务后索引 → 从不可变版本导出。定义四个持久状态与三个派生状态、编辑规则（内容与 Decision 都只在 `draft` 可写）、乐观修订号并发、同一 Requirement 单开放版本，以及提交时预检、批准时复检的批准门不变量与批准时冻结的 `approved_decision_ids / approved_decision_set_hash`；Brief 修改使待批准版本过期后必须先退回草稿。DeliveryPackage 只讲导出语义，不展开第二套独立生命周期。
+    一个版本什么时候可以被批准、批准后发生什么、交付包从哪里来？本节只跟踪一条主流：草稿 → 提交 → 批准 → 基线切换 → 事务后索引 → 从不可变版本导出。定义四个持久状态与三个派生状态、编辑规则（内容与 Decision 都只在 `draft` 可写）、乐观修订号并发、同一 Requirement 单开放版本，以及提交时预检、批准时复检的批准门不变量：所有固定分区必须已覆盖或有人工不适用理由，不能有待补充分区；同时冻结 `approved_decision_ids / approved_decision_set_hash`。Brief 修改使待批准版本过期后必须先退回草稿。DeliveryPackage 只讲导出语义，不展开第二套独立生命周期。
 27. **ReviewRun、Review API 与 SSE 事件契约** · 待编写
     一次评审此刻处于什么状态，客户端据此显示什么？本节只跟踪 ReviewRun 一个生命周期：`submitted → retrieving → generating_unverified → validating → completed | failed | cancelled`，进入检索时钉住需求修订、Brief 修订、`dataset_version` 与可见已批准需求的证据快照；区分业务证据不足与系统执行失败，定义结构化增量与最终校验替换的 SSE 事件契约和增量撤回语义。
 28. **需求工作台集成检查点** · 待编写
@@ -174,11 +174,11 @@
 51. **Interrupt 与 Human-in-the-loop** · 待编写
     高风险动作需要把等待确认、批准、拒绝、修改和超时表达为正式状态。本节使用 LangGraph Interrupt 建立可恢复人工节点，而不是依赖聊天约定。
 52. **需求 Brief 形成与缺失信息追问** · 待编写
-    用户只有一句模糊想法，Agent 应该先问什么、什么时候停止追问？本节在 Interrupt 之上建立缺口识别与追问契约：每个问题回到具体分区与事实缺口，用户回答保留为用户输入来源，Retriever 结果只作为候选证据进入 Brief 草案与需求草稿，追问有预算与停止条件，用户不回答时停在“需要补充”而不伪造默认值。Brief 草案只存在于运行状态或暂存区：Agent 不写 Project Brief、不产生 `brief_revision`，是否采纳由 `owner` 人工编辑决定。本节只使用已有 Retriever Tool 与用户回答；MCP 与 Search / Browser 接入后只扩展候选证据来源，不改变追问契约。本节不写入正式需求。
+    用户只有一句模糊想法，Agent 应该先问什么、什么时候停止追问？本节先固定入口：editor 或 owner 人工创建或选择目标 Requirement 的 `draft`，再在 Interrupt 之上建立缺口识别与追问契约。每个问题回到具体分区与事实缺口，用户回答保留为用户输入来源，Retriever 结果只作为候选证据进入 Brief 草案与需求草稿，追问有预算与停止条件，用户不回答时停在“需要补充”而不伪造默认值。Brief 草案只存在于运行状态或暂存区：Agent 不创建正式 Requirement、不写 Project Brief、不产生 `brief_revision`，是否采纳由 `owner` 人工编辑决定。本节只使用已有 Retriever Tool 与用户回答；MCP 与 Search / Browser 接入后只扩展候选证据来源，不改变追问契约。本节不写入正式需求。
 53. **重放安全：重试、执行记录与幂等** · 待编写
     图恢复或重放不能重复产生外部行动。本节区分纯计算、可重试读取和有副作用操作，用执行记录和幂等键决定一次操作能否安全重试；无法用幂等消除影响时，再把补偿作为显式业务边界。
 54. **正式需求写入的 propose / Diff / apply 确认门** · 待编写
-    Agent 已能形成草稿，怎样把它写进正式需求而不绕过人？本节建立 `propose_requirement_patch` → 条目级 Diff → 人确认 → `apply_requirement_patch` 的确认门：复用第一阶段的 `revision` 乐观并发与拒写规则，人的确认落为一条第二阶段新增的 `apply_patch` Decision（不挂 Finding、不代替评审 Decision）使写入条目直接 `confirmed`，携带已校验 Citation 的条目走 `external_fact` 路径，重放不重复写入，apply 之后必须重新评审才能批准。本节说明它为什么不依赖 File Write，以及提交批准、退回 / 撤回、批准、正式导出、成员管理与 Project Brief 编辑为什么仍只能由人触发。
+    Agent 已能形成草稿，怎样把它写进正式需求而不绕过人？本节限定补丁只能作用于 editor 或 owner 已创建或选择的 `draft`：建立 `propose_requirement_patch` → 条目级 Diff → 人确认 → `apply_requirement_patch` 的确认门。复用第一阶段的 `revision` 乐观并发与拒写规则，人的确认落为一条第二阶段新增的 `apply_patch` Decision（不挂 Finding、不代替评审 Decision）使写入条目直接 `confirmed`，携带已校验 Citation 的条目走 `external_fact` 路径，重放不重复写入，apply 之后必须重新评审才能批准。本节说明它为什么不依赖 File Write，以及提交批准、退回 / 撤回、批准、正式导出、成员管理与 Project Brief 编辑为什么仍只能由人触发。
 55. **可恢复 Agent Runtime 项目检查点** · 待编写
     验收同一个 Agentic RAG 开始显式使用 LangGraph 的可恢复能力与人工节点——不是迁移到新运行时，而是深度从高层循环下沉到图原语。验证中断、恢复、取消、重复请求和框架版本身份，验证追问与 propose / apply 都经过 Interrupt 且不绕过批准门，同时保持 `agent_core` 契约与产品输出不变。
 

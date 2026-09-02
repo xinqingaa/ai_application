@@ -29,6 +29,7 @@
 用户需要完成的核心任务：
 
 - 从固定表单、已有 PRD 或已批准基线形成结构化需求版本。
+- 由 editor 或 owner 明确创建或选择一个 Requirement，作为后续固定流程或 Agent 运行唯一可写入的 draft 容器。
 - 区分人写、导入、AI 建议、外部事实与旧版本派生等来源。
 - 找出内部缺失与矛盾、外部规则冲突、项目内已批准需求冲突和研发影响。
 - 在证据不足时得到可回答的补充问题，而不是无依据的强结论。
@@ -54,9 +55,12 @@
 
 第一阶段不接收模糊想法，也不使用动态 Agent 追问；这属于第二阶段。
 
+模糊想法进入第二阶段前必须已有明确的 Project，且由 editor 或 owner 人工创建或选择目标 Requirement 的 `draft` 版本。Agent 可以建议标题、分区和内容，但不创建正式 Requirement；它只在这个 draft 上提出补丁，仍由人确认后写入。
+
 ### 输出
 
 - 有固定分区、稳定条目身份、来源、确认状态和修订号的需求版本。
+- 每个固定分区的处理状态：已覆盖、人工标记不适用并留理由，或仍待补充。
 - PRD 导入覆盖、原文定位和未映射内容诊断。
 - ReviewRun、可定位 Finding、Sources、Citation、证据充分性、Refusal 和补充问题。
 - 经过最终校验的结果以及与生成中未校验增量的明确区分。
@@ -78,11 +82,22 @@ Project → Requirement → RequirementVersion → RequirementItem
 - Requirement 是一个可独立版本化、批准和交付的稳定需求主题，持有当前基线指针。
 - RequirementVersion 是一次可评审、可批准的内容快照；批准后不可修改。
 - RequirementItem 是需求正文的最小单位，通过稳定业务身份跨版本对齐。
+- RequirementVersion 对每个固定分区保留可解释的处理状态；“有正文”与“该分区已被明确处理”不能混用。
 - ReviewRun 对版本的一个确定修订执行评审并产生 Finding。
 - Decision 记录人对 Finding、待确认条目或第二阶段 Agent 补丁的裁决。
 - DeliveryPackage 从已批准或被替代的不可变版本导出。
 
 基线只在 Requirement 粒度。全产品基线、Requirement 归档和项目自定义分区不是当前产品目标。完整字段、枚举、来源与状态规则见 [SDD 第 3–5 节](SDD.md#3-领域对象与稳定身份)。
+
+### 4.1 完整需求与批准资格
+
+“完整需求”不是模型生成看似完整的长文本，而是每个固定分区都被显式处理。除可选的 `other` 外，分区必须处于以下之一：
+
+- **已覆盖**：存在至少一条已确认的对应条目。
+- **不适用**：人明确标记并留下理由。
+- **待补充**：当前没有足够的用户意图或事实，不能伪造默认值。
+
+只有前两种状态可进入批准门；`待补充` 必须作为可定位缺口阻断批准。此规则补充而不替代 Finding、Citation、Decision 和人工批准：分区被覆盖不代表外部事实已获 Citation，Finding 被处理也不代表遗漏分区已自动补齐。
 
 ## 5. 第一阶段：固定 RAG 产品闭环
 
@@ -101,6 +116,7 @@ Project → Requirement → RequirementVersion → RequirementItem
 
 - 真实文档、真实 PostgreSQL、真实 Embedding 和真实模型主路径。
 - 固定表单创建与导入 PRD 两个入口，汇入同一需求对象模型。
+- 固定分区完成度的确定性检查；缺失分区产生可定位的补充需求，不能因模型未报告而通过批准。
 - 来源、Citation 和 Decision 三分，产品意图不因缺 Citation 被拒绝，外部事实不能靠人的确认代替 Citation。
 - 可定位 Finding、逐项 Decision、条目级 Diff 和证据不足时的 Refusal 或补充问题。
 - RequirementVersion 的人工状态迁移、批准门、不可变决策快照、原子基线切换与事务后索引。
@@ -118,6 +134,7 @@ Project → Requirement → RequirementVersion → RequirementItem
 - 框架驱动的 Agent Harness、Tool Runtime、状态、停止、恢复、事件和观测。
 - Agentic RAG、Query Rewrite、Source Routing 和受控补检索。
 - 从模糊想法识别缺口并通过 Interrupt 追问，形成 Brief 草案与结构化需求草稿。
+- editor 或 owner 先人工创建或选择目标 Requirement draft；Agent 只在该版本上追问和提出补丁，不创建正式 Requirement。
 - `propose_requirement_patch → Diff → 人确认 → apply_requirement_patch` 的正式写入门；apply 后仍需重新评审。
 - MCP、Search、Browser、File Read、运行级暂存写入和受控 Code Tool。
 - 条目差异对规则、接口契约、客户端模型和定向测试的变更影响分析。
@@ -180,6 +197,7 @@ Agent 只能形成 Brief 草案，不能写 Project Brief；正式需求只能�
 - 保证批准内容、批准 Brief 修订和批准决策集合不可变且可验证。
 - 保证六类人工动作不能被 Agent、Tool 或系统管理员身份绕过。
 - 对真实模型、数据库、Embedding、文件、协议和工具失败给出可定位错误。
+- 只有固定分区均已覆盖或被人明确标为不适用、且满足既有 Finding、Citation、Decision 与批准门后，需求版本才能作为完整基线批准。
 - 保留固定 RAG 基线，并对 Agent 和 Multi-Agent 的收益与代价形成同条件证据。
 - 能修改一个业务规则、工具或 Agent 责任并完成回归。
 

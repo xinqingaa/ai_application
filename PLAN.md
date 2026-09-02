@@ -28,7 +28,7 @@ LLM 调用与结构化输出
 → RRF 与 Retriever Contract
 → Context 与可信生成（含结构化增量流式与最终校验边界）
 → Citation 支持性、证据充分性与 Refusal
-→ 需求对象模型与状态机（Project / Requirement / RequirementVersion / RequirementItem、SourceArtifact、Brief 修订历史、migration）
+→ 需求对象模型与状态机（Project / Requirement / RequirementVersion / RequirementItem、固定分区处理状态、SourceArtifact、Brief 修订历史、migration）
 → 结构化需求草稿（固定表单补全与导入 PRD 映射，第二个 Prompt 族）
 → Finding 定位、Decision 与条目级 Diff
 → 身份认证与两层角色（系统 admin / member，项目 owner / editor / viewer）
@@ -40,7 +40,7 @@ LLM 调用与结构化输出
 → Docker Compose 打包（应用 + Postgres/pgvector）
 ```
 
-`review_assistant` 的领域模块（对象 Schema、状态机、migration）在“需求对象模型与状态机”这一步首次落地，早于 API 与认证，由脚本和确定性测试驱动；结构化草稿生成与 Finding / Decision 在其上组合 `llm_core` 与 `rag_core`。进入这两步之前必须先做一次职责对齐：通用 Structured Output、Context 与来源成员检查机制保留在 package，需求领域 Schema、Prompt 与组合留在产品层。
+`review_assistant` 的领域模块（对象 Schema、状态机、migration）在“需求对象模型与状态机”这一步首次落地，早于 API 与认证，由脚本和确定性测试驱动；它必须实现固定分区的 `addressed / not_applicable / needs_input` 契约，以及 editor / owner 创建目标 Requirement draft 的路径。结构化草稿生成与 Finding / Decision 在其上组合 `llm_core` 与 `rag_core`。进入这两步之前必须先做一次职责对齐：通用 Structured Output、Context 与来源成员检查机制保留在 package，需求领域 Schema、Prompt 与组合留在产品层。已有课程实验中的评审风险 Schema 或 Prompt 不得继续演化为产品领域真源；实现产品对象时按这一边界迁移或适配。
 
 第一阶段结束时，Retriever 必须可以作为稳定 Tool 被第二阶段直接调用；需求对象的内容写入路径必须能被第二阶段的 `apply_requirement_patch` 直接复用；身份认证与角色边界必须与第二阶段 Tool 权限保持概念上的独立，不能被后者直接复用或替代。
 
@@ -52,7 +52,7 @@ LLM 调用与结构化输出
 → 最小 Run State、Event、停止原因与 LangSmith Trace
 → Agent 运行契约与框架适配收束
 → LangGraph State、Checkpoint、Interrupt 与恢复
-→ 需求 Brief 草案追问，propose_requirement_patch / Diff / apply_requirement_patch 确认门（`apply_patch` Decision）
+→ 人工创建或选择 Requirement draft 后的需求 Brief 草案追问，propose_requirement_patch / Diff / apply_requirement_patch 确认门（`apply_patch` Decision）
 → MCP 与 Search / Browser / File / Code Tool
 → 变更影响分析（条目差异 × 规则 / 契约 / 客户端 / 测试 → Finding）
 → Conversation、短期记忆、长期偏好、完整事件和运行界面
@@ -118,7 +118,7 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 - 身份认证、会话生命周期，以及系统 admin / member 与项目 owner / editor / viewer 两层角色的路由与动作边界。这是产品领域策略，不进入通用 package；也不与第二阶段 `agent_core` 的 Tool 权限模块合并。
 - 知识管理后台：知识资料上传、解析诊断展示、入库暂存、管理员发布与 `dataset_version` 记录。发布动作是唯一能够改变全局知识库候选池版本的入口，上传和暂存不直接生效；项目检索池由已批准版本索引维护，是另一个池子。
 - DeliveryPackage 导出（只从 `approved` / `superseded` 版本）与草稿非正式预览。
-- 第二阶段 `propose_requirement_patch` / `apply_requirement_patch`：Agent 提出补丁、人确认 Diff、写入 `draft` 版本并记录 `apply_patch` Decision，是产品专用写入能力，不是 File Write；Agent 形成的 Brief 草案只进运行状态或暂存区，Project Brief 仍由 owner 人工编辑。
+- 第二阶段 `propose_requirement_patch` / `apply_requirement_patch`：editor 或 owner 先人工创建或选择目标 Requirement 的 `draft`，Agent 再提出补丁、人确认 Diff、写入该版本并记录 `apply_patch` Decision。这是产品专用写入能力，不是 File Write；Agent 形成的 Brief 草案只进运行状态或暂存区，Project Brief 仍由 owner 人工编辑，Agent 不创建正式 Requirement。
 - 产品 Schema、状态和组合流程。
 - `agent/` 中的评审 Prompt、领域 Agent 组装、引用与证据策略、记忆策略和角色设计。
 - 产品测试、fixtures、eval 和数据库 migration。

@@ -101,6 +101,16 @@ dependencies / acceptance_criteria / other
 
 项目自定义分区是非目标。
 
+### 3.5.1 分区处理与完整性
+
+每个 RequirementVersion 对除 `other` 外的固定分区都必须暴露一种分区处理状态；它是版本完整性的一部分，不是模型输出的可选描述：
+
+- `addressed`：该分区至少有一条 `confirmed` RequirementItem。
+- `not_applicable`：人明确标记该分区不适用并留下理由。
+- `needs_input`：当前缺少用户意图或必要事实；默认阻断批准。
+
+`addressed` 可以由条目确认状态推导，`not_applicable` 必须保留操作者、理由和版本身份，二者不能在同一分区同时成立。具体表结构或 API 形状由实现阶段决定，但版本、分区、状态、人工不适用理由和审计关系是稳定领域契约。固定表单、导入映射和 Agent 草稿均可产生 `needs_input`，不得以模型默认值或无依据外部事实伪造 `addressed`。
+
 ### 3.6 SourceArtifact
 
 导入 PRD 原文保存为 SourceArtifact，至少包含来源标识、文件名、格式、内容哈希、版本和 locator 契约。映射条目保留 `source_artifact_id`、`source_locator` 和 `mapping_method`；未映射内容进入诊断。
@@ -222,6 +232,8 @@ Finding 的目标必须属于该 RequirementVersion 当时修订的条目集合�
 
 六类人工动作是：提交批准、退回或撤回、批准、正式导出、项目成员管理、编辑 Project Brief。后端路由和动作层都必须执行授权，前端隐藏按钮不是授权依据。
 
+创建 Requirement 是 editor 或 owner 的普通人工产品动作，不是 Agent Tool；创建后形成目标 Requirement 的 draft 容器。它不属于六类人工门，但后续任何 Agent 草稿或补丁都必须绑定该容器。
+
 ## 7. RequirementVersion 生命周期与批准
 
 ### 7.1 持久状态
@@ -269,6 +281,7 @@ owner 修改 Brief 不自动改变 RequirementVersion 状态，但使项目内�
 - `proposed_count_at_start = 0`，先确认条目再评审。
 - 门禁运行的每条 Finding 都有活动 Decision，且只能是 `reject / waive`。
 - 当前没有 `proposed` 条目。
+- 除 `other` 外每个固定分区均为 `addressed`，或由人以有理由的 `not_applicable` 明确处理；任何 `needs_input` 都拒绝提交或批准。
 - 每条 `external_fact` 条目 `citation_state = verified`。
 - 任何内容或 Brief 变化都使旧运行失去资格。
 
@@ -349,7 +362,7 @@ uploaded → parsing → parse_failed
 
 ### 9.1 Brief 追问
 
-Agent 从模糊想法识别 Project Brief 与 Requirement 分区缺口，通过可恢复人工节点追问。用户回答保留为用户输入来源；Retriever、MCP、Search 和 Browser 结果只是候选证据。
+Agent 从模糊想法识别 Project Brief 与 Requirement 分区缺口，通过可恢复人工节点追问。运行开始前，editor 或 owner 已人工创建或选择目标 Requirement 的 `draft`；Agent 不能创建正式 Requirement，只能建议标题或在该 draft 上提出内容补丁。用户回答保留为用户输入来源；Retriever、MCP、Search 和 Browser 结果只是候选证据。
 
 Agent 只能生成 Brief 草案和需求草稿：
 
@@ -512,6 +525,8 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 
 - 模糊想法经过可恢复追问形成 Brief 草案与需求补丁；Agent 不直接修改 Project Brief。
 - `propose → Diff → 人确认 → apply` 对过期修订、重复请求、恢复重放和非草稿状态均安全，apply 后必须重新评审。
+- 固定分区的 `addressed / not_applicable / needs_input` 状态可回查；`needs_input` 或无理由的 `not_applicable` 必须拒绝提交和批准，且不依赖模型是否报告对应 Finding。
+- 从模糊想法启动的 Agent Run 只能绑定 editor 或 owner 已创建或选择的 Requirement draft；Agent 不创建正式 Requirement，也不绕过补丁确认门。
 - File Read 能追踪接口与客户端资料来源；File Write 只写运行级暂存；受控 Code Tool 至少验证一项真实契约差异，并保留失败或超时结果。
 - 用户能确认、查看、更新、删除和关闭长期偏好；关闭或删除后不再注入，偏好不成为 Citation。
 - 同一责任契约可对照本地 Delegation 与远程 A2A；远程路径完成两个独立实现的真实互操作，并保留任务状态、证据归属、错误和最终责任。

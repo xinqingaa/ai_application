@@ -185,10 +185,12 @@
 
 质量证据贯穿每个检查点；本域在后部统一运行关联、版本、回归、自动与人工判断和反馈，不建设完整评估平台。
 
+本域的稳定方向契约：除可选 `other` 外，固定分区必须显式处于 `addressed`、`not_applicable` 或 `needs_input`；前两者才有批准资格，`needs_input` 阻断批准。第二阶段从模糊想法启动时，先由 editor 或 owner 创建或选择目标 Requirement 的 `draft`，Agent 只在该容器上追问和提出补丁，不创建正式 Requirement；具体字段、API 和界面留给对应课程与实现阶段。
+
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 需求对象模型与状态 | 主线 | 第一阶段 | 用 Project → Requirement → RequirementVersion → RequirementItem 主链承载评审结论；Requirement 粒度的基线指针、跨版本稳定的 `item_key`、只随内容递增的 `revision` 与 Project Brief 的 `brief_revision`；来源、引用与决策三分，不让条目来源、外部 Citation 与人的 Decision 互相冒充；全产品基线、归档与自定义分区是非目标 | Citation、Refusal | 待编写概念正文 | 产品必接；`review_assistant` 领域 Schema 与 migration |
-| 结构化需求草稿 | 主线 | 第一阶段 | 把固定表单或导入 PRD 映射为有分区、有来源的条目：人写条目创建即 `confirmed`，AI 与导入条目为 `proposed`；导入原文保存为 SourceArtifact 并保留定位；`external_fact` 只由系统赋予；这是固定步骤，不是对话式 Agent | 需求对象模型、Structured Output、固定 RAG | 待编写机制与实验 | 产品必接；第二个 Prompt 族，`review_assistant` |
+| 需求对象模型与状态 | 主线 | 第一阶段 | 用 Project → Requirement → RequirementVersion → RequirementItem 主链承载评审结论；Requirement 粒度的基线指针、跨版本稳定的 `item_key`、只随内容递增的 `revision` 与 Project Brief 的 `brief_revision`；固定分区必须显式处于 `addressed / not_applicable / needs_input` 之一，前两者才有批准资格；来源、外部 Citation 与人的 Decision 三分，不互相冒充；全产品基线、归档与自定义分区是非目标 | Citation、Refusal | 待编写概念正文 | 产品必接；`review_assistant` 领域 Schema 与 migration |
+| 结构化需求草稿 | 主线 | 第一阶段 | 把固定表单或导入 PRD 映射为有分区、有来源的条目，并为每个固定分区留下已覆盖、不适用或待补充状态：人写条目创建即 `confirmed`，AI 与导入条目为 `proposed`；导入原文保存为 SourceArtifact 并保留定位；`external_fact` 只由系统赋予；这是固定步骤，不是对话式 Agent | 需求对象模型、Structured Output、固定 RAG | 待编写机制与实验 | 产品必接；第二个 Prompt 族，`review_assistant` |
 | Finding 定位与决策 | 主线 | 第一阶段 | 评审结论固定到版本修订上的条目、分区或版本；五类 `finding_kind` 各有目标与依据资格，内部缺失 / 矛盾不伪造 Citation，外部事实冲突缺 Citation 时拒绝写入；五类 Decision、活动 Decision 替换、`confirm_items` 无 Finding 路径与按 `item_key` 对齐的条目级 Diff | 需求对象模型、证据充分性 | 待编写机制与实验 | 产品必接；`review_assistant` 决策与 Diff |
 | 需求版本生命周期与交付包 | 主线 | 第一阶段 | 四个持久状态、三个派生状态，每个迁移由人触发；内容与 Decision 都只在 `draft` 可写；乐观修订号并发与单开放版本；提交预检、批准复检同一批准门，批准时冻结 `approved_decision_ids` 与 `approved_decision_set_hash`；Brief 修改使待批准版本过期后必须先退回草稿；批准事务内切换基线，索引在事务之后；DeliveryPackage 只从不可变版本导出并固定使用冻结的决策集合，可配置审批链、委托与通知是非目标 | Finding 与决策、产品 RBAC | 待编写机制正文 | 产品必接；`review_assistant` 状态机与导出 |
 | 已批准需求作为证据来源（`approved_requirement`） | 主线 | 第一阶段 | 已批准且已索引的基线以独立来源角色进入同项目检索池，说明项目内已批准的产品决定而不覆盖现行规则；ReviewRun 钉住 `approved_requirement_version_ids` 快照，`superseded` 版本按身份自然离开，当前版本与自身基线不进入候选；与全局知识库是两个池子、两个快照身份 | 来源角色、Metadata Filter、版本生命周期 | 待编写机制正文 | 产品必接；`rag_core` 只扩展 `SourceRole` 与按 `document_version` 集合过滤 |

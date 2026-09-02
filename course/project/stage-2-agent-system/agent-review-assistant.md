@@ -12,7 +12,7 @@
 
 第二阶段继续使用第一阶段的 Project（电商 App）与 Requirement（“售后入口”需求主题），不通过更换案例规避固定 RAG、单 Agent 和 Multi-Agent 的比较。贯穿场景有两条线：
 
-- **从模糊想法到基线**：用户只给出一句“售后入口要支持新的渠道来源”，Agent 识别缺失信息并追问，结合内部 RAG、MCP、Search / Browser 形成 Brief 草案与结构化需求草稿。需求草稿以 `propose_requirement_patch` 提出、经 Diff 确认后写入 `draft` 版本，再进入评审、决策、批准与交付；Brief 草案只呈现给 `owner`，是否写入 Project Brief 由 `owner` 人工编辑决定，Agent 不产生 `brief_revision`。
+- **从模糊想法到基线**：用户只给出一句“售后入口要支持新的渠道来源”，先由 editor 或 owner 人工创建或选择目标 Requirement 的 `draft`，再由 Agent 识别缺失信息并追问，结合内部 RAG、MCP、Search / Browser 形成 Brief 草案与结构化需求草稿。需求草稿以 `propose_requirement_patch` 提出、经 Diff 确认后写入该 `draft` 版本，再进入评审、决策、批准与交付；Brief 草案只呈现给 `owner`，是否写入 Project Brief 由 `owner` 人工编辑决定，Agent 不创建正式 Requirement，也不产生 `brief_revision`。
 - **从基线到变更影响**：评审“售后接口 v2 与多端契约一致性”——需求要求增加或收紧 `source_channel`，并要求 Web 与 Flutter 客户端使用一致的入口可见性规则。它是同一 Requirement 从现有基线派生的新 RequirementVersion，不是新 Requirement；Agent 产出条目级差异，结合规则、接口契约、客户端模型与定向测试分析影响，结论落为 Finding，由人决策、批准，并导出增量交付包。
 
 一次评审可以收到：
@@ -193,6 +193,7 @@ LangChain Agent
 
 ### 需求 Brief 形成与缺失信息追问
 
+- Agent Run 绑定 editor 或 owner 已创建或选择的 Requirement `draft`；Agent 不创建正式 Requirement。
 - Agent 从一句模糊想法出发，能识别 Project Brief 与需求分区中缺失的信息，并通过 Interrupt 追问，而不是直接生成整份需求。
 - 追问的每个问题能回到具体缺口（哪个分区、哪类事实、哪份规则本应覆盖），用户的回答保留为 `provenance=user_input` 的条目来源。
 - 内部 RAG、MCP 与 Search / Browser 的结果只作为候选证据进入草稿，携带已校验 Citation 的条目才成为 `external_fact`。
@@ -358,6 +359,7 @@ source/apps/review_assistant/           唯一产品
 - 能解释数据流、状态流、工具流、证据流和异常流。
 - 能展示正常完成、追问、等待确认、达到上限、工具失败和取消。
 - 两条贯穿线都在同一 Requirement 上闭环：模糊想法经追问、propose / Diff / apply、评审、人工批准成为基线；变更经影响分析、决策、批准导出增量交付包。
+- 模糊想法链路可回查“人创建或选择 Requirement draft → Agent 追问与提案”的顺序，Agent 无法在没有该容器时直接写入正式需求。
 - MCP、Skill、Tool、A2A 与 Workflow 的责任边界清楚。
 - 完成 Multi-Agent 与单 Agent 的同条件比较，记录质量、成本、延迟、证据一致性和失败定位差异；结果不足时保留单 Agent，不以角色数量证明能力。
 - 能完成自然 bad case、需求变更和回归。
