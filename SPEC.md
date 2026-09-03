@@ -104,6 +104,8 @@ Project → Requirement → RequirementVersion → RequirementItem
 
 只有前两种状态可进入批准门；`待补充` 必须作为可定位缺口阻断批准。此规则补充而不替代 Finding、Citation、Decision 和人工批准：分区被覆盖不代表外部事实已获 Citation，Finding 被处理也不代表遗漏分区已自动补齐。
 
+证据充分性与批准资格是两件事。评审运行的整体判定——可回答、部分回答或拒答——不决定版本能否批准：证据不足是关于资料的结论，是否承担风险由人在逐条缺口上留理由裁决。新项目的两个候选池都可以为空，此时评审只能拒答，而第一个基线仍必须能被批准，否则项目级证据永远无法沉淀。产品要阻断的是残缺的评审运行：某一路检索失败或校验未跑完的运行不能用于批准；同时必须让批准人在批准前看到本次评审是在证据不足的情况下完成的。
+
 ## 5. 第一阶段：固定 RAG 产品闭环
 
 第一阶段必须形成可运行的固定 RAG 需求定义、评审与交付工作台：
@@ -138,6 +140,7 @@ Project → Requirement → RequirementVersion → RequirementItem
 第二阶段在第一阶段对象模型与批准门上增加：
 
 - 框架驱动的 Agent Harness、Tool Runtime、状态、停止、恢复、事件和观测。
+- 同一 ReviewRun 对象的 Agent 驱动执行模式，以及承载多来源候选的证据登记簿。
 - Agentic RAG、Query Rewrite、Source Routing 和受控补检索。
 - 从模糊想法识别缺口并通过 Interrupt 追问，形成 Brief 草案与结构化需求草稿。
 - editor 或 owner 先以标题和自然语言种子等最小输入人工创建或选择目标 Requirement draft；Agent 只在该版本上追问和提出补丁，不创建正式 Requirement。
@@ -149,7 +152,9 @@ Project → Requirement → RequirementVersion → RequirementItem
 - 必要的 Workflow、Checkpoint、恢复、人工介入和副作用治理。
 - 固定 RAG、单 Agent 与 Multi-Agent 的质量、成本、延迟和失败定位比较。
 
-Agent 只能形成 Brief 草案，不能写 Project Brief；正式需求只能经补丁 Diff 的人工确认写入草稿。File Write 不修改正式需求，也不创建 DeliveryPackage。完整工具、安全、记忆和写入边界见 [SDD 第 9–12 节](SDD.md#9-第二阶段-agent-写入与影响分析)。
+Agent 只能形成 Brief 草案，不能写 Project Brief；正式需求只能经补丁 Diff 的人工确认写入草稿。File Write 不修改正式需求，也不创建 DeliveryPackage。
+
+Agent 评审不是第二套评审流程，而是同一 ReviewRun 对象的另一种执行模式：Finding 的生产者、证据快照义务、终态集合和批准门资格都不变，Agent 只改变运行怎样被推进。完整工具、安全、记忆和写入边界见 [SDD 第 9–12 节](SDD.md#9-第二阶段-agent-写入与影响分析)。
 
 ## 7. 固定垂直场景
 
@@ -177,6 +182,8 @@ Agent 只能形成 Brief 草案，不能写 Project Brief；正式需求只能�
 
 - 模型提出候选内容或行动，应用负责校验、授权和执行。
 - 每条外部事实和外部规则冲突必须回到合格 Citation；内部缺失与矛盾回到当前需求或 Project Brief 定位。
+- 任何来源必须先经受治理的 Tool 调用登记为本轮候选才可能成为 Citation；执行类结果只能支撑标为推断的结论，不作为外部事实依据。
+- 外部来源成为 Citation 时保存引文快照，已批准结果不随外部来源变化或失效而漂移。
 - 当前待评审版本和自身旧基线不能伪装成外部证据。
 - 工具默认最小权限，读取、暂存写入、正式需求写入和外部行动严格分开。
 - 文件、网页、Tool Result 和远程 Agent 输出都视为不可信输入，不能改变系统规则或权限。
@@ -204,6 +211,7 @@ Agent 只能形成 Brief 草案，不能写 Project Brief；正式需求只能�
 - 在证据不足时拒绝强结论，并给出可回答的补充问题。
 - 保证批准内容、批准 Brief 修订和批准决策集合不可变且可验证。
 - 保证六类人工动作不能被 Agent、Tool 或系统管理员身份绕过。
+- 保证 Agent 评审与固定管道评审共用同一 ReviewRun 对象和批准门，不存在第二条 Finding 生产路径。
 - 对真实模型、数据库、Embedding、文件、协议和工具失败给出可定位错误。
 - 只有固定分区均已覆盖或被人明确标为不适用、且满足既有 Finding、Citation、Decision 与批准门后，需求版本才能作为完整基线批准。
 - 新建空 Project 能以最小 Brief 和 Requirement draft 启动；空检索池的证据不足、后续批准版本的项目级沉淀及已有项目迭代都可回查。

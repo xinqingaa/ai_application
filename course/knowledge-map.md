@@ -45,7 +45,7 @@
 | Context 装配、预算与 Compression | 主线 | 第一阶段 | 把检索名单装成模型本轮可见 Context；Evidence 是专门放外部依据的一格，装入时控制身份、分区预算和允许声明的来源 | Retriever Contract | [机制](mechanisms/context-engineering.md) · [实验](labs/context-engineering.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
 | 结构化生成与来源声明集合检查 | 主线 | 第一阶段 | 把 BuiltContext 交给真实结构化模型，并逐条检查模型声明的 source ID 是否属于本轮 Citation Candidate；`succeeded` 只表示结构合法且声明未越界，不判断内容支持性、证据充分性或流式界面状态 | Context、Structured Output | [机制](mechanisms/trusted-generation.md) · [实验](labs/trusted-generation.md) | 产品必接；`rag_core/generation` |
 | Citation 支持性 | 主线 | 第一阶段 | 判断被引用内容是否真正支持对应结论，合法 ID 不能代替语义支持 | 可信生成 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
-| 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题 | Citation 支持性 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
+| 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题；判定只表达证据程度，不决定批准资格 | Citation 支持性 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
 | Reranker 与准入证据 | 扩展 | 第一阶段 | 在固定召回基线后学习重排，以及什么收益证据才足以进入产品 | RRF、Golden Set | 待编写机制正文 | 条件接入；不作为固定基线默认能力 |
 | 文档更新、删除与 Citation 失效 | 扩展 | 第一阶段 | 处理知识版本变化后索引、缓存和历史 Citation 的失效与重建 | 来源身份、Citation | 待编写机制正文 | 条件接入；知识治理 |
 | OCR / VLM 与复杂文档 | 扩展 | 第一阶段 | 处理扫描、图片和复杂版面，明确识字、结构恢复和来源定位的不同证据 | 文档解析 | 待编写机制正文 | 条件接入；对照实验 |
@@ -69,9 +69,11 @@
 | Prompt Injection 与应用控制边界 | 主线 | 第二阶段 | 把网页、文件和 Tool Result 视为不可信内容，禁止其改变系统规则和权限 | Tool 治理 | 待编写机制正文 | 产品必接；`agent_core/safety` 与产品策略 |
 | Agent Loop、预算与停止 | 主线 | 第二阶段 | 在观察、决策、行动和结果间循环，并通过预算、无进展和停止原因终止；框架自带 Loop 不等于应用可以省略预算与停止契约 | LangChain Agent、Harness、Tool Runtime | 待编写机制正文 | 产品必接；框架执行、`agent_core/runtime` 约束 |
 | Retriever Tool 与固定 RAG 契约 | 主线 | 第二阶段 | 把固定 Retriever 契约接入 Tool Runtime，保留来源、空结果和路线失败 | Retriever Contract、Tool Runtime | 待编写机制正文 | 产品必接；RAG 唯一实现复用 |
+| 证据登记簿与允许集合泛化 | 主线 | 第二阶段 | 把“模型声明的来源必须属于本轮允许集合”从一次检索的候选名单泛化为运行级证据登记簿：受治理 Tool 调用是唯一登记入口，登记来源类型、稳定身份、locator、获取时间与 `tool_call_id`，一次运行内单调增长且恢复后可解释；内部来源仍受证据快照约束，外部来源另带获取时间与不可信标记；登记只决定是否属于允许集合，不赋予证据资格，执行类结果不能支撑外部事实 | Retriever Tool、结构化生成与来源声明集合检查 | 待编写机制正文 | 产品必接；`agent_core` 维护登记簿，`rag_core` 校验器只接收允许集合 |
+| 外部来源 Citation 的引文快照 | 主线 | 第二阶段 | 外部来源在批准后会变化或失效，因此成为 Citation 时必须持久化引文正文、抓取时间与来源内容哈希，Citation 指向快照而非实时来源，使不可变基线在外部证据上同样成立 | 证据登记簿、需求版本生命周期与交付包 | 待编写机制正文 | 产品必接；`review_assistant` 证据持久化与导出 |
 | Query Rewrite 的原问题保留与改写边界 | 主线 | 第二阶段 | 改写检索表达但保留原问题、技术标识和可追踪关系，避免无信息循环 | Retriever Tool | 待编写机制正文 | 产品必接；`agent_core/query` 与产品策略 |
 | 证据缺口驱动的检索决策 | 主线 | 第二阶段 | 根据证据缺口在已有 Retriever、查询表达和用户补充间决定继续检索、换路、追问或停止；外部 Tool 接入后扩展来源集合而不改变决策语义 | Retriever Tool、Query Rewrite、证据充分性 | 待编写机制正文 | 产品必接；产品路由策略 |
-| Agent 运行契约与框架适配 | 主线 | 第二阶段 | 以请求结果、Tool、Run State、停止、事件和 Trace 形成产品可依赖的通用 Agent 边界，组合并治理同一个由 LangGraph 驱动的运行时 | 框架分层、可靠调用 | 待编写机制与项目检查点 | 产品必接；进入 `source/packages/agent_core/`，评审 Prompt、领域 Schema、策略与角色进入 `source/apps/review_assistant/agent/` |
+| Agent 运行契约与框架适配 | 主线 | 第二阶段 | 以请求结果、Tool、Run State、停止、事件和 Trace 形成产品可依赖的通用 Agent 边界，组合并治理同一个由 LangGraph 驱动的运行时；同时绑定 Agent Run 与 ReviewRun——需求形成类运行不产生 Finding、不开 ReviewRun，评审与影响分析类运行开启 `agentic` 执行模式的 ReviewRun，停止原因确定性映射回同一组终态与 `evidence_decision` | 框架分层、可靠调用 | 待编写机制与项目检查点 | 产品必接；进入 `source/packages/agent_core/`，评审 Prompt、领域 Schema、策略与角色进入 `source/apps/review_assistant/agent/` |
 | 替代 Agent 框架与迁移边界 | 扩展 | 第二阶段 | 以 OpenAI Agents SDK、LlamaIndex Agent / Workflow 等做受控对照，检查本地契约是否过度绑定主框架；不并行建设第二套产品主线 | 首个 Agent 闭环、`agent_core` 边界 | 边界认知或对照实验 | 条件接入；由真实迁移或数据编排需求触发 |
 
 ## MCP 与外部工具
@@ -90,8 +92,8 @@
 | File Read 与来源身份 | 主线 | 第二阶段 | 在批准工作区选择性读取 PRD、OpenAPI、客户端模型和配置，防路径逃逸并保留哈希与定位 | Tool Runtime、来源模型 | 待编写机制正文 | 产品必接；受控评审工作区 |
 | File Write、暂存与确认 | 主线 | 第二阶段 | 只向运行级暂存区原子写入附件与中间产物，处理覆盖、确认、重试和幂等；不修改正式需求、不创建 DeliveryPackage | File Read、Tool 副作用 | 待编写机制正文 | 产品必接；原始输入默认只读 |
 | 变更影响分析 | 主线 | 第二阶段 | 从派生版本按 `item_key` 对齐的条目差异出发，对照 RAG 规则、File Tool 读取的接口契约与客户端模型、Code Tool 定向测试，把结论落为 `external_fact_conflict` 或标为推断的 `impact_inference` Finding；不自动改需求、不自动做 Decision，检索排除自身旧基线 | File Read、Code Tool、Finding 与决策 | 待编写机制正文 | 产品必接；`review_assistant/agent` |
-| Code Tool 准入与任务契约 | 主线 | 第二阶段 | 判断专用 Validator 是否足够，只有项目已有脚本或测试需要执行时才使用通用 Code | Tool Runtime、File Read | 待编写概念正文 | 产品必接于契约验证场景；不开放任意 Shell |
-| Code Tool 沙箱与结构化执行 | 主线 | 第二阶段 | 隔离输入输出，限制命令、环境、网络和资源，并返回退出码、日志、超时和产物 | Code 准入、Tool 治理 | 待编写机制正文 | 产品必接；受控执行实验与产品策略 |
+| Code Tool 准入与任务契约 | 主线 | 第二阶段 | 判断专用 Validator 是否足够，只有项目已有脚本或测试需要执行时才使用通用 Code；同时划定执行结果的证据资格——它是本地验证结果而不是外部陈述，只能支撑标为推断的结论或作为诊断依据 | Tool Runtime、File Read、证据登记簿与允许集合泛化 | 待编写概念正文 | 产品必接于契约验证场景；不开放任意 Shell |
+| Code Tool 沙箱与结构化执行 | 主线 | 第二阶段 | 隔离输入输出，限制命令、环境、网络和资源，并返回退出码、日志、超时和产物；退出码与日志是执行事实，不能被读成“契约无冲突”或“规则如此规定” | Code 准入、Tool 治理 | 待编写机制正文 | 产品必接；受控执行实验与产品策略 |
 | 多模态 Agent Tool | 扩展 | 第二阶段 | 让 Agent 观察图片或复杂视觉材料，同时保留来源、权限和模型能力边界 | Browser、File Tool | 按需概念篇 | 条件接入；当前不实现 |
 
 ## Agent Skills
@@ -132,7 +134,7 @@
 | Research 启动条件与任务契约 | 主线 | 第二阶段 | 判断何时进入 Research，并冻结问题、输出、来源范围、预算和非目标 | Agent Loop、Search | 待编写概念正文 | 课程必学；产品按问题条件接入 |
 | Research Planning 与任务拆解 | 主线 | 第二阶段 | 将复杂问题拆成有依赖、预期证据和完成条件的子问题 | Research 契约 | 待编写机制正文 | 课程必学；产品按问题条件接入 |
 | 迭代搜索、进度检查与重新规划 | 主线 | 第二阶段 | 根据新术语、覆盖缺口和无效方向调整查询与计划，避免无进展循环 | Planning、Search | 待编写机制正文 | 课程必学；产品按问题条件接入 |
-| Evidence Ledger 与来源身份 | 主线 | 第二阶段 | 用稳定来源、定位、声明、时间和子问题关系积累可去重证据 | Browser、Citation | 待编写机制正文 | 课程必学；产品按问题条件接入 |
+| Evidence Ledger 与研究证据账本 | 主线 | 第二阶段 | 在运行级证据登记簿之上深化研究场景所需的账本能力：声明与支持关系、子问题归集、重复来源识别和获取时间比较，不建立第二套证据模型 | 证据登记簿与允许集合泛化、Browser | 待编写机制正文 | 课程必学；产品按问题条件接入 |
 | 来源质量、权威性、独立性与重复 | 主线 | 第二阶段 | 判断多个来源是否权威、及时和独立，不能用链接数量代替证据强度 | Evidence Ledger | 待编写机制正文 | 课程必学；产品按问题条件接入 |
 | 交叉验证、冲突与不确定性 | 主线 | 第二阶段 | 比较不同版本和条件下的来源，保留不可自动裁决的冲突与缺口 | 来源质量 | 待编写机制正文 | 课程必学；产品按问题条件接入 |
 | 带来源综合与 Citation | 主线 | 第二阶段 | 从证据账本生成结论，区分直接支持、合理推断和未解决问题 | 冲突处理 | 待编写机制正文 | 课程必学；产品按问题条件接入 |
@@ -187,16 +189,16 @@
 
 质量证据贯穿每个检查点；本域在后部统一运行关联、版本、回归、自动与人工判断和反馈，不建设完整评估平台。
 
-本域的稳定方向契约：除可选 `other` 外，固定分区必须显式处于 `addressed`、`not_applicable` 或 `needs_input`；前两者才有批准资格，`needs_input` 阻断批准。第二阶段从模糊想法启动时，先由 editor 或 owner 创建或选择目标 Requirement 的 `draft`，Agent 只在该容器上追问和提出补丁，不创建正式 Requirement；具体字段、API 和界面留给对应课程与实现阶段。
+本域的稳定方向契约：除可选 `other` 外，固定分区必须显式处于 `addressed`、`not_applicable` 或 `needs_input`；前两者才有批准资格，`needs_input` 阻断批准。第二阶段从模糊想法启动时，先由 editor 或 owner 创建或选择目标 Requirement 的 `draft`，Agent 只在该容器上追问和提出补丁，不创建正式 Requirement。ReviewRun 是 Finding 的唯一生产者，Agent 评审只是同一对象的另一种执行模式，因此固定 RAG、单 Agent 与 Multi-Agent 共用同一批准门和同一对照物。证据充分性判定不进入批准门，拒答不阻断批准（否则空池新项目永远批不出第一个基线）；被阻断的是残缺运行——某一路检索失败、校验层未跑完、预算耗尽或停在等待授权的运行没有批准资格，而零候选与过滤后空结果仍有资格。具体字段、API 和界面留给对应课程与实现阶段。
 
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 需求对象模型与状态 | 主线 | 第一阶段 | 用 Project → Requirement → RequirementVersion → RequirementItem 主链承载评审结论；支持 member 创建 Project 后成为 owner、初始空 Brief、轻量 Requirement draft 与空检索池冷启动；Requirement 粒度的基线指针、跨版本稳定的 `item_key`、只随内容递增的 `revision` 与 Project Brief 的 `brief_revision`；固定分区必须显式处于 `addressed / not_applicable / needs_input` 之一，前两者才有批准资格；来源、外部 Citation 与人的 Decision 三分，不互相冒充；全产品基线、归档与自定义分区是非目标 | Citation、Refusal | 待编写概念正文 | 产品必接；`review_assistant` 领域 Schema 与 migration |
 | 结构化需求草稿 | 主线 | 第一阶段 | 把固定表单或导入 PRD 映射为有分区、有来源的条目，并为每个固定分区留下已覆盖、不适用或待补充状态：人写条目创建即 `confirmed`，AI 与导入条目为 `proposed`；导入原文保存为 SourceArtifact 并保留定位；`external_fact` 只由系统赋予；这是固定步骤，不是对话式 Agent | 需求对象模型、Structured Output、固定 RAG | 待编写机制与实验 | 产品必接；第二个 Prompt 族，`review_assistant` |
 | Finding 定位与决策 | 主线 | 第一阶段 | 评审结论固定到版本修订上的条目、分区或版本；五类 `finding_kind` 各有目标与依据资格，内部缺失 / 矛盾不伪造 Citation，外部事实冲突缺 Citation 时拒绝写入；五类 Decision、活动 Decision 替换、`confirm_items` 无 Finding 路径与按 `item_key` 对齐的条目级 Diff | 需求对象模型、证据充分性 | 待编写机制与实验 | 产品必接；`review_assistant` 决策与 Diff |
-| 需求版本生命周期与交付包 | 主线 | 第一阶段 | 四个持久状态、三个派生状态，每个迁移由人触发；内容与 Decision 都只在 `draft` 可写；乐观修订号并发与单开放版本；提交预检、批准复检同一批准门，批准时冻结 `approved_decision_ids` 与 `approved_decision_set_hash`；Brief 修改使待批准版本过期后必须先退回草稿；批准事务内切换基线，索引在事务之后；DeliveryPackage 只从不可变版本导出并固定使用冻结的决策集合，可配置审批链、委托与通知是非目标 | Finding 与决策、产品 RBAC | 待编写机制正文 | 产品必接；`review_assistant` 状态机与导出 |
+| 需求版本生命周期与交付包 | 主线 | 第一阶段 | 四个持久状态、三个派生状态，每个迁移由人触发；内容与 Decision 都只在 `draft` 可写；乐观修订号并发与单开放版本；提交预检、批准复检同一批准门，批准时冻结 `approved_decision_ids` 与 `approved_decision_set_hash`；`evidence_decision` 不进入批准门，门禁运行必须是没有降级记录的完整评审；Brief 修改使待批准版本过期后必须先退回草稿；批准事务内切换基线，索引在事务之后；DeliveryPackage 只从不可变版本导出并固定使用冻结的决策集合，可配置审批链、委托与通知是非目标 | Finding 与决策、产品 RBAC | 待编写机制正文 | 产品必接；`review_assistant` 状态机与导出 |
 | 已批准需求作为证据来源（`approved_requirement`） | 主线 | 第一阶段 | 新 Project 可以没有项目候选；首个已批准且已索引的基线才以独立来源角色进入同项目检索池，说明项目内已批准的产品决定而不覆盖现行规则；ReviewRun 钉住 `approved_requirement_version_ids` 快照，`superseded` 版本按身份自然离开，当前版本与自身基线不进入候选；与全局知识库是两个池子、两个快照身份 | 来源角色、Metadata Filter、版本生命周期 | 待编写机制正文 | 产品必接；`rag_core` 只扩展 `SourceRole` 与按 `document_version` 集合过滤 |
-| ReviewRun、Review API 与证据快照 | 主线 | 第一阶段 | 将评审运行暴露为稳定 API：ReviewRun 单一生命周期、进入检索时钉住的需求修订 / Brief 修订 / `dataset_version` / 可见已批准需求快照，区分业务证据不足与系统执行失败，SSE 只服务一次生成调用的阶段状态与结构化增量 | 固定 RAG、需求对象模型 | 待编写机制与实验 | 产品必接；产品 app |
+| ReviewRun、Review API 与证据快照 | 主线 | 第一阶段 | 将评审运行暴露为稳定 API：ReviewRun 是 Finding 的唯一生产者，持久终态只有三个并携带 `evidence_decision` 或 `failure_reason`，首次取证前钉住需求修订 / Brief 修订 / `dataset_version` / 可见已批准需求快照，区分业务证据不足与系统执行失败，SSE 只服务一次生成调用的阶段状态与结构化增量；`retrieving / generating_unverified / validating` 属于第一阶段固定管道的执行阶段，不是通用状态 | 固定 RAG、需求对象模型 | 待编写机制与实验 | 产品必接；产品 app |
 | 需求正文、证据、Refusal 与决策界面 | 主线 | 第一阶段 | 以需求正文为中心，让用户逐条看到条目来源与确认状态、Finding、证据、缺口、补充问题、Decision 和真实状态；推断标为推断，增量结果被已校验结果替换或撤回 | Citation、Refusal、Finding 与决策 | 待编写机制与实验 | 产品必接；Web 工作台 |
 | Evaluation Dataset 与 Golden Set | 主线 | 第一阶段 | 固定问题、来源、Finding 覆盖和无答案行为，区分探索与验收；对照物是 ReviewRun 的已校验 Finding 与 `evidence_decision` | 固定产品目标 | 待编写机制正文 | 产品必接；产品 eval |
 | 固定 RAG 四路对照 | 主线 | 第一阶段 | 在相同输入和生成条件下比较直接 LLM、Lexical、Dense 与 RRF | Golden Set | 第一阶段项目篇 | 产品必接；第一阶段基线 |
@@ -224,7 +226,7 @@
 | 系统角色与项目成员角色（产品 RBAC） | 主线 | 第一阶段 | 用系统 admin / member 与项目 owner / editor / viewer 两层角色、取交集的授权规则区分可见路由与可执行动作；提交批准、退回 / 撤回、批准、正式导出、成员管理与编辑 Brief 六类动作只能由人触发，系统 admin 不因系统角色获得项目批准权；这里只回答产品界面上谁能点什么，不能与第二阶段 Tool 权限（模型能执行什么）混为一谈，二者在 Tool 权限单元中显式对照，Agent 以发起者的项目角色行动、没有独立角色 | 用户身份与认证 | 待编写机制正文 | 产品必接；`review_assistant/app` |
 | FastAPI 与 SSE | 主线 | 跨阶段 | 用稳定 HTTP API 和事件传输连接后端状态与 Web 工作台；第一阶段先用阶段状态流与结构化增量校验边界，第二阶段深化为完整 Agent Event 协议 | HTTP、异步 | 对应机制与实验篇 | 产品必接；产品 app |
 | Redis、后台任务与入库状态 | 扩展 | 第一阶段 | 处理跨进程状态、长任务和队列，只有真实异步产品问题出现时接入；知识资料上传的暂存/发布流程与已批准版本的事务后索引先用数据库状态字段（含 `index_state`）与后台任务承担 | Review API | 按需机制篇 | 条件接入；产品 infra |
-| Docker Compose | 主线 | 第一阶段收尾 | 从第一阶段验收开始固定应用与 Postgres/pgvector 的本地多服务环境，不能替代依赖契约、迁移和真实故障理解 | 产品服务 | 按需机制篇 | 产品必接；产品 infra |
+| Docker Compose | 主线 | 第一阶段收尾 | 从第一阶段验收开始固定应用与 Postgres/pgvector 的本地多服务环境，不能替代依赖契约、迁移和真实故障理解 | 产品服务 | 不占课程编号，随第一阶段项目篇验收落地（分段实现顺序第 14 步），运行命令见产品 README | 产品必接；产品 infra |
 | Kubernetes、多租户与权限中台 | 未来认知 | 未来 | 理解规模化部署与企业治理问题，当前课程不建设平台设施 | 完整产品运维 | 无当前正文 | 当前不实现 |
 
 ## 维护边界

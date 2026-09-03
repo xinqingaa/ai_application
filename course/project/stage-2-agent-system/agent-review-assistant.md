@@ -43,7 +43,7 @@
 ```text
 固定 RAG
 → agent_core 与 LangChain 第一个真实 Agent
-→ Retriever Tool、治理契约与运行观测
+→ Retriever Tool、证据登记簿、治理契约与运行观测
 → LangGraph 可恢复 Agent Runtime
 → 需求 Brief 草案追问与 propose / Diff / apply 确认门
 → MCP、Search、Browser、File 与 Code
@@ -120,7 +120,8 @@ Workflow 使用 LangGraph 管理需要显式状态、恢复、人工确认或副
 - `run_id` 与原始任务。
 - 当前目标、步骤和状态。
 - Tool Call、参数、结果和错误。
-- 当前证据与来源身份。
+- 证据登记簿条目与来源身份。
+- 评审与影响分析类运行绑定的 `review_run_id` 及其执行模式。
 - 本轮使用的短期摘要、已确认长期偏好和记忆变更结果。
 - 累计成本、延迟和预算。
 - Agent 分工、局部结果和冲突。
@@ -211,6 +212,8 @@ LangChain Agent
 ### MCP 与通用工具
 
 - 接入一个真实 MCP Tool 或 Resource，并记录协议修订、SDK 和服务身份。
+- 所有来源都经受治理的 Tool 调用登记进本次运行的证据登记簿后才可能成为 Citation Candidate；未登记来源被判为越界声明，登记簿在恢复与重放后仍单调增长。
+- 外部来源成为 Citation 时保存引文快照（引文正文、抓取时间、来源内容哈希），导出与复查使用快照；来源页面此后变化或失效不改变已批准版本的引文。
 - Search 结果与 Browser 实际打开的来源分开记录，搜索摘要不直接成为 Citation。
 - File Read 能从工作区追踪 OpenAPI、客户端模型和配置的路径、哈希与定位，并拒绝路径穿越、越权和超限。
 - File Write 只能写运行级暂存产物；覆盖、确认、原子写入和重复请求可观察。
@@ -221,7 +224,9 @@ LangChain Agent
 ### 变更影响分析
 
 - 从现有基线派生新版本后，Agent 产出的条目级差异按 `item_key` 对齐，并能说明每条差异的来源（用户变更、外部资料、推断）。
-- 影响分析把差异分别对照 RAG 现行规则、File Tool 读取的 OpenAPI 与客户端模型、Code Tool 沙箱中的定向测试，结论落为 Finding：与规则或契约的冲突走 `external_fact_conflict`（必须有 Citation 或 Tool Evidence 转成的 Citation），多端影响走 `impact_inference` 并标为推断。
+- 影响分析在一次 `agentic` 执行模式的 ReviewRun 内进行，产生的 Finding 属于该运行，与固定管道评审共用同一目标成员资格、依据资格、Decision 和批准门，不存在第二条 Finding 生产路径。
+- 影响分析把差异分别对照 RAG 现行规则、File Tool 读取的 OpenAPI 与客户端模型、Code Tool 沙箱中的定向测试，结论落为 Finding：与规则或契约的冲突走 `external_fact_conflict`（来源必须已在本次运行的证据登记簿中，再经支持性与依据资格检查才能成为 Citation），多端影响走 `impact_inference` 并标为推断。
+- 三类对照物的证据资格不同：RAG 规则与 File 读取的契约承载外部陈述，可支撑 `external_fact_conflict`；Code Tool 的执行结果是本地验证结果，只能支撑推断或作为诊断依据，退出码不能被读成“契约无冲突”。
 - 分析结论不自动修改需求，也不自动做 Decision；人逐项处理后重新评审、经人工批准，再由人导出相对上一基线的增量 DeliveryPackage。
 - 评审派生版本时项目检索池排除自身旧基线，版本间差异由 Diff 负责，检索不制造“与旧版本冲突”的噪声。
 
@@ -290,10 +295,14 @@ LangChain Agent
 11. 为什么需要 A2A 而不是本地 Delegation，采用的规范版本、SDK 和协议绑定是什么。
 12. Workflow 只接管哪些需要恢复、确认或副作用治理的路径。
 13. 为什么 Agent 写需求必须走 propose / Diff / apply 而不是 File Write，人的确认为什么是一条独立的 `apply_patch` Decision 而不是 `confirm_items`，为什么 apply 之后仍要重新评审。
-14. 为什么 Agent 只能形成 Brief 草案而不能写 Project Brief，`owner` 采纳草案为什么仍算一次人工 Brief 编辑。
-15. 追问应该在哪些缺口上停下来问人，哪些缺口可以由内部 RAG 或外部资料补齐，怎样避免把模型推断写成用户意图。
-16. 变更影响分析中哪些结论有资格成为 `external_fact_conflict`，哪些只能是 `impact_inference`，Tool Evidence 怎样才能转成 Citation。
-17. 为什么 Agent 以发起者的项目角色行动而没有独立角色，提交批准、退回 / 撤回、批准、正式导出、成员管理与 Brief 编辑为什么不能由 Agent 代替人触发。
+14. 为什么 Agent 评审是同一 ReviewRun 对象的另一种执行模式而不是第二套评审流程，哪些 Agent Run 不开 ReviewRun，预算耗尽的运行为什么以 `completed` 结束却没有批准资格，而证据不足的拒答运行为什么反而有资格。
+15. 为什么 `agentic` ReviewRun 期间的人工介入只能授权取证而不能补充需求内容，内容补充为什么必须等运行结束后走 `supplement` Decision。
+16. 为什么 Agent 只能形成 Brief 草案而不能写 Project Brief，`owner` 采纳草案为什么仍算一次人工 Brief 编辑。
+17. 追问应该在哪些缺口上停下来问人，哪些缺口可以由内部 RAG 或外部资料补齐，怎样避免把模型推断写成用户意图。
+18. 变更影响分析中哪些结论有资格成为 `external_fact_conflict`，哪些只能是 `impact_inference`，Tool Evidence 怎样才能经登记与支持性检查转成 Citation。
+19. 为什么 Code Tool 的执行结果不能成为外部事实的 Citation，而 File Read 读到的 OpenAPI 可以。
+20. 外部来源为什么必须保存引文快照，不保存会破坏哪条不可变性承诺。
+21. 为什么 Agent 以发起者的项目角色行动而没有独立角色，提交批准、退回 / 撤回、批准、正式导出、成员管理与 Brief 编辑为什么不能由 Agent 代替人触发。
 
 ## 自然 bad case
 
@@ -307,6 +316,10 @@ LangChain Agent
 - Agent 的补丁基于过期 `revision`，或试图写入 `pending_approval` 版本、直接把条目标成 `external_fact`。
 - 追问循环反复提出同一缺口，或把模型自己的推断当作用户已回答的意图写进草稿。
 - 影响分析把 Tool 输出直接当成 Citation，或把与旧基线的正常差异误报为冲突 Finding。
+- Code Tool 退出码为 0 被读成“契约无冲突”，或非零退出被写成“外部规则如此规定”。
+- Agent 声明了一个从未登记进证据登记簿的来源，或恢复后引用了上一次运行的登记条目。
+- 网页在批准之后改版，导致没有引文快照的外部 Citation 无法复现批准时看到的内容。
+- 运行停在等待授权却长期占住 draft 的写入权，或人试图在 `agentic` ReviewRun 期间补充需求内容而被自己的运行拒绝。
 - OpenAPI 声明 `source_channel` 必填，但 Flutter 模型或 Web 类型缺少该字段。
 - Code Tool 超时、返回非零退出码，或尝试读取未授权环境变量。
 - Skill 占用 Context 却没有被当前任务使用。
@@ -359,6 +372,8 @@ source/apps/review_assistant/           唯一产品
 - 能解释数据流、状态流、工具流、证据流和异常流。
 - 能展示正常完成、追问、等待确认、达到上限、工具失败和取消。
 - 两条贯穿线都在同一 Requirement 上闭环：模糊想法经追问、propose / Diff / apply、评审、人工批准成为基线；变更经影响分析、决策、批准导出增量交付包。
+- Agent 评审与固定管道评审共用同一 ReviewRun 对象和批准门，没有第二条 Finding 生产路径；预算耗尽与停在等待授权的运行不可作为门禁运行，且可由发起者或 owner 取消后恢复 draft 写入。
+- 每条 Citation 都能回到本次运行证据登记簿中的一条登记；外部来源 Citation 在来源变化或失效后仍能复现批准时的引文快照；Code Tool 结果没有被写成外部事实。
 - 模糊想法链路可回查“人创建或选择 Requirement draft → Agent 追问与提案”的顺序，Agent 无法在没有该容器时直接写入正式需求。
 - MCP、Skill、Tool、A2A 与 Workflow 的责任边界清楚。
 - 完成 Multi-Agent 与单 Agent 的同条件比较，记录质量、成本、延迟、证据一致性和失败定位差异；结果不足时保留单 Agent，不以角色数量证明能力。

@@ -248,7 +248,7 @@ Requirement 是稳定容器，RequirementVersion 是内容快照，RequirementIt
 
 ### 9. 批准门与两步人工门
 
-四个持久状态 `draft / pending_approval / approved / superseded`，每个迁移都由人触发；“评审中”“待补充”“已交付”是派生展示状态。批准门在提交时预检、批准时复检：门禁运行必须是当前 `revision` 上最近一次 `completed` 且 `brief_revision` 匹配的 ReviewRun，`proposed_count_at_start=0`，其全部 Finding 的活动 Decision 只能是 `reject` / `waive`。Decision 只在 `draft` 可创建或替换，提交后只读，批准时把活动 Decision 集合冻结为 `approved_decision_ids` 与 `approved_decision_set_hash`，DeliveryPackage 固定使用 IDs 并校验哈希——否则批准后改一条 `reject` 为 `waive`，导出的交付包就与 owner 批准时看到的不是同一份。Brief 修改使待批准版本过期后必须先退回 `draft`，再重新评审、处理 Finding 并提交。必须解释为什么 `accept_suggestion` / `supplement` 递增 `revision` 就自然逼出“最后一轮零内容变更”，循环因此有限收敛。
+四个持久状态 `draft / pending_approval / approved / superseded`，每个迁移都由人触发；“评审中”“待补充”“已交付”是派生展示状态。批准门在提交时预检、批准时复检：门禁运行必须是当前 `revision` 上最近一次 `completed` 且 `brief_revision` 匹配的 ReviewRun，`proposed_count_at_start=0`，其全部 Finding 的活动 Decision 只能是 `reject` / `waive`。Decision 只在 `draft` 可创建或替换，提交后只读，批准时把活动 Decision 集合冻结为 `approved_decision_ids` 与 `approved_decision_set_hash`，DeliveryPackage 固定使用 IDs 并校验哈希——否则批准后改一条 `reject` 为 `waive`，导出的交付包就与 owner 批准时看到的不是同一份。Brief 修改使待批准版本过期后必须先退回 `draft`，再重新评审、处理 Finding 并提交。必须解释为什么 `accept_suggestion` / `supplement` 递增 `revision` 就自然逼出“最后一轮零内容变更”，循环因此有限收敛。还必须解释证据充分性与批准资格的分离：`evidence_decision` 不进入批准门，拒答只说明本次评审掌握的证据程度，空池项目只能拒答却必须能批准第一个基线，承担风险由每条 `evidence_gap` 上留理由的 `waive` 承载；被阻断的是残缺运行——某一路检索失败或校验层未跑完的运行没有门禁资格，而零候选与过滤后空结果仍有资格。
 
 ### 10. 两层角色边界
 
@@ -366,7 +366,7 @@ RequirementVersion（当前修订）→ ReviewRun 快照 → Lexical + Dense →
 三个独立状态机加派生状态，不写第四套生命周期：
 
 - **版本持久态**：`draft → pending_approval → approved → superseded`，`pending_approval → draft` 由 owner 退回或撤回；每个迁移由人触发。内容写入与 Decision 写入都只在 `draft` 允许。派生展示状态“评审中”（存在活跃 ReviewRun）、“待补充”（门禁运行存在未处理的 `evidence_gap` / `internal_gap`）、“已交付”（存在成功 DeliveryPackage）由查询得出。
-- **ReviewRun**：`submitted → retrieving → generating_unverified → validating → completed | failed | cancelled`；`completed` 带 `evidence_decision`；失败不改变版本状态；一个版本可跑多次；SSE 连接断开是传输层事件，不改变任何业务状态。
+- **ReviewRun**：`submitted → retrieving → generating_unverified → validating → completed | failed | cancelled`；`completed` 带 `evidence_decision`；失败不改变版本状态；一个版本可跑多次；SSE 连接断开是传输层事件，不改变任何业务状态。其中 `retrieving / generating_unverified / validating` 是第一阶段固定管道模式的执行阶段；ReviewRun 作为 Finding 唯一生产者的身份、三个持久终态和证据快照义务与执行模式无关，第二阶段的 Agent 驱动运行复用同一对象。
 - **已批准版本索引**：`pending → indexed | index_failed`，`index_failed` 可重试，只影响该版本能否作为 `approved_requirement` 被检索。
 
 DeliveryPackage 是导出记录（成功 / 失败、哈希、导出人），不是独立生命周期。知识资料侧仍要区分：上传成功、解析诊断可用、暂存中、已发布（产生新 `dataset_version`）。
@@ -410,8 +410,9 @@ DeliveryPackage 是导出记录（成功 / 失败、哈希、导出人），不�
 12. 已批准需求与现行业务规则冲突，模型把 `approved_requirement` 当成更高资格的规则。
 13. 导入映射把 PRD 中的一句陈述误标为需要 Citation 的外部事实，或模型把产品意图当成缺证据的事实拒绝。
 14. 用户先评审再确认 `proposed` 条目，门禁运行 `proposed_count_at_start>0` 无法批准。
-15. 缺少真实模型 API key。
-16. 模型返回不符合 Schema 的结果。
+15. 一路检索失败但运行仍以 `completed` 结束，降级只落在诊断里，用户把它当成一次正常评审拿去批准。
+16. 缺少真实模型 API key。
+17. 模型返回不符合 Schema 的结果。
 
 这些现象不要求通过损坏实现或凭空构造异常获得。每个被选作验收证据的现象都要记录：
 
@@ -548,6 +549,7 @@ Definition of Ready 完成后，第一阶段主路径默认冻结：
 - [ ] 当前需求与自身基线不会伪装成外部证据；外部 Finding 回到合格 Citation，内部 Finding 回到需求或 Brief 定位，证据不足时拒绝强结论并产生可回答问题。
 - [ ] 固定表单与导入 PRD 两条入口共享对象链，条目、Finding、Decision、Diff、批准、基线和交付在工作台中形成闭环。
 - [ ] 除可选 `other` 外，每个固定分区都能回查 `addressed / not_applicable / needs_input` 处理状态；`needs_input` 或无理由的不适用标记不能提交批准。
+- [ ] 拒答与部分回答不阻断批准，批准记录与交付包能回到门禁运行当时的 `evidence_decision`；诊断记录了取证或校验降级的运行被拒绝作为门禁运行。
 - [ ] 用确定性测试证明 [SDD 第 13 节](../../../SDD.md#13-确定性验收不变量) 的全部第一阶段不变量，包括写入、并发、目标成员资格、批准快照、基线事务、索引和导出。
 - [ ] 两层 RBAC 在后端生效，系统管理员不能仅凭系统身份批准项目需求，六类人工动作不存在 Agent 或 Tool 旁路。
 - [ ] 知识上传与发布分离，ReviewRun 快照可回放；同项目“订单状态展示”基线能进入项目池并稳定产生预设冲突。

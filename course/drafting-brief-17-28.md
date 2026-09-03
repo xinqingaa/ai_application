@@ -94,6 +94,8 @@ Citation 成员资格（已完成，第 16 节）
    | 组件库 | 无样式可访问类（Radix / shadcn） | 条目来源与确认状态、Finding 支持状态、Diff、部分回答都无现成组件；重样式库会挡路，且需控制到 ARIA 层 |
    | 表单与上传 | react-hook-form + zod | schema 镜像后端错误契约，固定表单、导入 PRD 与知识资料上传在类型层面分开 |
 
+12. **`evidence_decision` 不进入批准门，拒答不阻断批准。** 证据充分性是关于资料的结论，不是需求版本的完备性；承担风险的权力已由“每条 Finding 必须有活动 Decision、`waive` 必须留理由”承载。若拒答阻断批准，空池新项目永远批不出第一个基线，项目检索池永远为空。需要阻断的是残缺的运行，由“完整评审”承担：零候选与过滤后空结果是合法取证结果、仍有门禁资格，某一路检索失败或校验未跑完则是降级、失去资格。拒答与部分回答必须在提交与批准界面显式呈现。规则以 `SDD.md` 第 7.4 节为准，第 18 节只产出判定、第 26 节判定资格、第 28 节验收冷启动路径。
+
 ## 跨节共享契约
 
 只在指定的一节定义，其余节引用，不重复解释。
@@ -133,6 +135,7 @@ submitted → retrieving → generating_unverified → validating
 - 检索零候选是“完成且拒答”，不是 `failed`。
 - 取消只在 `retrieving` 与 `generating_unverified` 期间可请求；进入 `validating` 后按完成处理。
 - SSE 连接断开是传输层事件，不改变任何业务状态。
+- **四个执行阶段属于固定管道模式，不是 ReviewRun 的通用状态。** ReviewRun 是 Finding 的唯一生产者；持久终态、`evidence_decision`、`failure_reason` 和证据快照义务与执行模式无关，第二阶段的 Agent 驱动运行是同一对象的另一种执行模式（`SDD.md` 第 8.1、9.4 节）。第 27 节正文要写出这层区分，否则第二阶段接入 Agent 时本节需要回改。
 
 ### 知识资料生命周期（第 25 节定义）
 
@@ -179,6 +182,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **成本**：一次 run 的所有声明合并为一次调用，Token 与成本进诊断。
 - **对第 16 节的扩展**：本节把生成 Schema 从“声明 source_id”升级为“声明 source_id + 逐字引文”。由本节承担这次扩展并解释为什么现在才加（第 16 节时还没有支持性概念，加了也无人消费）；`course/mechanisms/trusted-generation.md` 末段已有一句向后指引。
 - **实验单变量**：冻结上游，只替换证据片段。四个 fixture——真支持 / 引文真实但与声明无关 / 引文与声明矛盾 / 引文根本不存在。最后一个由第一段拦下，前三个走到第二段，顺带让学习者看清两段各自能证明什么。
+- **向第二阶段的交付边界**：本节校验器以“本轮允许集合”为输入，不关心它由一次检索还是运行级证据登记簿产生。第二阶段把允许集合泛化为登记簿（`SDD.md` 第 4.3 节）时，第 16、17 节正文都不需要改。正文用一句点明这层输入边界即可，不展开第二阶段。
 - **非目标**：不判断整份结论的充分性；不做 Refusal 决策；不设计界面；不引入产品对象术语。
 - **代码落点**：`source/packages/rag_core/`
 
@@ -188,6 +192,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **核心问题**：若若干 Citation 都成立，是否足以支撑当前结论？缺什么？
 - **已有输入**：第 17 节交付的 `VerifiedCitation` 集合及其支持档位。
 - **交付**：`EvidenceDecision`——可回答 / 部分回答 / 拒答，以及结构化 gap。
+- **`EvidenceDecision` 不决定批准资格。** 拒答不等于“不能批准”，它只表达本次评审掌握的证据程度；是否阻断批准由第 26 节的批准门决定，答案是不阻断（见“已确定的决定”第 12 条）。正文措辞要避免把拒答写成一种否决，也不要在本节提前引入批准概念。
 - **补充问题是 gap 的输出形式，不是独立生成链。** 先有结构化 gap（缺哪类事实、哪个来源角色本应覆盖它、影响哪几条结论），问题是 gap 的渲染。本节若长出第二条生成流水线就是切分失败，应停下重新划界。
 - **本节仍用 Claim 与 EvidenceDecision 表达**，不提前使用 Finding / Decision 术语；第 21 节把 gap 映射为 `evidence_gap` Finding。
 - **实验单变量**：冻结一切，只从 `knowledge_scope` 移除一份关键文档，观察决策从“可回答”滑向“证据不足”。
@@ -283,9 +288,10 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **类型**：机制篇
 - **核心问题**：一个版本什么时候可以被批准、批准后发生什么、交付包从哪里来？
 - **已有输入**：第 19 节对象模型；第 21 节 Finding / Decision 与门禁运行定义；第 25 节 `index_state` 与项目检索池。
-- **交付**：四个持久状态与三个派生状态；编辑规则（内容与 Decision 都只在 `draft` 可写）、乐观修订号、单开放版本；Brief 修改后的强制退回规则；批准门不变量（预检 = 复检）与批准时冻结的 `approved_decision_ids / approved_decision_set_hash`；批准事务边界与事务后索引；派生新版本；DeliveryPackage 导出语义（固定使用 IDs 并校验集合哈希）。
+- **交付**：四个持久状态与三个派生状态；编辑规则（内容与 Decision 都只在 `draft` 可写）、乐观修订号、单开放版本；Brief 修改后的强制退回规则；批准门不变量（预检 = 复检）与批准时冻结的 `approved_decision_ids / approved_decision_set_hash`；`evidence_decision` 不进入批准门与“完整评审”的判定；批准事务边界与事务后索引；派生新版本；DeliveryPackage 导出语义（固定使用 IDs 并校验集合哈希）。
 - **必须讲清"为什么冻结决策集合"**：`approval_review_run_id` 只钉住运行，不钉住那一刻的决策；若批准后还能把 `reject` 换成 `waive`，owner 批准时看到的与后来导出的就不是同一份。Decision 在提交后只读 + 批准时写入 `approved_decision_ids` 与 `approved_decision_set_hash`，两条一起才让"不可变基线"成立。
 - **只跟踪一条主流**：草稿 → 提交 → 批准 → 基线切换 → 事务后索引 → 从不可变版本导出。退回 / 撤回、Brief 修改的失效效果、索引失败重试作为主流上的分支写，不另起小节。
+- **必须讲清“为什么拒答不阻断批准”**：这是学习者最容易搞反的一条。区分两个问题——本次评审掌握了多少证据（`evidence_decision`），与这个版本是否可以被批准（批准门）。前者是关于资料的结论，后者是人的裁决；空池新项目只能拒答，若拒答阻断批准，第一个基线永远批不出来，项目检索池永远为空。真正被阻断的是残缺的运行：某一路检索失败或校验未跑完的运行没有门禁资格，而零候选与过滤后空结果仍有资格。
 - **必须讲清两个边界**：为什么索引不在批准事务内（索引是外部服务调用，失败不应回滚一个已完成的人工决定）；为什么派生版本评审时排除自身基线而交给 Diff（否则检索会制造“与旧版本冲突”的噪声）。
 - **验证**：本节的规则全部由确定性测试证明（`SDD.md` 第 13 节中与状态、并发、批准门、索引、导出相关的不变量），不依赖模型；测试在第 28 节联调前已存在。第 24 节角色规则中涉及批准与导出的部分（owner 才能批准、editor 及以上才能导出、系统 admin 未加入项目时批准被拒）在本节测试中验证。
 - **非目标**：不做 ReviewRun 状态（第 27 节）；不做 UI；不做可配置审批链；不做归档。
@@ -316,6 +322,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
   - 对 Finding 做 Decision，`accept_suggestion` 后 `revision` 递增、旧运行失去批准资格、界面提示需重新评审；提交后 Decision 按钮不可用，退回后恢复。
   - 最后一轮只剩 `reject` / `waive` → editor 提交 → owner 批准 → 基线切换 → 索引状态可见 → 导出 DeliveryPackage；草稿导出只得到带标记的非正式预览。
   - 从基线派生新版本，Diff 按 `item_key` 对齐；派生版本评审的快照不含自身基线，但含同项目"订单状态展示"的 `indexed` 基线，且能产生一条指向它的 `external_fact_conflict`——这是"已批准需求支撑冲突 Finding"的唯一端到端验证点，第 21、25 节都不承担它。
+  - 空 Project 冷启动：两个候选池都为空时评审以拒答完成，全部 `evidence_gap` 被留理由 `waive` 后仍可提交并批准第一个基线，批准记录能回到该运行的 `evidence_decision`。这是“拒答不阻断批准”的唯一端到端验证点。
   - 导出的 DeliveryPackage 决策集合与 `approved_decision_ids / approved_decision_set_hash` 一致；批准后无法再替换 Decision。
   - viewer 看不到也调不到编辑、评审、批准、导出动作；未加入项目的系统 admin 看不到该项目的批准动作。
   - 第 22 节的 partial 判据：不打开诊断区即可说出哪些 Finding 可处理、回答哪个问题能补齐剩下的。

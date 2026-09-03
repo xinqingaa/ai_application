@@ -50,9 +50,9 @@ LLM 调用与结构化输出
 
 ```text
 框架分层、agent_core 与 LangChain 首个真实 Agent
-→ Tool Schema、Tool Runtime 与 Retriever Tool
+→ Tool Schema、Tool Runtime、Retriever Tool 与运行级证据登记簿
 → 最小 Run State、Event、停止原因与 LangSmith Trace
-→ Agent 运行契约与框架适配收束
+→ Agent 运行契约与框架适配收束（含 ReviewRun 执行模式绑定与停止原因映射）
 → LangGraph State、Checkpoint、Interrupt 与恢复
 → 人工创建或选择 Requirement draft 后的需求 Brief 草案追问，propose_requirement_patch / Diff / apply_requirement_patch 确认门（`apply_patch` Decision）
 → MCP 与 Search / Browser / File / Code Tool
@@ -68,6 +68,8 @@ LLM 调用与结构化输出
 
 第二阶段涉及的 Agent Skills、Deep Research、Multi-Agent、A2A、Workflow 和质量收束都是课程必学与真实对照范围；是否成为产品默认执行路径，必须由同条件的质量、成本、延迟、稳定性和失败定位证据决定。课程完整性不等于产品默认启用全部复杂能力。
 
+这条顺序里有两处必须先于产品能力落地的通用契约。证据登记簿随 Retriever Tool 建立：Retriever 是第一个进入 Tool Runtime 的证据来源，正好在那里把“允许声明的来源集合”从一次检索的产物改为运行级登记簿，后续 MCP、Search、Browser、File 只追加来源类型，Code Tool 按 SDD 第 4.3 节只登记为验证结果。ReviewRun 的执行模式绑定随 Agent 运行契约收束：`agentic` 运行复用第一阶段的 ReviewRun 表、证据快照与批准门，只增加执行模式字段与 `agent_run_id` 关联，Agent Run 的停止原因按 SDD 第 9.4 节映射回同一组终态。两者都必须在实现变更影响分析之前完成，否则 Agent 产出的 Finding 没有合法运行身份。
+
 该顺序是工程依赖关系，不是第二套课程编号。LangChain 与 LangGraph 是同一个 Agent 运行时的两种使用深度——`create_agent` 本身构建在 LangGraph 之上；这条顺序是从高层用法逐步下沉到底层原语，不是先实现一套运行时再迁移到另一套。
 
 ## 4. Package 边界
@@ -82,6 +84,8 @@ LLM 调用与结构化输出
 
 `rag_core` 保持领域无关，不承载 Finding、Decision 或任何需求对象，也不做 Finding 目标校验。为支撑产品的项目检索池，只允许两处通用扩展：`SourceRole` 枚举增加 `approved_requirement`；Retriever Metadata pre-filter 支持按 `document_version` 集合过滤。二者都不把需求对象带进 `rag_core`。“集合成员检查”是编程技巧，不是共享业务能力，不为它增加通用职责。
 
+成员资格与支持性校验以“本轮允许集合”为输入，不关心它由一次检索还是运行级证据登记簿产生。因此第二阶段不需要把 Tool、MCP 或 Browser 概念带进 `rag_core`：登记簿由 `agent_core` 维护并按同一形状交给这些校验器。
+
 ### `agent_core`
 
 一句话定义：`agent_core` = 对 LangChain / LangGraph 的产品向适配与治理层。框架负责循环、工具调度、图执行和持久化；`agent_core` 负责稳定请求/结果契约、权限/超时/错误、与 `rag_core` 的 Retriever 复用、Run 记录；产品 `agent/` 负责评审领域行为。`agent_core` 随课程能力逐步扩展，但永不替换框架运行时。
@@ -93,6 +97,7 @@ LLM 调用与结构化输出
 - `AgentRequest`、`AgentResult`、通用 Tool Schema、结构化结果与错误。
 - Tool 权限、超时、取消、审计、副作用和确认接口。
 - 通用 `RunState`、`StopReason`、事件信封、运行身份，以及本地 `RunRecord` 与 Trace 的关联。
+- 运行级证据登记簿：来源类型、稳定来源身份、locator、获取时间与 `tool_call_id` 的登记契约，单调增长语义，以及向证据校验交付允许集合的形状。
 - LangChain / LangGraph 适配边界，以及后续 MCP、A2A 的协议映射和治理入口。
 - 随课程能力扩展的 Skill 加载、Research 运行记录和 Multi-Agent 任务、委派、结果契约。
 
@@ -119,6 +124,8 @@ File Tool 的通用部分负责受控工作区、路径解析、来源身份、�
 - Finding 目标成员资格校验与按 `finding_kind` 的依据资格校验；`external_fact` 只由系统赋予的写入规则；`confirmation_state` 的创建期确定规则。
 - 乐观并发控制（`revision` 只随内容递增）、同一 Requirement 单开放版本约束、`pending_approval` 与活跃 ReviewRun 期间拒写。
 - 批准事务（基线切换 + `superseded` + 审计同事务）与事务后索引：`index_state`、重试、进入项目检索池；ReviewRun 证据快照（需求修订、`brief_revision`、`dataset_version`、`approved_requirement_version_ids`）。
+- ReviewRun 的执行模式字段与 `agent_run_id` 关联：`agentic` 运行复用同一张 ReviewRun 表、同一证据快照和同一批准门，不新建第二套评审运行表；预算耗尽与等待授权的运行不具备门禁资格。
+- 外部来源 Citation 的引文快照持久化（引文正文、抓取时间、来源内容哈希），以及导出与复查使用快照而不是实时来源。
 - 身份认证、会话生命周期，以及系统 admin / member 与项目 owner / editor / viewer 两层角色的路由与动作边界。这是产品领域策略，不进入通用 package；也不与第二阶段 `agent_core` 的 Tool 权限模块合并。
 - 知识管理后台：知识资料上传、解析诊断展示、入库暂存、管理员发布与 `dataset_version` 记录。发布动作是唯一能够改变全局知识库候选池版本的入口，上传和暂存不直接生效；项目检索池由已批准版本索引维护，是另一个池子。
 - DeliveryPackage 导出（只从 `approved` / `superseded` 版本）与草稿非正式预览。

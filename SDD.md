@@ -10,7 +10,7 @@
 2. RequirementVersion 的持久状态只由人的显式动作迁移；ReviewRun、资料解析和索引状态不能自动改变它。
 3. 来源、Citation 与 Decision 三分：来源说明内容怎样形成，Citation 支撑外部事实，Decision 记录人的裁决。
 4. 当前需求和自身旧基线不能成为本轮外部证据；内部定位与外部 Citation 不混用。
-5. 批准内容、Brief 修订和决策集合形成不可变快照，后续导出不重新解释“批准时看到了什么”。
+5. 批准内容、Brief 修订、决策集合和被引用的外部引文快照形成不可变快照，后续导出不重新解释“批准时看到了什么”。
 6. Agent 与 Tool 复用同一领域写入和批准门，不能建立旁路。
 7. 真实依赖失败、证据不足和业务状态拒绝必须是不同结果。
 
@@ -128,6 +128,8 @@ SourceArtifact 是被定义和评审的对象，可支撑内部结构与矛盾�
 - Decision：人对 Finding、待确认条目或第二阶段 Agent 补丁的处理记录。
 - DeliveryPackage：从不可变版本导出的成功或失败记录，一个版本可以导出多次。
 
+ReviewRun 是 Finding 的唯一生产者，也是 Decision 与批准门唯一承认的运行身份。它有两种执行模式：第一阶段的 `pipeline` 固定管道，以及第二阶段由 Agent 推进的 `agentic`。执行模式只决定运行怎样被推进，不改变运行身份、证据快照义务、持久终态集合和批准门资格；两种模式共用同一持久对象，不建立第二套评审运行表，也不为 Agent 建立第二条 Finding 生产路径。`agentic` 模式的绑定与停止映射见第 9.4 节。
+
 ## 4. 来源、陈述、Citation 与证据资格
 
 ### 4.1 来源、引用与决策三分
@@ -166,6 +168,25 @@ verified / unverified / none
 - AI 生成的 `external_fact` Citation 未通过时保留 `proposed + unverified`，不能被 `confirm_items` 确认，只能改类或删除。
 - 人直接写入和从基线原样派生的条目创建即 `confirmed`；AI 生成和自动导入映射的条目为 `proposed`。
 - 删除条目属于内容变化并递增 `revision`，不建立 `discarded` 状态。
+
+### 4.3 证据登记簿与允许集合
+
+“模型声明的来源必须属于本轮允许集合”这条成员资格检查在两个阶段语义相同，变化的只是允许集合怎样形成：第一阶段它等于一次检索的候选名单，第二阶段它是该 ReviewRun 的证据登记簿。
+
+登记规则：
+
+- 受治理的 Tool 调用是登记的唯一入口。任何来源必须先登记才可能成为 Citation Candidate，未登记来源一律判为越界声明。
+- 每条登记至少保留来源类型、稳定来源身份、locator、获取时间、产生它的 `tool_call_id` 和证据资格。
+- 稳定身份按来源类型确定：内部 Chunk 用 `chunk_id`；MCP 资源用资源 URI 与获取时间；网页用 URL、抓取时间与内容哈希；工作区文件用相对路径与内容哈希；执行结果用 `command_ref` 与输入哈希。
+- 登记簿在一次运行内单调增长，只增不删。Checkpoint 恢复、重放和补检索都只向其追加，使成员资格判定在恢复后仍可解释。
+- 内部类型登记必须落在该运行证据快照允许的 `dataset_version` 与 `approved_requirement_version_ids` 内；外部类型不受快照约束，但必须保留获取时间并标记为不可信输入。
+- 登记只解决“是否属于允许集合”。Citation 支持性与按 `finding_kind` 的依据资格规则完全复用，不为 Tool 证据另立一套校验路径。
+
+证据资格按来源性质区分，登记本身不赋予资格：
+
+- 内部 Chunk、已批准需求、MCP 资源、网页和工作区文件承载外部陈述，可支撑 `external_fact` 与 `external_fact_conflict`。
+- Code Tool 的执行结果是本地验证结果而不是外部陈述，只能支撑标为推断的 `impact_inference` 或作为 Finding 的诊断依据，不得成为 `external_fact` 的 Citation。退出码、日志和产物都不构成“外部规则如此规定”的证据。
+- 外部来源成为 Citation 时必须同时持久化被引用片段的引文快照，见第 10 节。
 
 ## 5. Finding 与 Decision
 
@@ -282,12 +303,20 @@ owner 修改 Brief 不自动改变 RequirementVersion 状态，但使项目内�
 提交时预检、批准时复检，使用同一规则：
 
 - 门禁运行是当前 `revision` 上最近一次 `completed` ReviewRun，且 `brief_revision` 匹配当前 Brief。
+- 门禁运行必须是完整评审：走完全部既定取证与校验步骤并以 `completed` 结束，且诊断中没有降级记录。降级至少包括某一路检索未成功执行、校验层未全部执行，以及第二阶段因步骤或预算上限提前停止。执行模式不影响这条判定。
+- 门禁运行的 `evidence_decision` 不进入批准门条件：可回答、部分回答和拒答都有批准资格。
 - `proposed_count_at_start = 0`，先确认条目再评审。
 - 门禁运行的每条 Finding 都有活动 Decision，且只能是 `reject / waive`。
 - 当前没有 `proposed` 条目。
 - 除 `other` 外每个固定分区均为 `addressed`，或由人以有理由的 `not_applicable` 明确处理；任何 `needs_input` 都拒绝提交或批准。
 - 每条 `external_fact` 条目 `citation_state = verified`。
 - 任何内容或 Brief 变化都使旧运行失去资格。
+
+`evidence_decision` 说明本次评审掌握的证据能支撑到什么程度，不说明需求版本是否完备，因此它不是批准资格的条件。证据不足是关于资料的结论，是否承担风险由人裁决，而这份权力已经由“每条 Finding 必须有活动 Decision、`waive` 必须留理由”承载，不需要第二套机制。反过来若拒答阻断批准，两个候选池都为空的新项目永远批不出第一个基线，项目检索池永远为空，第 8.3 节的项目级证据沉淀链断裂。
+
+需要阻断的是运行本身残缺，而不是证据稀少，这由“完整评审”承担：检索零候选与过滤后空结果是合法取证结果，产生拒答但不是降级；某一路检索失败或校验层未跑完是降级，该运行即使以 `completed` 结束也不能用于批准。
+
+拒答与部分回答必须在提交和批准界面显式呈现，owner 必须能在批准前看到本次评审是在证据不足的情况下完成的。批准记录通过 `approval_review_run_id` 回到当时的 `evidence_decision`，导出不重新解释。
 
 提交批准后 Decision 集合只读。批准时把 `approval_review_run_id`、`approved_brief_revision`、`approved_decision_ids` 和 `approved_decision_set_hash` 写入不可变版本，并断言决策集合恰好覆盖门禁运行全部 Finding。
 
@@ -304,7 +333,9 @@ owner 修改 Brief 不自动改变 RequirementVersion 状态，但使项目内�
 
 ## 8. ReviewRun、知识与证据快照
 
-### 8.1 ReviewRun 状态
+### 8.1 ReviewRun 状态与执行模式
+
+`pipeline` 模式的执行阶段：
 
 ```text
 submitted → retrieving → generating_unverified → validating
@@ -312,15 +343,21 @@ submitted → retrieving → generating_unverified → validating
                               completed | failed | cancelled
 ```
 
+`retrieving / generating_unverified / validating` 是 `pipeline` 模式的内部执行阶段，不是 ReviewRun 的通用状态。`agentic` 模式有自己的执行阶段（动态取证、Tool 执行、等待授权、预算判定），并按第 9.4 节映射回同一组终态。
+
+以下契约与执行模式无关：
+
+- 持久终态只有 `completed | failed | cancelled`，不因引入 Agent 而扩展。
 - `completed` 携带整体 `evidence_decision`：可回答、部分回答或拒答。
 - `failed` 携带结构化 `failure_reason`。
 - 检索零候选是完成且拒答，不是系统失败。
+- 取证或校验步骤的降级必须进入诊断，供第 7.4 节判定完整评审；零候选与过滤后空结果不属于降级。
 - ReviewRun 结果不自动迁移 RequirementVersion 状态。
 - SSE 断开是传输事件，不改变业务状态。
 
 ### 8.2 证据快照
 
-进入 `retrieving` 时固定：
+首次取证之前固定（`pipeline` 模式即进入 `retrieving` 时，`agentic` 模式即第一次调用取证 Tool 之前）：
 
 - `requirement_version_id + revision`。
 - `brief_revision`。
@@ -328,7 +365,7 @@ submitted → retrieving → generating_unverified → validating
 - `approved_requirement_version_ids`，只含同项目已索引的当前基线并排除本 Requirement 自身基线。
 - `proposed_count_at_start`。
 
-之后的检索、生成、校验和报告均在该快照内解释。
+之后的检索、生成、校验和报告均在该快照内解释。`agentic` 模式的动态补检索只能在同一快照内选择候选；外部来源经第 4.3 节的证据登记簿进入，不扩大内部快照。
 
 ### 8.3 两个检索池
 
@@ -391,19 +428,46 @@ propose_requirement_patch
 
 ### 9.3 变更影响分析
 
+变更影响分析在一次 `agentic` ReviewRun 内进行，产生的 Finding 属于该运行，与 `pipeline` 运行的 Finding 同受目标成员资格、依据资格、Decision 和批准门约束。
+
 Agent 把条目级差异分别对照：
 
 - RAG 中的现行业务规则。
 - File Tool 读取的 OpenAPI、JSON Schema、客户端模型与配置。
 - Code Tool 沙箱中的契约校验、静态检查或定向测试。
 
-与规则或契约冲突且证据合格时形成 `external_fact_conflict`；多端影响推断形成带推断标记的 `impact_inference`。分析结论不自动改需求，也不自动做 Decision；人工处理后重新评审、批准并人工导出增量交付包。
+三类对照物的证据资格不同，按第 4.3 节判定：前两类承载外部陈述，可支撑 `external_fact_conflict`；Code Tool 的执行结果只能支撑 `impact_inference` 或作为诊断依据。与规则或契约冲突且证据合格时形成 `external_fact_conflict`；多端影响推断形成带推断标记的 `impact_inference`。分析结论不自动改需求，也不自动做 Decision；人工处理后重新评审、批准并人工导出增量交付包。
 
-### 9.4 Agent Run 与停止
+### 9.4 Agent Run、ReviewRun 绑定与停止
+
+Agent Run 按目的分两类，只有一类开启 ReviewRun：
+
+- **需求形成类**：追问、Brief 草案、`propose_requirement_patch`。它不产生 Finding，不开 ReviewRun，也不钉证据快照。
+- **评审与影响分析类**：开启一个 `agentic` 模式的 ReviewRun，并在首次取证前钉住第 8.2 节的证据快照。
+
+绑定是一对一：一次 `agentic` ReviewRun 由恰好一个 Agent Run 推进，ReviewRun 记 `agent_run_id`，Agent Run 记 `review_run_id`，两者对需求形成类运行均为空。Agent Run 可以多次 Checkpoint 与 Resume，运行身份不变，因此不产生一对多关系。
 
 每次 Agent Run 至少保存：任务与当前目标、当前证据和 Tool Result、当前步骤、累计成本与预算、待补充信息或待人工确认事项、状态变化和最终停止原因。Checkpoint 恢复后必须沿用同一运行身份与幂等键，不能重复执行已经成功的副作用。
 
 停止原因至少区分：正常完成、需要补充、等待确认、达到步骤或预算上限、工具失败、模型失败、安全阻止和用户取消。等待用户与恢复是显式状态，不用超时或异常伪装。
+
+评审与影响分析类运行的停止原因确定性映射到 ReviewRun 终态：
+
+| Agent Run 停止原因 | ReviewRun 终态 |
+| --- | --- |
+| 正常完成 | `completed`，带 `evidence_decision` |
+| 需要补充 | `completed`，`evidence_decision` 为部分回答或拒答 |
+| 达到步骤或预算上限 | `completed`，部分回答或拒答，诊断标 `budget_exhausted` |
+| 等待确认 | 不是终态，运行保持活跃 |
+| 工具失败、模型失败 | `failed`，带对应 `failure_reason` |
+| 安全阻止 | `failed`，带安全阻止类 `failure_reason` |
+| 用户取消 | `cancelled` |
+
+达到上限不是依赖失败，因此不落 `failed`；但它按第 7.4 节没有批准资格，不能让预算耗尽变成“没有未处理 Finding”的批准捷径。
+
+`agentic` ReviewRun 运行期间不得修改需求内容。第 7.2 节的“活跃 ReviewRun 期间拒写”对它同样生效，因此它的人工介入只能用于授权取证——批准访问某个工作区、确认调用某个 MCP 能力、确认执行一次沙箱验证——不能用于补充需求内容。内容补充仍走“运行结束 → Finding → `supplement` Decision”的第一阶段路径，避免运行自己拒绝自己触发的写入。
+
+等待授权不得无限期阻塞 draft 写入：按第 6.2 节，发起者可取消自己发起的运行，owner 可取消任意运行；取消后 draft 恢复可写。
 
 ## 10. DeliveryPackage
 
@@ -415,6 +479,10 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 - `approved_decision_set_hash` 完整性校验。
 - `compared_to_version_id` 对应差异。
 - 验收条件、Citation 与证据快照身份。
+- 门禁运行的 `evidence_decision`，使交付包能说明这条基线是在什么证据程度下被批准的。
+- 外部来源 Citation 的引文快照。
+
+外部来源会在批准之后变化或失效，因此外部来源成为 Citation 时必须同时持久化被引用片段的引文快照：引文正文、抓取时间与来源内容哈希。Citation 指向该快照而不是指向实时来源，导出与复查都使用快照；来源页面此后变化或不可访问不影响已批准版本的可复现性，只在诊断中标出来源已变化。内部 Chunk 的引文由 `dataset_version` 与 `chunk_id` 承担同样职责，不需要额外快照。
 
 每次导出记录导出人、时间、格式、内容哈希与成功或失败。一个版本可导出多次。草稿非正式预览必须带明显标记，且不创建 DeliveryPackage 记录。
 
@@ -462,7 +530,7 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 - Code Tool 优先运行专用 Validator 或项目已有检查，不接受任意 Shell；输入只读、输出隔离、默认禁网、命令和环境白名单并限制资源。
 - MCP 与 A2A 通过官方 SDK 或成熟适配器连接，仍须映射到内部权限、状态、错误、证据和审计。
 - 产品至少消费一个真实、只读、可观察的 MCP 能力，不建设通用 MCP 市场。
-- Search 发现的页面和所有 Tool Result 都是候选信息，只有经过来源、支持性与证据资格校验后才能成为 Citation。
+- Search 发现的页面和所有 Tool Result 都是候选信息，必须先进入第 4.3 节的证据登记簿，再经支持性与证据资格校验才能成为 Citation；Code Tool 执行结果不得成为外部事实的 Citation。
 - 至少提供一个按需加载的需求评审 Agent Skill；Skill 只能提供说明、资源和脚本，不能绕过 Tool Runtime。
 - Multi-Agent 保留固定 RAG 和单 Agent 基线，按真实责任拆分，并显式处理委派、并行、失败隔离、证据合并和冲突裁决。
 - 至少选择一个稳定责任契约，同时实现本地 Delegation 与远程 A2A 路径；远程路径由两个独立实现完成真实互操作，固定规范修订、SDK 和协议绑定，并处理 Agent Card、鉴权、版本、任务状态与错误差异。
@@ -501,6 +569,9 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 
 - 门禁运行 `proposed_count_at_start = 0`。
 - 批准门拒绝未处理 Finding、`proposed` 条目、缺 Citation 外部事实、过期内容修订和过期 Brief。
+- `evidence_decision = 拒答` 不阻断批准：两个候选池都为空的项目在全部 `evidence_gap` 被留理由 `waive` 后可以批准第一个基线。
+- 诊断记录了取证或校验降级的运行被拒绝作为门禁运行，即使它以 `completed` 结束；零候选与过滤后空结果的运行仍有资格。
+- 批准记录与 DeliveryPackage 能回到门禁运行当时的 `evidence_decision`。
 - 提交预检与批准复检使用同一规则。
 - Brief 修改使待批准版本过期后必须先退回 `draft`，不能直接以新运行批准。
 - 批准记录能回到 ReviewRun、Brief 修订、`approved_decision_ids` 和 `approved_decision_set_hash`。
@@ -531,6 +602,12 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 
 - 模糊想法经过可恢复追问形成 Brief 草案与需求补丁；Agent 不直接修改 Project Brief。
 - `propose → Diff → 人确认 → apply` 对过期修订、重复请求、恢复重放和非草稿状态均安全，apply 后必须重新评审。
+- `agentic` ReviewRun 产生的 Finding 与 `pipeline` 运行同受目标成员资格、依据资格、Decision 与批准门约束，不存在第二条 Finding 生产路径；需求形成类 Agent Run 不产生 Finding、不钉证据快照。
+- 因步骤或预算上限提前停止的 ReviewRun 以 `completed` 结束但没有批准资格；停在等待授权的运行保持活跃、不可作为门禁运行，且可由发起者或 owner 取消后恢复 draft 写入。
+- `agentic` ReviewRun 运行期间的人工介入只能授权取证，不能修改需求内容；内容补充经运行结束后的 `supplement` Decision 完成。
+- 模型声明的来源必须属于本次运行的证据登记簿，未登记来源判为越界；登记簿在恢复与重放后仍单调增长且可解释。
+- Code Tool 执行结果不能支撑 `external_fact` 或 `external_fact_conflict`，只能支撑标为推断的 `impact_inference` 或作为诊断依据。
+- 外部来源 Citation 在来源页面变化或失效后仍能复现批准时的引文快照，导出结果不随外部来源漂移。
 - 固定分区的 `addressed / not_applicable / needs_input` 状态可回查；`needs_input` 或无理由的 `not_applicable` 必须拒绝提交和批准，且不依赖模型是否报告对应 Finding。
 - 从模糊想法启动的 Agent Run 只能绑定 editor 或 owner 已创建或选择的 Requirement draft；Agent 不创建正式 Requirement，也不绕过补丁确认门。
 - File Read 能追踪接口与客户端资料来源；File Write 只写运行级暂存；受控 Code Tool 至少验证一项真实契约差异，并保留失败或超时结果。
