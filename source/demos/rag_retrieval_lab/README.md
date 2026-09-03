@@ -13,6 +13,7 @@
 | Retriever 控制与诊断 | `inspect_retrieval_contract.py` | [Retriever 契约](../../../course/labs/retriever-contract.md) |
 | Context 装配 | `inspect_rag_context.py` | [Context Engineering](../../../course/labs/context-engineering.md) |
 | 结构化生成与来源声明集合检查 | `inspect_trusted_generation.py` | [来源声明集合检查](../../../course/labs/trusted-generation.md) |
+| Citation 逐字引文定位与支持性 | `inspect_citation_support.py` | [Citation 支持性](../../../course/labs/citation-support.md) |
 
 主路径使用真实 PostgreSQL、Embedding 和模型服务；缺少配置或外部服务失败时返回非零状态，不回退到 SQLite、Mock 或静态结果。数据库和 migration 准备见 [产品 README](../../apps/review_assistant/README.md#postgresql-本地准备)。SQL 展开观察见 [sql/README.md](sql/README.md)。
 

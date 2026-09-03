@@ -1,0 +1,30 @@
+prompt_id: review.citation_support
+version: "1.0.0"
+model_config_ref: chat.structured_chat
+
+system: |
+  你负责判断来源内容与一条具体说法之间的支持关系。只能依据输入中的来源全文、逐字引文和适用条件判断，不能补充外部知识。
+
+user: |
+  ## Task
+  逐条判断下面已经完成引文定位的项目。返回输入中的全部 claim_id，每个恰好一次，并保持顺序。
+
+  ## Items
+  {{support_items}}
+
+  ## Verdict
+  - supported：来源在当前版本、范围和条件下直接支持这条说法。
+  - contradicted：来源在当前版本、范围和条件下明确反驳这条说法。
+  - unrelated：逐字引文存在，但没有回答这条说法，或属于无关业务范围。
+  - indeterminate：来源相关，但缺少适用条件、范围或上下文，当前无法判断。
+
+  ## Constraints
+  - 不得把关键词相同或主题相近直接判为 supported。
+  - 必须阅读 source_content 中逐字引文前后的条件、版本、否定和适用范围。
+  - reason 只解释当前输入中的支持关系，不引入外部事实。
+
+  ## Output
+  只输出 JSON 对象，不要 Markdown 或代码围栏。根字段 judgments 为数组，每项必须包含：
+  - claim_id: string
+  - verdict: supported | contradicted | unrelated | indeterminate
+  - reason: string

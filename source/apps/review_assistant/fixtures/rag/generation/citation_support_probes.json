@@ -1,0 +1,65 @@
+{
+  "fixture_kind": "citation_support_variants",
+  "version": "1.0.0",
+  "claim_text": "现行售后接口 v2 的所有请求都必须提供 source_channel。",
+  "shared_excerpt": "请求必须提供 source_channel。",
+  "description": "步骤 17 冻结 Claim 与逐字引文，只改变引文周围的来源内容和适用条件；前三组通过确定性定位，missing_quote 在模型判断前被拦截。",
+  "variants": [
+    {
+      "name": "supported",
+      "source_id": "CS-SUPPORTED",
+      "title": "现行售后接口 v2 规则",
+      "content": "本规则适用于现行售后接口 v2 的全部入口和全部请求。请求必须提供 source_channel。",
+      "excerpt": "请求必须提供 source_channel。",
+      "expected_location": "located",
+      "expected_verdict": "supported",
+      "metadata": {
+        "source_locators": "markdown, lines=8-9",
+        "rule_status": "current",
+        "knowledge_scope": "after_sale"
+      }
+    },
+    {
+      "name": "unrelated",
+      "source_id": "CS-UNRELATED",
+      "title": "营销活动曝光规则",
+      "content": "本规则只描述营销活动曝光上报，不适用于售后接口。请求必须提供 source_channel。这里的 source_channel 表示营销投放渠道。",
+      "excerpt": "请求必须提供 source_channel。",
+      "expected_location": "located",
+      "expected_verdict": "unrelated",
+      "metadata": {
+        "source_locators": "markdown, lines=20-22",
+        "rule_status": "current",
+        "knowledge_scope": "campaign"
+      }
+    },
+    {
+      "name": "contradicted",
+      "source_id": "CS-CONTRADICTED",
+      "title": "售后接口版本迁移说明",
+      "content": "以下是已经废弃的售后接口 v1 规则，不适用于现行 v2：请求必须提供 source_channel。现行售后接口 v2 允许省略 source_channel，由服务端按入口推断。",
+      "excerpt": "请求必须提供 source_channel。",
+      "expected_location": "located",
+      "expected_verdict": "contradicted",
+      "metadata": {
+        "source_locators": "markdown, lines=30-32",
+        "rule_status": "migration",
+        "knowledge_scope": "after_sale"
+      }
+    },
+    {
+      "name": "missing_quote",
+      "source_id": "CS-MISSING",
+      "title": "现行售后接口 v2 规则",
+      "content": "本规则适用于现行售后接口 v2 的全部入口和全部请求。source_channel 由服务端按入口推断。",
+      "excerpt": "请求必须提供 source_channel。",
+      "expected_location": "quote_not_found",
+      "expected_verdict": null,
+      "metadata": {
+        "source_locators": "markdown, lines=40-41",
+        "rule_status": "current",
+        "knowledge_scope": "after_sale"
+      }
+    }
+  ]
+}

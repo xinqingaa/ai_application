@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
-from pydantic import TypeAdapter, ValidationError
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from llm_core.schemas.review import ReviewRisk, ReviewRiskList
 
@@ -18,6 +18,7 @@ _JSON_FENCE = re.compile(r"^```(?:json)?\s*\n?(.*?)\n?```\s*$", re.DOTALL | re.I
 class StructuredParseResult:
     ok: bool
     risks: Optional[list[ReviewRisk]]
+    value: Optional[BaseModel] = None
     error_stage: Optional[str] = None  # json | schema | empty
     message: Optional[str] = None
 
@@ -71,7 +72,11 @@ def parse_risk_list(content: str) -> StructuredParseResult:
                 error_stage="json",
                 message=f"不支持的 JSON 根类型: {type(data).__name__}",
             )
-        return StructuredParseResult(ok=True, risks=risks)
+        return StructuredParseResult(
+            ok=True,
+            risks=risks,
+            value=ReviewRiskList(risks=risks),
+        )
     except ValidationError as exc:
         return StructuredParseResult(
             ok=False,
@@ -79,3 +84,50 @@ def parse_risk_list(content: str) -> StructuredParseResult:
             error_stage="schema",
             message=str(exc),
         )
+
+
+def parse_structured_model(
+    content: str,
+    response_model: type[BaseModel],
+) -> StructuredParseResult:
+    """Parse one JSON object with the response model supplied to the API call."""
+
+    if response_model is ReviewRiskList:
+        return parse_risk_list(content)
+
+    text = extract_json_text(content)
+    if not text:
+        return StructuredParseResult(
+            ok=False,
+            risks=None,
+            error_stage="empty",
+            message="模型输出为空",
+        )
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        return StructuredParseResult(
+            ok=False,
+            risks=None,
+            error_stage="json",
+            message=str(exc),
+        )
+    if not isinstance(data, dict):
+        return StructuredParseResult(
+            ok=False,
+            risks=None,
+            error_stage="json",
+            message=f"不支持的 JSON 根类型: {type(data).__name__}",
+        )
+    try:
+        value = response_model.model_validate(data)
+    except ValidationError as exc:
+        return StructuredParseResult(
+            ok=False,
+            risks=None,
+            error_stage="schema",
+            message=str(exc),
+        )
+
+    risks = getattr(value, "risks", None)
+    return StructuredParseResult(ok=True, risks=risks, value=value)

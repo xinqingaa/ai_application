@@ -8,7 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from llm_core.config import LLMResponse, ModelConfig
-from llm_core.schemas.parse import StructuredParseResult, parse_risk_list
+from llm_core.schemas.parse import StructuredParseResult, parse_structured_model
 
 StructuredMode = Literal["json_schema", "json_object", "none"]
 
@@ -52,5 +52,8 @@ def build_response_format(
     }
 
 
-def parse_structured_content(content: str) -> StructuredParseResult:
-    return parse_risk_list(content)
+def parse_structured_content(
+    content: str,
+    response_model: type[BaseModel],
+) -> StructuredParseResult:
+    return parse_structured_model(content, response_model)

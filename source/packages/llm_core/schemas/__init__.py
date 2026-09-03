@@ -4,6 +4,9 @@ from llm_core.schemas.parse import StructuredParseResult, extract_json_text, par
 from llm_core.schemas.review import (
     Citation,
     ClarificationQuestion,
+    QuotedCitation,
+    QuotedReviewRisk,
+    QuotedReviewRiskList,
     ReviewRisk,
     ReviewRiskList,
     RiskCategory,
@@ -13,6 +16,9 @@ from llm_core.schemas.review import (
 __all__ = [
     "Citation",
     "ClarificationQuestion",
+    "QuotedCitation",
+    "QuotedReviewRisk",
+    "QuotedReviewRiskList",
     "ReviewRisk",
     "ReviewRiskList",
     "RiskCategory",

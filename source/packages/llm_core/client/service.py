@@ -159,7 +159,7 @@ class LLMClient:
             debug=debug,
             **call_params,
         )
-        parse = parse_structured_content(llm.content)
+        parse = parse_structured_content(llm.content, response_model)
         return StructuredLLMResponse(
             llm=llm,
             parse=parse,

@@ -5,7 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from llm_core import BuiltContext, LLMClient, ReviewRisk
+from llm_core import (
+    BuiltContext,
+    LLMClient,
+    QuotedReviewRiskList,
+    ReviewRisk,
+    ReviewRiskList,
+)
 from llm_core.prompts import get_prompt, render_prompt
 from llm_core.structured import StructuredLLMResponse, StructuredMode
 
@@ -69,6 +75,7 @@ def generate_trusted_review(
     client: LLMClient | None = None,
     config_ref: str = "chat.structured_chat",
     prompt_version: str = "5.0.0",
+    require_citation_excerpts: bool = False,
     structured_mode: StructuredMode = "json_schema",
     temperature: float = 0,
     debug: bool = False,
@@ -87,9 +94,13 @@ def generate_trusted_review(
     )
     messages = render_prompt(prompt, variables)
     llm = client or LLMClient.from_default_config()
+    response_model = (
+        QuotedReviewRiskList if require_citation_excerpts else ReviewRiskList
+    )
     response = llm.chat_structured(
         messages,
         config_ref,
+        response_model=response_model,
         structured_mode=structured_mode,
         temperature=temperature,
         debug=debug,

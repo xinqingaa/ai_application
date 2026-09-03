@@ -1,6 +1,7 @@
 """Tests for parse_risk_list — moved from demo fixtures."""
 
-from llm_core import parse_risk_list
+from llm_core import QuotedReviewRiskList, parse_risk_list
+from llm_core.schemas.parse import parse_structured_model
 
 
 def test_valid_object():
@@ -46,3 +47,14 @@ def test_empty():
     result = parse_risk_list("")
     assert not result.ok
     assert result.error_stage == "empty"
+
+
+def test_quoted_review_schema_requires_excerpt_for_each_citation():
+    result = parse_structured_model(
+        '{"risks":[{"title":"t","category":"api","level":"high",'
+        '"rationale":"r","citations":[{"source_id":"chunk-api"}]}]}',
+        QuotedReviewRiskList,
+    )
+
+    assert not result.ok
+    assert result.error_stage == "schema"

@@ -2,7 +2,7 @@
 
 需求评审助手的共享 RAG package。课程正文解释机制；本 README 维护代码职责、阅读入口和运行边界。
 
-当前实现文档加载、确定性清洗和来源定位，可回查 Chunking，Embedding 表示与成对相似度观察，应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，应用侧 RRF，固定 Retrieval 控制与诊断，从检索候选到共享 Context Builder 的来源适配，以及真实结构化生成与 Citation Candidate membership 检查。课程顺序只在[标准学习路径](../../../course/learning-path.md)维护。
+当前实现文档加载、确定性清洗和来源定位，可回查 Chunking，Embedding 表示与成对相似度观察，应用侧中文词法分析与 PostgreSQL FTS Lexical Retrieval，pgvector 持久化、exact Dense Retrieval 和按 Embedding 空间建立的 HNSW 索引，应用侧 RRF，固定 Retrieval 控制与诊断，从检索候选到共享 Context Builder 的来源适配，真实结构化生成与 Citation Candidate membership 检查，以及逐字引文定位与 Citation 支持性判断。课程顺序只在[标准学习路径](../../../course/learning-path.md)维护。
 
 ## 当前数据流
 
@@ -58,6 +58,12 @@ BuiltContext + citation candidate IDs
 → ReviewRisk[]
 → claimed source ID membership check
 → TrustedGenerationResult + TrustedGenerationReport
+
+candidate Citation claims + allowed source contents
+→ limited normalization + exact quote location
+→ review.citation_support@1.0.0（一次批量真实模型调用）
+→ supported / contradicted / unrelated / indeterminate
+→ CitationSupportResult + VerifiedCitation[]
 ```
 
 ## 代码入口
@@ -90,6 +96,8 @@ BuiltContext + citation candidate IDs
 | `retrieval/hybrid.py` | 固定预过滤、每路候选与阈值、RRF、最终截断和无结果诊断 |
 | `context/adapter.py` | RetrievalResult 到 ContextSource 的身份、位置、证据资格和诊断适配 |
 | `generation/service.py` | BuiltContext、真实结构化生成、claimed source ID 候选集合检查和报告 |
+| `evidence/service.py` | 逐字引文有限归一化与精确定位、批量支持关系判断和身份校验 |
+| `evidence/models.py` | 定位状态、四种支持关系、完整检查与已验证 Citation 契约 |
 | `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
 | `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
 | `tests/test_pgvector_dense.py` | Chunk/向量绑定、空间身份、距离方向和可选真实 pgvector 集成测试 |
@@ -97,6 +105,7 @@ BuiltContext + citation candidate IDs
 | `tests/test_hybrid_retriever.py` | 控制顺序、Metadata 传递、阈值方向、最终截断和失败分类 |
 | `tests/test_rag_context.py` | Chunk 来源保留、证据资格映射、预算去向和 source ID 冲突 |
 | `tests/test_trusted_generation.py` | 合法/未知 source、无引用风险、空 allowlist、错误 excerpt 和结构化失败边界 |
+| `tests/test_citation_support.py` | 引文定位、歧义、批量调用、支持关系、身份集合与失败边界 |
 
 建议按能力链分组阅读。文档解析与 Chunk 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；Embedding、检索、融合、Context 与可信生成运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
@@ -256,6 +265,12 @@ result = FixedHybridRetriever(lexical, dense).retrieve(
 `generate_trusted_review` 使用 `review.risk_review@5.0.0` 和 `LLMClient.chat_structured` 调用真实模型。Prompt 显式列出本轮允许的 Citation Candidate IDs；返回通过结构化解析后，应用逐项检查每个 claimed `source_id` 是否属于该集合。
 
 `succeeded` 只表示结构合法且声明 ID 来自本轮候选。报告固定写明 `candidate_membership_only_not_support_validation`；它不校验 excerpt 是否存在、source 内容是否支持风险，也不完成证据充分性或 Refusal。未知 ID 和结构化解析失败都是非成功状态，真实 `LLMError` 继续向调用者暴露。
+
+## Citation 支持性入口
+
+`validate_citation_support` 接收本轮允许集合、对应来源原文和已经通过成员检查的具体说法。它先对模型给出的逐字引文执行有限归一化与精确定位；引文不存在、位置不唯一、缺失或来源不在允许集合时不会调用模型。唯一定位成功的项目再通过 `review.citation_support@1.0.0` 合并成一次结构化判断。
+
+支持关系明确区分 `supported / contradicted / unrelated / indeterminate`。只有唯一定位且判断为 `supported` 的项目形成 `VerifiedCitation`；Provider、JSON、Schema 或返回身份集合失败不会静默变成支持或无法判断。调用者可以另外传入未压缩的 `source_contents`，让字符范围继续指向权威来源原文，而不是指向 Context 中可能压缩的副本。
 
 ## Chunking 策略边界
 

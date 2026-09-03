@@ -8,10 +8,11 @@ from llm_core import (
     BuiltContext,
     ContextSource,
     LLMResponse,
+    ReviewRiskList,
     build_review_context,
     get_context_policy,
-    parse_risk_list,
 )
+from llm_core.schemas.parse import parse_structured_model
 from llm_core.structured import StructuredLLMResponse
 from rag_core import (
     CitationClaimStatus,
@@ -28,6 +29,7 @@ class FakeStructuredClient:
 
     def chat_structured(self, messages, config_ref, **kwargs):
         self.calls.append((messages, config_ref, kwargs))
+        response_model = kwargs.get("response_model", ReviewRiskList)
         return StructuredLLMResponse(
             llm=LLMResponse(
                 content=self.content,
@@ -38,7 +40,7 @@ class FakeStructuredClient:
                 model="fake-model",
                 config_ref=config_ref,
             ),
-            parse=parse_risk_list(self.content),
+            parse=parse_structured_model(self.content, response_model),
             structured_mode=kwargs["structured_mode"],
             request_params=kwargs,
         )
@@ -176,6 +178,22 @@ def test_known_id_with_unsupported_excerpt_only_passes_membership_boundary() -> 
     assert result.report.citation_boundary == (
         "candidate_membership_only_not_support_validation"
     )
+
+
+def test_section_17_generation_schema_requires_verbatim_excerpt() -> None:
+    client = FakeStructuredClient(_risk_json(source_id="chunk-api"))
+
+    result = generate_trusted_review(
+        _context(),
+        client=client,  # type: ignore[arg-type]
+        prompt_version="6.0.0",
+        require_citation_excerpts=True,
+    )
+
+    assert result.status is GenerationStatus.STRUCTURED_OUTPUT_INVALID
+    assert result.report.parse_error_stage == "schema"
+    rendered = "\n".join(message["content"] for message in client.calls[0][0])
+    assert "每条 citation 必须带 excerpt" in rendered
 
 
 def test_invalid_structured_output_keeps_parse_failure_visible() -> None:

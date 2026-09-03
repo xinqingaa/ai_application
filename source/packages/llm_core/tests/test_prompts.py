@@ -10,8 +10,12 @@ def test_prompt_versions_are_loaded_by_identity() -> None:
         "3.0.0",
         "4.0.0",
         "5.0.0",
+        "6.0.0",
     ]
     assert get_prompt("review.risk_review", "2").ref == "review.risk_review@2.0.0"
+    assert get_prompt("review.citation_support", "1").ref == (
+        "review.citation_support@1.0.0"
+    )
 
 
 def test_render_prompt_rejects_missing_variables() -> None:

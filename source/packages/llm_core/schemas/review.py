@@ -23,18 +23,30 @@ class RiskCategory(str, Enum):
     OTHER = "other"
 
 
-class Citation(BaseModel):
+class _CitationFields(BaseModel):
+    source_id: str = Field(..., description="Evidence chunk id from context / RAG")
+
+
+class Citation(_CitationFields):
     """Reference to evidence; source_id validity is checked by the RAG evidence layer."""
 
-    source_id: str = Field(..., description="Evidence chunk id from context / RAG")
     excerpt: Optional[str] = Field(None, description="Short quote from the source")
 
 
-class ReviewRisk(BaseModel):
+class QuotedCitation(_CitationFields):
+    """Citation shape used once support validation requires a verbatim quote."""
+
+    excerpt: str = Field(..., min_length=1, description="Verbatim quote from the source")
+
+
+class _ReviewRiskFields(BaseModel):
     title: str
     category: RiskCategory
     level: RiskLevel
     rationale: str
+
+
+class ReviewRisk(_ReviewRiskFields):
     citations: list[Citation] = Field(default_factory=list)
 
 
@@ -42,6 +54,16 @@ class ReviewRiskList(BaseModel):
     """Wrapper for Structured Outputs API (root must be an object, not a bare array)."""
 
     risks: list[ReviewRisk]
+
+
+class QuotedReviewRisk(_ReviewRiskFields):
+    """Review risk whose citations must include verbatim excerpts."""
+
+    citations: list[QuotedCitation] = Field(default_factory=list)
+
+
+class QuotedReviewRiskList(BaseModel):
+    risks: list[QuotedReviewRisk]
 
 
 class ClarificationQuestion(BaseModel):

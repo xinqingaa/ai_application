@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 from llm_core import LLMClient
 from llm_core.config import LLMResponse, ModelConfig
 
@@ -50,3 +52,33 @@ def test_chat_structured_passes_request_params_once():
     assert captured["temperature"] == 0
     assert captured["max_tokens"] == 128
     assert captured["response_format"] == {"type": "json_object"}
+
+
+class SupportResult(BaseModel):
+    verdict: str
+
+
+def test_chat_structured_parses_the_supplied_response_model():
+    client = LLMClient(DummyRegistry())  # type: ignore[arg-type]
+
+    def fake_chat(messages, config_ref, *, debug=False, **kwargs):
+        return LLMResponse(
+            content='{"verdict":"supported"}',
+            raw_response={},
+            usage=None,
+            latency_ms=1.0,
+            provider="test",
+            model="test-model",
+            config_ref=config_ref,
+        )
+
+    client.chat = fake_chat  # type: ignore[method-assign]
+    result = client.chat_structured(
+        [{"role": "user", "content": "x"}],
+        "chat.dev_chat",
+        response_model=SupportResult,
+    )
+
+    assert result.parse.ok
+    assert isinstance(result.parse.value, SupportResult)
+    assert result.parse.value.verdict == "supported"
