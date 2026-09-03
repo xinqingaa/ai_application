@@ -1,6 +1,6 @@
 ---
 name: editorial-system-diagrams
-description: Design, review, or rework publication-quality technical diagrams—such as system architecture, process, lifecycle, course concept, and mechanism diagrams—when editorial hierarchy, conceptual clarity, or series consistency matters. Do not use for quantitative data charts, freeform illustration, or decorative imagery.
+description: Design, review, or rework publication-quality technical diagrams when editorial hierarchy, conceptual clarity, or series consistency matters. In this repository, orchestrate both the default direct-SVG route and an explicitly requested Fireworks IR route. Do not use for quantitative data charts, freeform illustration, or decorative imagery.
 ---
 
 # Editorial System Diagrams
@@ -43,18 +43,31 @@ Read [visual-system.md](references/visual-system.md) when creating a new figure,
 
 For a series, freeze the shared visual contract before producing individual figures: canvas ratio, title zone, type scale, spacing unit, card families, connector rules, color roles, icon family, and takeaway treatment. Vary the composition when the subject requires it, but preserve the contract.
 
-## Select a rendering route
+## Select the authoring route
 
-- Use Mermaid when labeled nodes and edges fully communicate the structure and editorial layout is secondary.
-- Use SVG or HTML when precise hierarchy, repeated geometry, custom annotations, or responsive editorial composition matters.
-- Use the native document or presentation format when the diagram must remain editable inside that artifact.
-- Do not use image generation for diagrams whose labels, topology, or editability must be exact.
+This skill is the only top-level diagram authoring workflow for this repository. Select exactly one authoring route after the brief, content, composition, and visual contract are established.
 
-Keep the editable source whenever the renderer supports it. A raster export alone is not a maintainable diagram source.
+### Route 1 — direct SVG (default)
+
+Use the existing direct-SVG workflow unless the user explicitly requests Fireworks, Fireworks IR, “高级版”, “路线二”, or a GIF. Preserve the current editorial freedom: write and refine SVG directly when precise hierarchy, custom annotations, takeaway zones, or non-regular composition matters. Keep the SVG as the editable source.
+
+Do not reinterpret a request for PNG or offline HTML as a request for Route 2. Those are export choices applied after the SVG is complete.
+
+### Route 2 — Fireworks IR (explicit only)
+
+Use Route 2 only for an explicit trigger above. A direct GIF request also selects Route 2 because Fireworks motion requires a generated semantic SVG with a supported motion contract. Read [fireworks-route.md](references/fireworks-route.md) before using this route or a Fireworks export.
+
+Route 2 keeps the editorial decisions already made by this skill. Fireworks supplies Diagram IR, routing, rendering, executable geometry checks, and supported exports; its default content hierarchy, visual theme, and palette must not silently replace this project's visual contract. Keep both the `.diagram.json` source and generated `.svg`.
+
+If Fireworks is unavailable, do not install it, invoke `npx`, or execute remote GitHub content without explicit user authorization. Route 1 may continue with a disclosed validation fallback. Route 2 must stop unless the user explicitly allowed fallback to Route 1.
+
+PNG, offline HTML, and GIF are derived artifacts, never the maintainable source. Do not use image generation for diagrams whose labels, topology, or editability must be exact.
 
 ## Render and inspect
 
 Inspect the actual rendered result, not only its source. Check it at intended display size and at a reduced size representative of the final reading context.
+
+After either route produces SVG, run `scripts/fireworks_bridge.py check-svg <file.svg>`. When Fireworks is installed, this must run XML, marker, collision, geometry, and composition checks. A failed check requires correction and rerun; it is not an unavailable-backend fallback. When Route 1 cannot find Fireworks, the bridge may perform its local structural fallback and the delivery must say that Fireworks validation was skipped. Route 2 always requires Fireworks.
 
 Run a dedicated collision pass after rendering. Text, connector labels, arrow shafts, arrowheads, node borders, and section boundaries must not overlap unless the contact is the intentional endpoint of a connector. Cross-boundary routes need a visible corridor and must stay clear of section titles and explanatory text.
 
