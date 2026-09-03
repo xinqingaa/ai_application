@@ -260,7 +260,7 @@ Requirement 是稳定容器，RequirementVersion 是内容快照，RequirementIt
 
 ### 12. 知识资料的暂存与发布
 
-系统 admin 上传的知识资料先进入暂存状态，只有明确的发布动作才会产生新的 `dataset_version` 并改变全局知识库候选池；上传和暂存本身不生效。这条规则是为了保护 Golden Set 的冻结纪律——不能因为一次误传就悄悄改变已经冻结的验收基线。发布记录必须保留谁在什么时候发布了哪些文档，形成可追溯的版本历史。“发布产生 `dataset_version`”只约束全局知识库，不约束项目检索池。
+系统 admin 上传的知识资料先进入暂存状态，只有明确的发布动作才会产生新的 `dataset_version` 并改变全局知识库候选池；上传和暂存本身不生效。这条规则是为了保护 Golden Set 的冻结纪律——不能因为一次误传就悄悄改变已经冻结的验收基线。发布记录必须保留谁在什么时候发布了哪些文档，形成可追溯的版本历史。“发布产生 `dataset_version`”只约束全局知识库，不约束项目检索池。下架不是另一套机制：`dataset_version` 是全局候选池的完整快照而不是发布计数，admin 下架一份已发布资料同样走发布路径，产生一个不含该资料的新版本。必须解释这条规则的来源——若下架不推进版本号，下架前后两次运行会钉在同一个 `dataset_version` 上却看到不同候选集合；项目检索池不需要这条规则，因为它钉的是逐一枚举的 `approved_requirement_version_ids`，移除天然被集合捕捉。
 
 ### 13. 生成阶段的结构化增量流式
 
@@ -545,6 +545,7 @@ Definition of Ready 完成后，第一阶段主路径默认冻结：
 - [ ] 以固定“售后入口与订单状态”数据跑通 SPEC 第 5 节的完整第一阶段产品链，并提交可复现的运行记录。
 - [ ] 能从空 Project 创建初始 Brief 与 Requirement `draft`，在空检索池中以证据不足或拒答完成运行，再在首个版本批准并索引后验证项目证据沉淀；固定电商数据仍只作为验收 fixture。
 - [ ] TXT / Markdown、DOCX 和文本型 PDF 进入同一知识契约；主路径使用真实 PostgreSQL、Embedding 和 LLM，失败不降级 Mock。
+- [ ] 全局候选池的变化只通过发布表达：下架一份已发布资料产生新的 `dataset_version`，同一 `dataset_version` 在任何时点解析出的候选集合相同。
 - [ ] lexical、dense、RRF 和直接 LLM 在同一 Golden Set 上比较，能查看候选、过滤、排名、Context、成本、延迟与淘汰原因。
 - [ ] 当前需求与自身基线不会伪装成外部证据；外部 Finding 回到合格 Citation，内部 Finding 回到需求或 Brief 定位，证据不足时拒绝强结论并产生可回答问题。
 - [ ] 固定表单与导入 PRD 两条入口共享对象链，条目、Finding、Decision、Diff、批准、基线和交付在工作台中形成闭环。

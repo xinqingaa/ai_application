@@ -129,7 +129,7 @@ Project → Requirement → RequirementVersion → RequirementItem
 - 可定位 Finding、逐项 Decision、条目级 Diff 和证据不足时的 Refusal 或补充问题。
 - RequirementVersion 的人工状态迁移、批准门、不可变决策快照、原子基线切换与事务后索引。
 - 全局知识库与同项目已批准需求检索池两个独立证据来源。
-- 用户身份、两层角色、知识资料上传—暂存—发布流程。
+- 用户身份、两层角色、知识资料上传—暂存—发布—下架流程。
 - Review API、结构化增量与最终校验替换的 SSE 契约，以及以需求正文为中心的 Web 工作台。
 - 固定 Golden Set、直接 LLM / Lexical / Dense / RRF 对照，以及可见的成本、延迟和错误。
 

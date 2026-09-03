@@ -384,7 +384,8 @@ RequirementVersion 批准 → index_state=pending
 → indexed 后以 approved_requirement 进入同 Project 候选
 ```
 
-- 两个池子使用不同快照身份，互不替代。
+- 两个池子使用不同快照身份，互不替代：全局池是版本号 `dataset_version`，项目池是显式集合 `approved_requirement_version_ids`。
+- 全局候选集合的任何变化都必须表达为新的 `dataset_version`，加入和移除都不例外。
 - `approved_requirement` 表示项目内已批准决定，不自动覆盖更高资格的现行业务规则。
 - 当前待评审版本和自身旧基线不进入候选，版本差异由 Diff 负责。
 - `superseded` 版本因不在快照集合中自然离开候选，不重标角色。
@@ -399,6 +400,8 @@ uploaded → parsing → parse_failed
 ```
 
 切分与向量化在 `staged` 前完成。发布是产生新 `dataset_version` 的唯一动作；上传与暂存不能直接改变全局候选池。
+
+`dataset_version` 是全局候选池的一次完整快照，而不是累计发布次数，因此下架不是独立机制：admin 下架一份已发布资料，走的仍是发布路径，产生一个不包含该资料的新 `dataset_version`，该资料随之进入 `superseded`。这条规则由快照身份的唯一性逼出——若下架不推进版本号，下架前后两次运行会钉在同一个 `dataset_version` 上却看到不同候选集合，“这次运行看到了哪一版资料”就不再有唯一答案。项目检索池不需要同样的规则，因为它的快照身份是运行开始时逐一枚举的 `approved_requirement_version_ids`，删除天然被集合捕捉。
 
 ## 9. 第二阶段 Agent 写入与影响分析
 
@@ -587,6 +590,7 @@ DeliveryPackage 只能从 `approved / superseded` 版本导出，使用不可变
 - 派生版本不检索自身基线；只包含同项目其他 `indexed` 当前基线。
 - `pending / index_failed` 基线不进入候选并在诊断中列明原因。
 - `superseded` Chunk 不进入新 ReviewRun 候选。
+- 下架一份已发布资料产生新的 `dataset_version`；同一 `dataset_version` 在任何时点解析出的全局候选集合完全相同。
 - 非草稿写入、活跃 ReviewRun 期间写入和旧 `revision` 覆盖被拒绝且不留部分变化。
 - Brief 修订历史 append-only，可按任何已钉住修订取回。
 
