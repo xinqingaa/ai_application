@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="720" viewBox="0 0 1600 720" role="img" aria-labelledby="title desc">
+  <title id="title">从已验证 Citation 到证据充分性判定</title>
+  <desc id="desc">已验证 Citation 与覆盖边界进入逐项覆盖判断，产生可回答、部分回答或拒答。部分回答和拒答将结构化缺口变成补充问题；模型或输出契约失败从覆盖判断阶段直接成为失败，不伪装成拒答。</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 6 6" refX="5.2" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 6 3 L 0 6 z" fill="#1557B0"/></marker>
+    <marker id="arrow-orange" viewBox="0 0 6 6" refX="5.2" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 6 3 L 0 6 z" fill="#C76B00"/></marker>
+    <marker id="arrow-red" viewBox="0 0 6 6" refX="5.2" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 6 3 L 0 6 z" fill="#C43D3D"/></marker>
+    <style>
+      .bg { fill: #F7F9FC; }
+      .card { fill: #FFFFFF; stroke: #AFC3E3; stroke-width: 3; }
+      .evidence { fill: #E7F5F5; stroke: #0F7C83; }
+      .reasoning { fill: #F0EDFF; stroke: #5B45C6; }
+      .decision { fill: #EEF4FF; stroke: #1557B0; }
+      .gap { fill: #FFF4E5; stroke: #C76B00; }
+      .failure { fill: #FCEBEC; stroke: #C43D3D; }
+      .ink { fill: #102A56; font-family: -apple-system, BlinkMacSystemFont, 'Noto Sans CJK SC', 'PingFang SC', sans-serif; }
+      .stage { font-size: 30px; font-weight: 700; }
+      .body { font-size: 24px; font-weight: 400; }
+      .small { font-size: 20px; font-weight: 400; }
+      .line { fill: none; stroke: #1557B0; stroke-width: 3; marker-end: url(#arrow-blue); }
+      .orange-line { fill: none; stroke: #C76B00; stroke-width: 3; marker-end: url(#arrow-orange); }
+      .red-line { fill: none; stroke: #C43D3D; stroke-width: 3; stroke-dasharray: 10 8; marker-end: url(#arrow-red); }
+    </style>
+  </defs>
+  <rect class="bg" width="1600" height="720"/>
+
+  <rect x="100" y="160" width="240" height="170" rx="16" class="card evidence"/>
+  <text x="132" y="218" class="ink stage">已验证 Citation</text>
+  <text x="132" y="263" class="ink body">引文真实</text>
+  <text x="132" y="299" class="ink body">支持具体 Claim</text>
+
+  <path d="M 340 245 H 410" class="line"/>
+  <rect x="410" y="160" width="250" height="170" rx="16" class="card evidence"/>
+  <text x="442" y="218" class="ink stage">覆盖边界</text>
+  <text x="442" y="263" class="ink body">所需事实</text>
+  <text x="442" y="299" class="ink body">与来源角色</text>
+
+  <path d="M 660 245 H 730" class="line"/>
+  <rect x="730" y="140" width="290" height="210" rx="16" class="card reasoning"/>
+  <text x="762" y="202" class="ink stage">逐项覆盖判断</text>
+  <text x="762" y="248" class="ink body">证据是否存在</text>
+  <text x="762" y="284" class="ink body">范围与条件是否足够</text>
+  <text x="762" y="321" class="ink small">缺口影响哪条 Claim</text>
+
+  <path d="M 1020 245 H 1080" class="line"/>
+  <rect x="1080" y="120" width="340" height="250" rx="16" class="card decision"/>
+  <text x="1112" y="182" class="ink stage">EvidenceDecision</text>
+  <line x1="1112" y1="210" x2="1388" y2="210" stroke="#AFC3E3" stroke-width="2"/>
+  <text x="1112" y="255" class="ink body">全部覆盖 → 可回答</text>
+  <text x="1112" y="302" class="ink body">部分覆盖 → 部分回答</text>
+  <text x="1112" y="349" class="ink body">没有覆盖 → 拒答</text>
+
+  <path d="M 1250 370 V 475" class="orange-line"/>
+  <rect x="960" y="475" width="460" height="130" rx="16" class="card gap"/>
+  <text x="992" y="530" class="ink stage">结构化 gap → 补充问题</text>
+  <text x="992" y="572" class="ink body">缺什么、应来自哪里、影响哪条 Claim</text>
+
+  <path d="M 875 350 V 430 H 695 V 474" class="red-line"/>
+  <rect x="360" y="475" width="335" height="130" rx="16" class="card failure"/>
+  <text x="392" y="530" class="ink stage">执行或输出失败</text>
+  <text x="392" y="572" class="ink body">显式失败，不等于拒答</text>
+</svg>

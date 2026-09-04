@@ -64,6 +64,11 @@ candidate Citation claims + allowed source contents
 → review.citation_support@1.0.0（一次批量真实模型调用）
 → supported / contradicted / unrelated / indeterminate
 → CitationSupportResult + VerifiedCitation[]
+
+Claim[] + VerifiedCitation[] + coverage requirements + active sources
+→ review.evidence_sufficiency@1.0.0（有候选证据时一次批量真实模型调用）
+→ covered / gap（逐项）
+→ EvidenceDecision(answerable / partial / refusal) + structured gaps
 ```
 
 ## 代码入口
@@ -97,7 +102,8 @@ candidate Citation claims + allowed source contents
 | `context/adapter.py` | RetrievalResult 到 ContextSource 的身份、位置、证据资格和诊断适配 |
 | `generation/service.py` | BuiltContext、真实结构化生成、claimed source ID 候选集合检查和报告 |
 | `evidence/service.py` | 逐字引文有限归一化与精确定位、批量支持关系判断和身份校验 |
-| `evidence/models.py` | 定位状态、四种支持关系、完整检查与已验证 Citation 契约 |
+| `evidence/sufficiency.py` | 已验证 Citation 与覆盖要求的批量充分性判断、身份校验、确定性聚合与 gap 渲染 |
+| `evidence/models.py` | 定位状态、四种支持关系、已验证 Citation 与充分性 / gap 契约 |
 | `tests/test_lexical.py` | 词法策略、标识符、配置身份和空输入契约 |
 | `tests/test_postgres_fts.py` | Retriever 输入契约和可选真实 PostgreSQL 集成测试 |
 | `tests/test_pgvector_dense.py` | Chunk/向量绑定、空间身份、距离方向和可选真实 pgvector 集成测试 |
@@ -106,6 +112,7 @@ candidate Citation claims + allowed source contents
 | `tests/test_rag_context.py` | Chunk 来源保留、证据资格映射、预算去向和 source ID 冲突 |
 | `tests/test_trusted_generation.py` | 合法/未知 source、无引用风险、空 allowlist、错误 excerpt 和结构化失败边界 |
 | `tests/test_citation_support.py` | 引文定位、歧义、批量调用、支持关系、身份集合与失败边界 |
+| `tests/test_evidence_sufficiency.py` | 覆盖聚合、空范围拒答、Claim 关联与输出失败边界 |
 
 建议按能力链分组阅读。文档解析与 Chunk 运行 [`rag_ingestion_lab`](../../demos/rag_ingestion_lab/)；Embedding、检索、融合、Context 与可信生成运行 [`rag_retrieval_lab`](../../demos/rag_retrieval_lab/)。
 
@@ -271,6 +278,12 @@ result = FixedHybridRetriever(lexical, dense).retrieve(
 `validate_citation_support` 接收本轮允许集合、对应来源原文和已经通过成员检查的具体说法。它先对模型给出的逐字引文执行有限归一化与精确定位；引文不存在、位置不唯一、缺失或来源不在允许集合时不会调用模型。唯一定位成功的项目再通过 `review.citation_support@1.0.0` 合并成一次结构化判断。
 
 支持关系明确区分 `supported / contradicted / unrelated / indeterminate`。只有唯一定位且判断为 `supported` 的项目形成 `VerifiedCitation`；Provider、JSON、Schema 或返回身份集合失败不会静默变成支持或无法判断。调用者可以另外传入未压缩的 `source_contents`，让字符范围继续指向权威来源原文，而不是指向 Context 中可能压缩的副本。
+
+## 证据充分性入口
+
+`decide_evidence_sufficiency` 接收当前 Claim、`VerifiedCitation`、强结论所需的覆盖要求与限定的 active sources。它不会重新检索或扩大来源范围。没有来自预期来源角色的已验证 Citation 时，直接形成可解释的 gap；仍有候选 Citation 的覆盖要求合并为一次 `review.evidence_sufficiency@1.0.0` 真实结构化判断。
+
+调用方确定性检查覆盖要求、Claim 与来源角色的关联，再把全部 `covered / gap` 聚合为 `answerable / partial / refusal`。每个 gap 都保留所缺事实、预期来源角色、受影响 Claim 与稳定渲染的补充问题。空范围可以合法得到 `refusal`；Provider、JSON、Schema、返回身份或关联校验失败不生成 `EvidenceDecision`，不能伪装成拒答。
 
 ## Chunking 策略边界
 

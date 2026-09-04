@@ -45,7 +45,7 @@
 | Context 装配、预算与 Compression | 主线 | 第一阶段 | 把检索名单装成模型本轮可见 Context；Evidence 是专门放外部依据的一格，装入时控制身份、分区预算和允许声明的来源 | Retriever Contract | [机制](lessons/015.context-engineering.mechanism.md) · [实验](lessons/015.context-engineering.lab.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
 | 结构化生成与来源声明集合检查 | 主线 | 第一阶段 | 把 BuiltContext 交给真实结构化模型，并逐条检查模型声明的 source ID 是否属于本轮 Citation Candidate；`succeeded` 只表示结构合法且声明未越界，不判断内容支持性、证据充分性或流式界面状态 | Context、Structured Output | [机制](lessons/016.trusted-generation.mechanism.md) · [实验](lessons/016.trusted-generation.lab.md) | 产品必接；`rag_core/generation` |
 | Citation 支持性 | 主线 | 第一阶段 | 判断被引用内容是否真正支持对应结论，合法 ID 不能代替语义支持 | 可信生成 | [机制](lessons/017.citation-support.mechanism.md) · [实验](lessons/017.citation-support.lab.md) | 产品必接；`rag_core/evidence` |
-| 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题；判定只表达证据程度，不决定批准资格 | Citation 支持性 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
+| 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题；判定只表达证据程度，不决定批准资格 | Citation 支持性 | [机制](lessons/018.evidence-sufficiency.mechanism.md) · [实验](lessons/018.evidence-sufficiency.lab.md) | 产品必接；`rag_core/evidence` |
 | Reranker 与准入证据 | 扩展 | 第一阶段 | 在固定召回基线后学习重排，以及什么收益证据才足以进入产品 | RRF、Golden Set | 待编写机制正文 | 条件接入；不作为固定基线默认能力 |
 | 文档更新、删除与 Citation 失效 | 扩展 | 第一阶段 | 处理知识版本变化后索引、缓存和历史 Citation 的失效与重建 | 来源身份、Citation | 待编写机制正文 | 条件接入；知识治理 |
 | OCR / VLM 与复杂文档 | 扩展 | 第一阶段 | 处理扫描、图片和复杂版面，明确识字、结构恢复和来源定位的不同证据 | 文档解析 | 待编写机制正文 | 条件接入；对照实验 |

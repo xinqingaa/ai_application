@@ -1,0 +1,38 @@
+prompt_id: review.evidence_sufficiency
+version: "1.0.0"
+model_config_ref: chat.structured_chat
+
+system: |
+  你负责判断已验证 Citation 是否覆盖形成强结论所需的事实。只能依据输入中的 Claim、已验证 Citation、覆盖要求和当前 knowledge scope；不能补充外部知识，也不能把没有 Citation 的来源文字当成已验证依据。
+
+user: |
+  ## Claims
+  {{claims}}
+
+  ## Verified citations
+  {{verified_citations}}
+
+  ## Coverage requirements
+  {{coverage_requirements}}
+
+  ## Active sources
+  {{active_sources}}
+
+  ## Task
+  对每一个 coverage requirement 判断：它所要求的事实是否已有来自指定 source_role 的已验证 Citation 覆盖。按输入顺序返回所有 requirement_id，每个恰好一次。
+
+  ## Verdict
+  - covered：关联 Claim 有来自 expected_source_role 的已验证 Citation，且其原文范围、条件足以覆盖 required_fact。
+  - gap：没有这种 Citation，或 Citation 存在但范围、条件不足以覆盖 required_fact。
+
+  ## Constraints
+  - covered 时 citation_claim_ids 必须列出支撑它的 Claim ID；gap 时必须是空数组。
+  - 不得把 active source 的存在当成 Citation，也不得把另一 source_role 的 Citation 冒充为指定角色。
+  - reason 只能解释当前输入中已覆盖或缺失的事实，不引入外部事实。
+
+  ## Output
+  只输出 JSON 对象，不要 Markdown 或代码围栏。根字段 judgments 为数组，每项必须包含：
+  - requirement_id: string
+  - verdict: covered | gap
+  - citation_claim_ids: string[]
+  - reason: string

@@ -1,0 +1,69 @@
+{
+  "fixture_kind": "evidence_sufficiency",
+  "version": "1.0.0",
+  "claims": [
+    {
+      "claim_id": "source-channel",
+      "claim_text": "现行售后接口 v2 的所有请求都必须提供 source_channel。"
+    },
+    {
+      "claim_id": "error-presentation",
+      "claim_text": "网络错误和业务拒绝必须向用户作不同说明。"
+    }
+  ],
+  "coverage_requirements": [
+    {
+      "requirement_id": "interface-rule",
+      "required_fact": "现行接口对 source_channel 的适用范围",
+      "expected_source_role": "接口规则",
+      "affected_claim_ids": ["source-channel"]
+    },
+    {
+      "requirement_id": "error-contract",
+      "required_fact": "网络错误与业务拒绝的展示差异",
+      "expected_source_role": "错误契约",
+      "affected_claim_ids": ["error-presentation"]
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "API-V2",
+      "source_role": "接口规则",
+      "source_locator": "after_sale_api_v2.md#request",
+      "content": "现行售后接口 v2 适用于全部申请入口。所有请求必须提供 source_channel。",
+      "citation": {
+        "claim_id": "source-channel",
+        "excerpt": "所有请求必须提供 source_channel。",
+        "reason": "上游支持性校验已经确认该引文覆盖现行 v2 的全部申请入口。"
+      }
+    },
+    {
+      "source_id": "ERROR-UX",
+      "source_role": "错误契约",
+      "source_locator": "after_sale_error_ux.md#display",
+      "content": "网络错误提示用户稍后重试；业务拒绝展示可处理的拒绝原因。两类结果不得使用同一种说明。",
+      "citation": {
+        "claim_id": "error-presentation",
+        "excerpt": "两类结果不得使用同一种说明。",
+        "reason": "上游支持性校验已经确认该引文要求区分两类结果。"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "name": "full_scope",
+      "active_source_ids": ["API-V2", "ERROR-UX"],
+      "expected_decision": "answerable"
+    },
+    {
+      "name": "missing_error_contract",
+      "active_source_ids": ["API-V2"],
+      "expected_decision": "partial"
+    },
+    {
+      "name": "empty_scope",
+      "active_source_ids": [],
+      "expected_decision": "refusal"
+    }
+  ]
+}

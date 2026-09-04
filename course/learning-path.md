@@ -77,8 +77,8 @@
 
 17. **[引文真的支持这条结论吗](lessons/017.citation-support.mechanism.md)** · 可学习
     来源 ID 属于本轮允许集合，仍可能搭配不存在、无关或已经失效的引文。本节先用确定性定位确认模型给出的逐字引文真实且位置唯一，再用完整来源语境判断它是支持、反驳、无关还是无法判断；配套[Citation 支持性实验](lessons/017.citation-support.lab.md)冻结 Claim 与引文，只改变来源的范围和适用条件。
-18. **证据充分性、Refusal 与补充问题** · 待编写
-    部分引用正确时，系统仍可能缺少形成强结论的关键事实。本节判断何时继续回答、何时拒绝，以及怎样把缺口转成用户能够补充的具体问题；继续使用结构化 Claim 与 EvidenceDecision 表达结论与缺口，不提前使用产品对象术语。拒答只表达本次掌握的证据程度，不是一种否决，是否影响后续的批准资格由第 26 节判定。
+18. **[证据充分性、Refusal 与补充问题](lessons/018.evidence-sufficiency.mechanism.md)** · 可学习
+    单条 Citation 支持某条 Claim，仍不等于形成强结论所需事实已经覆盖。本节把已验证 Citation 与明确的覆盖边界逐项判断，聚合为可回答、部分回答或拒答，并先形成结构化 gap、再渲染为具体补充问题；配套[证据充分性实验](lessons/018.evidence-sufficiency.lab.md)冻结 Claim 与上游 Citation，只改变 active `knowledge_scope`。拒答只表达本次掌握的证据程度，不是一种否决，是否影响后续的批准资格由第 26 节判定。
 19. **需求对象模型：项目、需求、版本、条目与基线** · 待编写
     评审结论要挂在什么上面、由谁批准、怎样交付？一次性报告无法承载这些问题。本节建立 Project → Requirement → RequirementVersion → RequirementItem 主链、Requirement 粒度的基线指针，以及跨版本稳定的 `item_key`、只随内容递增的 `revision` 和 Project Brief 的 `brief_revision` 与最小字段边界（哪些信息属于项目、哪些属于单个 Requirement）；同时建立来源、引用与决策三分——条目来源说明它怎样形成，Citation 证明外部事实，Decision 记录人的裁决，三者不能互相冒充。补充固定分区的 `addressed / not_applicable / needs_input` 完整性语义，以及从空 Project 建立初始 Brief、Requirement 和首个 draft 的冷启动对象链；完整需求是每个固定分区都被处理，而不是正文足够长；本节不讲实现，不定义 API。
 20. **结构化需求草稿：从固定表单或已有 PRD 到条目** · 待编写

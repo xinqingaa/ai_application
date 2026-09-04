@@ -97,3 +97,104 @@ class CitationSupportResult:
     report: CitationSupportReport
     messages: tuple[dict[str, str], ...]
     response: StructuredLLMResponse | None
+
+
+class EvidenceDecisionKind(str, Enum):
+    """How far the current evidence can support the requested conclusion."""
+
+    ANSWERABLE = "answerable"
+    PARTIAL = "partial"
+    REFUSAL = "refusal"
+
+
+class EvidenceCoverageVerdict(str, Enum):
+    COVERED = "covered"
+    GAP = "gap"
+
+
+class EvidenceSufficiencyValidationStatus(str, Enum):
+    COMPLETED = "completed"
+    STRUCTURED_OUTPUT_INVALID = "structured_output_invalid"
+    JUDGMENT_SET_INVALID = "judgment_set_invalid"
+
+
+@dataclass(frozen=True)
+class EvidenceClaim:
+    """A conclusion whose required facts must be covered."""
+
+    claim_id: str
+    claim_text: str
+
+
+@dataclass(frozen=True)
+class EvidenceRequirement:
+    """One fact category that must be covered before affected claims are strong."""
+
+    requirement_id: str
+    required_fact: str
+    expected_source_role: str
+    affected_claim_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class EvidenceScopeSource:
+    """An active, bounded source record supplied to sufficiency validation."""
+
+    source_id: str
+    source_role: str
+    content: str
+    source_locator: str | None = None
+
+
+@dataclass(frozen=True)
+class EvidenceGap:
+    requirement_id: str
+    missing_fact: str
+    expected_source_role: str
+    affected_claim_ids: tuple[str, ...]
+    reason: str
+    question: str
+
+
+@dataclass(frozen=True)
+class EvidenceCoverageCheck:
+    requirement_id: str
+    verdict: EvidenceCoverageVerdict
+    reason: str
+    citation_claim_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class EvidenceDecision:
+    kind: EvidenceDecisionKind
+    coverage: tuple[EvidenceCoverageCheck, ...]
+    gaps: tuple[EvidenceGap, ...]
+
+
+@dataclass(frozen=True)
+class EvidenceSufficiencyReport:
+    status: EvidenceSufficiencyValidationStatus
+    prompt_ref: str
+    config_ref: str
+    structured_mode: str
+    claim_count: int
+    requirement_count: int
+    active_source_count: int
+    verified_citation_count: int
+    covered_count: int
+    gap_count: int
+    model_call_count: int
+    usage: TokenUsage | None
+    cost: CostEstimate | None
+    latency_ms: float | None
+    parse_error_stage: str | None = None
+    parse_error_message: str | None = None
+    boundary: str = "verified_citations_and_coverage_contract_not_approval"
+
+
+@dataclass(frozen=True)
+class EvidenceSufficiencyResult:
+    decision: EvidenceDecision | None
+    report: EvidenceSufficiencyReport
+    messages: tuple[dict[str, str], ...]
+    response: StructuredLLMResponse | None

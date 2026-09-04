@@ -7,3 +7,5 @@
 这些探针用于理解生成边界，不是冻结的第一阶段 acceptance 或评估集。
 
 `citation_support_probes.json` 为第 17 节固定一条需要外部资料支持的说法和一段逐字引文，只改变引文周围的来源范围、版本与适用条件。前三组进入真实模型支持判断，`missing_quote` 由确定性定位拦截。文件不保存模型 verdict；当前 Provider 仍须真实完成判断。
+
+`evidence_sufficiency_probes.json` 为第 18 节冻结 Claim、覆盖要求和已验证 Citation 的上游输入，只改变 active knowledge scope。它保存的是实验输入与预期观察方向，不保存充分性模型的判断结果；真实 Provider 仍须完成覆盖判断。`empty_scope` 是合法拒答边界，不是依赖失败。
