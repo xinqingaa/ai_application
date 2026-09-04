@@ -10,7 +10,7 @@ Prefer a stable three-zone canvas:
 2. **Main figure zone** — the dominant flow, structure, or comparison.
 3. **Takeaway zone** — one boundary, prerequisite, caveat, or supporting layer.
 
-For a 16:9 teaching figure, a useful starting allocation is 12–16% orientation, 65–75% main figure, and 10–18% takeaway. Adjust when the medium differs, but keep the same allocation across a series.
+The default course teaching canvas is `1600 × 900` with a `viewBox="0 0 1600 900"`. A useful starting allocation is 12–16% orientation, 65–75% main figure, and 10–18% takeaway. Adjust the ratio or height when the relationship or final reading medium genuinely requires it, but keep the same allocation across a series. Never preserve the default size by shrinking type or overloading cards.
 
 Do not force every topic into equal columns. Preserve the zones and rhythm while choosing a composition that matches the relationship.
 

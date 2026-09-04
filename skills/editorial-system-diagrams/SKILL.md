@@ -7,6 +7,16 @@ description: Design, review, or rework publication-quality technical diagrams wh
 
 Create diagrams that teach one important relationship at a glance. Treat the diagram as an editorial explanation, not an inventory of implementation objects.
 
+## Course-article integration
+
+When this skill is invoked while creating or substantially rewriting a course article, edit the prose and the figure as one explanation. Place the figure where the relationship first becomes necessary, then remove duplicate ASCII flows, repeated lists, and paragraph-by-paragraph restatements. Do not preserve the old article unchanged and append a diagram afterward.
+
+Do not trigger a retroactive illustration pass merely because a completed article contains drawable relationships. Typo fixes, factual corrections, link repairs, path migrations, and small wording changes do not require new figures unless the user explicitly requests them.
+
+All course article types may use diagrams. Use them for sequence, state, boundary, hierarchy, comparison, convergence, filtering, feedback, or multi-object handoff when the visual materially reduces explanation cost. Keep exact code, JSON, logs, formulas, and verbatim examples in prose when their exact form is the lesson.
+
+For this repository, the default teaching canvas is `1600 × 900`. Adjust the ratio or height only when the relationship or reading medium requires it; never solve excess scope with smaller type. Store editable course SVGs directly in `course/assets/` as `<three-digit-lesson>.<lesson-slug>.<figure-slug>.svg`. Use matching `prerequisite.` or `reference.` prefixes for unnumbered course material. Derived exports do not replace the SVG source.
+
 ## Establish the diagram brief
 
 Before drawing, identify:
