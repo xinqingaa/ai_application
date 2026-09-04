@@ -27,56 +27,56 @@
 
 第一阶段回答：真实资料怎样成为可检索证据，固定 RAG 怎样形成可诊断、可引用、可拒答的评审结论，这些结论又怎样落到有身份、有状态的需求版本上，经人逐项决策、人工批准成为基线并导出交付包，最终通过 API 与 Web 工作台交付？
 
-开始前先阅读[第一阶段项目篇](project/stage-1-rag-application/rag-review-assistant.md)中的业务场景、学习检查点和非目标，并了解根 [SPEC](../SPEC.md) 的第一阶段要求。文中的电商“售后入口”只是固定教学与评估 fixture；产品集成必须同时理解空 Project 冷启动、首个基线沉淀和已有项目迭代。
+开始前先阅读[第一阶段项目篇](lessons/033.rag-review-assistant.project.md)中的业务场景、学习检查点和非目标，并了解根 [SPEC](../SPEC.md) 的第一阶段要求。文中的电商“售后入口”只是固定教学与评估 fixture；产品集成必须同时理解空 Project 冷启动、首个基线沉淀和已有项目迭代。
 
 ## 模型进入应用
 
 这一单元先把不稳定的模型调用收敛成应用能够控制的任务、结果和错误契约，为后续 RAG 生成端提供稳定入口。
 
-1. **[LLM 在 AI 应用中的位置与边界](concepts/llm-in-ai-applications.md)** · 可学习
+1. **[LLM 在 AI 应用中的位置与边界](lessons/001.llm-in-ai-applications.concept.md)** · 可学习
    从普通确定性程序出发，区分 LLM、RAG、Agent 和 Workflow 分别解决什么问题。学完应能判断模型适合参与哪类判断，以及哪些责任必须留在应用。
-2. **[模型输入输出契约：Prompt、Schema 与 Context](concepts/model-input-output-contracts.md)** · 可学习
+2. **[模型输入输出契约：Prompt、Schema 与 Context](lessons/002.model-input-output-contracts.concept.md)** · 可学习
    模型只接收输入并生成候选输出，任务、证据和业务结果必须由应用建立契约。本节形成 Prompt、Context 和 Schema 的最小关系图，为后续三个机制单元提供共同语言。
-3. **[Model API、调用生命周期与 Provider 抽象](mechanisms/model-api-and-provider.md)** · 可学习
-   一次模型调用会经过配置、请求、供应商、响应和错误转换；业务代码不应绑定某个 SDK 对象。本节建立稳定调用边界，并通过[真实模型与 Provider 实验](labs/model-api-and-provider.md)观察切换配置时哪些事实应变、哪些契约不变。
-4. **[面向应用的 Prompt Engineering](mechanisms/prompt-engineering.md)** · 可学习
-   随手拼接 Prompt 无法稳定比较和修改。本节把 Prompt 理解为版本化任务协议，区分任务、证据、约束和输出要求，并在[单变量对照实验](labs/prompt-engineering.md)中固定模型与样例只改变 Prompt。
-5. **[Structured Output 与应用侧校验](mechanisms/structured-output.md)** · 可学习
-   “返回了 JSON”不等于结果能进入业务。本节区分模型侧格式约束、JSON 解析、Schema 校验和业务校验，并在[结构化输出实验](labs/structured-output.md)中观察失败究竟发生在哪一层。
-6. **[Reliability、错误分类与可见降级](mechanisms/reliability-and-errors.md)** · 可学习
-   超时、限流、鉴权、能力不支持和 Schema 失败不能统一重试。本节建立错误分类、有限重试和显式降级边界，并在[可靠调用实验](labs/reliability-and-errors.md)中比较真实调用与稳定失败复现能够分别证明什么。
+3. **[Model API、调用生命周期与 Provider 抽象](lessons/003.model-api-and-provider.mechanism.md)** · 可学习
+   一次模型调用会经过配置、请求、供应商、响应和错误转换；业务代码不应绑定某个 SDK 对象。本节建立稳定调用边界，并通过[真实模型与 Provider 实验](lessons/003.model-api-and-provider.lab.md)观察切换配置时哪些事实应变、哪些契约不变。
+4. **[面向应用的 Prompt Engineering](lessons/004.prompt-engineering.mechanism.md)** · 可学习
+   随手拼接 Prompt 无法稳定比较和修改。本节把 Prompt 理解为版本化任务协议，区分任务、证据、约束和输出要求，并在[单变量对照实验](lessons/004.prompt-engineering.lab.md)中固定模型与样例只改变 Prompt。
+5. **[Structured Output 与应用侧校验](lessons/005.structured-output.mechanism.md)** · 可学习
+   “返回了 JSON”不等于结果能进入业务。本节区分模型侧格式约束、JSON 解析、Schema 校验和业务校验，并在[结构化输出实验](lessons/005.structured-output.lab.md)中观察失败究竟发生在哪一层。
+6. **[Reliability、错误分类与可见降级](lessons/006.reliability-and-errors.mechanism.md)** · 可学习
+   超时、限流、鉴权、能力不支持和 Schema 失败不能统一重试。本节建立错误分类、有限重试和显式降级边界，并在[可靠调用实验](lessons/006.reliability-and-errors.lab.md)中比较真实调用与稳定失败复现能够分别证明什么。
 
 ## 建立固定 RAG 核心链
 
 这一单元沿同一份“售后入口与订单状态”资料，追踪文件怎样变成可检索候选、可装配 Context 和可检查来源的生成结果。
 
-7. **[RAG 与外部知识的边界](concepts/rag-and-external-knowledge.md)** · 可学习
+7. **[RAG 与外部知识的边界](lessons/007.rag-and-external-knowledge.concept.md)** · 可学习
    模型参数知识无法承担当前业务规则和来源追踪。本节建立“资料 → 检索 → Context → 生成”的总图，区分固定 RAG、普通搜索和后续 Agentic RAG。
-8. **[文档内容识别、解析路由、结构还原与来源保留](mechanisms/document-loading-and-cleaning.md)** · 可学习
-   文件扩展名不能保证内容可用，提取出文字也不等于保留了业务结构和来源。本节解释格式识别、解析路线、清洗与统一文档表示，并在[真实文档解析实验](labs/document-loading-and-cleaning.md)中观察正常格式、warning 和确定性失败。
-9. **[Chunking、父子块与 Metadata](mechanisms/chunking-and-metadata.md)** · 可学习
-   `DocumentElement` 保留原文结构，却未必适合检索。本节解释 Chunk 边界、overlap、父子块、稳定身份和 Metadata 怎样影响后续召回，在[Chunk 策略实验](labs/chunking-and-metadata.md)中只改变组织策略观察差异。
-10. **[Embedding 表示与向量相似度](mechanisms/embedding-and-similarity.md)** · 可学习
-    词面不同的表达需要进入同一表示空间才能比较，但相似不等于业务正确。本节建立向量、距离、空间身份和批量调用边界，并在[真实 Embedding 实验](labs/embedding-and-similarity.md)中验证同义、相邻主题和无关文本的分数方向。
-11. **[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](mechanisms/lexical-retrieval.md)** · 可学习
-    精确字段、接口名和版本号需要按词找到候选。本节解释倒排索引、查询词法、候选范围与排序，并在[从空库到第一次按词检索](labs/lexical-retrieval.md)中完成 PostgreSQL 准备、入库、日志和单变量对照。
-12. **[pgvector、Dense Retrieval 与向量索引](mechanisms/vector-store-and-pgvector.md)** · 可学习
-    成对相似度还不能在资料库中完成检索。本节把向量表示接入 pgvector，区分 Embedding 服务与向量存储，，区分 exact 与 ANN、距离与相似度、空间身份与 Metadata Filter，并在[pgvector 实验](labs/vector-store-and-pgvector.md)中比较 exact、HNSW 和查询计划。
-13. **[多路召回与 RRF 融合](mechanisms/multi-retrieval-and-rrf.md)** · 可学习
-    Lexical 和 Dense 各自返回有序候选，却没有可直接相加的统一分数。本节解释统一候选契约、排名融合和路线状态，并在[RRF 对照实验](labs/multi-retrieval-and-rrf.md)中手算贡献、改变候选数量并观察失败路线。
-14. **[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](mechanisms/retriever-contract.md)** · 可学习
-    “数据库中存在”不等于最终 Retriever 一定返回。本节固定过滤、每路候选、阈值、融合和最终截断的控制顺序，并在[Retriever 诊断实验](labs/retriever-contract.md)中定位候选在哪一层消失。
-15. **[检索名单怎样变成模型本轮 Context](mechanisms/context-engineering.md)** · 可学习
-    Retriever 找到候选后，应用还要把名单装成模型本轮真正看到的 Context。本节先说明 Evidence 是专门放外部依据的那一格，再用同一组 A、B 走完映射、分区预算和允许声明的来源，不调用生成模型；配套[Context 实验](labs/context-engineering.md)只改变 Evidence 格子观察去向。
-16. **[模型写了来源编号，为什么还不能直接相信](mechanisms/trusted-generation.md)** · 可学习
-    Context 已经交出模型本轮可见的 Evidence 和允许声明的来源，但模型仍可能改写或编造编号。本节沿“Prompt 明示允许集合 → Structured Output → 本地解析 → 逐条成员检查”生成结构化风险，准确区分 `succeeded`、结构失败和未知来源，并收住第 7–16 节固定 RAG 核心链；配套[来源声明集合检查实验](labs/trusted-generation.md)冻结上游，只改变真实 RAG Evidence、正常噪声和空 Evidence。
+8. **[文档内容识别、解析路由、结构还原与来源保留](lessons/008.document-loading-and-cleaning.mechanism.md)** · 可学习
+   文件扩展名不能保证内容可用，提取出文字也不等于保留了业务结构和来源。本节解释格式识别、解析路线、清洗与统一文档表示，并在[真实文档解析实验](lessons/008.document-loading-and-cleaning.lab.md)中观察正常格式、warning 和确定性失败。
+9. **[Chunking、父子块与 Metadata](lessons/009.chunking-and-metadata.mechanism.md)** · 可学习
+   `DocumentElement` 保留原文结构，却未必适合检索。本节解释 Chunk 边界、overlap、父子块、稳定身份和 Metadata 怎样影响后续召回，在[Chunk 策略实验](lessons/009.chunking-and-metadata.lab.md)中只改变组织策略观察差异。
+10. **[Embedding 表示与向量相似度](lessons/010.embedding-and-similarity.mechanism.md)** · 可学习
+    词面不同的表达需要进入同一表示空间才能比较，但相似不等于业务正确。本节建立向量、距离、空间身份和批量调用边界，并在[真实 Embedding 实验](lessons/010.embedding-and-similarity.lab.md)中验证同义、相邻主题和无关文本的分数方向。
+11. **[Lexical Retrieval、BM25 边界与 PostgreSQL 全文检索](lessons/011.lexical-retrieval.mechanism.md)** · 可学习
+    精确字段、接口名和版本号需要按词找到候选。本节解释倒排索引、查询词法、候选范围与排序，并在[从空库到第一次按词检索](lessons/011.lexical-retrieval.lab.md)中完成 PostgreSQL 准备、入库、日志和单变量对照。
+12. **[pgvector、Dense Retrieval 与向量索引](lessons/012.vector-store-and-pgvector.mechanism.md)** · 可学习
+    成对相似度还不能在资料库中完成检索。本节把向量表示接入 pgvector，区分 Embedding 服务与向量存储，，区分 exact 与 ANN、距离与相似度、空间身份与 Metadata Filter，并在[pgvector 实验](lessons/012.vector-store-and-pgvector.lab.md)中比较 exact、HNSW 和查询计划。
+13. **[多路召回与 RRF 融合](lessons/013.multi-retrieval-and-rrf.mechanism.md)** · 可学习
+    Lexical 和 Dense 各自返回有序候选，却没有可直接相加的统一分数。本节解释统一候选契约、排名融合和路线状态，并在[RRF 对照实验](lessons/013.multi-retrieval-and-rrf.lab.md)中手算贡献、改变候选数量并观察失败路线。
+14. **[Top-k、阈值、Metadata Filter 与 Retrieval 诊断](lessons/014.retriever-contract.mechanism.md)** · 可学习
+    “数据库中存在”不等于最终 Retriever 一定返回。本节固定过滤、每路候选、阈值、融合和最终截断的控制顺序，并在[Retriever 诊断实验](lessons/014.retriever-contract.lab.md)中定位候选在哪一层消失。
+15. **[检索名单怎样变成模型本轮 Context](lessons/015.context-engineering.mechanism.md)** · 可学习
+    Retriever 找到候选后，应用还要把名单装成模型本轮真正看到的 Context。本节先说明 Evidence 是专门放外部依据的那一格，再用同一组 A、B 走完映射、分区预算和允许声明的来源，不调用生成模型；配套[Context 实验](lessons/015.context-engineering.lab.md)只改变 Evidence 格子观察去向。
+16. **[模型写了来源编号，为什么还不能直接相信](lessons/016.trusted-generation.mechanism.md)** · 可学习
+    Context 已经交出模型本轮可见的 Evidence 和允许声明的来源，但模型仍可能改写或编造编号。本节沿“Prompt 明示允许集合 → Structured Output → 本地解析 → 逐条成员检查”生成结构化风险，准确区分 `succeeded`、结构失败和未知来源，并收住第 7–16 节固定 RAG 核心链；配套[来源声明集合检查实验](lessons/016.trusted-generation.lab.md)冻结上游，只改变真实 RAG Evidence、正常噪声和空 Evidence。
 
 ## 完成可信 RAG 与产品交付
 
 这一单元补齐“候选来源”之后的支持性与充分性，再把评审结论落到有身份、有状态的需求对象上：建立需求对象模型、结构化草稿、Finding 与决策、身份与两层角色、知识资料与项目检索池、版本生命周期与人工批准、ReviewRun 与 SSE，最后在工作台上联调，让固定 RAG 从机制链变成能批准、能交付、能迭代的真实产品。
 
-17. **[引文真的支持这条结论吗](mechanisms/citation-support.md)** · 可学习
-    来源 ID 属于本轮允许集合，仍可能搭配不存在、无关或已经失效的引文。本节先用确定性定位确认模型给出的逐字引文真实且位置唯一，再用完整来源语境判断它是支持、反驳、无关还是无法判断；配套[Citation 支持性实验](labs/citation-support.md)冻结 Claim 与引文，只改变来源的范围和适用条件。
+17. **[引文真的支持这条结论吗](lessons/017.citation-support.mechanism.md)** · 可学习
+    来源 ID 属于本轮允许集合，仍可能搭配不存在、无关或已经失效的引文。本节先用确定性定位确认模型给出的逐字引文真实且位置唯一，再用完整来源语境判断它是支持、反驳、无关还是无法判断；配套[Citation 支持性实验](lessons/017.citation-support.lab.md)冻结 Claim 与引文，只改变来源的范围和适用条件。
 18. **证据充分性、Refusal 与补充问题** · 待编写
     部分引用正确时，系统仍可能缺少形成强结论的关键事实。本节判断何时继续回答、何时拒绝，以及怎样把缺口转成用户能够补充的具体问题；继续使用结构化 Claim 与 EvidenceDecision 表达结论与缺口，不提前使用产品对象术语。拒答只表达本次掌握的证据程度，不是一种否决，是否影响后续的批准资格由第 26 节判定。
 19. **需求对象模型：项目、需求、版本、条目与基线** · 待编写
@@ -104,15 +104,15 @@
 
 这一单元不建设完整质量平台，只建立后续每次增加复杂度都能回到的固定样例、运行记录和成本基线。
 
-29. **[LLM Calling Harness 与最小回归](mechanisms/calling-harness-and-regression.md)** · 等待前置
+29. **[LLM Calling Harness 与最小回归](lessons/029.calling-harness-and-regression.mechanism.md)** · 等待前置
     单次成功输出无法比较策略变化。本节固定 Case、Run Config 和 Record，让模型、Prompt、Schema 和结果可以在同一入口重复运行。
-30. **[Token、成本、延迟与缓存边界](mechanisms/cost-latency-and-caching.md)** · 等待前置
+30. **[Token、成本、延迟与缓存边界](lessons/030.cost-latency-and-caching.mechanism.md)** · 等待前置
     质量提升必须同时看到资源代价。本节记录 usage、成本、阶段耗时和缓存身份，区分真正节省调用与缓存掩盖实验变化。
 31. **Evaluation Dataset 与最小 Golden Set** · 待编写
     探索样例不能直接承担验收。本节固定问题、期望来源、Finding 覆盖、无答案行为和数据集版本，区分 development 与 acceptance；Target Requirement fixture 经导入成为 RequirementVersion 后作为固定评审对象。
 32. **直接 LLM、Lexical、Dense 与 RRF RAG 对比** · 待编写
     使用同一输入、生成模型、Prompt、Schema 和预算，只改变检索路线，比较质量、成本、延迟、空结果和失败，形成第一阶段基线。对照物是 ReviewRun 的已校验 Finding 与 `evidence_decision`，检索路线仍是唯一主要变量。
-33. **[第一阶段：固定 RAG 需求评审助手](project/stage-1-rag-application/rag-review-assistant.md)** · 等待前置
+33. **[第一阶段：固定 RAG 需求评审助手](lessons/033.rag-review-assistant.project.md)** · 等待前置
     回到项目篇完成固定 RAG 需求定义、评审与交付工作台、真实 bad case、需求修改和冻结对照，并用 Docker Compose 固定应用与 Postgres / pgvector 的可复现验收环境。阶段验收要求从资料身份追踪到 Citation，从条目来源追踪到 Decision 与基线，并能区分证据不足、系统失败与状态规则拒绝。环境打包等工程收尾能力不占课程编号，由本节验收承担。
 
 # 第二阶段：Agent、Tools 与 Multi-Agent 系统
@@ -124,7 +124,7 @@
 - **第 34–76 节：Agent 应用开发核心链路。** 从 LangChain Agent 出发，完成 Agentic RAG、Tool Runtime、LangGraph 的状态与恢复、需求 Brief 追问与 propose / Diff / apply 确认门、MCP / File / Code 与变更影响分析、事件、运行界面和 LangSmith 观测评估的第一个可运行闭环。
 - **第 77–110 节：高级 Agent 能力与完整体系。** 在核心闭环上继续学习 Agent Skills、Deep Research、Multi-Agent、A2A、复杂 Workflow、跨系统观测与回归。第 76 节是一个里程碑，不是课程终点；后续内容仍属于完整 Agent 开发知识范围。
 
-开始第 34 节前，先阅读[第二阶段项目篇](project/stage-2-agent-system/agent-review-assistant.md)的贯穿场景、检查点和非目标。课程继续使用“售后入口”这一 Requirement 及其基线作为固定 fixture，增加 OpenAPI、Flutter / Web 客户端模型、配置、外部需求和定向验证，v2 是同一 Requirement 的新版本，不更换基线案例；真实产品同时支持空 Project 冷启动和已有项目迭代。Agent 复用第一阶段的需求对象模型与批准门，正式写入只走 propose / Diff / apply。
+开始第 34 节前，先阅读[第二阶段项目篇](lessons/110.agent-review-assistant.project.md)的贯穿场景、检查点和非目标。课程继续使用“售后入口”这一 Requirement 及其基线作为固定 fixture，增加 OpenAPI、Flutter / Web 客户端模型、配置、外部需求和定向验证，v2 是同一 Requirement 的新版本，不更换基线案例；真实产品同时支持空 Project 冷启动和已有项目迭代。Agent 复用第一阶段的需求对象模型与批准门，正式写入只走 propose / Diff / apply。
 
 框架不是附加在机制课程之外的第二条路线。框架能力本身进入机制篇：每个框架单元都以一个产品问题为入口，解释框架怎样实现当前能力、公开抽象怎样协作、应用还承担什么责任以及失败边界在哪里；具体安装、SDK 版本、完整调用、日志和调试进入配套实验。
 
@@ -331,7 +331,7 @@ LangGraph 的恢复原语已经前置。本单元只处理 Research 或多 Agent
     自动 Judge 可以扩大评估规模，但会继承模型偏差。本节定义适用任务、评分契约、校准样例和人工复核，不让 Judge 替代产品验收责任。
 109. **从 Bad Case 到反馈闭环** · 待编写
     把线上失败、人工反馈和研究缺口转成可复现 Case，经过分类、修复、回归和版本记录进入质量闭环，而不是只保存聊天截图。
-110. **[第二阶段：Agent 协作需求评审系统](project/stage-2-agent-system/agent-review-assistant.md)** · 等待前置
+110. **[第二阶段：Agent 协作需求评审系统](lessons/110.agent-review-assistant.project.md)** · 等待前置
     完成框架驱动的 `agent_core`、Agentic RAG、LangGraph 恢复、需求 Brief 追问、propose / Diff / apply 确认门、真实 MCP、Search、Browser、File、Code、变更影响分析、Agent Skills、Deep Research、Multi-Agent、A2A、运行界面和统一回归。最终产品必须在同一 Requirement 的多端契约版本上展示证据、权限、停止、冲突、恢复、人工批准门以及与固定 RAG、单 Agent 等基线的可解释差异。
 
 完整能力范围、扩展知识和实现位置见[知识地图](knowledge-map.md)。

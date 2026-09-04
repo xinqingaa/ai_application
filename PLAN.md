@@ -148,7 +148,7 @@ MCP 与 A2A 优先通过官方 SDK 或成熟适配器实现协议连接，不在
 
 ## 6. 实验边界
 
-`source/demos/` 只用于观察机制、对照变量和稳定复现失败。实验操作教材位于 `course/labs/`；demo README 只维护代码入口和测试索引。
+`source/demos/` 只用于观察机制、对照变量和稳定复现失败。实验操作教材位于 `course/lessons/`；demo README 只维护代码入口和测试索引。
 
 ## 7. 实现准入
 

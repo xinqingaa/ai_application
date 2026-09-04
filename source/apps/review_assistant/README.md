@@ -33,7 +33,7 @@
 ## 与课程的边界
 
 ```text
-course/project/       项目篇教材：综合任务、设计选择、失败题和学习验收
+course/lessons/       项目篇教材：综合任务、设计选择、失败题和学习验收
 source/apps/review_assistant/     产品真源：代码、API、测试、配置、运行和部署
 ```
 
@@ -91,7 +91,7 @@ source/apps/review_assistant/
 
 **正在学习 Lexical Retrieval 时，不要从本节开始。** 从空库到第一次 FTS 查询，只走：
 
-> [Lexical Retrieval 实验](../../../course/labs/lexical-retrieval.md)
+> [Lexical Retrieval 实验](../../../course/lessons/011.lexical-retrieval.lab.md)
 
 本节保留产品级安装：Role、两个 Database、`0001` 与 `0002`、测试库，以及 Dense Retrieval 需要的 pgvector。不自动安装 PostgreSQL、GUI 或系统服务。当前 macOS 学习主路径推荐 [Postgres.app](https://postgresapp.com/)，因为安装简单、包含 `psql`，并预装后续检索实验需要的 pgvector；PostgreSQL 官方也在 [macOS packages](https://www.postgresql.org/download/macosx/) 页面列出了 Postgres.app、EDB installer 和 Homebrew 等方式。
 
@@ -180,7 +180,7 @@ Postgres.app 的窗口主要负责本地 Server 生命周期；pgAdmin 才是完
 
 ## 运行 PostgreSQL FTS 实验
 
-课程实验的命令、写入说明和输出解读见 [Lexical Retrieval 实验](../../../course/labs/lexical-retrieval.md)。
+课程实验的命令、写入说明和输出解读见 [Lexical Retrieval 实验](../../../course/lessons/011.lexical-retrieval.lab.md)。
 
 产品侧可选集成测试：
 
@@ -218,7 +218,7 @@ uv run python source/demos/rag_retrieval_lab/inspect_dense_retrieval.py --search
 uv run python source/demos/rag_retrieval_lab/inspect_rrf_retrieval.py --verbose
 ```
 
-该入口继续调用真实 FTS、真实 Embedding 和 pgvector。它不会把两路原始分数归一化相加；参数和输出解读由 [多路召回与 RRF 实验](../../../course/labs/multi-retrieval-and-rrf.md) 维护。
+该入口继续调用真实 FTS、真实 Embedding 和 pgvector。它不会把两路原始分数归一化相加；参数和输出解读由 [多路召回与 RRF 实验](../../../course/lessons/013.multi-retrieval-and-rrf.lab.md) 维护。
 
 ## PostgreSQL 常见排查
 

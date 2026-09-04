@@ -16,7 +16,7 @@ source/
 
 ## `demos/`
 
-用于机制观察、策略对照和稳定失败复现，不承担最终产品逻辑。完整实验教材位于 `course/labs/`；demo README 只维护代码入口、文件职责、测试和对应实验链接。
+用于机制观察、策略对照和稳定失败复现，不承担最终产品逻辑。完整实验教材位于 `course/lessons/`；demo README 只维护代码入口、文件职责、测试和对应实验链接。
 
 ## `apps/review_assistant/`
 

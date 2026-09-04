@@ -60,7 +60,7 @@
 
 ### 实验篇
 
-回答“代码怎样准备和运行、改变什么、观察什么、失败时怎样定位”。正文位于 `course/labs/`，真实代码位于 `source/demos/` 或阶段产品。
+回答“代码怎样准备和运行、改变什么、观察什么、失败时怎样定位”。正文位于 `course/lessons/`，真实代码位于 `source/demos/` 或阶段产品。
 
 实验篇至少承担：
 
@@ -81,7 +81,7 @@
 
 ### 项目篇
 
-回答“怎样把已学能力组合成可验收产品结果”。项目篇位于 `course/project/`，引用根 [SPEC.md](../SPEC.md) 的产品要求和 [SDD.md](../SDD.md) 的详细契约，负责学习目标、设计题、集成检查点、需求变更、bad case 和阶段验收。
+回答“怎样把已学能力组合成可验收产品结果”。项目篇位于 `course/lessons/`，引用根 [SPEC.md](../SPEC.md) 的产品要求和 [SDD.md](../SDD.md) 的详细契约，负责学习目标、设计题、集成检查点、需求变更、bad case 和阶段验收。
 
 项目篇至少讲清：阶段问题、已有能力、数据/状态/异常流、设计选择、真实代码入口、集成检查点、自然 bad case、需求变更、验收证据和非目标。涉及框架时还要验收框架运行时、本地通用层与领域组装的职责分界，新能力是否进入正确层次，以及相对更简单实现的收益；不能用“框架能够运行”代替产品验收。项目篇不能复制产品规格、详细设计或运行手册；产品安装、API、运行和部署由 `source/apps/review_assistant/README.md` 维护。
 
@@ -132,7 +132,7 @@
 
 - `course/learning-path.md`：现在读什么，以及唯一编号。
 - `course/knowledge-map.md`：有哪些能力、前置、定位、核心边界和学习入口，不安排顺序。
-- `course/project/`：怎样把知识组合成阶段综合实践，不复制产品 Spec。
+- `course/lessons/`：怎样把知识组合成阶段综合实践，不复制产品 Spec。
 
 知识地图不维护课程序号，不要求知识项与正文一一对应。一个知识节点可以由概念、机制和实验共同承担；一篇正文也可以覆盖同一问题下的多个紧密知识点。
 
@@ -151,10 +151,7 @@
 ## 6. 代码与文档关系
 
 ```text
-course/concepts/               概念
-course/mechanisms/             机制
-course/labs/                   实验教材
-course/project/                综合实践教材
+course/lessons/                概念、机制、实验与项目教材
 source/packages/               通用能力唯一实现
 source/demos/                  实验代码
 source/apps/review_assistant/  唯一产品

@@ -84,7 +84,7 @@ description: >-
 
 ## 实验篇
 
-正文位于 `course/labs/`，代码位于 `source/demos/` 或产品。实验篇必须让学习者不依赖已删除的旧文档也能完成操作。
+正文位于 `course/lessons/`，代码位于 `source/demos/` 或产品。实验篇必须让学习者不依赖已删除的旧文档也能完成操作。
 
 至少讲清：
 

@@ -78,6 +78,6 @@ uv run python source/demos/llm_regression_lab/cost_latency_cache.py
 ## 相关
 
 - Package：[source/packages/llm_core/](../../packages/llm_core/)
-- [Calling Harness](../../../course/mechanisms/calling-harness-and-regression.md)
-- [Token、成本、延迟与缓存](../../../course/mechanisms/cost-latency-and-caching.md)
+- [Calling Harness](../../../course/lessons/029.calling-harness-and-regression.mechanism.md)
+- [Token、成本、延迟与缓存](../../../course/lessons/030.cost-latency-and-caching.mechanism.md)
 - 可靠调用实验：[llm_reliability_lab](../llm_reliability_lab/)

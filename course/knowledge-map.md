@@ -19,14 +19,14 @@
 
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
-| LLM 应用边界 | 主线 | 第一阶段 | 区分确定性程序、模型生成、RAG、Agent 与 Workflow，判断哪些责任不能交给模型 | 无 | [概念](concepts/llm-in-ai-applications.md) | 产品必接；指导整体选型 |
-| Prompt、Schema 与 Context 契约 | 主线 | 第一阶段 | 把任务、证据和输出形状分开，避免把 Prompt 当作应用全部契约 | LLM 边界 | [概念](concepts/model-input-output-contracts.md) | 产品必接；`llm_core` 与产品 Schema |
-| 调用生命周期与 Provider | 主线 | 第一阶段 | 统一配置、请求、响应、使用量和供应商错误，业务不绑定具体 SDK | HTTP、JSON、配置 | [机制](mechanisms/model-api-and-provider.md) · [实验](labs/model-api-and-provider.md) | 产品必接；`llm_core` |
-| Prompt Engineering | 主线 | 第一阶段 | 将 Prompt 变成版本化任务协议，能固定输入并比较单一变化 | 调用边界 | [机制](mechanisms/prompt-engineering.md) · [实验](labs/prompt-engineering.md) | 产品必接；`llm_core/prompts` |
-| Structured Output 与应用校验 | 主线 | 第一阶段 | 区分模型格式约束、解析、Schema 与业务校验，失败不能静默修成成功 | Prompt、JSON Schema | [机制](mechanisms/structured-output.md) · [实验](labs/structured-output.md) | 产品必接；`llm_core/structured` 与产品 Schema |
-| Reliability 与错误分类 | 主线 | 第一阶段 | 按错误性质决定重试、失败或显式降级，不让可靠性外壳掩盖真实错误 | Provider、Structured Output | [机制](mechanisms/reliability-and-errors.md) · [实验](labs/reliability-and-errors.md) | 产品必接；`llm_core` |
-| Calling Harness、Case 与 Record | 主线 | 第一阶段 | 用稳定 Case、运行配置和记录重复比较调用，不把一次输出当回归 | 模型调用、Prompt、Schema | [机制](mechanisms/calling-harness-and-regression.md) | 产品必接；`llm_core` 与产品 eval |
-| Token、成本、延迟与缓存 | 主线 | 第一阶段 | 记录资源代价和缓存身份，区分真实节省与缓存污染实验 | Calling Harness | [机制](mechanisms/cost-latency-and-caching.md) | 产品必接；运行记录 |
+| LLM 应用边界 | 主线 | 第一阶段 | 区分确定性程序、模型生成、RAG、Agent 与 Workflow，判断哪些责任不能交给模型 | 无 | [概念](lessons/001.llm-in-ai-applications.concept.md) | 产品必接；指导整体选型 |
+| Prompt、Schema 与 Context 契约 | 主线 | 第一阶段 | 把任务、证据和输出形状分开，避免把 Prompt 当作应用全部契约 | LLM 边界 | [概念](lessons/002.model-input-output-contracts.concept.md) | 产品必接；`llm_core` 与产品 Schema |
+| 调用生命周期与 Provider | 主线 | 第一阶段 | 统一配置、请求、响应、使用量和供应商错误，业务不绑定具体 SDK | HTTP、JSON、配置 | [机制](lessons/003.model-api-and-provider.mechanism.md) · [实验](lessons/003.model-api-and-provider.lab.md) | 产品必接；`llm_core` |
+| Prompt Engineering | 主线 | 第一阶段 | 将 Prompt 变成版本化任务协议，能固定输入并比较单一变化 | 调用边界 | [机制](lessons/004.prompt-engineering.mechanism.md) · [实验](lessons/004.prompt-engineering.lab.md) | 产品必接；`llm_core/prompts` |
+| Structured Output 与应用校验 | 主线 | 第一阶段 | 区分模型格式约束、解析、Schema 与业务校验，失败不能静默修成成功 | Prompt、JSON Schema | [机制](lessons/005.structured-output.mechanism.md) · [实验](lessons/005.structured-output.lab.md) | 产品必接；`llm_core/structured` 与产品 Schema |
+| Reliability 与错误分类 | 主线 | 第一阶段 | 按错误性质决定重试、失败或显式降级，不让可靠性外壳掩盖真实错误 | Provider、Structured Output | [机制](lessons/006.reliability-and-errors.mechanism.md) · [实验](lessons/006.reliability-and-errors.lab.md) | 产品必接；`llm_core` |
+| Calling Harness、Case 与 Record | 主线 | 第一阶段 | 用稳定 Case、运行配置和记录重复比较调用，不把一次输出当回归 | 模型调用、Prompt、Schema | [机制](lessons/029.calling-harness-and-regression.mechanism.md) | 产品必接；`llm_core` 与产品 eval |
+| Token、成本、延迟与缓存 | 主线 | 第一阶段 | 记录资源代价和缓存身份，区分真实节省与缓存污染实验 | Calling Harness | [机制](lessons/030.cost-latency-and-caching.mechanism.md) | 产品必接；运行记录 |
 
 ## 固定 RAG 与可信证据
 
@@ -34,17 +34,17 @@
 
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
-| RAG、搜索、数据库与 Agentic RAG 边界 | 主线 | 第一阶段 | 区分内部可引用知识、外部搜索、存储和动态检索决策，建立完整 RAG 总图 | LLM 契约 | [概念](concepts/rag-and-external-knowledge.md) | 产品必接；架构边界 |
-| 内容识别、解析路由与来源保留 | 主线 | 第一阶段 | 根据真实内容选择解析路线，保留结构、版本、定位和明确失败 | 文件、字符串 | [机制](mechanisms/document-loading-and-cleaning.md) · [实验](labs/document-loading-and-cleaning.md) | 产品必接；`rag_core/ingestion` |
-| Chunking、父子块与 Metadata | 主线 | 第一阶段 | 把文档结构转换为可检索单位，同时保持身份、来源和业务过滤信息 | 统一文档表示 | [机制](mechanisms/chunking-and-metadata.md) · [实验](labs/chunking-and-metadata.md) | 产品必接；`rag_core/chunking` |
-| Embedding 与相似度 | 主线 | 第一阶段 | 在固定向量空间比较语义接近程度，明确度量方向和空间身份 | Chunk、真实 Provider | [机制](mechanisms/embedding-and-similarity.md) · [实验](labs/embedding-and-similarity.md) | 产品必接；`rag_core/embedding` |
-| Lexical Retrieval 与 PostgreSQL FTS | 主线 | 第一阶段 | 用词项和倒排索引召回精确字段、接口名与版本，区分候选匹配和业务理解 | PostgreSQL、Chunk | [机制](mechanisms/lexical-retrieval.md) · [实验](labs/lexical-retrieval.md) | 产品必接；`rag_core/retrieval` 与 PostgreSQL |
-| pgvector、Dense Retrieval 与 ANN | 主线 | 第一阶段 | 区分 Embedding 服务与向量存储，在数据库中保存同一空间的向量，建立 exact 基线后再理解 ANN 的收益与边界 | Embedding、PostgreSQL | [机制](mechanisms/vector-store-and-pgvector.md) · [实验](labs/vector-store-and-pgvector.md) | 产品必接；`rag_core/retrieval` 与 pgvector |
-| 多路召回与 RRF | 主线 | 第一阶段 | 将不可直接相加的多路排名按统一候选身份融合，并保留路线贡献 | Lexical、Dense | [机制](mechanisms/multi-retrieval-and-rrf.md) · [实验](labs/multi-retrieval-and-rrf.md) | 产品必接；`rag_core/retrieval` |
-| Top-k、阈值、Filter 与诊断 | 主线 | 第一阶段 | 固定过滤、每路候选、阈值、融合和截断顺序，解释候选在哪层消失 | 多路召回 | [机制](mechanisms/retriever-contract.md) · [实验](labs/retriever-contract.md) | 产品必接；Retriever Contract |
-| Context 装配、预算与 Compression | 主线 | 第一阶段 | 把检索名单装成模型本轮可见 Context；Evidence 是专门放外部依据的一格，装入时控制身份、分区预算和允许声明的来源 | Retriever Contract | [机制](mechanisms/context-engineering.md) · [实验](labs/context-engineering.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
-| 结构化生成与来源声明集合检查 | 主线 | 第一阶段 | 把 BuiltContext 交给真实结构化模型，并逐条检查模型声明的 source ID 是否属于本轮 Citation Candidate；`succeeded` 只表示结构合法且声明未越界，不判断内容支持性、证据充分性或流式界面状态 | Context、Structured Output | [机制](mechanisms/trusted-generation.md) · [实验](labs/trusted-generation.md) | 产品必接；`rag_core/generation` |
-| Citation 支持性 | 主线 | 第一阶段 | 判断被引用内容是否真正支持对应结论，合法 ID 不能代替语义支持 | 可信生成 | [机制](mechanisms/citation-support.md) · [实验](labs/citation-support.md) | 产品必接；`rag_core/evidence` |
+| RAG、搜索、数据库与 Agentic RAG 边界 | 主线 | 第一阶段 | 区分内部可引用知识、外部搜索、存储和动态检索决策，建立完整 RAG 总图 | LLM 契约 | [概念](lessons/007.rag-and-external-knowledge.concept.md) | 产品必接；架构边界 |
+| 内容识别、解析路由与来源保留 | 主线 | 第一阶段 | 根据真实内容选择解析路线，保留结构、版本、定位和明确失败 | 文件、字符串 | [机制](lessons/008.document-loading-and-cleaning.mechanism.md) · [实验](lessons/008.document-loading-and-cleaning.lab.md) | 产品必接；`rag_core/ingestion` |
+| Chunking、父子块与 Metadata | 主线 | 第一阶段 | 把文档结构转换为可检索单位，同时保持身份、来源和业务过滤信息 | 统一文档表示 | [机制](lessons/009.chunking-and-metadata.mechanism.md) · [实验](lessons/009.chunking-and-metadata.lab.md) | 产品必接；`rag_core/chunking` |
+| Embedding 与相似度 | 主线 | 第一阶段 | 在固定向量空间比较语义接近程度，明确度量方向和空间身份 | Chunk、真实 Provider | [机制](lessons/010.embedding-and-similarity.mechanism.md) · [实验](lessons/010.embedding-and-similarity.lab.md) | 产品必接；`rag_core/embedding` |
+| Lexical Retrieval 与 PostgreSQL FTS | 主线 | 第一阶段 | 用词项和倒排索引召回精确字段、接口名与版本，区分候选匹配和业务理解 | PostgreSQL、Chunk | [机制](lessons/011.lexical-retrieval.mechanism.md) · [实验](lessons/011.lexical-retrieval.lab.md) | 产品必接；`rag_core/retrieval` 与 PostgreSQL |
+| pgvector、Dense Retrieval 与 ANN | 主线 | 第一阶段 | 区分 Embedding 服务与向量存储，在数据库中保存同一空间的向量，建立 exact 基线后再理解 ANN 的收益与边界 | Embedding、PostgreSQL | [机制](lessons/012.vector-store-and-pgvector.mechanism.md) · [实验](lessons/012.vector-store-and-pgvector.lab.md) | 产品必接；`rag_core/retrieval` 与 pgvector |
+| 多路召回与 RRF | 主线 | 第一阶段 | 将不可直接相加的多路排名按统一候选身份融合，并保留路线贡献 | Lexical、Dense | [机制](lessons/013.multi-retrieval-and-rrf.mechanism.md) · [实验](lessons/013.multi-retrieval-and-rrf.lab.md) | 产品必接；`rag_core/retrieval` |
+| Top-k、阈值、Filter 与诊断 | 主线 | 第一阶段 | 固定过滤、每路候选、阈值、融合和截断顺序，解释候选在哪层消失 | 多路召回 | [机制](lessons/014.retriever-contract.mechanism.md) · [实验](lessons/014.retriever-contract.lab.md) | 产品必接；Retriever Contract |
+| Context 装配、预算与 Compression | 主线 | 第一阶段 | 把检索名单装成模型本轮可见 Context；Evidence 是专门放外部依据的一格，装入时控制身份、分区预算和允许声明的来源 | Retriever Contract | [机制](lessons/015.context-engineering.mechanism.md) · [实验](lessons/015.context-engineering.lab.md) | 产品必接；`llm_core/context` 与 RAG 适配 |
+| 结构化生成与来源声明集合检查 | 主线 | 第一阶段 | 把 BuiltContext 交给真实结构化模型，并逐条检查模型声明的 source ID 是否属于本轮 Citation Candidate；`succeeded` 只表示结构合法且声明未越界，不判断内容支持性、证据充分性或流式界面状态 | Context、Structured Output | [机制](lessons/016.trusted-generation.mechanism.md) · [实验](lessons/016.trusted-generation.lab.md) | 产品必接；`rag_core/generation` |
+| Citation 支持性 | 主线 | 第一阶段 | 判断被引用内容是否真正支持对应结论，合法 ID 不能代替语义支持 | 可信生成 | [机制](lessons/017.citation-support.mechanism.md) · [实验](lessons/017.citation-support.lab.md) | 产品必接；`rag_core/evidence` |
 | 证据充分性、Refusal 与补充问题 | 主线 | 第一阶段 | 在证据不足时拒绝强结论，并把缺口转成具体可回答问题；判定只表达证据程度，不决定批准资格 | Citation 支持性 | 待编写机制与实验 | 产品必接；后续 `rag_core/evidence` |
 | Reranker 与准入证据 | 扩展 | 第一阶段 | 在固定召回基线后学习重排，以及什么收益证据才足以进入产品 | RRF、Golden Set | 待编写机制正文 | 条件接入；不作为固定基线默认能力 |
 | 文档更新、删除与 Citation 失效 | 扩展 | 第一阶段 | 处理知识版本变化后索引、缓存和历史 Citation 的失效与重建 | 来源身份、Citation | 待编写机制正文 | 条件接入；知识治理 |
@@ -221,7 +221,7 @@
 | 知识 | 定位 | 阶段 | 核心问题与边界 | 前置 | 学习入口 | 产品关系与实现入口 |
 | --- | --- | --- | --- | --- | --- | --- |
 | Python、HTTP、JSON、异步与配置 | 必备基础 | 跨阶段 | 读写类型、异常、异步、网络请求、Schema、环境变量和配置，不展开通用语言课程 | 无 | `source/python_base/` | 产品必备；根项目 |
-| PostgreSQL、SQL 与本地运行 | 必备基础 | 第一阶段 | 理解 Server、Database、Schema、Role、migration、SQL 与真实权限 | Python 基础 | [概念](concepts/postgresql-for-ai-applications.md) · [实验](labs/lexical-retrieval.md) | 产品必备；产品 infra |
+| PostgreSQL、SQL 与本地运行 | 必备基础 | 第一阶段 | 理解 Server、Database、Schema、Role、migration、SQL 与真实权限 | Python 基础 | [概念](lessons/prerequisite.postgresql-for-ai-applications.concept.md) · [实验](lessons/011.lexical-retrieval.lab.md) | 产品必备；产品 infra |
 | 用户身份与认证 | 主线 | 第一阶段 | 建立注册/登录、凭证校验、Cookie Session 签发、失效与登出的最小认证生命周期，为角色边界提供后端可依赖的身份事实；认证方式的选择传导到 SSE 传输实现 | HTTP、异步 | 待编写机制正文 | 产品必接；`review_assistant/app` |
 | 系统角色与项目成员角色（产品 RBAC） | 主线 | 第一阶段 | 用系统 admin / member 与项目 owner / editor / viewer 两层角色、取交集的授权规则区分可见路由与可执行动作；提交批准、退回 / 撤回、批准、正式导出、成员管理与编辑 Brief 六类动作只能由人触发，系统 admin 不因系统角色获得项目批准权；这里只回答产品界面上谁能点什么，不能与第二阶段 Tool 权限（模型能执行什么）混为一谈，二者在 Tool 权限单元中显式对照，Agent 以发起者的项目角色行动、没有独立角色 | 用户身份与认证 | 待编写机制正文 | 产品必接；`review_assistant/app` |
 | FastAPI 与 SSE | 主线 | 跨阶段 | 用稳定 HTTP API 和事件传输连接后端状态与 Web 工作台；第一阶段先用阶段状态流与结构化增量校验边界，第二阶段深化为完整 Agent Event 协议 | HTTP、异步 | 对应机制与实验篇 | 产品必接；产品 app |

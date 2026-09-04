@@ -30,10 +30,7 @@
 
 ```text
 docs/                           战略与规范
-course/concepts/                概念篇
-course/mechanisms/              机制篇
-course/labs/                    实验篇
-course/project/                 项目篇
+course/lessons/                 概念、机制、实验与项目篇
 source/packages/                通用能力
 source/demos/                   实验代码
 source/apps/review_assistant/   唯一产品

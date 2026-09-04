@@ -77,7 +77,7 @@ Citation 成员资格（已完成，第 16 节）
 2. **ReviewRun 终态只有三个**：`completed / failed / cancelled`。证据充分性是业务结论，作为 `completed` 上的 `evidence_decision` 字段承载，不提为终态。失败原因作为 `failure_reason` 枚举，不扩成更多状态。ReviewRun 结果不驱动任何版本状态迁移。
 3. **知识资料在暂存时完成切分与向量化**，发布是一次廉价的版本翻转。已批准版本的索引则在批准事务之后执行，失败落 `index_failed`、可重试、不回滚批准；两者都不需要队列（第一阶段不引入 Redis）。
 4. **第 17 节做两段校验**：确定性引文定位在前，模型支持性判断在后。只做前者会让 17 退化成第 16 节的加强版，失去独立核心问题。
-5. **第 28 节新建文件**，位于 `course/project/stage-1-rag-application/`，与 `rag-review-assistant.md` 并列。理由是学习路径的状态标记按编号对应文件；28 可写而 33 等待前置，共用一个文件无法标状态。
+5. **第 28 节新建文件**，位于 `course/lessons/`，与 `033.rag-review-assistant.project.md` 并列。理由是学习路径的状态标记按编号对应文件；28 可写而 33 等待前置，共用一个文件无法标状态。
 6. **认证使用 Cookie Session，不用 Bearer Token。** 原生 `EventSource` 无法设置请求头，Bearer 方案会迫使 token 进 query string（进访问日志）或放弃 `EventSource` 自行解析流。单一同源 Web 工作台、无移动端，Bearer 的好处一个都用不上。这条决定属于第 23 节，并向第 27 节的传输实现传导，正文中要说明这层传导关系。
 7. **两层角色、权限取交集**：系统 admin / member 与项目 owner / editor / viewer；系统 admin 不因系统角色获得项目批准权。动作矩阵以 `SDD.md` 第 6 节为准，第 24 节只解释规则与两层授权决定，不复制矩阵。
 8. **`revision` 只随内容变化递增**，Decision 不递增；它同时是乐观并发判据与“旧 ReviewRun 是否仍可用于批准”的判据。不建单编辑者锁。
@@ -158,7 +158,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 
 不做这条绑定的后果：admin 发布、其他 Requirement 批准与本次评审并发时，中途变化会改变候选池，Citation 无法复现，批准门无法判断旧运行是否仍有效，冻结的 acceptance Golden Set 失去意义。
 
-`course/mechanisms/retriever-contract.md` 中 `dataset_version` 目前只是实验运行身份；第 25 节要说明它在产品中升级为 Metadata Filter 的一部分，参与“两路检索前应用过滤”这一步，`approved_requirement_version_ids` 按 `document_version` 集合过滤是同一步的第二个过滤条件。
+`course/lessons/014.retriever-contract.mechanism.md` 中 `dataset_version` 目前只是实验运行身份；第 25 节要说明它在产品中升级为 Metadata Filter 的一部分，参与“两路检索前应用过滤”这一步，`approved_requirement_version_ids` 按 `document_version` 集合过滤是同一步的第二个过滤条件。
 
 ### SSE 事件契约（第 27 节定义）
 
@@ -182,7 +182,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - **支持档位必须含“无法判定”**，且该档在结果中可见。校验器自身失败不得默认算作支持——这是“不静默降级”在本节的具体形态。
 - **它是业务校验器，不是评估 Judge。** 固定 Prompt 版本与 Schema，结果进业务结果。LLM-as-Judge 的人工校准在第 108 节、第二阶段，本节正文要有一句显式区分。
 - **成本**：一次 run 的所有声明合并为一次调用，Token 与成本进诊断。
-- **对第 16 节的扩展**：本节把生成 Schema 从“声明 source_id”升级为“声明 source_id + 逐字引文”。由本节承担这次扩展并解释为什么现在才加（第 16 节时还没有支持性概念，加了也无人消费）；`course/mechanisms/trusted-generation.md` 末段已有一句向后指引。
+- **对第 16 节的扩展**：本节把生成 Schema 从“声明 source_id”升级为“声明 source_id + 逐字引文”。由本节承担这次扩展并解释为什么现在才加（第 16 节时还没有支持性概念，加了也无人消费）；`course/lessons/016.trusted-generation.mechanism.md` 末段已有一句向后指引。
 - **实验单变量**：冻结上游，只替换证据片段。四个 fixture——真支持 / 引文真实但与声明无关 / 引文与声明矛盾 / 引文根本不存在。最后一个由第一段拦下，前三个走到第二段，顺带让学习者看清两段各自能证明什么。
 - **向第二阶段的交付边界**：本节校验器以“本轮允许集合”为输入，不关心它由一次检索还是运行级证据登记簿产生。第二阶段把允许集合泛化为登记簿（`SDD.md` 第 4.3 节）时，第 16、17 节正文都不需要改。正文用一句点明这层输入边界即可，不展开第二阶段。
 - **非目标**：不判断整份结论的充分性；不做 Refusal 决策；不设计界面；不引入产品对象术语。
@@ -313,7 +313,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 
 ### 28 需求工作台集成检查点
 
-- **类型**：项目篇，新建文件于 `course/project/stage-1-rag-application/`
+- **类型**：项目篇，新建文件于 `course/lessons/`
 - **核心问题**：怎样把需求创建 / 导入、评审、决策、批准、导出与知识管理接入同一 Web 工作台？
 - **交付**：最小真实前后端联调与验收证据。
 - **必须显式声明的非目标**：不做 Golden Set、不做四路对照、不设质量门槛、不做需求变更题——全部属于第 33 节。本节只验证闭环能真实跑通。
@@ -337,7 +337,7 @@ ReviewRun 在进入 `retrieving` 时钉住 `requirement_version_id + revision`�
 - [ ] `course/learning-path.md` 第 28 条目：链接指向新建的项目篇文件。
 - [ ] `course/learning-path.md` 第 17–28 条目：每节写完后按最终交付重写介绍（当前介绍是起草前基准）。
 - [ ] `course/knowledge-map.md`：各节正文落地后把对应节点的“学习入口”从“待编写”改为实际链接。
-- [ ] `course/project/stage-1-rag-application/rag-review-assistant.md`：第 28 节文件建立后，在“分段实现顺序”第 12 步加一句指向它。
+- [ ] `course/lessons/033.rag-review-assistant.project.md`：第 28 节文件建立后，在“分段实现顺序”第 12 步加一句指向它。
 
 ## 冻结规则
 

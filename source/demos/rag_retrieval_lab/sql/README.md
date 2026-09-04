@@ -76,4 +76,4 @@ ORDER BY q.mode, rank DESC, c.chunk_id;
 
 若要观察应用完整链路，请回到 `inspect_lexical_retrieval.py --verbose`；若要机器可读地比较匹配总数和返回数，请使用 `--log-format json`。
 
-完整操作顺序见 [实验篇](../../../../course/labs/lexical-retrieval.md)；词面机制见 [课程正文](../../../../course/mechanisms/lexical-retrieval.md)。
+完整操作顺序见 [实验篇](../../../../course/lessons/011.lexical-retrieval.lab.md)；词面机制见 [课程正文](../../../../course/lessons/011.lexical-retrieval.mechanism.md)。
