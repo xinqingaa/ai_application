@@ -19,19 +19,28 @@ Never silently switch routes after the user selected one. If the user explicitly
 
 ## Resolve the backend
 
-Use the bundled bridge; it performs no network access and never installs software:
+Use the bundled bridge. `detect` is read-only; `ensure` and every functional command install the pinned backend on first use when no complete installation exists:
 
 ```bash
 python3 skills/editorial-system-diagrams/scripts/fireworks_bridge.py detect
+python3 skills/editorial-system-diagrams/scripts/fireworks_bridge.py ensure
 ```
 
-A complete backend contains at least `SKILL.md`, `scripts/fireworks.py`, `schemas/diagram-v1.schema.json`, and `references/composition-quality-contract.md`. The bridge checks an explicit `FIREWORKS_SKILL_ROOT`, then Codex skill locations under `CODEX_HOME`, `~/.codex/skills`, and `~/.agents/skills`.
+When another script needs the absolute backend path, use the locator/bootstrap wrapper:
+
+```bash
+skills/editorial-system-diagrams/scripts/find_fireworks.sh
+```
+
+A complete backend contains at least `SKILL.md`, `scripts/fireworks.py`, `schemas/diagram-v1.schema.json`, and `references/composition-quality-contract.md`. The bridge and locator check an explicit `FIREWORKS_SKILL_ROOT`, then the standard per-user skill locations for Codex, shared agents, Claude, and Cursor, followed by `~/.local/share/agent-skills/fireworks-tech-graph`. The bridge also honors `CODEX_HOME` before these per-user locations.
 
 When the backend is missing:
 
-- Route 1: continue only if the bridge's local XML and marker-reference checks pass, perform the ordinary rendered visual review, and report `fireworks_validation: skipped (not installed)`.
-- Route 2: stop and report that Fireworks must be installed. Do not auto-install, use `npx`, or run downloaded GitHub scripts. Installation requires an explicit user request.
-- An explicit user-approved fallback may switch Route 2 to Route 1; otherwise do not substitute output.
+- The bootstrapper downloads the commit pinned in `fireworks-source.lock.json` with Git, validates the expected source tree, and atomically installs it into the shared user path. It never follows mutable `main`, invokes `npx`, or executes remote Fireworks scripts during installation.
+- Concurrent first calls share an installation lock so they cannot expose a partial backend.
+- If installation fails, both routes stop with the underlying network, Git, permission, or integrity error.
+- Route 1 may use `check-svg --allow-basic-fallback` only after the user explicitly requests an emergency offline fallback. Route 2 never uses the basic fallback.
+- `FIREWORKS_SKILL_ROOT` remains the explicit location override. Updates require changing the pinned commit and validating it; normal calls never auto-upgrade.
 
 ## Author with Diagram IR
 

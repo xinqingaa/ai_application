@@ -59,7 +59,7 @@ Use Route 2 only for an explicit trigger above. A direct GIF request also select
 
 Route 2 keeps the editorial decisions already made by this skill. Fireworks supplies Diagram IR, routing, rendering, executable geometry checks, and supported exports; its default content hierarchy, visual theme, and palette must not silently replace this project's visual contract. Keep both the `.diagram.json` source and generated `.svg`.
 
-If Fireworks is unavailable, do not install it, invoke `npx`, or execute remote GitHub content without explicit user authorization. Route 1 may continue with a disclosed validation fallback. Route 2 must stop unless the user explicitly allowed fallback to Route 1.
+Fireworks is a pinned shared backend dependency. On the first functional call, the bundled bridge searches supported user locations and installs the pinned source into `~/.local/share/agent-skills/fireworks-tech-graph` only when no complete installation exists. Do not invoke `npx`, follow mutable `main`, or copy Fireworks into this repository. If bootstrap fails, stop and report the installation error; use the basic structural fallback only when the user explicitly requests it for that run.
 
 PNG, offline HTML, and GIF are derived artifacts, never the maintainable source. Do not use image generation for diagrams whose labels, topology, or editability must be exact.
 
@@ -67,7 +67,7 @@ PNG, offline HTML, and GIF are derived artifacts, never the maintainable source.
 
 Inspect the actual rendered result, not only its source. Check it at intended display size and at a reduced size representative of the final reading context.
 
-After either route produces SVG, run `scripts/fireworks_bridge.py check-svg <file.svg>`. When Fireworks is installed, this must run XML, marker, collision, geometry, and composition checks. A failed check requires correction and rerun; it is not an unavailable-backend fallback. When Route 1 cannot find Fireworks, the bridge may perform its local structural fallback and the delivery must say that Fireworks validation was skipped. Route 2 always requires Fireworks.
+After either route produces SVG, run `scripts/fireworks_bridge.py check-svg <file.svg>`. The bridge bootstraps Fireworks when needed, then runs XML, marker, collision, geometry, and composition checks. A failed check or bootstrap requires correction and rerun; it is not an unavailable-backend fallback. Route 2 always requires Fireworks. Route 1 may use `--allow-basic-fallback` only when the user explicitly requests an emergency offline fallback, and the delivery must say that Fireworks validation was skipped.
 
 Run a dedicated collision pass after rendering. Text, connector labels, arrow shafts, arrowheads, node borders, and section boundaries must not overlap unless the contact is the intentional endpoint of a connector. Cross-boundary routes need a visible corridor and must stay clear of section titles and explanatory text.
 
