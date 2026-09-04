@@ -9,7 +9,7 @@ Create diagrams that teach one important relationship at a glance. Treat the dia
 
 ## Course-article integration
 
-When this skill is invoked while creating or substantially rewriting a course article, edit the prose and the figure as one explanation. Place the figure where the relationship first becomes necessary, then remove duplicate ASCII flows, repeated lists, and paragraph-by-paragraph restatements. Do not preserve the old article unchanged and append a diagram afterward.
+When this skill is invoked while creating or substantially rewriting a course article, edit the prose and the figure as one explanation. Place the figure where the relationship first becomes necessary. Remove only ASCII flows, lists, or sentences that repeat the figure item by item without adding causes, examples, constraints, or boundaries. A figure does not replace prerequisite recall, narrative reasoning, worked examples, or failure analysis.
 
 Do not trigger a retroactive illustration pass merely because a completed article contains drawable relationships. Typo fixes, factual corrections, link repairs, path migrations, and small wording changes do not require new figures unless the user explicitly requests them.
 
@@ -24,7 +24,9 @@ Before drawing, identify:
 - the one sentence the reader should understand;
 - the audience and what they already know;
 - the relationship to show: sequence, boundary, hierarchy, comparison, convergence, filtering, state change, or feedback;
-- whether this is a standalone figure or part of a series;
+- the embedding context: the surrounding section heading, what prose has established before the figure, and what prose will explain after it;
+- whether this is an inline explanatory figure, a standalone figure, or a reusable figure in a series;
+- whether a visible title or lesson identifier adds information that the surrounding article does not already provide;
 - the required delivery format and whether editable source is needed.
 
 If the source material supports multiple independent claims, split the figure. Do not solve excess scope by shrinking text or adding nested cards.
@@ -51,7 +53,7 @@ Use one dominant reading direction. Keep auxiliary information in a clearly subo
 
 Read [visual-system.md](references/visual-system.md) when creating a new figure, defining a series, or materially restyling an existing diagram.
 
-For a series, freeze the shared visual contract before producing individual figures: canvas ratio, title zone, type scale, spacing unit, card families, connector rules, color roles, icon family, and takeaway treatment. Vary the composition when the subject requires it, but preserve the contract.
+For a series, freeze the shared visual contract before producing individual figures: canvas policy, visible-title policy, type scale, spacing unit, card families, connector rules, color roles, icon family, and annotation treatment. Vary the composition when the subject or embedding context requires it, but preserve the visual grammar.
 
 ## Select the authoring route
 
@@ -93,7 +95,8 @@ Do not polish a diagram that still teaches the wrong boundary.
 
 ## Non-negotiable quality rules
 
-- Give every figure a clear title and, when needed, one short orienting sentence.
+- Give every SVG an accessible `<title>` and `<desc>`. Show a title inside the artwork only when the figure must orient readers without the surrounding article or when it adds a distinct claim.
+- Inline figures should normally enter the relationship directly. Do not add a lesson badge, subtitle, or takeaway strip merely to fill a familiar template.
 - Limit the main figure to one claim and usually three to six primary stages or groups.
 - Make the central path recognizable before the reader parses the labels.
 - Keep rendered text and connector labels inside their visual safe areas; do not let glyphs touch borders, arrows, or neighboring containers.

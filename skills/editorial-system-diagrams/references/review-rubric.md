@@ -16,6 +16,8 @@ Any P0 issue requires structural correction before visual polish.
 
 - Can the figure's one-sentence claim be stated without using “and” repeatedly?
 - Does the figure match the intended lesson or section rather than consume adjacent topics?
+- Does a visible title add orientation that the surrounding heading and caption do not already provide?
+- Is a lesson badge or subtitle necessary for independent use, or is it repeated page furniture on an inline figure?
 - Are prerequisite, extension, and future concepts visually subordinate?
 - Would splitting overview and detail improve comprehension?
 - Does each branch contribute to the main claim?
@@ -29,7 +31,7 @@ Any P0 issue requires structural correction before visual polish.
 
 ## P1 — Visual hierarchy
 
-- Is the title the first reading entry?
+- Is the intended reading entry clear? For a standalone figure this may be the title; for an inline figure it should usually be the first meaningful object or relation.
 - Is the main path visible before labels are read?
 - Are primary, secondary, and annotation levels visually distinct?
 - Is there enough quiet space around the focal relationship?
@@ -49,10 +51,10 @@ Any P0 issue requires structural correction before visual polish.
 
 ## P2 — Series consistency
 
-- Does the figure use the shared canvas, margins, title zone, type scale, spacing, and card families?
+- Does the figure follow the shared canvas policy, margins, visible-title policy, type scale, spacing, and card families?
 - Do colors preserve the same semantics across the series?
 - Are icon family, stroke weight, and takeaway treatment consistent?
-- Does this figure feel like a chapter in the same publication without copying another figure's layout?
+- Does this figure feel like a chapter in the same publication without copying another figure's header, badge, footer, or layout?
 
 ## P2 — Typography and terminology
 
@@ -79,6 +81,7 @@ Summarize:
 3. P0 and P1 issues;
 4. series-level inconsistencies;
 5. a concrete restructure direction;
-6. what should move to prose, an experiment, or a detail figure.
+6. what should move to prose, an experiment, or a detail figure;
+7. which visible titles, subtitles, badges, captions, or takeaway strips duplicate the article context.
 
 Avoid vague feedback such as “make it cleaner.” Name the competing claims, incorrect boundaries, unnecessary labels, and specific hierarchy changes.
