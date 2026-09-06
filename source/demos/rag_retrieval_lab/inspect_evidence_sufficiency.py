@@ -149,6 +149,11 @@ def _render(payload: dict, results, *, verbose: bool) -> None:
         )
         console.field("validation status", result.report.status.value)
         console.field("model calls", result.report.model_call_count)
+        console.field("config", result.report.config_ref)
+        console.field("structured mode", result.report.structured_mode)
+        if result.response:
+            console.field("provider", result.response.llm.provider)
+            console.field("model", result.response.llm.model)
         if result.decision:
             console.table(
                 ["Requirement", "Coverage", "Citation claims", "Reason"],
